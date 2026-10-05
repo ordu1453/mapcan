@@ -65,6 +65,15 @@ async function compareFile(e: Event) {
   }
 }
 
+const gitHint = computed(() => {
+  switch (revs.value?.reason) {
+    case "no-git": return "Git не найден — сравнение с версиями из git недоступно.";
+    case "no-repo": return "Файл карты не находится в git-репозитории.";
+    case "untracked": return "Файл карты ещё не закоммичен в git — сравнивать не с чем.";
+    default: return "";
+  }
+});
+
 const groups = computed(() => {
   const g = new Map<string, string[]>();
   for (const line of result.value?.lines ?? []) {
@@ -123,6 +132,7 @@ async function addToHistory() {
 
     <p v-if="error" class="banner error">{{ error }}</p>
     <p v-else-if="loading" class="muted">Сравнение…</p>
+    <p v-else-if="!result && gitHint" class="banner info">{{ gitHint }} Выберите YAML-файл предыдущей версии карты для сравнения.</p>
 
     <template v-if="result && !loading">
       <p class="muted">

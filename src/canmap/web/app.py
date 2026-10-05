@@ -234,8 +234,13 @@ def build_export(cmap: CanMap, fmt: str, stem: str, lang: str | None, template: 
     raise ValueError(fmt)
 
 
+# В оконной сборке под Windows каждый запуск консольного git открывает окно терминала.
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
 def _git(args: list[str], cwd: Path) -> str:
-    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", timeout=15)
+    r = subprocess.run(["git", *args], cwd=cwd, stdin=subprocess.DEVNULL, capture_output=True,
+                       text=True, encoding="utf-8", timeout=15, creationflags=_NO_WINDOW)
     if r.returncode != 0:
         raise HTTPException(400, r.stderr.strip() or "ошибка git")
     return r.stdout
@@ -578,17 +583,27 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def git_revs() -> dict:
         s = wsp.require()
         cwd = s.path.parent
+        none = {"available": False, "tags": [], "commits": []}
+        try:
+            _git(["rev-parse", "--git-dir"], cwd)
+        except (OSError, subprocess.SubprocessError):
+            return {**none, "reason": "no-git"}
+        except HTTPException:
+            return {**none, "reason": "no-repo"}
         try:
             tags = _git(["tag", "--sort=-creatordate"], cwd).split()
             log = _git(["log", "-n", "20", "--format=%h%x09%s%x09%ad", "--date=short", "--",
                         s.path.name], cwd)
         except (HTTPException, OSError, subprocess.SubprocessError):
-            return {"available": False, "tags": [], "commits": []}
+            return {**none, "reason": "untracked"}      # например, в репозитории ещё нет коммитов
         commits = []
         for line in log.splitlines():
             parts = line.split("\t")
             if len(parts) == 3:
                 commits.append({"rev": parts[0], "subject": parts[1], "date": parts[2]})
+        if not commits:
+            # Файл ещё не закоммичен — версий для сравнения в git нет
+            return {**none, "reason": "untracked"}
         return {"available": True, "tags": tags, "commits": commits}
 
     @app.post("/api/diff/git")

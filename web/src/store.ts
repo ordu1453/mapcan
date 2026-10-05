@@ -2,7 +2,7 @@
 
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
-import { buildTree, diagIndex, framePathOf, getAt, pathKey } from "./model";
+import { buildTree, diagIndex, framePathOf, getAt, nodeKind, ownerPath, pathKey } from "./model";
 import type { Meta, Op, Path, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
 interface Toast {
@@ -56,7 +56,8 @@ function accept(s: State): void {
     let p = store.selected;
     while (p.length > 1 && getAt(s.data, p) === undefined) p = p.slice(0, -1);
     if (p.length === 1 && p[0] !== "document" && getAt(s.data, p) === undefined) p = ["document"];
-    store.selected = p;
+    // Путь вида […, "signals"] — список, а не узел дерева: выбираем его владельца (кадр и т. п.)
+    store.selected = nodeKind(p) === "unknown" ? ownerPath(p) : p;
   }
 }
 

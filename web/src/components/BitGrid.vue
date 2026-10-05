@@ -173,19 +173,24 @@ function cellStyle(c: Cell) {
   return c.owners.length ? { background: colorOf(c.owners[0]) } : {};
 }
 
-function handle(c: Cell): "lo" | "hi" | null {
+/** Ручки изменения длины в ячейке; у однобитного сигнала обе в одной ячейке. */
+function handles(c: Cell): Array<"lo" | "hi"> {
   const s = selectedSignal.value;
-  if (!s || props.readonly || s.byte_order === "big_endian" || s.bit_length === 1) return null;
-  if (c.bit === s.start_bit) return "lo";
-  if (c.bit === s.start_bit + s.bit_length - 1) return "hi";
-  return null;
+  if (!s || props.readonly || s.byte_order === "big_endian") return [];
+  const out: Array<"lo" | "hi"> = [];
+  if (c.bit === s.start_bit) out.push("lo");
+  if (c.bit === s.start_bit + s.bit_length - 1) out.push("hi");
+  return out;
 }
 
 function onDown(c: Cell, e: MouseEvent) {
   if (e.button !== 0) return;
   e.preventDefault();
   const sel = selectedSignal.value;
-  const h = handle(c);
+  const hs = handles(c);
+  // Крайняя ячейка многобитного сигнала — ручка целиком; у однобитного — только сама ручка, иначе сдвиг
+  const grip = (e.target as HTMLElement).dataset?.edge as "lo" | "hi" | undefined;
+  const h = hs.length === 1 ? hs[0] : grip && hs.includes(grip) ? grip : null;
   if (h && sel) {
     drag.value = { mode: "resize", sig: sel, edge: h, cur: c.bit };
     return;
@@ -270,7 +275,7 @@ const status = computed(() => {
       <div v-for="c in cells" :key="c.bit" class="bg-cell" :class="cellClass(c)" :style="{
              ...cellStyle(c), gridRow: Math.floor(c.bit / 8) + 2, gridColumn: 9 - (c.bit % 8) }"
            :title="`бит ${c.bit}`" @mousedown="onDown(c, $event)" @mouseenter="onEnter(c)">
-        <span v-if="handle(c)" class="grip" :class="handle(c)!" />
+        <span v-for="h in handles(c)" :key="h" class="grip" :class="h" :data-edge="h" />
       </div>
 
       <div v-for="(s, i) in segments" :key="'s' + i" class="bg-label" :class="{ conflict: s.conflict, selected: s.selected }"

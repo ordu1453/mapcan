@@ -1,6 +1,6 @@
 // Структурные правки: добавить / удалить / дублировать / переместить узел.
 
-import { actions, resolvedFrames, store } from "./store";
+import { actions, resolvedFrames, store, toast } from "./store";
 import { allFrameNames, freeByte, getAt, nodeKind, pathKey, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
 
@@ -98,11 +98,47 @@ export function addSignal(framePath: Path, layout?: { start_bit: number; bit_len
     for (const f of s.flags ?? []) names.add(f.name);
   }
   const value = { name: uniqueName(name || "signal", names) };
-  const rf = resolvedFrames.value.get(pathKey(framePath));
-  const pos = layout ?? { start_bit: freeByte(rf, frame.dlc ?? 8) * 8, bit_length: 8 };
+  const extra: Op[] = [];
+  let pos = layout;
+  if (!pos) {
+    const placed = placeNewSignal(framePath);
+    if (!placed) {
+      toast("В кадре нет свободных бит: освободите место или увеличьте DLC");
+      return Promise.resolve(false);
+    }
+    pos = placed.pos;
+    if (placed.dlc != null) extra.push({ op: "set", path: [...framePath, "dlc"], value: placed.dlc });
+  }
   return insertAndSelect([...framePath, "signals"], value, [
+    ...extra,
     { op: "set_layout", path: [...framePath, "signals", "$new"], ...pos },
   ]);
+}
+
+const FD_DLC = [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64];
+
+/** Место для нового сигнала: свободный байт; если его нет — расширить DLC на байт
+ *  (для CAN FD — до следующего допустимого значения); если и это нельзя — свободные биты. */
+function placeNewSignal(framePath: Path): { pos: { start_bit: number; bit_length: number }; dlc?: number } | null {
+  const frame = getAt(data(), framePath);
+  const rf = resolvedFrames.value.get(pathKey(framePath));
+  const dlc: number = rf?.dlc ?? frame.dlc ?? 8;
+  const used = new Set<number>((rf?.signals ?? []).flatMap((s) => s.occupied));
+  const byte = freeByte(rf, dlc);
+  if (byte !== null) return { pos: { start_bit: byte * 8, bit_length: 8 } };
+
+  const fd = !!busOf(framePath)?.fd;
+  const next = fd ? FD_DLC.find((d) => d > dlc) : dlc < 8 ? dlc + 1 : undefined;
+  if (next !== undefined) return { pos: { start_bit: dlc * 8, bit_length: 8 }, dlc: next };
+
+  // Кадр максимальной длины: берём первый свободный участок (не длиннее байта)
+  for (let b = 0; b < dlc * 8; b++) {
+    if (used.has(b)) continue;
+    let n = 1;
+    while (n < 8 && b + n < dlc * 8 && !used.has(b + n) && (b + n) % 8 !== 0) n++;
+    return { pos: { start_bit: b, bit_length: n } };
+  }
+  return null;
 }
 
 export function addFlag(signalPath: Path): Promise<boolean> {
@@ -159,7 +195,10 @@ export async function removeNode(path: Path): Promise<boolean> {
   const node = getAt(data(), path);
   const name = node?.name ?? path.join(".");
   if (!confirm(`Удалить «${name}»?`)) return false;
-  return actions.apply([{ op: "remove", path }]);
+  const ok = await actions.apply([{ op: "remove", path }]);
+  // Переходим к родителю (сигнал → кадр, кадр → устройство/шина…), а не к соседнему элементу
+  if (ok) actions.select(path.length > 2 ? path.slice(0, -2) : ["document"]);
+  return ok;
 }
 
 /** Delete — удалить выбранный узел дерева (вне полей ввода и диалогов). */

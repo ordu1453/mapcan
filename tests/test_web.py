@@ -5,6 +5,7 @@ from __future__ import annotations
 import difflib
 import io
 import shutil
+import subprocess
 import zipfile
 
 import pytest
@@ -235,6 +236,23 @@ def test_diff_upload(client):
     r = client.post("/api/diff/upload", files={"file": ("old.yaml", REFERENCE.read_bytes())})
     assert r.status_code == 200
     assert r.json()["lines"] == ["0x296 imd_data: bus_voltage.factor 0.1 → 0.01"]
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
+def test_git_revs_reason(client, mapfile):
+    def git(*args):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                       cwd=mapfile.parent, check=True, capture_output=True)
+
+    assert client.get("/api/git/revs").json() == {"available": False, "tags": [], "commits": [],
+                                                  "reason": "no-repo"}
+    git("init", "-q")
+    assert client.get("/api/git/revs").json()["reason"] == "untracked"
+    git("add", mapfile.name)
+    git("commit", "-q", "-m", "init")
+    r = client.get("/api/git/revs").json()
+    assert r["available"] and [c["subject"] for c in r["commits"]] == ["init"]
+    assert client.post("/api/diff/git", json={"rev": "HEAD"}).json()["lines"] == []
 
 
 def test_websocket_notifications(client, mapfile):

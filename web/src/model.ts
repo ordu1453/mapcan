@@ -191,11 +191,12 @@ export function allFrameNames(bus: Data): string[] {
 }
 
 /** Первый свободный байт кадра (для нового сигнала). */
-export function freeByte(rf: ResolvedFrame | undefined, dlc: number): number {
+/** Первый полностью свободный байт кадра или null, если такого нет. */
+export function freeByte(rf: ResolvedFrame | undefined, dlc: number): number | null {
   const used = new Set<number>();
   for (const s of rf?.signals ?? []) for (const b of s.occupied) used.add(Math.floor(b / 8));
   for (let b = 0; b < dlc; b++) if (!used.has(b)) return b;
-  return 0;
+  return null;
 }
 
 export function nextFreeKey(values: Record<string, unknown> | undefined): number {

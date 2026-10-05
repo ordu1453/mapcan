@@ -154,6 +154,8 @@ export interface PdfTemplate {
 
 export interface GitRevs {
   available: boolean;
+  /** Почему сравнение с git недоступно */
+  reason?: "no-git" | "no-repo" | "untracked";
   tags: string[];
   commits: Array<{ rev: string; subject: string; date: string }>;
 }
