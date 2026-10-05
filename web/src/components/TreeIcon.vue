@@ -11,6 +11,14 @@ defineProps<{ kind: string; dir?: string | null; hint?: string }>();
     <template v-if="kind === 'document'">
       <path d="M4 1.5h5.5L12.5 4.5v10h-8.5z" /><path d="M9.5 1.5v3h3" /><path d="M6 8h4.5M6 10.5h4.5" />
     </template>
+    <!-- история изменений: часы со стрелкой назад -->
+    <template v-else-if="kind === 'history'">
+      <path d="M2.6 8a5.4 5.4 0 1 0 1.6-3.8" /><path d="M2.3 2.3v2.6h2.6" /><path d="M8 5v3.2l2.2 1.4" />
+    </template>
+    <!-- запись истории: метка версии -->
+    <template v-else-if="kind === 'revision'">
+      <path d="M2 2.5h5.5l6.5 6.5-5 5-6.5-6.5z" /><circle cx="5" cy="5.5" r="1" />
+    </template>
     <!-- шина: магистраль с отводами -->
     <template v-else-if="kind === 'bus'">
       <path d="M1.5 6.5h13M1.5 9.5h13" /><path d="M4.5 9.5v3M8 9.5v3M11.5 9.5v3" /><circle cx="4.5" cy="13" r=".6" />

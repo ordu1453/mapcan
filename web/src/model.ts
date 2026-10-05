@@ -3,12 +3,15 @@
 import { hex, rangeLabel } from "./bits";
 import type { Diagnostic, Level, Path, ResolvedFrame, ResolvedSignal } from "./types";
 
-export type NodeKind = "document" | "bus" | "device" | "frame" | "signal" | "flag" | "sdo" | "unknown";
+export type NodeKind = "document" | "history" | "revision" | "bus" | "device" | "frame" | "signal" | "flag" | "sdo" | "unknown";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type Data = any;
 
 export const pathKey = (p: Path): string => p.join("/");
+
+/** Путь узла «История изменений»: показывается в дереве, даже если записей ещё нет. */
+export const HISTORY_PATH: Path = ["document", "history"];
 
 export function samePath(a: Path, b: Path): boolean {
   return a.length === b.length && a.every((x, i) => String(x) === String(b[i]));
@@ -31,6 +34,11 @@ export function getAt(data: Data, path: Path): Data {
 export function nodeKind(path: Path): NodeKind {
   const n = path.length;
   if (n === 0 || (n === 1 && path[0] === "document")) return "document";
+  if (path[0] === "document" && path[1] === "history") {
+    if (n === 2) return "history";
+    if (n === 3 && typeof path[2] === "number") return "revision";
+    return "unknown";
+  }
   if (n === 2 && path[0] === "buses") return "bus";
   if (n === 4 && path[2] === "devices") return "device";
   const tail = path[n - 2];
@@ -99,6 +107,17 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
     key: "document", path: ["document"], kind: "document", label: txt(data?.document?.title, lang) || "Документ",
     sub: data?.document?.version ?? "", children: [], search: "",
   };
+  const history: Data[] = data?.document?.history ?? [];
+  doc.children.push({
+    key: pathKey(HISTORY_PATH), path: HISTORY_PATH, kind: "history", label: "История изменений",
+    sub: history.length ? String(history.length) : "", search: "история изменений history",
+    children: history.map((h: Data, i: number) => ({
+      key: pathKey([...HISTORY_PATH, i]), path: [...HISTORY_PATH, i], kind: "revision" as NodeKind,
+      label: String(h?.version ?? "—"), sub: h?.date ? String(h.date) : "", children: [],
+      search: [h?.version, h?.author, h?.github, ...(h?.changes ?? []).map((c: unknown) => txt(c, lang))]
+        .filter(Boolean).join(" ").toLowerCase(),
+    })),
+  });
   const out: TreeNode[] = [doc];
   (data?.buses ?? []).forEach((bus: Data, bi: number) => {
     const bp: Path = ["buses", bi];

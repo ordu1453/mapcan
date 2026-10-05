@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// Дерево «шина → устройство → кадр → сигнал → флаг» с поиском по имени, ID и описанию.
+// Дерево «документ → история; шина → устройство → кадр → сигнал → флаг» с поиском по имени, ID и описанию.
 import { computed, nextTick, ref, watch } from "vue";
 import { pathKey, type TreeNode } from "../model";
 import { store, tree } from "../store";
 import TreeItem from "./TreeItem.vue";
 
 const query = ref("");
-const expanded = ref(new Set<string>(["buses/0"]));
+const expanded = ref(new Set<string>(["document", "buses/0"]));
 
 const q = computed(() => query.value.trim().toLowerCase());
 
@@ -41,7 +41,7 @@ watch(
   () => store.selected,
   async (p) => {
     const s = new Set(expanded.value);
-    for (let n = 2; n < p.length; n++) s.add(pathKey(p.slice(0, n)));
+    for (let n = 1; n < p.length; n++) s.add(pathKey(p.slice(0, n)));
     expanded.value = s;
     await nextTick();
     document.querySelector(`.tree-row[data-key="${CSS.escape(pathKey(p))}"]`)?.scrollIntoView({ block: "nearest" });

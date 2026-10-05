@@ -3,24 +3,25 @@ import { computed } from "vue";
 import { hex, rangeLabel } from "../bits";
 import { childActions, duplicateNode, moveNode, removeNode, addSignal } from "../edit";
 import { FIELDS, type FieldDef } from "../fields";
-import { getAt, nodeKind, pathKey, samePath, startsWith, txt } from "../model";
+import { getAt, HISTORY_PATH, nodeKind, pathKey, samePath, startsWith, txt } from "../model";
 import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store } from "../store";
 import type { Path } from "../types";
 import BitGrid from "./BitGrid.vue";
 import DocumentRequisites from "./DocumentRequisites.vue";
 import FieldInput from "./FieldInput.vue";
 import FlagsTable from "./FlagsTable.vue";
+import HistoryEditor from "./HistoryEditor.vue";
 import ValueTable from "./ValueTable.vue";
 
 const KIND_LABEL: Record<string, string> = {
-  document: "Документ", bus: "Шина", device: "Устройство", frame: "Кадр", signal: "Сигнал",
+  document: "Документ", history: "История", revision: "Запись истории", bus: "Шина", device: "Устройство", frame: "Кадр", signal: "Сигнал",
   flag: "Флаг", sdo: "SDO-обмен", unknown: "",
 };
 
 const path = computed<Path>(() => store.selected);
 const kind = computed(() => nodeKind(path.value));
 const data = computed(() => store.state?.data);
-const node = computed(() => getAt(data.value, path.value[0] === "document" ? ["document"] : path.value));
+const node = computed(() => getAt(data.value, kind.value === "document" ? ["document"] : path.value));
 const readonly = computed(() => !!store.state?.readonly);
 const diags = computed(() => store.state?.diagnostics ?? []);
 
@@ -74,7 +75,9 @@ const crumbs = computed(() => {
     const k = nodeKind(sub);
     if (k === "unknown" || k === "document") continue;
     const nd = getAt(data.value, sub);
-    out.push({ label: k === "bus" ? txt(nd?.title, lang.value) || nd?.name : nd?.name, path: sub });
+    const label = k === "history" ? "История изменений" : k === "revision" ? nd?.version
+      : k === "bus" ? txt(nd?.title, lang.value) || nd?.name : nd?.name;
+    out.push({ label, path: sub });
   }
   return out;
 });
@@ -199,7 +202,8 @@ function onLayout(p: Path, start: number, length: number) {
         </div>
         <h2>
           <span class="kind-badge">{{ KIND_LABEL[kind] }}</span>
-          {{ kind === "document" ? txt(node?.title, lang) : node?.name }}
+          {{ kind === "document" ? txt(node?.title, lang) : kind === "history" ? "изменений"
+            : kind === "revision" ? node?.version : node?.name }}
           <span v-if="kind === 'frame' && rframe" class="mono id-badge">{{ hex(rframe.can_id, rframe.extended ? 8 : 3) }}</span>
         </h2>
       </div>
@@ -226,7 +230,7 @@ function onLayout(p: Path, start: number, length: number) {
                @select="actions.select" @create="onCreate" @layout="onLayout" />
     </section>
 
-    <section class="card">
+    <section v-if="kind !== 'history'" class="card">
       <h3>Свойства</h3>
       <div class="form-grid">
         <!-- позиция сигнала -->
@@ -271,6 +275,7 @@ function onLayout(p: Path, start: number, length: number) {
     </section>
 
     <DocumentRequisites v-if="kind === 'document'" />
+    <HistoryEditor v-if="kind === 'history' || kind === 'revision'" :path="path" />
 
     <ValueTable v-if="showValues" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
                 :readonly="readonly" :diags="diags" />
@@ -323,26 +328,14 @@ function onLayout(p: Path, start: number, length: number) {
       </table>
     </section>
 
-    <!-- История изменений -->
+    <!-- История изменений — отдельный узел дерева -->
     <section v-if="kind === 'document'" class="card">
-      <h3>История изменений</h3>
-      <table v-if="node?.history?.length" class="list">
-        <thead><tr><th>Версия</th><th>Дата</th><th>Автор</th><th>Изменения</th><th v-if="!readonly"></th></tr></thead>
-        <tbody>
-          <tr v-for="(h, i) in node.history" :key="i">
-            <td class="mono">{{ h.version }}</td><td>{{ h.date }}</td>
-            <td>
-              {{ h.author }}
-              <a v-if="h.github" class="mono gh" :href="`https://github.com/${h.github}`" target="_blank" rel="noopener">@{{ h.github }}</a>
-            </td>
-            <td><ul class="plain"><li v-for="(c, k) in h.changes ?? []" :key="k">{{ txt(c, lang) }}</li></ul></td>
-            <td v-if="!readonly" class="act">
-              <button class="icon" title="Удалить запись" @click="actions.apply([{ op: 'remove', path: ['document', 'history', i] }])">✕</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="muted">Новую запись удобно сформировать в «Сравнить версии» → «Добавить в историю».</p>
+      <h3>История изменений <span class="muted">{{ node?.history?.length ?? 0 }}</span></h3>
+      <p v-if="node?.history?.length" class="muted">
+        Последняя запись: <b class="mono">{{ node.history[0].version }}</b>
+        <template v-if="node.history[0].date"> от {{ node.history[0].date }}</template>
+      </p>
+      <button class="small" @click="actions.select(HISTORY_PATH)">Открыть историю</button>
     </section>
   </div>
 </template>

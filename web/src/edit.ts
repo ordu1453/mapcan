@@ -1,7 +1,7 @@
 // Структурные правки: добавить / удалить / дублировать / переместить узел.
 
 import { actions, resolvedFrames, store, toast } from "./store";
-import { allFrameNames, freeByte, getAt, nodeKind, pathKey, uniqueName, type Data, type NodeKind } from "./model";
+import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
 
 const data = (): Data => store.state?.data;
@@ -165,6 +165,28 @@ export function addSdo(framePath: Path): Promise<boolean> {
   });
 }
 
+function bumpVersion(v: string): string {
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(v ?? "");
+  return m ? `${m[1]}.${m[2]}.${Number(m[3]) + 1}` : v || "0.1.0";
+}
+
+/** Новая запись истории — первой (история идёт от новых версий к старым). */
+export async function addRevision(): Promise<boolean> {
+  const doc = data()?.document ?? {};
+  const latest = (doc.history ?? [])[0]?.version;
+  const entry: Record<string, unknown> = {
+    version: latest && latest === doc.version ? bumpVersion(latest) : doc.version ?? "0.1.0",
+    date: new Date().toISOString().slice(0, 10),
+  };
+  const user = store.meta?.user;
+  if (user?.name) entry.author = user.name;
+  if (user?.github) entry.github = user.github;
+  entry.changes = [];
+  const ok = await actions.apply([{ op: "insert", path: HISTORY_PATH, index: 0, value: entry }]);
+  if (ok) actions.select([...HISTORY_PATH, 0]);
+  return ok;
+}
+
 /** Действия «добавить» для узла дерева. */
 export function childActions(path: Path): ChildAction[] {
   const kind: NodeKind = nodeKind(path);
@@ -172,6 +194,8 @@ export function childActions(path: Path): ChildAction[] {
   switch (kind) {
     case "document":
       return [{ label: "Шина", run: addBus }];
+    case "history":
+      return [{ label: "Запись", run: addRevision }];
     case "bus":
       return [{ label: "Устройство", run: () => addDevice(path) }, { label: "Кадр", run: () => addFrame(path) }];
     case "device":
@@ -188,16 +212,17 @@ export function childActions(path: Path): ChildAction[] {
 }
 
 export function canRemove(path: Path): boolean {
-  return nodeKind(path) !== "document";
+  return !["document", "history"].includes(nodeKind(path));
 }
 
 export async function removeNode(path: Path): Promise<boolean> {
   const node = getAt(data(), path);
-  const name = node?.name ?? path.join(".");
-  if (!confirm(`Удалить «${name}»?`)) return false;
+  const revision = nodeKind(path) === "revision";
+  const name = (revision ? node?.version : node?.name) ?? path.join(".");
+  if (!confirm(revision ? `Удалить запись истории «${name}»?` : `Удалить «${name}»?`)) return false;
   const ok = await actions.apply([{ op: "remove", path }]);
   // Переходим к родителю (сигнал → кадр, кадр → устройство/шина…), а не к соседнему элементу
-  if (ok) actions.select(path.length > 2 ? path.slice(0, -2) : ["document"]);
+  if (ok) actions.select(revision ? HISTORY_PATH : path.length > 2 ? path.slice(0, -2) : ["document"]);
   return ok;
 }
 
@@ -221,12 +246,17 @@ export async function duplicateNode(path: Path): Promise<boolean> {
   const listPath = path.slice(0, -1);
   const list = getAt(data(), listPath) as Data[];
   const copy = JSON.parse(JSON.stringify(node));
+  const index = Number(path[path.length - 1]) + 1;
+  if (nodeKind(path) === "revision") {
+    const ok = await actions.apply([{ op: "insert", path: listPath, value: copy, index }]);
+    if (ok) actions.select([...listPath, index]);
+    return ok;
+  }
   const names = new Set<string>(list.map((x) => x.name));
   if (nodeKind(path) === "frame") allFrameNames(busOf(path)).forEach((n) => names.add(n));
   copy.name = uniqueName(`${node.name}_copy`, names);
   if (nodeKind(path) === "device" && copy.node_id != null) delete copy.node_id;
   if (nodeKind(path) === "frame" && copy.id != null) delete copy.id;
-  const index = Number(path[path.length - 1]) + 1;
   const ok = await actions.apply([{ op: "insert", path: listPath, value: copy, index }]);
   if (ok) actions.select([...listPath, index]);
   return ok;

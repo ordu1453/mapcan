@@ -48,6 +48,13 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "author", label: "Автор документа", type: "text" },
     { key: "language", label: "Язык документов", type: "select", options: [["ru", "русский"], ["en", "английский"]] },
   ],
+  history: [],
+  revision: [
+    { key: "version", label: "Версия", type: "text" },
+    { key: "date", label: "Дата", type: "date" },
+    { key: "author", label: "Автор", type: "text" },
+    { key: "github", label: "GitHub", type: "text", hint: "имя пользователя, без @" },
+  ],
   bus: [
     { key: "name", label: "Имя", type: "text", hint: "идентификатор: имена файлов DBC/C" },
     { key: "title", label: "Название", type: "loc" },

@@ -2,7 +2,7 @@
 
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
-import { buildTree, diagIndex, framePathOf, getAt, nodeKind, ownerPath, pathKey } from "./model";
+import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath } from "./model";
 import type { Meta, Op, Path, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
 interface Toast {
@@ -54,7 +54,8 @@ function accept(s: State): void {
   // Выбранный узел мог исчезнуть (удаление, undo) — поднимаемся к существующему предку.
   if (s.data) {
     let p = store.selected;
-    while (p.length > 1 && getAt(s.data, p) === undefined) p = p.slice(0, -1);
+    const exists = (x: Path) => getAt(s.data, x) !== undefined || (samePath(x, HISTORY_PATH) && !!s.data.document);
+    while (p.length > 1 && !exists(p)) p = p.slice(0, -1);
     if (p.length === 1 && p[0] !== "document" && getAt(s.data, p) === undefined) p = ["document"];
     // Путь вида […, "signals"] — список, а не узел дерева: выбираем его владельца (кадр и т. п.)
     store.selected = nodeKind(p) === "unknown" ? ownerPath(p) : p;
