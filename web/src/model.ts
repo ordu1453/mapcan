@@ -80,6 +80,7 @@ export interface TreeNode {
   sub: string;
   children: TreeNode[];
   search: string;
+  dir?: string | null;   // для кадров: tx / rx / null (широковещательный)
 }
 
 function frameSub(rf: ResolvedFrame | undefined): string {
@@ -109,6 +110,7 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
       const rf = frames.get(pathKey(fp));
       const fnode: TreeNode = {
         key: pathKey(fp), path: fp, kind: "frame", label: f.name, sub: frameSub(rf), children: [],
+        dir: rf?.device ? rf.direction : null,
         search: [f.name, txt(f.title, lang), txt(f.description, lang), rf?.can_id != null ? hex(rf.can_id) : "",
           rf?.can_id != null ? String(rf.can_id) : ""].join(" ").toLowerCase(),
       };

@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { pathKey, samePath, startsWith, worst, type TreeNode } from "../model";
 import { actions, diagsByNode, store } from "../store";
+import TreeIcon from "./TreeIcon.vue";
 
 const props = defineProps<{
   node: TreeNode;
@@ -12,9 +13,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ toggle: [key: string] }>();
 
-const ICON: Record<string, string> = {
-  document: "▤", bus: "≡", device: "▣", frame: "▭", signal: "∿", flag: "⚑", sdo: "⇄", unknown: "·",
-};
+const DIR_TITLE: Record<string, string> = { tx: "TX — передаёт устройство", rx: "RX — команда/приём устройством" };
 
 const open = computed(() => props.query !== "" || props.expanded.has(props.node.key));
 const kids = computed(() =>
@@ -50,7 +49,8 @@ function click() {
       <span class="twisty" :class="{ hidden: !node.children.length }" @click.stop="emit('toggle', node.key)">
         {{ open ? "▾" : "▸" }}
       </span>
-      <span class="ticon" :class="node.kind">{{ ICON[node.kind] }}</span>
+      <TreeIcon :kind="node.kind" :dir="node.dir"
+                :hint="node.kind === 'frame' ? (node.dir ? DIR_TITLE[node.dir] : 'широковещательный') : undefined" />
       <span class="tlabel">{{ node.label }}</span>
       <span v-if="node.sub" class="tsub mono">{{ node.sub }}</span>
       <span v-if="own" class="dot" :class="own" :title="own" />

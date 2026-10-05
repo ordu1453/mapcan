@@ -121,8 +121,11 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .tree-row.match .tlabel { background: var(--warning-soft); border-radius: 3px; }
 .twisty { width: 12px; color: var(--muted); font-size: 11px; text-align: center; }
 .twisty.hidden { visibility: hidden; }
-.ticon { width: 14px; text-align: center; color: var(--muted); }
-.ticon.frame { color: var(--accent); }
+.ticon { flex: none; color: var(--muted); }
+.ticon.device { color: var(--accent); }
+.ticon.frame.tx { color: var(--ok); }
+.ticon.frame.rx { color: var(--warning); }
+.ticon.frame:not(.tx):not(.rx) { color: var(--info); }
 .tlabel { overflow: hidden; text-overflow: ellipsis; }
 .tsub { color: var(--muted); margin-left: auto; padding-left: 8px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-left: 4px; }
