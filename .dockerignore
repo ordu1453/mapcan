@@ -1,0 +1,6 @@
+.venv
+.git
+out
+build
+**/__pycache__
+*.xlsx

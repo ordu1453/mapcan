@@ -1,0 +1,128 @@
+{%- set L = labels -%}
+{%- macro cell(s) -%}{{ s | replace("|", "\\|") | replace("\n", "<br>") }}{%- endmacro -%}
+{%- macro bitgrid(fr) -%}
+<table>
+<tr><th>{{ L.byte }}</th>{% for b in range(7, -1, -1) %}<th>{{ b }}</th>{% endfor %}</tr>
+{%- for row in fr.grid %}
+<tr><th>{{ row.byte }}</th>{% for seg in row.segments %}<td colspan="{{ seg.span }}" align="center">{% if seg.conflict %}⚠ {% endif %}{{ seg.label or "·" }}</td>{% endfor %}</tr>
+{%- endfor %}
+</table>
+{%- endmacro -%}
+# {{ document.title }}
+
+{% if document.subtitle %}_{{ document.subtitle }}_
+
+{% endif -%}
+| {{ L.version }} | {{ L.date }} |{% if document.author %} {{ L.author }} |{% endif %}
+|---|---|{% if document.author %}---|{% endif %}
+| {{ document.version }} | {{ document.date }} |{% if document.author %} {{ document.author }} |{% endif %}
+
+> {{ document.bit_note }}
+
+<!-- {{ L.generated }}. Не редактируйте вручную: источник — YAML-карта. -->
+
+## {{ L.contents }}
+
+{% for bus in buses %}
+- [{{ bus.title }}](#{{ bus.name }})
+{%- for dev in bus.devices %}
+  - [{{ dev.label }}{% if dev.title %} — {{ dev.title }}{% endif %}](#{{ bus.name }}-{{ dev.name }})
+{%- endfor %}
+{%- endfor %}
+{%- if document.history %}
+- [{{ L.history }}](#history)
+{%- endif %}
+
+{% for bus in buses %}
+<a id="{{ bus.name }}"></a>
+
+## {{ bus.title }}
+
+{% if bus.description %}{{ bus.description }}
+
+{% endif -%}
+**{{ L.protocol }}:** {{ bus.protocol }}{% if bus.bitrate %} · **{{ L.bitrate }}:** {{ bus.bitrate }}{% endif %}{% if bus.interface %} · **{{ L.interface }}:** `{{ bus.interface }}`{% endif %}
+
+### {{ L.addressing }}
+
+{% if bus.addressing.kind == "matrix" -%}
+| {{ L.message_type }} | {{ L.device }} | {{ L.id }} | {{ L.purpose }} |
+|---|---|---|---|
+{% for row in bus.addressing.rows if row.used -%}
+{%- for c in row.broadcast -%}
+| **{{ row.label }}** `{{ row.base }}` | {{ bus.addressing.broadcast_label }} | `{{ c.id }}` | {{ cell(c.description) }} |
+{% endfor -%}
+{%- for cells in row.cells -%}{%- set dev = bus.addressing.columns[loop.index0] -%}
+{%- for c in cells -%}
+| **{{ row.label }}** `{{ row.base }}` | {{ dev }} | `{{ c.id }}` | {{ cell(c.description) }} |
+{% endfor -%}
+{%- endfor -%}
+{%- endfor %}
+{%- else -%}
+| {{ L.device }} | {{ L.id }} | {{ L.purpose }} | {{ L.direction }} | {{ L.period }} |
+|---|---|---|---|---|
+{% for r in bus.addressing.rows -%}
+| {{ r.device }} | `{{ r.id }}` | {{ cell(r.description) }} | {{ r.direction }} | {{ r.period }} |
+{% endfor -%}
+{%- endif %}
+
+{% set groups = [] %}
+{%- if bus.broadcast %}{% set _ = groups.append({"name": "broadcast", "label": L.broadcast, "title": "", "description": "", "frames": bus.broadcast}) %}{% endif %}
+{%- for dev in bus.devices %}{% set _ = groups.append(dev) %}{% endfor %}
+{%- for dev in groups %}
+<a id="{{ bus.name }}-{{ dev.name }}"></a>
+
+### {{ dev.label }}{% if dev.title %} — {{ dev.title }}{% endif %}
+
+{% if dev.description %}{{ dev.description }}
+
+{% endif -%}
+{% for fr in dev.frames %}
+#### `{{ fr.id }}` {{ fr.title or fr.name }}
+
+{% if fr.description %}{{ fr.description }}
+
+{% endif -%}
+| {{ L.frame }} | {{ L.id }} | {{ L.type }} | {{ L.dlc }} | {{ L.direction }} | {{ L.period }} |
+|---|---|---|---|---|---|
+| `{{ fr.name }}` | `{{ fr.id }}`{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} | {{ fr.type_label }} | {{ fr.dlc }} | {{ fr.direction }} | {{ fr.period }} |
+
+{% if fr.comment %}> {{ L.comment }}: {{ fr.comment }}
+
+{% endif -%}
+{% if not fr.signals -%}
+_{{ L.no_signals }}_
+
+{% else -%}
+{% if fr.grid %}{{ bitgrid(fr) }}
+
+{% endif -%}
+| {{ L.byte }} | {{ L.bits }} | {{ L.signal }} | {{ L.description }} | {{ L.encoding }} | {{ L["values"] }} |
+|---|---|---|---|---|---|
+{% for s in fr.signals -%}
+| {{ s.bytes }} | {{ s.bits }} | `{{ s.name }}` | {{ cell(s.description) }}{% if s.mux %}<br>_{{ s.mux }}_{% endif %}{% if s.comment %}<br>**{{ L.comment }}:** {{ cell(s.comment) }}{% endif %} | {{ cell(s.encoding | join("\n")) }} | {{ cell(s["values"] | join("\n")) }} |
+{% endfor %}
+{% endif -%}
+{% if fr.sdo -%}
+**{{ L.sdo }}**
+
+| {{ L.signal }} | {{ L.command }} | {{ L.index }} | {{ L.subindex }} | {{ L.description }} | {{ L.value }} |
+|---|---|---|---|---|---|
+{% for e in fr.sdo -%}
+| `{{ e.name }}` | `{{ e.command }}` | `{{ e.index }}` | `{{ e.subindex }}` | {{ cell(e.description) }} | {{ cell(e.value) }} |
+{% endfor %}
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
+{% endfor -%}
+{% if document.history %}
+<a id="history"></a>
+
+## {{ L.history }}
+
+| {{ L.version }} | {{ L.date }} | {{ L.author }} | {{ L.description }} |
+|---|---|---|---|
+{% for h in document.history -%}
+| {{ h.version }} | {{ h.date }} | {{ h.author }} | {{ cell(h.changes | join("\n")) }} |
+{% endfor %}
+{%- endif %}

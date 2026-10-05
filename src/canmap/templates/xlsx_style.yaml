@@ -1,0 +1,22 @@
+# Оформление Excel для `canmap export xlsx --style <файл>`.
+# Любой параметр можно опустить — будет использовано значение по умолчанию.
+
+font: Calibri
+font_size: 10
+header_fill: "1F4E79"        # фон заголовков таблиц
+header_font_color: "FFFFFF"
+device_fill: "DDEBF7"        # фон ячеек устройства
+frame_fill: "F2F2F2"         # фон ячеек кадра
+border_color: "A6A6A6"
+unused_font_color: "A6A6A6"  # неиспользуемые функциональные коды
+
+# Набор и порядок колонок листа «Содержание»:
+# device, frame, id, byte, bits, signal, description, encoding, values
+columns: [device, frame, id, byte, bits, signal, description, encoding, values]
+
+# Максимальная ширина колонок (символов); фактическая подбирается по содержимому.
+max_width:
+  description: 40
+  values: 70
+
+bitmap_cell_width: 13

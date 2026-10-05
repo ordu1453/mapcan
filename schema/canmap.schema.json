@@ -1,0 +1,1211 @@
+{
+  "$defs": {
+    "Bus": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "interface": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interface"
+        },
+        "bitrate": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bitrate"
+        },
+        "protocol": {
+          "default": "canopen",
+          "enum": [
+            "canopen",
+            "can"
+          ],
+          "title": "Protocol",
+          "type": "string"
+        },
+        "fd": {
+          "default": false,
+          "title": "Fd",
+          "type": "boolean"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "frames": {
+          "description": "Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME).",
+          "items": {
+            "$ref": "#/$defs/Frame"
+          },
+          "title": "Frames",
+          "type": "array"
+        },
+        "devices": {
+          "items": {
+            "$ref": "#/$defs/Device"
+          },
+          "title": "Devices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Bus",
+      "type": "object"
+    },
+    "Device": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "short": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Короткое обозначение, напр. «BMS».",
+          "title": "Short"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "maximum": 127,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node Id"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "frames": {
+          "items": {
+            "$ref": "#/$defs/Frame"
+          },
+          "title": "Frames",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Device",
+      "type": "object"
+    },
+    "Document": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            }
+          ],
+          "title": "Title"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtitle"
+        },
+        "version": {
+          "default": "0.1",
+          "title": "Version",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "organization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization"
+        },
+        "language": {
+          "default": "ru",
+          "enum": [
+            "ru",
+            "en"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "bit_numbering": {
+          "const": "lsb0",
+          "default": "lsb0",
+          "description": "Нумерация бит: lsb0 — бит 0 это младший бит байта 0. Поле фиксирует соглашение явно и выводится во всех документах.",
+          "title": "Bit Numbering",
+          "type": "string"
+        },
+        "history": {
+          "items": {
+            "$ref": "#/$defs/HistoryEntry"
+          },
+          "title": "History",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "Document",
+      "type": "object"
+    },
+    "EnumValue": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "EnumValue",
+      "type": "object"
+    },
+    "Flag": {
+      "additionalProperties": false,
+      "description": "Флаг внутри битового поля. ``bit`` — смещение от младшего бита поля.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "bit": {
+          "minimum": 0,
+          "title": "Bit",
+          "type": "integer"
+        },
+        "bit_length": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Bit Length",
+          "type": "integer"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/EnumValue"
+                  }
+                ]
+              },
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Values"
+        }
+      },
+      "required": [
+        "name",
+        "bit"
+      ],
+      "title": "Flag",
+      "type": "object"
+    },
+    "Frame": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Короткий заголовок, напр. «СОСТОЯНИЯ».",
+          "title": "Title"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "type": {
+          "default": "raw",
+          "enum": [
+            "nmt",
+            "sync",
+            "emcy",
+            "time",
+            "pdo_tx1",
+            "pdo_rx1",
+            "pdo_tx2",
+            "pdo_rx2",
+            "pdo_tx3",
+            "pdo_rx3",
+            "pdo_tx4",
+            "pdo_rx4",
+            "sdo_tx",
+            "sdo_rx",
+            "heartbeat",
+            "raw"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "maximum": 536870911,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Явный CAN ID. Для типов CANopen вычисляется из node_id.",
+          "title": "Id"
+        },
+        "extended": {
+          "default": false,
+          "title": "Extended",
+          "type": "boolean"
+        },
+        "dlc": {
+          "default": 8,
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Dlc",
+          "type": "integer"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "tx",
+                "rx"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Direction"
+        },
+        "transmission": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Transmission"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cycle_ms": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сокращение для transmission: cyclic.",
+          "title": "Cycle Ms"
+        },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/Signal"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "sdo": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SdoExchange"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sdo"
+        },
+        "comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comment"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Frame",
+      "type": "object"
+    },
+    "HistoryEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "changes": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/LocalizedText"
+              }
+            ]
+          },
+          "title": "Changes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "HistoryEntry",
+      "type": "object"
+    },
+    "LintRules": {
+      "additionalProperties": false,
+      "description": "Настраиваемые правила стиля (проверяются как warning).",
+      "properties": {
+        "signal_name": {
+          "default": "snake_case",
+          "enum": [
+            "snake_case",
+            "UPPER_SNAKE",
+            "camelCase",
+            "PascalCase",
+            "any"
+          ],
+          "title": "Signal Name",
+          "type": "string"
+        },
+        "frame_name": {
+          "default": "snake_case",
+          "enum": [
+            "snake_case",
+            "UPPER_SNAKE",
+            "camelCase",
+            "PascalCase",
+            "any"
+          ],
+          "title": "Frame Name",
+          "type": "string"
+        },
+        "device_name": {
+          "default": "snake_case",
+          "enum": [
+            "snake_case",
+            "UPPER_SNAKE",
+            "camelCase",
+            "PascalCase",
+            "any"
+          ],
+          "title": "Device Name",
+          "type": "string"
+        },
+        "value_name": {
+          "default": "UPPER_SNAKE",
+          "enum": [
+            "snake_case",
+            "UPPER_SNAKE",
+            "camelCase",
+            "PascalCase",
+            "any"
+          ],
+          "title": "Value Name",
+          "type": "string"
+        },
+        "disable": {
+          "description": "Коды правил, которые нужно отключить.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Disable",
+          "type": "array"
+        }
+      },
+      "title": "LintRules",
+      "type": "object"
+    },
+    "LocalizedText": {
+      "additionalProperties": true,
+      "description": "Текст с переводами. Строка вместо объекта трактуется как язык документа.",
+      "properties": {
+        "ru": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ru"
+        },
+        "en": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "En"
+        }
+      },
+      "title": "LocalizedText",
+      "type": "object"
+    },
+    "SdoExchange": {
+      "additionalProperties": false,
+      "description": "Один SDO-обмен (expedited): команда, индекс, субиндекс, значение.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "command": {
+          "description": "Байт команды (CCS/SCS), напр. 0x2B.",
+          "maximum": 255,
+          "minimum": 0,
+          "title": "Command",
+          "type": "integer"
+        },
+        "index": {
+          "maximum": 65535,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "subindex": {
+          "default": 0,
+          "maximum": 255,
+          "minimum": 0,
+          "title": "Subindex",
+          "type": "integer"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SdoValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "command",
+        "index"
+      ],
+      "title": "SdoExchange",
+      "type": "object"
+    },
+    "SdoValue": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "bit_length": {
+          "default": 32,
+          "enum": [
+            8,
+            16,
+            24,
+            32
+          ],
+          "title": "Bit Length",
+          "type": "integer"
+        },
+        "signed": {
+          "default": false,
+          "title": "Signed",
+          "type": "boolean"
+        },
+        "factor": {
+          "default": 1.0,
+          "title": "Factor",
+          "type": "number"
+        },
+        "offset": {
+          "default": 0.0,
+          "title": "Offset",
+          "type": "number"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/EnumValue"
+                  }
+                ]
+              },
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Values"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "SdoValue",
+      "type": "object"
+    },
+    "Signal": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "enum",
+                "flag",
+                "bitfield",
+                "metric",
+                "raw",
+                "bytes"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Тип сигнала. Если не задан: values → enum, flags → bitfield, factor/unit → metric, иначе raw.",
+          "title": "Kind"
+        },
+        "start_bit": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Позиция младшего бита (LSB) сигнала в нумерации lsb0.",
+          "title": "Start Bit"
+        },
+        "bit_length": {
+          "anyOf": [
+            {
+              "maximum": 64,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bit Length"
+        },
+        "byte": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Первый байт сигнала.",
+          "title": "Byte"
+        },
+        "bit": {
+          "anyOf": [
+            {
+              "maximum": 7,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Смещение бита в байте.",
+          "title": "Bit"
+        },
+        "byte_length": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Byte Length"
+        },
+        "byte_order": {
+          "default": "little_endian",
+          "enum": [
+            "little_endian",
+            "big_endian"
+          ],
+          "title": "Byte Order",
+          "type": "string"
+        },
+        "signed": {
+          "default": false,
+          "title": "Signed",
+          "type": "boolean"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/EnumValue"
+                  }
+                ]
+              },
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Values"
+        },
+        "flags": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Flag"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flags"
+        },
+        "factor": {
+          "default": 1.0,
+          "title": "Factor",
+          "type": "number"
+        },
+        "offset": {
+          "default": 0.0,
+          "title": "Offset",
+          "type": "number"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "value_format": {
+          "default": "dec",
+          "description": "Как показывать значения enum в документах.",
+          "enum": [
+            "dec",
+            "hex"
+          ],
+          "title": "Value Format",
+          "type": "string"
+        },
+        "multiplexer": {
+          "default": false,
+          "description": "Сигнал-селектор мультиплексора.",
+          "title": "Multiplexer",
+          "type": "boolean"
+        },
+        "mux": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Значение(я) селектора, при которых сигнал присутствует.",
+          "title": "Mux"
+        },
+        "comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comment"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Signal",
+      "type": "object"
+    },
+    "Transmission": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "default": "cyclic",
+          "enum": [
+            "cyclic",
+            "event",
+            "on_request"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "cycle_ms": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cycle Ms"
+        }
+      },
+      "title": "Transmission",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "canmap": {
+      "const": 1,
+      "default": 1,
+      "description": "Версия формата файла.",
+      "title": "Canmap",
+      "type": "integer"
+    },
+    "document": {
+      "$ref": "#/$defs/Document"
+    },
+    "lint": {
+      "$ref": "#/$defs/LintRules"
+    },
+    "buses": {
+      "items": {
+        "$ref": "#/$defs/Bus"
+      },
+      "minItems": 1,
+      "title": "Buses",
+      "type": "array"
+    }
+  },
+  "required": [
+    "document",
+    "buses"
+  ],
+  "title": "canmap — карта сигналов CAN (формат v1)",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://canmap.local/schema/canmap-v1.json"
+}

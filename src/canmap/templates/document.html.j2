@@ -1,0 +1,193 @@
+{%- set L = labels -%}
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="canmap">
+<title>{{ document.title }} {{ document.version }}</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1d2329; --muted: #5d6873; --line: #c9d1d9; --head: #1f4e79;
+  --head-fg: #ffffff; --soft: #f3f6f9; --accent: #1f4e79; --warn: #9c5700; --bad: #c00000;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15191d; --fg: #e3e8ec; --muted: #9aa6b1; --line: #36404a; --head: #24496b;
+    --soft: #1d2329; --accent: #8cc2f0; --warn: #e3a35a; --bad: #ff6b6b;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+       font: 14px/1.45 "PT Sans", "Segoe UI", system-ui, sans-serif; }
+code, .mono { font-family: "DejaVu Sans Mono", Consolas, monospace; font-size: 0.92em; }
+.layout { display: grid; grid-template-columns: 270px 1fr; min-height: 100vh; }
+nav { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 16px;
+      border-right: 1px solid var(--line); background: var(--soft); font-size: 13px; }
+nav ul { list-style: none; padding-left: 12px; margin: 4px 0; }
+nav > ul { padding-left: 0; }
+nav a { color: var(--fg); text-decoration: none; }
+nav a:hover { color: var(--accent); }
+nav input { width: 100%; padding: 6px 8px; margin-bottom: 12px; border: 1px solid var(--line);
+            border-radius: 4px; background: var(--bg); color: var(--fg); }
+main { padding: 24px 32px 64px; max-width: 1200px; min-width: 0; }
+h1 { color: var(--accent); margin: 0 0 4px; }
+h2 { color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 4px; margin-top: 40px; }
+h3 { color: var(--accent); margin-top: 28px; }
+h4 { margin: 24px 0 6px; }
+.subtitle { color: var(--muted); font-size: 16px; margin-bottom: 12px; }
+.note { background: var(--soft); border-left: 4px solid var(--accent); padding: 8px 12px; margin: 12px 0; }
+.meta { color: var(--muted); }
+.meta b { color: var(--fg); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0 12px; }
+th, td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: left; }
+thead th { background: var(--head); color: var(--head-fg); }
+table.bits { table-layout: fixed; }
+table.bits td, table.bits th { text-align: center; vertical-align: middle; font-size: 12px; }
+table.bits th:first-child { width: 56px; }
+table.bits td { color: #1d2329; word-break: break-all; }
+table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; color: var(--bad); font-weight: bold; }
+.swatch { display: inline-block; width: 10px; height: 10px; border: 1px solid #888; margin-right: 4px; }
+.frame { border: 1px solid var(--line); border-radius: 6px; padding: 4px 16px 12px; margin: 16px 0; }
+.frame.hidden, .sig.hidden { display: none; }
+.mux { color: var(--muted); font-style: italic; }
+.comment { color: var(--warn); }
+.empty { color: var(--muted); font-style: italic; }
+.unused td { color: var(--muted); background: var(--soft); }
+@media (max-width: 800px) {
+  .layout { grid-template-columns: 1fr; }
+  nav { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  main { padding: 16px; }
+}
+@media print { nav { display: none; } .layout { display: block; } .frame { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <input id="q" type="search" placeholder="Поиск: имя, ID, описание">
+  <ul>
+  {%- for bus in buses %}
+    <li><a href="#{{ bus.name }}"><b>{{ bus.title }}</b></a>
+      <ul>
+      <li><a href="#{{ bus.name }}-addr">{{ L.addressing }}</a></li>
+      {%- for dev in bus.devices %}
+        <li><a href="#{{ bus.name }}-{{ dev.name }}">{{ dev.label }}</a></li>
+      {%- endfor %}
+      </ul>
+    </li>
+  {%- endfor %}
+  {%- if document.history %}<li><a href="#history">{{ L.history }}</a></li>{% endif %}
+  </ul>
+</nav>
+<main>
+<h1>{{ document.title }}</h1>
+{% if document.subtitle %}<div class="subtitle">{{ document.subtitle }}</div>{% endif %}
+<div class="meta"><b>{{ L.version }}:</b> {{ document.version }} · <b>{{ L.date }}:</b> {{ document.date }}{% if document.author %} · <b>{{ L.author }}:</b> {{ document.author }}{% endif %}</div>
+<div class="note">{{ document.bit_note }}</div>
+
+{%- macro frame_block(fr) %}
+<section class="frame" id="frame-{{ fr.name }}" data-search="{{ (fr.name ~ ' ' ~ fr.id ~ ' ' ~ fr.title ~ ' ' ~ fr.description ~ ' ' ~ (fr.signals | map(attribute='name') | join(' ')) ~ ' ' ~ (fr.signals | map(attribute='description') | join(' '))) | lower }}">
+<h4><code>{{ fr.id }}</code> {{ fr.title or fr.name }}{% if fr.description %} — <span style="font-weight:normal">{{ fr.description }}</span>{% endif %}</h4>
+<div class="meta"><b>{{ L.frame }}:</b> <code>{{ fr.name }}</code> · <b>{{ L.type }}:</b> {{ fr.type_label }}{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} · <b>{{ L.dlc }}:</b> {{ fr.dlc }}{% if fr.direction %} · <b>{{ L.direction }}:</b> {{ fr.direction }}{% endif %}{% if fr.period %} · <b>{{ L.period }}:</b> {{ fr.period }}{% endif %}</div>
+{% if fr.comment %}<p class="comment">{{ L.comment }}: {{ fr.comment }}</p>{% endif %}
+{% if not fr.signals %}<p class="empty">{{ L.no_signals }}</p>{% else %}
+{% if fr.grid %}
+<table class="bits"><thead><tr><th>{{ L.byte }}</th>{% for b in range(7, -1, -1) %}<th>{{ b }}</th>{% endfor %}</tr></thead>
+<tbody>
+{%- for row in fr.grid %}
+<tr><th>{{ row.byte }}</th>{% for seg in row.segments %}<td colspan="{{ seg.span }}" style="background:{{ seg.color }}"{% if seg.conflict %} class="conflict"{% endif %}{% if seg.lo is not none %} title="{{ L.bits }} {{ seg.lo }}–{{ seg.hi }}"{% endif %}>{{ seg.label }}</td>{% endfor %}</tr>
+{%- endfor %}
+</tbody></table>
+{% endif %}
+<div class="scroll"><table>
+<thead><tr><th>{{ L.byte }}</th><th>{{ L.bits }}</th><th>{{ L.signal }}</th><th>{{ L.description }}</th><th>{{ L.encoding }}</th><th>{{ L["values"] }}</th></tr></thead>
+<tbody>
+{%- for s in fr.signals %}
+<tr class="sig"><td class="mono">{{ s.bytes }}</td><td class="mono">{{ s.bits }}</td>
+<td><span class="swatch" style="background:{{ s.color }}"></span><b>{{ s.name }}</b></td>
+<td>{{ s.description }}{% if s.mux %}<div class="mux">{{ s.mux }}</div>{% endif %}{% if s.comment %}<div class="comment">{{ L.comment }}: {{ s.comment }}</div>{% endif %}</td>
+<td>{{ s.encoding | join("<br>" | safe) }}</td>
+<td>{{ s["values"] | join("<br>" | safe) }}</td></tr>
+{%- endfor %}
+</tbody></table></div>
+{% endif %}
+{% if fr.sdo %}
+<b>{{ L.sdo }}</b>
+<div class="scroll"><table>
+<thead><tr><th>{{ L.signal }}</th><th>{{ L.command }}</th><th>{{ L.index }}</th><th>{{ L.subindex }}</th><th>{{ L.description }}</th><th>{{ L.value }}</th></tr></thead>
+<tbody>
+{%- for e in fr.sdo %}
+<tr><td><b>{{ e.name }}</b></td><td class="mono">{{ e.command }}</td><td class="mono">{{ e.index }}</td><td class="mono">{{ e.subindex }}</td><td>{{ e.description }}</td><td>{{ e.value }}</td></tr>
+{%- endfor %}
+</tbody></table></div>
+{% endif %}
+</section>
+{%- endmacro %}
+
+{% for bus in buses %}
+<h2 id="{{ bus.name }}">{{ bus.title }}</h2>
+{% if bus.description %}<p>{{ bus.description }}</p>{% endif %}
+<div class="meta"><b>{{ L.protocol }}:</b> {{ bus.protocol }}{% if bus.bitrate %} · <b>{{ L.bitrate }}:</b> {{ bus.bitrate }}{% endif %}{% if bus.interface %} · <b>{{ L.interface }}:</b> <code>{{ bus.interface }}</code>{% endif %} · {{ bus.stats.frames }} {{ L.frames_total }}, {{ bus.stats.signals }} {{ L.signals_total }}</div>
+
+<h3 id="{{ bus.name }}-addr">{{ L.addressing }}</h3>
+<div class="scroll">
+{% if bus.addressing.kind == "matrix" %}
+<table>
+<thead><tr><th>{{ L.message_type }}</th><th>{{ L.id }}</th><th>{{ bus.addressing.broadcast_label }}</th>{% for c in bus.addressing.columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+<tbody>
+{%- for row in bus.addressing.rows %}
+<tr{% if not row.used %} class="unused"{% endif %}><td><b>{{ row.label }}</b><br><span class="meta">{{ row.purpose }}</span></td><td class="mono">{{ row.base }}</td>
+<td>{% for c in row.broadcast %}<a href="#frame-{{ c.name }}"><code>{{ c.id }}</code></a> {{ c.description }}<br>{% endfor %}</td>
+{%- for cells in row.cells %}<td>{% for c in cells %}<a href="#frame-{{ c.name }}"><code>{{ c.id }}</code></a> {{ c.description }}<br>{% endfor %}</td>{% endfor %}</tr>
+{%- endfor %}
+</tbody></table>
+{% else %}
+<table>
+<thead><tr><th>{{ L.device }}</th><th>{{ L.id }}</th><th>{{ L.purpose }}</th><th>{{ L.direction }}</th><th>{{ L.period }}</th></tr></thead>
+<tbody>
+{%- for r in bus.addressing.rows %}
+<tr><td>{{ r.device }}</td><td><a href="#frame-{{ r.name }}"><code>{{ r.id }}</code></a></td><td>{{ r.description }}</td><td>{{ r.direction }}</td><td>{{ r.period }}</td></tr>
+{%- endfor %}
+</tbody></table>
+{% endif %}
+</div>
+
+{% if bus.broadcast %}
+<h3 id="{{ bus.name }}-broadcast">{{ L.broadcast }}</h3>
+{% for fr in bus.broadcast %}{{ frame_block(fr) }}{% endfor %}
+{% endif %}
+{% for dev in bus.devices %}
+<h3 id="{{ bus.name }}-{{ dev.name }}">{{ dev.label }}{% if dev.title %} — {{ dev.title }}{% endif %}</h3>
+{% if dev.description %}<p>{{ dev.description }}</p>{% endif %}
+{% for fr in dev.frames %}{{ frame_block(fr) }}{% endfor %}
+{% endfor %}
+{% endfor %}
+
+{% if document.history %}
+<h2 id="history">{{ L.history }}</h2>
+<table>
+<thead><tr><th>{{ L.version }}</th><th>{{ L.date }}</th><th>{{ L.author }}</th><th>{{ L.description }}</th></tr></thead>
+<tbody>
+{%- for h in document.history %}
+<tr><td><b>{{ h.version }}</b></td><td>{{ h.date }}</td><td>{{ h.author }}</td><td><ul style="margin:0;padding-left:18px">{% for c in h.changes %}<li>{{ c }}</li>{% endfor %}</ul></td></tr>
+{%- endfor %}
+</tbody></table>
+{% endif %}
+<p class="meta">{{ L.generated }} · {{ document.date }}</p>
+</main>
+</div>
+<script>
+(function () {
+  var q = document.getElementById("q");
+  q.addEventListener("input", function () {
+    var v = q.value.trim().toLowerCase();
+    document.querySelectorAll("section.frame").forEach(function (s) {
+      s.classList.toggle("hidden", v !== "" && s.dataset.search.indexOf(v) < 0);
+    });
+  });
+})();
+</script>
+</body>
+</html>

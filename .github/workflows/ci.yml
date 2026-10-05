@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check src tests
+      - name: Schema is up to date
+        run: uv run canmap schema -o schema/canmap.schema.json && git diff --exit-code schema/
+      - name: Tests
+        run: uv run pytest
+
+  docs:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - name: Validate reference map
+        run: uv run canmap validate canmap.yaml --strict
+      - name: Build documents and code
+        run: uv run canmap build canmap.yaml -o build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: canmap-build
+          path: build/

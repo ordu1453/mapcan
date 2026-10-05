@@ -1,0 +1,50 @@
+[project]
+name = "canmap"
+version = "0.1.0"
+description = "YAML-карта сигналов CAN как единственный источник правды: проверка, Excel/PDF/Markdown/HTML, DBC, C/Python-код"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "Proprietary" }
+dependencies = [
+    "pydantic>=2.7,<3",
+    "ruamel.yaml>=0.18",
+    "typer>=0.12",
+    "jinja2>=3.1",
+    "openpyxl>=3.1",
+    "typst>=0.13",
+    "cantools>=39",
+]
+
+[project.optional-dependencies]
+# Этапы 6 и 8 (веб-редактор и работа с шиной) — зарезервировано.
+web = ["fastapi>=0.110", "uvicorn>=0.29"]
+bus = ["python-can>=4.3"]
+
+[project.scripts]
+canmap = "canmap.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.5", "jsonschema>=4"]
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/canmap"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/canmap", "schema", "examples", "docs", "tests", "README.md", "canmap.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["UP007", "UP045", "UP042", "B008"]

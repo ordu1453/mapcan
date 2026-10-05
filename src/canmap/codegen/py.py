@@ -1,0 +1,186 @@
+"""Генерация самодостаточного Python-модуля (без зависимости от canmap).
+
+Модуль содержит константы ID, IntEnum значений, маски флагов, dataclass на
+каждый кадр с методами ``pack()``/``unpack()`` и ``DECODERS`` — словарь
+CAN ID → класс кадра. Пригоден для тестов и стендов.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from ..model import Bus, CanMap, Frame, enum_entries, text
+from .common import frames_with_layout, is_byte_array, num, physical, selector_of
+
+RUNTIME = '''
+
+def _get(data, start, length, big_endian, signed=False):
+    value, done, pos = 0, 0, start
+    while done < length:
+        byte, shift = divmod(pos, 8)
+        n = min(8 - shift, length - done)
+        value |= ((data[byte] >> shift) & ((1 << n) - 1)) << done
+        done += n
+        pos = (byte - 1) * 8 if big_endian else (byte + 1) * 8
+    if signed and value & (1 << (length - 1)):
+        value -= 1 << length
+    return value
+
+
+def _set(buf, value, start, length, big_endian):
+    value &= (1 << length) - 1
+    done, pos = 0, start
+    while done < length:
+        byte, shift = divmod(pos, 8)
+        n = min(8 - shift, length - done)
+        mask = ((1 << n) - 1) << shift
+        buf[byte] = (buf[byte] & ~mask & 0xFF) | (((value >> done) << shift) & mask)
+        done += n
+        pos = (byte - 1) * 8 if big_endian else (byte + 1) * 8
+'''
+
+
+def _cls(name: str) -> str:
+    return "".join(p.capitalize() for p in name.split("_"))
+
+
+def _py_str(s: str) -> str:
+    return repr(s)
+
+
+class PyGen:
+    def __init__(self, cmap: CanMap, bus: Bus, lang: str | None = None):
+        self.cmap, self.bus, self.lang = cmap, bus, lang or cmap.lang
+
+    def t(self, v) -> str:
+        return text(v, self.lang).replace("\n", " ")
+
+    def module(self) -> str:
+        d = self.cmap.document
+        out = [
+            f'"""{self.bus.name} — сгенерировано canmap из «{self.t(d.title)}» версии {d.version}.',
+            "",
+            "Не редактируйте вручную: источник — YAML-карта.",
+            '"""',
+            "",
+            "from __future__ import annotations",
+            "",
+            "from dataclasses import dataclass, field",
+            "from enum import IntEnum",
+            RUNTIME,
+        ]
+        frames = frames_with_layout(self.bus)
+        for f in frames:
+            out += self.frame(f)
+        out.append("DECODERS = {")
+        for f in frames:
+            out.append(f"    0x{f.can_id:03X}: {_cls(f.name)},")
+        out.append("}")
+        out.append("")
+        out.append("")
+        out.append("def decode(can_id: int, data: bytes):")
+        out.append('    """Распаковать кадр по ID; None для неизвестного ID."""')
+        out.append("    cls = DECODERS.get(can_id)")
+        out.append("    return cls.unpack(data) if cls else None")
+        out.append("")
+        return "\n".join(out)
+
+    def frame(self, f: Frame) -> list[str]:
+        C = _cls(f.name)
+        U = f.name.upper()
+        sel = selector_of(f)
+        out = ["", f"{U}_ID = 0x{f.can_id:03X}", f"{U}_DLC = {f.dlc}"]
+        if f.transmission and f.transmission.cycle_ms:
+            out.append(f"{U}_CYCLE_MS = {f.transmission.cycle_ms}")
+        for s in f.layout:
+            entries = enum_entries(s.values)
+            if entries:
+                out += ["", "", f"class {C}{_cls(s.name)}(IntEnum):"]
+                d = self.t(s.description)
+                if d:
+                    out.append(f"    {_py_str(d)}")
+                for v, ev in entries:
+                    out.append(f"    {ev.name} = {v}")
+            for fl in s.flags or []:
+                mask = ((1 << fl.bit_length) - 1) << fl.bit
+                out.append(f"{U}_{s.name.upper()}_{fl.name.upper()}_MASK = 0x{mask:X}")
+        out += ["", "", "@dataclass", f"class {C}:"]
+        doc = self.t(f.description) or self.t(f.title)
+        out.append(f'    """0x{f.can_id:03X} {f.name}: {doc}"""' if doc else f'    """0x{f.can_id:03X} {f.name}"""')
+        out += ["", f"    ID = 0x{f.can_id:03X}", f"    DLC = {f.dlc}", ""]
+        for s in f.layout:
+            if is_byte_array(s):
+                out.append(f"    {s.name}: bytes = field(default=bytes({s.bit_length // 8}))")
+            else:
+                out.append(f"    {s.name}: int = 0")
+        if not f.layout:
+            out.append("    pass")
+
+        # pack
+        out += ["", "    def pack(self) -> bytes:", f"        buf = bytearray({f.dlc})"]
+        for s in f.layout:
+            body = self._pack_stmt(s)
+            out += self._guard(s, sel, body, "self")
+        out.append("        return bytes(buf)")
+
+        # unpack
+        out += ["", "    @classmethod", f"    def unpack(cls, data: bytes) -> \"{C}\":",
+                f"        if len(data) < {f.dlc}:",
+                f"            raise ValueError(f\"{f.name}: ожидалось {f.dlc} байт, получено {{len(data)}}\")",
+                "        msg = cls()"]
+        for s in sorted(f.layout, key=lambda s: not s.multiplexer):
+            out += self._guard(s, sel, self._unpack_stmt(s), "msg")
+        out.append("        return msg")
+
+        # физические значения
+        for s in f.layout:
+            if physical(s) and not is_byte_array(s):
+                out += [
+                    "",
+                    "    @property",
+                    f"    def {s.name}_phys(self) -> float:",
+                    f'        """{self.t(s.description)}{", " + s.unit if s.unit else ""}"""',
+                    f"        return self.{s.name} * {num(s.factor)} + {num(s.offset)}",
+                    "",
+                    f"    @{s.name}_phys.setter",
+                    f"    def {s.name}_phys(self, value: float) -> None:",
+                    f"        self.{s.name} = round((value - {num(s.offset)}) / {num(s.factor)})",
+                ]
+        out.append("")
+        return out
+
+    @staticmethod
+    def _guard(s, sel, body: list[str], obj: str) -> list[str]:
+        if s.mux is None or sel is None:
+            return body
+        vals = ", ".join(str(v) for v in s.mux_values)
+        return [f"        if {obj}.{sel.name} in ({vals},):"] + ["    " + b for b in body]
+
+    @staticmethod
+    def _pack_stmt(s) -> list[str]:
+        if is_byte_array(s):
+            n, b0 = s.bit_length // 8, s.start_bit // 8
+            return [f"        buf[{b0}:{b0 + n}] = bytes(self.{s.name})[:{n}].ljust({n}, b'\\0')"]
+        be = s.byte_order == "big_endian"
+        return [f"        _set(buf, self.{s.name}, {s.start_bit}, {s.bit_length}, {be})"]
+
+    @staticmethod
+    def _unpack_stmt(s) -> list[str]:
+        if is_byte_array(s):
+            n, b0 = s.bit_length // 8, s.start_bit // 8
+            return [f"        msg.{s.name} = bytes(data[{b0}:{b0 + n}])"]
+        be = s.byte_order == "big_endian"
+        return [f"        msg.{s.name} = _get(data, {s.start_bit}, {s.bit_length}, {be}, {s.signed})"]
+
+
+def generate_py(cmap: CanMap, out_dir: str | Path, buses: list[str] | None = None) -> list[Path]:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    written = []
+    for bus in cmap.buses:
+        if buses and bus.name not in buses:
+            continue
+        p = out / f"{bus.name.lower()}_canmap.py"
+        p.write_text(PyGen(cmap, bus).module(), encoding="utf-8")
+        written.append(p)
+    return written

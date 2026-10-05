@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=../schema/canmap.schema.json
+# Минимальный пример: все виды сигналов в одном кадре.
+
+canmap: 1
+
+document:
+  title: Пример карты
+  version: 0.1.0
+  language: ru
+
+buses:
+  - name: demo
+    title: Демо-шина
+    bitrate: 500000
+    protocol: canopen
+    devices:
+      - name: pump
+        short: НАС
+        title: Насос
+        node_id: 0x21
+        frames:
+          - name: pump_state          # ID = 0x180 + 0x21 = 0x1A1
+            type: pdo_tx1
+            description: Состояние насоса
+            cycle_ms: 100
+            signals:
+              - name: mode            # enum, байт 0
+                description: Режим работы
+                byte: 0
+                values:
+                  0: {name: OFF, description: выключен}
+                  1: {name: RUN, description: работа}
+                  2: {name: FAULT, description: авария}
+
+              - name: alarms          # битовое поле, байт 1
+                description: Аварии
+                byte: 1
+                flags:
+                  - {bit: 0, name: overheat, description: перегрев}
+                  - {bit: 1, name: dry_run, description: сухой ход}
+                  - {bit: 4, bit_length: 2, name: sensor_state,
+                     values: {0: OK, 1: OPEN, 2: SHORT}}
+
+              - name: pressure        # величина, байты 2..3, little-endian
+                description: Давление
+                byte: 2
+                byte_length: 2
+                factor: 0.01
+                unit: бар
+                min: 0
+                max: 16
+
+              - name: temperature     # знаковая величина со смещением
+                description: Температура
+                byte: 4
+                signed: true
+                factor: 0.5
+                offset: -20
+                unit: °C
+
+              - name: speed           # big-endian: байт 5 — старший, байт 6 — младший
+                description: Обороты
+                byte: 5
+                byte_length: 2
+                byte_order: big_endian
+                unit: об/мин
+
+              - name: counter         # произвольная позиция: биты 56..59
+                description: Счётчик сообщений
+                start_bit: 56
+                bit_length: 4
