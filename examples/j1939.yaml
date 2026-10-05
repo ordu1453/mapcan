@@ -1,0 +1,146 @@
+# yaml-language-server: $schema=../schema/canmap.schema.json
+#
+# Пример карты SAE J1939: двигатель, панель приборов и диагностический прибор.
+# CAN ID (29 бит) вычисляется: priority | PGN (для PDU1 — с адресом получателя) | адрес источника.
+# Значения «нет данных» по J1939: 0xFF (1 байт), 0xFFFF (2 байта).
+
+canmap: 1
+
+document:
+  title: Пример карты J1939
+  subtitle: Двигатель и панель приборов
+  version: 0.1.0
+  language: ru
+
+buses:
+  - name: j1939
+    title: Шина J1939
+    bitrate: 250000
+    protocol: j1939
+    devices:
+      - name: engine
+        short: ECU
+        title: Блок управления двигателем
+        address: 0x00
+        frames:
+          - name: eec1
+            title: EEC1
+            description: Electronic Engine Controller 1
+            pgn: 0xF004
+            priority: 3
+            cycle_ms: 20
+            receivers: [cluster]
+            signals:
+              - name: torque_mode
+                description: Режим управления крутящим моментом
+                start_bit: 0
+                bit_length: 4
+                values:
+                  0: {name: LOW_IDLE, description: холостой ход}
+                  1: {name: ACCELERATOR, description: педаль акселератора}
+                  2: {name: CRUISE, description: круиз-контроль}
+                  15: {name: NOT_AVAILABLE, description: нет данных}
+              - name: demand_torque
+                description: Требуемый крутящий момент (водитель)
+                byte: 1
+                unit: "%"
+                offset: -125
+                min: -125
+                max: 125
+                invalid: 0xFF
+              - name: actual_torque
+                description: Фактический крутящий момент
+                byte: 2
+                unit: "%"
+                offset: -125
+                min: -125
+                max: 125
+                invalid: 0xFF
+              - name: engine_speed
+                description: Частота вращения двигателя
+                byte: 3
+                byte_length: 2
+                factor: 0.125
+                unit: об/мин
+                min: 0
+                max: 8031.875
+                initial: 0
+                invalid: 0xFFFF
+              - name: controlling_address
+                description: Адрес устройства, управляющего двигателем
+                byte: 5
+                value_format: hex
+
+          - name: et1
+            title: ET1
+            description: Engine Temperature 1
+            pgn: 0xFEEE
+            cycle_ms: 1000
+            receivers: [cluster]
+            signals:
+              - name: coolant_temp
+                description: Температура охлаждающей жидкости
+                byte: 0
+                offset: -40
+                unit: °C
+                min: -40
+                max: 210
+                invalid: 0xFF
+              - name: fuel_temp
+                description: Температура топлива
+                byte: 1
+                offset: -40
+                unit: °C
+                invalid: 0xFF
+              - name: oil_temp
+                description: Температура масла
+                byte: 2
+                byte_length: 2
+                factor: 0.03125
+                offset: -273
+                unit: °C
+                invalid: 0xFFFF
+
+      - name: cluster
+        short: ПП
+        title: Панель приборов
+        address: 0x17
+        frames:
+          - name: dash_display
+            title: DD
+            description: Dash Display
+            pgn: 0xFEFC
+            cycle_ms: 1000
+            receivers: [engine]
+            signals:
+              - name: fuel_level
+                description: Уровень топлива
+                byte: 1
+                factor: 0.4
+                unit: "%"
+                min: 0
+                max: 100
+                invalid: 0xFF
+
+      - name: diag
+        short: ДП
+        title: Диагностический прибор
+        address: 0xF9
+        frames:
+          - name: request_to_engine
+            title: RQST
+            description: Запрос PGN у двигателя (PDU1, адресный)
+            pgn: 0xEA00
+            destination: 0x00
+            dlc: 3
+            transmission: {mode: on_request}
+            receivers: [engine]
+            signals:
+              - name: requested_pgn
+                description: Запрашиваемый PGN
+                start_bit: 0
+                bit_length: 24
+                value_format: hex
+                values:
+                  0xFEEE: {name: ET1, description: температуры двигателя}
+                  0xFEE5: {name: ENGINE_HOURS, description: моточасы}

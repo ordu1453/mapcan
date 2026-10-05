@@ -13,8 +13,8 @@ PDF собирается встроенным компилятором Typst и�
 
 ```sh
 canmap template --list                                   # список шаблонов
-canmap export pdf canmap.yaml --template gost-2.105      # встроенный шаблон по имени
-canmap build canmap.yaml --pdf-template canmap --pdf-template gost-19   # несколько PDF в CI
+canmap export pdf my-map.yaml --template gost-2.105      # встроенный шаблон по имени
+canmap build my-map.yaml --pdf-template canmap --pdf-template gost-19   # несколько PDF в CI
 ```
 
 В веб-редакторе шаблон выбирается в **Экспорт → PDF…** (предпросмотр со списком шаблонов) или
@@ -27,11 +27,11 @@ canmap build canmap.yaml --pdf-template canmap --pdf-template gost-19   # нес
 
 ```yaml
 document:
-  title: Эталонная карта CANopen
+  title: Карта сигналов изделия
   version: 1.0.0
   organization: ООО «Пример»
   logo: logo.png                     # путь относительно файла карты (PNG, JPG, SVG, GIF, WEBP)
-  designation: АБВГ.468332.001 Д1     # обозначение документа (ЕСКД) или RU.12345678.00001-01 (ЕСПД)
+  designation: АБВГ.468332.001 Д1    # обозначение документа (ЕСКД) или RU.12345678.00001-01 (ЕСПД)
   litera: О1                         # литера (ЕСКД)
   city: Москва                       # город на титульном листе
   signatures:                        # основная надпись ЕСКД, лист утверждения, список исполнителей
@@ -44,7 +44,7 @@ document:
     position: Главный конструктор
     name: А. А. Смирнов
   agree:                             # «СОГЛАСОВАНО» (сколько угодно)
-    - position: Начальник отдела электрооборудования
+    - position: Начальник отдела
       name: Б. Б. Орлов
 ```
 
@@ -82,7 +82,7 @@ document:
 ```sh
 canmap template pdf --name gost-2.105 -o corp/corp.typ   # копия шаблона + corp/lib.typ
 # правка corp/corp.typ: графы штампа, шрифты, логотип, дополнительные листы
-canmap export pdf canmap.yaml --template corp/corp.typ
+canmap export pdf my-map.yaml --template corp/corp.typ
 ```
 
 `lib.typ` содержит общие элементы: битовую диаграмму, таблицы сигналов, адресацию, лист

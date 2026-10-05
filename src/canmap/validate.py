@@ -15,6 +15,7 @@ from .canopen import FUNCTION_CODES
 from .diagnostics import Report
 from .loader import LoadResult, SourceMap, load, loads
 from .model import LOGO_FORMATS, CanMap, Frame, Signal, enum_entries
+from .protocols import j1939_is_pdu1
 
 STYLE_RE = {
     "snake_case": re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$"),
@@ -61,11 +62,19 @@ RULES = {
     "cycle-missing": ("error", "Режим cyclic без cycle_ms"),
     "cycle-unexpected": ("warning", "cycle_ms задан для нециклического кадра"),
     "direction-mismatch": ("warning", "Направление противоречит типу кадра CANopen"),
-    "frame-type-protocol": ("warning", "Тип кадра CANopen на шине протокола can"),
+    "frame-type-protocol": ("warning", "Тип кадра CANopen на шине не CANopen"),
     "sdo-frame-type": ("warning", "Описание sdo у кадра не типа sdo_tx/sdo_rx"),
     "sdo-duplicate": ("error", "Повтор SDO-обмена (команда, индекс, субиндекс)"),
     "name-style": ("warning", "Имя не соответствует правилу стиля (lint)"),
     "name-inconsistent": ("warning", "Одно и то же имя значения записано по-разному"),
+    "j1939-address": ("error", "Адрес J1939 вне 0..253 или повторяется на шине"),
+    "j1939-pdu1-pgn": ("warning", "PDU1-PGN (PF < 240) с ненулевым младшим байтом"),
+    "j1939-destination": ("warning", "destination задан для PDU2-PGN (PF ≥ 240) и не используется"),
+    "j1939-field-protocol": ("warning", "pgn/priority/destination/address на шине не J1939"),
+    "unknown-receiver": ("error", "Получатель кадра не описан на шине"),
+    "float-length": ("error", "Сигнал float должен быть 32 или 64 бита"),
+    "initial-range": ("warning", "Значение по умолчанию вне диапазона сигнала"),
+    "invalid-overflow": ("error", "Значение invalid не помещается в разрядность сигнала"),
     "logo-missing": ("warning", "Файл логотипа не найден"),
     "logo-format": ("error", "Неподдерживаемый формат логотипа"),
     "missing-description": ("info", "Нет описания сигнала"),
@@ -134,8 +143,20 @@ def _ident(ctx: _Ctx, name: str, what: str, path, style: str | None) -> None:
 
 def _check_bus(ctx: _Ctx, bus) -> None:
     lint = ctx.cmap.lint
-    names, nodes = {}, {}
+    names, nodes, addrs = {}, {}, {}
     for dev in bus.devices:
+        if dev.address is not None:
+            if bus.protocol != "j1939":
+                ctx.emit("j1939-field-protocol", f"address у устройства на шине {bus.protocol}",
+                         dev._path + ("address",))
+            elif dev.address > 253:
+                ctx.emit("j1939-address", f"адрес {dev.address:#04x} вне 0..253 (254, 255 — служебные)",
+                         dev._path + ("address",))
+            if dev.address in addrs:
+                ctx.emit("j1939-address",
+                         f"адрес {dev.address:#04x} уже занят устройством {addrs[dev.address].name!r}",
+                         dev._path + ("address",))
+            addrs[dev.address] = dev
         _ident(ctx, dev.name, "имя устройства", dev._path + ("name",), lint.device_name)
         if dev.name in names:
             ctx.emit("duplicate-device-name", f"устройство {dev.name!r} уже описано", dev._path + ("name",))
@@ -156,7 +177,10 @@ def _check_bus(ctx: _Ctx, bus) -> None:
             ctx.emit("duplicate-frame-name", f"кадр {frame.name!r} уже описан на шине", p + ("name",))
         frame_names[frame.name] = frame
         if frame.can_id is None:
-            if frame.type == "raw" or bus.protocol != "canopen":
+            if bus.protocol == "j1939":
+                why = "нужен pgn (или id)" if frame.pgn is None else "у устройства нет address"
+                ctx.emit("frame-id-missing", f"кадр {frame.name!r}: {why}", p)
+            elif frame.type == "raw" or bus.protocol != "canopen":
                 ctx.emit("frame-id-missing", f"кадр {frame.name!r}: для типа {frame.type} нужен явный id", p)
             else:
                 ctx.emit("frame-id-missing",
@@ -185,8 +209,23 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
         ctx.emit("dlc-range", f"DLC {frame.dlc} > 8 (для CAN FD укажите fd: true у шины)", p + ("dlc",))
 
     fc = FUNCTION_CODES.get(frame.type)
-    if bus.protocol == "can" and frame.type != "raw":
-        ctx.emit("frame-type-protocol", f"тип {frame.type} на шине с протоколом can", p + ("type",))
+    devices = {d.name for d in bus.devices}
+    for i, r in enumerate(frame.receivers):
+        if r not in devices:
+            ctx.emit("unknown-receiver", f"получатель {r!r} не описан на шине {bus.name!r}", p + ("receivers", i))
+    j1939_fields = [k for k in ("pgn", "priority", "destination") if getattr(frame, k) is not None]
+    if j1939_fields and bus.protocol != "j1939":
+        ctx.emit("j1939-field-protocol", f"{', '.join(j1939_fields)} у кадра на шине {bus.protocol}",
+                 p + (j1939_fields[0],))
+    if bus.protocol == "j1939" and frame.pgn is not None:
+        if j1939_is_pdu1(frame.pgn) and frame.pgn & 0xFF:
+            ctx.emit("j1939-pdu1-pgn", f"PGN {frame.pgn:#06x} — PDU1: младший байт должен быть 0 "
+                     "(адрес получателя задаётся destination)", p + ("pgn",))
+        if not j1939_is_pdu1(frame.pgn) and frame.destination is not None:
+            ctx.emit("j1939-destination", f"PGN {frame.pgn:#06x} — PDU2 (широковещательный), "
+                     "destination не используется", p + ("destination",))
+    if bus.protocol != "canopen" and frame.type != "raw":
+        ctx.emit("frame-type-protocol", f"тип {frame.type} на шине с протоколом {bus.protocol}", p + ("type",))
     if fc and fc.direction and frame.direction and frame.direction != fc.direction and frame.device:
         ctx.emit("direction-mismatch",
                  f"кадр {frame.type} обычно {fc.direction.upper()} для устройства, указано "
@@ -282,6 +321,21 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                     ctx.emit("metric-range",
                              f"{k} = {val:g} вне представимого диапазона "
                              f"{phys[0]:g}..{phys[1]:g} {s.unit or ''}".rstrip(), sp + (k,))
+
+        if s.kind == "float" and s.bit_length not in (32, 64):
+            ctx.emit("float-length", f"сигнал {s.name!r}: float — 32 или 64 бита, задано {s.bit_length}", sp)
+        raw_lo, raw_hi = (lo, hi) if s.kind != "float" else (None, None)
+        for v in s.invalid_values:
+            if raw_lo is not None and not raw_lo <= v <= raw_hi:
+                ctx.emit("invalid-overflow", f"invalid = {v} не помещается в {s.bit_length} бит "
+                         f"({raw_lo}..{raw_hi})", sp + ("invalid",))
+        if s.initial is not None and s.factor != 0:
+            raw = s.initial_raw
+            if raw_lo is not None and not raw_lo <= raw <= raw_hi:
+                ctx.emit("initial-range", f"initial = {s.initial:g} → raw {raw} вне {raw_lo}..{raw_hi}",
+                         sp + ("initial",))
+            elif (s.min is not None and s.initial < s.min) or (s.max is not None and s.initial > s.max):
+                ctx.emit("initial-range", f"initial = {s.initial:g} вне min/max", sp + ("initial",))
 
         if s.description is None and not s._path[-1:] == ("sdo",):
             ctx.emit("missing-description", f"сигнал {s.name!r} без описания", sp)

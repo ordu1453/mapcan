@@ -46,10 +46,11 @@ class MapDiff:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2, default=str)
 
 
-DEVICE_FIELDS = ("node_id", "short", "title")
-FRAME_FIELDS = ("can_id", "type", "dlc", "direction", "mode", "cycle_ms", "extended", "device", "description")
+DEVICE_FIELDS = ("node_id", "address", "short", "title")
+FRAME_FIELDS = ("can_id", "type", "dlc", "direction", "mode", "cycle_ms", "extended", "device",
+                "pgn", "priority", "receivers", "description")
 SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "signed", "kind", "factor", "offset", "unit",
-                 "min", "max", "multiplexer", "mux", "description")
+                 "min", "max", "initial", "invalid", "multiplexer", "mux", "description")
 FLAG_FIELDS = ("bit", "bit_length", "description")
 
 
@@ -59,6 +60,7 @@ def _frame_attrs(f: Frame, lang: str) -> dict:
         "can_id": f.can_id, "type": f.type, "dlc": f.dlc, "direction": f.direction,
         "mode": tr.mode if tr else None, "cycle_ms": tr.cycle_ms if tr else None,
         "extended": f.extended, "device": f.device.name if f.device else None,
+        "pgn": f.pgn, "priority": f.priority, "receivers": list(f.receivers),
         "description": text(f.description, lang),
     }
 
@@ -67,7 +69,8 @@ def _signal_attrs(s: Signal, lang: str) -> dict:
     return {
         "start_bit": s.start_bit, "bit_length": s.bit_length, "byte_order": s.byte_order,
         "signed": s.signed, "kind": s.kind, "factor": s.factor, "offset": s.offset, "unit": s.unit,
-        "min": s.min, "max": s.max, "multiplexer": s.multiplexer, "mux": s.mux_values,
+        "min": s.min, "max": s.max, "initial": s.initial, "invalid": s.invalid_values or None,
+        "multiplexer": s.multiplexer, "mux": s.mux_values,
         "description": text(s.description, lang),
     }
 
@@ -106,8 +109,10 @@ def _diff_bus(d: MapDiff, old: Bus, new: Bus, lang: str) -> None:
     for name in od.keys() - nd.keys():
         d.changes.append(Change("removed", "device", new.name, device=name))
     for name in nd.keys() & od.keys():
-        oa = {"node_id": od[name].node_id, "short": od[name].short, "title": text(od[name].title, lang)}
-        na = {"node_id": nd[name].node_id, "short": nd[name].short, "title": text(nd[name].title, lang)}
+        oa = {"node_id": od[name].node_id, "address": od[name].address, "short": od[name].short,
+              "title": text(od[name].title, lang)}
+        na = {"node_id": nd[name].node_id, "address": nd[name].address, "short": nd[name].short,
+              "title": text(nd[name].title, lang)}
         for fld, a, b in _attrs_diff(oa, na, DEVICE_FIELDS):
             d.changes.append(Change("changed", "device", new.name, device=name, field=fld, old=a, new=b))
 
@@ -208,8 +213,8 @@ def _fmt(v: Any) -> str:
 
 
 def _fmt_field(fld: str, v: Any) -> str:
-    if fld in ("can_id", "node_id") and isinstance(v, int):
-        return f"0x{v:03X}" if fld == "can_id" else f"0x{v:02X}"
+    if fld in ("can_id", "node_id", "address", "pgn") and isinstance(v, int):
+        return {"can_id": f"0x{v:03X}", "pgn": f"0x{v:04X}"}.get(fld, f"0x{v:02X}")
     return _fmt(v)
 
 

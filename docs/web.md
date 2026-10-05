@@ -7,10 +7,10 @@
 
 ```sh
 canmap serve                             # стартовый экран: создать или открыть карту
-canmap serve canmap.yaml                 # сразу открыть карту (http://127.0.0.1:8765/)
+canmap serve my-map.yaml                 # сразу открыть карту (http://127.0.0.1:8765/)
 canmap serve maps/                       # стартовый экран, рабочая папка — maps/
-canmap serve canmap.yaml --readonly      # только просмотр
-canmap serve canmap.yaml --port 9000 --no-browser
+canmap serve my-map.yaml --readonly      # только просмотр
+canmap serve my-map.yaml --port 9000 --no-browser
 ```
 
 Перезапускать сервер для другой карты не нужно: **Файл → Новая карта / Открыть / Сохранить как /
@@ -131,7 +131,7 @@ round-trip дереву ruamel.yaml, а затем переносит измен
 `src/canmap/web/static/` и входит в пакет, поэтому пользователям Node.js не нужен.
 
 ```sh
-canmap serve canmap.yaml --no-browser     # API на :8765
+canmap serve my-map.yaml --no-browser     # API на :8765
 cd web
 npm ci
 npm run dev                               # http://localhost:5173, горячая перезагрузка

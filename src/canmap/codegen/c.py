@@ -62,12 +62,42 @@ static inline int64_t canmap_sign_extend(uint64_t value, uint8_t length)
     return (int64_t)((value ^ sign) - sign);
 }
 
+/* IEEE 754: float/double <-> сырые биты (через union, без memcpy и libc). */
+static inline uint32_t canmap_f32_to_bits(float f)
+{
+    union { float f; uint32_t u; } c;
+    c.f = f;
+    return c.u;
+}
+static inline float canmap_bits_to_f32(uint32_t u)
+{
+    union { float f; uint32_t u; } c;
+    c.u = u;
+    return c.f;
+}
+static inline uint64_t canmap_f64_to_bits(double f)
+{
+    union { double f; uint64_t u; } c;
+    c.f = f;
+    return c.u;
+}
+static inline double canmap_bits_to_f64(uint64_t u)
+{
+    union { double f; uint64_t u; } c;
+    c.u = u;
+    return c.f;
+}
+
 static inline float canmap_round_f(float x)
 {
     return (x >= 0.0f) ? (x + 0.5f) : (x - 0.5f);
 }
 #endif /* CANMAP_BITS_HELPERS */
 """
+
+
+def _c_int(v: int) -> str:
+    return f"{v}u" if v >= 0 else f"({v})"
 
 
 def _c_comment(s: str) -> str:
@@ -93,6 +123,8 @@ class CGen:
 
     @staticmethod
     def ctype(s: Signal) -> str:
+        if s.kind == "float":
+            return "double" if s.bit_length == 64 else "float"
         return ("int" if s.signed else "uint") + f"{storage_bits(s)}_t"
 
     # ------------------------------------------------------------------ #
@@ -160,7 +192,25 @@ class CGen:
                     out.append(f"#define {self.P(F, S, fl.name, ev.name)} {v}u")
             if s.flags:
                 out.append("")
-            if physical(s) and not is_byte_array(s):
+            out += self.default_defines(F, s)
+            if physical(s) and s.kind == "float":
+                T = self.ctype(s)
+                sfx = "" if T == "double" else "f"
+                fn = self.p(F, S)
+                out += [
+                    f"#define {self.P(F, S, 'FACTOR')} ({num(s.factor)}{sfx})",
+                    f"#define {self.P(F, S, 'OFFSET')} ({num(s.offset)}{sfx})",
+                    f"static inline {T} {fn}_to_phys({T} raw)",
+                    "{",
+                    f"    return raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};",
+                    "}",
+                    f"static inline {T} {fn}_from_phys({T} phys)",
+                    "{",
+                    f"    return (phys - {self.P(F, S, 'OFFSET')}) / {self.P(F, S, 'FACTOR')};",
+                    "}",
+                    "",
+                ]
+            elif physical(s) and not is_byte_array(s):
                 T = self.ctype(s)
                 lo = -(1 << (s.bit_length - 1)) if s.signed else 0
                 hi = (1 << (s.bit_length - 1)) - 1 if s.signed else (1 << s.bit_length) - 1
@@ -203,6 +253,24 @@ class CGen:
         out.append("/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */")
         out.append(f"int {self.p(F)}_unpack({self.p(F)}_t *msg, const uint8_t *data, size_t size);")
         out.append("")
+        return out
+
+    def default_defines(self, F: str, s: Signal) -> list[str]:
+        """#define для значения по умолчанию и «нет данных»."""
+        out = []
+        init = s.initial_raw
+        if init is not None and not is_byte_array(s):
+            if s.kind == "float":
+                sfx = "" if s.bit_length == 64 else "f"
+                out.append(f"#define {self.P(F, s.name, 'INITIAL')} ({num(init)}{sfx})")
+            else:
+                out.append(f"#define {self.P(F, s.name, 'INITIAL_RAW')} {_c_int(init)}")
+        inv = s.invalid_values
+        for i, v in enumerate(inv):
+            suffix = "INVALID_RAW" if len(inv) == 1 else f"INVALID_RAW_{i + 1}"
+            out.append(f"#define {self.P(F, s.name, suffix)} {_c_int(v)}")
+        if out:
+            out.append("")
         return out
 
     # ------------------------------------------------------------------ #
@@ -269,9 +337,16 @@ class CGen:
                     "    }"])
                 continue
             T = self.ctype(s)
+            get = f"canmap_get_bits(data, {s.start_bit}u, {s.bit_length}u, {be(s)})"
+            if s.kind == "float":
+                w = 64 if s.bit_length == 64 else 32
+                pack += self._guard(s, sel, [
+                    f"    canmap_set_bits(data, (uint64_t)canmap_f{w}_to_bits(msg->{s.name}), "
+                    f"{s.start_bit}u, {s.bit_length}u, {be(s)});"])
+                unpack += self._guard(s, sel, [f"    msg->{s.name} = canmap_bits_to_f{w}((uint{w}_t){get});"])
+                continue
             pack += self._guard(s, sel, [
                 f"    canmap_set_bits(data, (uint64_t)msg->{s.name}, {s.start_bit}u, {s.bit_length}u, {be(s)});"])
-            get = f"canmap_get_bits(data, {s.start_bit}u, {s.bit_length}u, {be(s)})"
             if s.signed:
                 get = f"canmap_sign_extend({get}, {s.bit_length}u)"
             unpack += self._guard(s, sel, [f"    msg->{s.name} = ({T}){get};"])

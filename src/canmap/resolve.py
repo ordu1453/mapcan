@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from .canopen import compute_id, default_direction
+from .canopen import default_direction
 from .model import CanMap, EnumValue, Frame, Signal
+from .protocols import frame_id
 
 SDO_COMMANDS = {
     0x23: "WRITE_4_BYTES", 0x27: "WRITE_3_BYTES", 0x2B: "WRITE_2_BYTES", 0x2F: "WRITE_1_BYTE",
@@ -27,10 +28,7 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
     frame._path = path
     frame._bus = bus
     frame._device = dev
-    if frame.id is not None:
-        frame._can_id = frame.id
-    elif bus.protocol == "canopen":
-        frame._can_id = compute_id(frame.type, dev.node_id if dev else None)
+    frame._can_id, frame.extended = frame_id(bus, dev, frame)
     if frame.direction is None and dev is not None:
         frame.direction = default_direction(frame.type) or "tx"
     for si, sig in enumerate(frame.signals):

@@ -11,9 +11,9 @@
 name: canmap
 on:
   push:
-    paths: ["canmap.yaml"]
+    paths: ["my-map.yaml"]
   pull_request:
-    paths: ["canmap.yaml"]
+    paths: ["my-map.yaml"]
 
 jobs:
   build:
@@ -24,9 +24,9 @@ jobs:
       - name: Install canmap
         run: uv tool install git+<адрес репозитория canmap>@v0.1.0
       - name: Validate
-        run: canmap validate canmap.yaml --strict
+        run: canmap validate my-map.yaml --strict
       - name: Build
-        run: canmap build canmap.yaml -o build
+        run: canmap build my-map.yaml -o build
       - uses: actions/upload-artifact@v4
         with:
           name: signal-map
@@ -43,10 +43,10 @@ canmap:
     name: registry.example.local/tools/canmap:0.1.0
     entrypoint: [""]
   rules:
-    - changes: [canmap.yaml]
+    - changes: [my-map.yaml]
   script:
-    - canmap validate canmap.yaml --strict
-    - canmap build canmap.yaml -o build
+    - canmap validate my-map.yaml --strict
+    - canmap build my-map.yaml -o build
   artifacts:
     paths: [build/]
 ```
@@ -59,8 +59,8 @@ canmap:
 ```cmake
 add_custom_command(
   OUTPUT  ${CMAKE_BINARY_DIR}/canmap/bus1.h ${CMAKE_BINARY_DIR}/canmap/bus1.c
-  COMMAND canmap gen c ${CMAKE_SOURCE_DIR}/canmap.yaml -o ${CMAKE_BINARY_DIR}/canmap --bus bus1
-  DEPENDS ${CMAKE_SOURCE_DIR}/canmap.yaml
+  COMMAND canmap gen c ${CMAKE_SOURCE_DIR}/my-map.yaml -o ${CMAKE_BINARY_DIR}/canmap --bus bus1
+  DEPENDS ${CMAKE_SOURCE_DIR}/my-map.yaml
 )
 target_sources(firmware PRIVATE ${CMAKE_BINARY_DIR}/canmap/bus1.c)
 target_include_directories(firmware PRIVATE ${CMAKE_BINARY_DIR}/canmap)
@@ -69,6 +69,6 @@ target_include_directories(firmware PRIVATE ${CMAKE_BINARY_DIR}/canmap)
 Или проверять в CI, что закоммиченные файлы совпадают с картой:
 
 ```sh
-canmap gen c canmap.yaml -o firmware/canmap
+canmap gen c my-map.yaml -o firmware/canmap
 git diff --exit-code firmware/canmap
 ```

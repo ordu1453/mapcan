@@ -104,7 +104,7 @@ const level = computed(() => {
     </span>
 
     <input v-else :type="def.type === 'date' ? 'date' : 'text'" v-model="draft" :readonly="readonly"
-           :placeholder="placeholder" :class="{ mono: def.type === 'hex' || def.type === 'int' || def.type === 'float' }"
+           :placeholder="placeholder" :class="{ mono: ['hex', 'int', 'float', 'intlist', 'strlist'].includes(def.type) }"
            @change="commit" @keydown.enter="commit" />
 
     <span v-if="error" class="field-msg error">{{ error }}</span>

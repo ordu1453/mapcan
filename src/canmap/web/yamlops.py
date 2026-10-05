@@ -15,13 +15,13 @@ from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.scalarint import HexInt
+from ruamel.yaml.scalarint import HexCapsInt, HexInt
 from ruamel.yaml.util import load_yaml_guess_indent
 
 from ..model import Signal
 
 # Ключи, числа в которых принято писать в hex.
-HEX_KEYS = {"id", "node_id", "command", "index", "subindex"}
+HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
 LAYOUT_KEYS = ("start_bit", "bit_length", "byte", "bit", "byte_length")
 
 
@@ -171,10 +171,11 @@ def to_node(value: Any, key: Any = None, old: Any = None) -> Any:
     if isinstance(value, bool) or value is None:
         return value
     if isinstance(value, int):
-        if isinstance(old, HexInt):
-            return HexInt(value, width=old._width) if hasattr(old, "_width") else HexInt(value)
+        if isinstance(old, (HexInt, HexCapsInt)) and value >= 0:
+            cls = type(old)                                 # сохранить регистр и ширину записи
+            return cls(value, width=getattr(old, "_width", None))
         if key in HEX_KEYS and value >= 0:
-            return HexInt(value)
+            return HexCapsInt(value, width=4 if key == "pgn" else (2 if value <= 0xFF else None))
         return value
     if isinstance(value, float) and value.is_integer() and isinstance(old, int) and not isinstance(old, bool):
         return int(value)

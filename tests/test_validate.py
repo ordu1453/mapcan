@@ -463,7 +463,7 @@ def test_bad_map_finds_all_problems():
 
 def test_legacy_map_rejected():
     """Старый формат не проходит схему, а не молча принимается."""
-    _, rep = validate_file(DATA.parent.parent / "legacy" / "canmap_v0.yaml")
+    _, rep = validate_file(DATA / "legacy_v0.yaml")
     assert rep.errors > 0
 
 
@@ -473,7 +473,8 @@ def test_every_rule_documented(code):
     assert level in {"error", "warning", "info"} and desc
 
 
-@pytest.mark.parametrize("path", sorted((DATA.parent.parent / "examples").glob("*.yaml")), ids=lambda p: p.name)
+@pytest.mark.parametrize("path", sorted((DATA.parent.parent / "examples").rglob("*.yaml")),
+                         ids=lambda p: p.relative_to(DATA.parent.parent / "examples").as_posix())
 def test_examples_are_clean(path):
     res, rep = validate_file(path)
     assert res.map is not None and rep.errors == 0 and rep.warnings == 0, [d.format() for d in rep.diagnostics]

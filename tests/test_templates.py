@@ -153,7 +153,8 @@ def test_cli_build_several_templates(tmp_path):
     r = runner.invoke(cli, ["build", str(REFERENCE), "-o", str(tmp_path), "--formats", "pdf",
                             "--pdf-template", "canmap", "--pdf-template", "gost-19"])
     assert r.exit_code == 0, r.output
-    assert (tmp_path / "canmap-canmap.pdf").is_file() and (tmp_path / "canmap-gost-19.pdf").is_file()
+    stem = REFERENCE.stem
+    assert (tmp_path / f"{stem}-canmap.pdf").is_file() and (tmp_path / f"{stem}-gost-19.pdf").is_file()
 
 
 # --------------------------------------------------------------------------- веб
@@ -202,3 +203,19 @@ def test_web_requisites_ops(client):
     st = r.json()
     assert not [d for d in st["diagnostics"] if d["level"] == "error"]
     assert "signatures:\n    developed: Иванов" in st["text"]
+
+
+EXAMPLES = sorted((REFERENCE.parent.parent.parent / "examples").rglob("*.yaml"))
+
+
+@pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.stem if p.parent.name == "examples" else p.parent.name)
+def test_build_every_example(path, tmp_path):
+    """Каждый пример собирается во все форматы и все шаблоны PDF."""
+    r = runner.invoke(cli, ["build", str(path), "-o", str(tmp_path), *sum(
+        (["--pdf-template", t] for t in PDF_TEMPLATES), [])])
+    assert r.exit_code == 0, r.output
+    for t in PDF_TEMPLATES:
+        assert (tmp_path / f"{path.stem}-{t}.pdf").read_bytes().startswith(b"%PDF")
+    for ext in ("xlsx", "md", "html"):
+        assert (tmp_path / f"{path.stem}.{ext}").is_file()
+    assert list((tmp_path / "c").glob("*.h")) and list((tmp_path / "dbc").glob("*.dbc"))

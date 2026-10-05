@@ -92,7 +92,7 @@ table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; co
 {%- macro frame_block(fr) %}
 <section class="frame" id="frame-{{ fr.name }}" data-search="{{ (fr.name ~ ' ' ~ fr.id ~ ' ' ~ fr.title ~ ' ' ~ fr.description ~ ' ' ~ (fr.signals | map(attribute='name') | join(' ')) ~ ' ' ~ (fr.signals | map(attribute='description') | join(' '))) | lower }}">
 <h4><code>{{ fr.id }}</code> {{ fr.title or fr.name }}{% if fr.description %} — <span style="font-weight:normal">{{ fr.description }}</span>{% endif %}</h4>
-<div class="meta"><b>{{ L.frame }}:</b> <code>{{ fr.name }}</code> · <b>{{ L.type }}:</b> {{ fr.type_label }}{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} · <b>{{ L.dlc }}:</b> {{ fr.dlc }}{% if fr.direction %} · <b>{{ L.direction }}:</b> {{ fr.direction }}{% endif %}{% if fr.period %} · <b>{{ L.period }}:</b> {{ fr.period }}{% endif %}</div>
+<div class="meta"><b>{{ L.frame }}:</b> <code>{{ fr.name }}</code> · <b>{{ L.type }}:</b> {{ fr.type_label }}{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} · <b>{{ L.dlc }}:</b> {{ fr.dlc }}{% if fr.direction %} · <b>{{ L.direction }}:</b> {{ fr.direction }}{% endif %}{% if fr.period %} · <b>{{ L.period }}:</b> {{ fr.period }}{% endif %}{% if fr.pgn %} · <b>{{ L.pgn }}:</b> <code>{{ fr.pgn }}</code> · <b>{{ L.priority }}:</b> {{ fr.priority }}{% endif %}{% if fr.receivers %} · <b>{{ L.receivers }}:</b> {{ fr.receivers }}{% endif %}</div>
 {% if fr.comment %}<p class="comment">{{ L.comment }}: {{ fr.comment }}</p>{% endif %}
 {% if not fr.signals %}<p class="empty">{{ L.no_signals }}</p>{% else %}
 {% if fr.grid %}
@@ -147,10 +147,11 @@ table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; co
 </tbody></table>
 {% else %}
 <table>
-<thead><tr><th>{{ L.device }}</th><th>{{ L.id }}</th><th>{{ L.purpose }}</th><th>{{ L.direction }}</th><th>{{ L.period }}</th></tr></thead>
+{% set A = bus.addressing %}
+<thead><tr><th>{{ L.device }}</th><th>{{ L.id }}</th>{% if A.has_pgn %}<th>{{ L.pgn }}</th>{% endif %}<th>{{ L.purpose }}</th><th>{{ L.direction }}</th><th>{{ L.period }}</th>{% if A.has_receivers %}<th>{{ L.receivers }}</th>{% endif %}</tr></thead>
 <tbody>
-{%- for r in bus.addressing.rows %}
-<tr><td>{{ r.device }}</td><td><a href="#frame-{{ r.name }}"><code>{{ r.id }}</code></a></td><td>{{ r.description }}</td><td>{{ r.direction }}</td><td>{{ r.period }}</td></tr>
+{%- for r in A.rows %}
+<tr><td>{{ r.device }}</td><td><a href="#frame-{{ r.name }}"><code>{{ r.id }}</code></a></td>{% if A.has_pgn %}<td><code>{{ r.pgn }}</code></td>{% endif %}<td>{{ r.description }}</td><td>{{ r.direction }}</td><td>{{ r.period }}</td>{% if A.has_receivers %}<td>{{ r.receivers }}</td>{% endif %}</tr>
 {%- endfor %}
 </tbody></table>
 {% endif %}

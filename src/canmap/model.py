@@ -21,10 +21,10 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 FORMAT_VERSION = 1
 
 ByteOrder = Literal["little_endian", "big_endian"]
-SignalKind = Literal["enum", "flag", "bitfield", "metric", "raw", "bytes"]
+SignalKind = Literal["enum", "flag", "bitfield", "metric", "raw", "bytes", "float"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
-Protocol = Literal["canopen", "can"]
+Protocol = Literal["canopen", "j1939", "can"]
 NameStyle = Literal["snake_case", "UPPER_SNAKE", "camelCase", "PascalCase", "any"]
 
 FrameType = Literal[
@@ -212,7 +212,25 @@ class Signal(_Base):
     mux: int | list[int] | None = Field(
         None, description="Значение(я) селектора, при которых сигнал присутствует."
     )
+    initial: float | None = Field(
+        None, description="Значение по умолчанию (в физических единицах).")
+    invalid: int | list[int] | None = Field(
+        None, description="Сырое значение (или значения), означающее «нет данных / недостоверно».")
     comment: Text | None = None
+
+    @property
+    def invalid_values(self) -> list[int]:
+        if self.invalid is None:
+            return []
+        return [self.invalid] if isinstance(self.invalid, int) else list(self.invalid)
+
+    @property
+    def initial_raw(self) -> int | float | None:
+        """Сырое значение по умолчанию (для float — само значение)."""
+        if self.initial is None or self.factor == 0:
+            return None
+        raw = (self.initial - self.offset) / self.factor
+        return raw if self.kind == "float" else round(raw)
 
     @model_validator(mode="after")
     def _resolve_layout(self) -> Signal:
@@ -235,7 +253,9 @@ class Signal(_Base):
         if self.byte_length is not None:
             self.bit_length = self.byte_length * 8
         if self.bit_length is None:
-            if self.kind == "flag" or (self.bit is not None and self.byte_length is None):
+            if self.kind == "float":
+                self.bit_length = 32
+            elif self.kind == "flag" or (self.bit is not None and self.byte_length is None):
                 self.bit_length = 1
             else:
                 self.bit_length = 8
@@ -306,9 +326,16 @@ class Frame(_Base):
     type: FrameType = "raw"
     id: int | None = Field(
         None, ge=0, le=0x1FFFFFFF,
-        description="Явный CAN ID. Для типов CANopen вычисляется из node_id.",
+        description="Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN.",
     )
     extended: bool = False
+    # J1939
+    pgn: int | None = Field(None, ge=0, le=0x3FFFF, description="J1939: номер группы параметров (PGN).")
+    priority: int | None = Field(None, ge=0, le=7, description="J1939: приоритет 0..7 (по умолчанию 6).")
+    destination: int | None = Field(
+        None, ge=0, le=0xFF, description="J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем).")
+    receivers: list[str] = Field(
+        default_factory=list, description="Устройства шины, принимающие кадр (имена).")
     dlc: int = Field(8, ge=0, le=64)
     direction: Direction | None = None
     transmission: Transmission | None = None
@@ -357,7 +384,8 @@ class Device(_Base):
     name: str
     short: str | None = Field(None, description="Короткое обозначение, напр. «BMS».")
     title: Text | None = None
-    node_id: int | None = Field(None, ge=0, le=0x7F)
+    node_id: int | None = Field(None, ge=0, le=0x7F, description="CANopen: адрес узла 1..127.")
+    address: int | None = Field(None, ge=0, le=0xFF, description="J1939: адрес источника 0..253.")
     description: Text | None = None
     frames: list[Frame] = Field(default_factory=list)
 

@@ -1,29 +1,65 @@
 # canmap
 
-YAML-карта сигналов CAN как единственный источник правды. Из одного файла
-[`canmap.yaml`](canmap.yaml) получаются:
+Утилита для создания и редактирования **карт сигналов CAN** любых устройств и систем.
+Карта хранится в одном YAML-файле. Этот файл — единственный источник правды, из него
+получаются документация, код для прошивок и файлы для анализаторов шины.
+
+Поддерживаются:
+
+* **протоколы** — CANopen (ID вычисляются из функционального кода и `node_id`), SAE J1939
+  (ID из PGN, приоритета и адреса), CAN 2.0A/B с явными 11/29-битными ID, CAN FD (DLC до 64);
+* **сигналы** — целые (знаковые и беззнаковые, любой длины и позиции, little/big-endian),
+  перечисления, флаги и битовые поля, физические величины (`factor`, `offset`, единица,
+  диапазон), float32/float64, массивы байт, мультиплексирование, значения по умолчанию и
+  «нет данных»;
+* **кадры** — периодичность, направление, получатели, описание SDO-обменов CANopen.
 
 | Результат | Команда |
 |---|---|
-| проверка карты с указанием файла и строки | `canmap validate canmap.yaml` |
-| Excel: адресация, содержание, битовые карты, изменения | `canmap export xlsx canmap.yaml` |
-| PDF: титул, оглавление, битовые диаграммы, таблицы; шаблоны ЕСКД, ЕСПД, ГОСТ 7.32 | `canmap export pdf canmap.yaml --template gost-2.105` |
-| Markdown для README/вики | `canmap export md canmap.yaml` |
-| HTML-страница с поиском | `canmap export html canmap.yaml` |
-| DBC для CANalyzer, SavvyCAN, PCAN-View, Wireshark | `canmap export dbc canmap.yaml -o dbc/` |
-| C: `#define` ID, `enum`, маски, структуры, `pack`/`unpack` | `canmap gen c canmap.yaml -o firmware/` |
-| Python-модуль для тестов и стендов | `canmap gen py canmap.yaml -o tools/` |
-| всё сразу (для CI) | `canmap build canmap.yaml -o build/` |
-| веб-редактор: файлы, дерево, формы, битовая карта, проверка на лету | `canmap serve [canmap.yaml]` |
-| сравнение двух версий карты, changelog | `canmap diff old.yaml canmap.yaml` |
+| веб-редактор: создать или открыть карту, дерево, формы, битовая карта, проверка на лету | `canmap serve` |
+| проверка карты с указанием файла и строки | `canmap validate my-map.yaml` |
+| Excel: адресация, содержание, битовые карты, изменения | `canmap export xlsx my-map.yaml` |
+| PDF: титул, оглавление, битовые диаграммы, таблицы; шаблоны ЕСКД, ЕСПД, ГОСТ 7.32 | `canmap export pdf my-map.yaml --template gost-2.105` |
+| Markdown для README/вики, HTML-страница с поиском | `canmap export md my-map.yaml`, `canmap export html my-map.yaml` |
+| DBC для CANalyzer, SavvyCAN, PCAN-View, Wireshark | `canmap export dbc my-map.yaml -o dbc/` |
+| C: `#define` ID, `enum`, маски, структуры, `pack`/`unpack` | `canmap gen c my-map.yaml -o firmware/` |
+| Python-модуль для тестов и стендов | `canmap gen py my-map.yaml -o tools/` |
+| всё сразу (для CI) | `canmap build my-map.yaml -o build/` |
+| сравнение двух версий карты, changelog | `canmap diff old.yaml my-map.yaml` |
 
-Формат файла описан в [docs/format.md](docs/format.md), минимальный пример —
-[examples/minimal.yaml](examples/minimal.yaml).
+## Быстрый старт
+
+```sh
+canmap serve
+```
+
+Откроется браузер. Выберите **«Новая карта…»** и шаблон: CANopen, J1939, CAN с явными ID или
+пустая карта. Дальше устройства, кадры и сигналы добавляются в дереве. Сигналы удобно
+рисовать мышью на битовой карте кадра. Ошибки видны сразу, файл сохраняется по Ctrl+S.
+
+YAML можно писать и вручную — с подсказками в VS Code по JSON Schema
+(см. [docs/format.md](docs/format.md)).
+
+## Примеры
+
+| Файл | Что показывает |
+|---|---|
+| [examples/minimal.yaml](examples/minimal.yaml) | Все виды сигналов в одном кадре CANopen: enum, битовое поле, величины, big-endian |
+| [examples/j1939.yaml](examples/j1939.yaml) | SAE J1939: двигатель (EEC1, ET1), панель приборов, адресный запрос PDU1, «нет данных» 0xFF/0xFFFF |
+| [examples/vehicle-can.yaml](examples/vehicle-can.yaml) | CAN с явными 11/29-битными ID: float32, мультиплексированные напряжения ячеек, получатели, CAN FD с DLC 64 и float64 |
+| [examples/minimal.yaml](examples/minimal.yaml) | Реальная CANopen-карта системы питания: две шины, SDO, EMCY, мультиплексор |
 
 ## Установка
 
 Нужен Python 3.11–3.13. Внешние программы не нужны: PDF собирается встроенным
-компилятором Typst из pip-пакета `typst`, шрифты PT Sans (OFL) идут в комплекте.
+компилятором Typst из pip-пакета `typst`, шрифты PT Sans и PT Serif (OFL) идут в комплекте.
+
+**Для пользователей** (команда `canmap` доступна глобально, обновление одной командой):
+
+```sh
+uv tool install git+<адрес репозитория>     # или: pipx install git+<адрес>
+uv tool upgrade canmap
+```
 
 **Для разработки** (с [uv](https://docs.astral.sh/uv/), окружение по `uv.lock`):
 
@@ -41,13 +77,6 @@ python -m venv .venv
 pip install -e .
 ```
 
-**Для пользователей** (команда `canmap` доступна глобально, обновление одной командой):
-
-```sh
-uv tool install git+<адрес репозитория>     # или: pipx install git+<адрес>
-uv tool upgrade canmap
-```
-
 **Офлайн** (корпоративная сеть без PyPI): на машине с доступом собрать wheelhouse
 и перенести каталог:
 
@@ -59,19 +88,19 @@ pip install --no-index --find-links wheelhouse canmap
 ## Команды
 
 ```text
-canmap validate FILE [--strict] [--info] [--format json] [--disable КОД]
+canmap serve       [FILE|DIR] [--port 8765] [--readonly] [--no-browser]
+canmap validate    FILE [--strict] [--info] [--format json] [--disable КОД]
 canmap export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
 canmap export pdf  FILE [-o OUT] [--template canmap|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR]
 canmap export md   FILE [-o OUT] [--template my.md.j2]
 canmap export html FILE [-o OUT] [--template my.html.j2]
 canmap export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
-canmap gen c       FILE [-o DIR] [--prefix ne_] [--bus NAME]
+canmap gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
 canmap gen py      FILE [-o DIR] [--bus NAME]
-canmap build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py]
+canmap build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py] [--pdf-template NAME]
+canmap diff        OLD NEW [--format text|md|json]
 canmap schema      [-o schema.json]
 canmap template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
-canmap serve       [FILE|DIR] [--port 8765] [--readonly] [--no-browser]
-canmap diff        OLD NEW [--format text|md|json]
 canmap rules
 ```
 
@@ -106,35 +135,40 @@ FAIL: ошибок: 12, предупреждений: 2, замечаний: 0
 
 Для каждой шины создаются `<bus>.h` и `<bus>.c`. Без динамической памяти и libc
 (только `stdint.h`, `stdbool.h`, `stddef.h`), компилируется с `-Wall -Wextra -Wconversion`
-для x86 и Cortex-M.
+для x86 и Cortex-M. Для `examples/vehicle-can.yaml`:
 
 ```c
-#include "bus1.h"
+#include "powertrain.h"
 
-imd_data_t msg = {0};
-msg.bus_voltage = imd_data_bus_voltage_from_phys(400.5f);   /* В → raw */
+vcu_command_t cmd = {0};
+cmd.contactor_request = VCU_COMMAND_CONTACTOR_REQUEST_CLOSE;
+cmd.torque_request = vcu_command_torque_request_from_phys(120.5f);   /* Н·м → raw */
 uint8_t buf[8];
-int dlc = imd_data_pack(buf, sizeof buf, &msg);              /* → IMD_DATA_ID, dlc */
+int dlc = vcu_command_pack(buf, sizeof buf, &cmd);                   /* → VCU_COMMAND_ID */
 
-imd_state_t st;
-if (imd_state_unpack(&st, rx_data, rx_len) == 0 &&
-    st.insulation_status == IMD_STATE_INSULATION_STATUS_ALARM) { ... }
-if (st.internal_error & IMD_STATE_INTERNAL_ERROR_TIMEOUT_ERROR_MASK) { ... }
+bms_status_t st;
+if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { ... }
 ```
 
 ## Веб-редактор
 
 ```sh
-canmap serve canmap.yaml      # или просто `canmap serve` — создать/открыть карту из браузера
+canmap serve                  # стартовый экран: новая карта, открыть, недавние
+canmap serve my-map.yaml      # сразу открыть карту
 ```
 
-Откроется браузер с редактором. Файлы создаются, открываются и сохраняются из меню «Файл»;
-профиль автора (имя, GitHub) подписывает записи истории изменений. В редакторе: дерево карты с поиском (имя, `0x196`, описание), формы
-свойств, битовая карта кадра (протянуть мышью — новый сигнал, перетащить — сдвиг, за край —
-длина; пересечения подсвечиваются), таблицы значений и флагов, проверка на лету, вкладка
-YAML, предпросмотр и скачивание всех форматов, сравнение с версией из git и запись
-changelog в историю. Файл сохраняется с комментариями и форматированием — в `git diff`
-только изменённые строки. Подробнее — [docs/web.md](docs/web.md).
+Файлы создаются, открываются и сохраняются из меню «Файл»; профиль автора (имя, GitHub)
+подписывает записи истории изменений. В редакторе:
+* дерево карты с поиском по имени, ID, PGN и описанию;
+* формы свойств, которые подстраиваются под протокол шины;
+* битовая карта кадра: протянуть мышью — новый сигнал, перетащить — сдвиг, за край — длина;
+  пересечения подсвечиваются;
+* таблицы значений и флагов, проверка на лету, вкладка YAML;
+* предпросмотр и скачивание всех форматов;
+* сравнение с версией из git и запись changelog в историю.
+
+Файл сохраняется с комментариями и форматированием — в `git diff` только изменённые строки.
+Подробнее — [docs/web.md](docs/web.md).
 
 ## CI
 
@@ -145,14 +179,14 @@ YAML карта проверяется, а PDF, Excel, DBC и C-заголовк
 ## Структура репозитория
 
 ```text
-canmap.yaml                 эталонная карта (шины 1 и 2)
+examples/                   примеры карт (CANopen, J1939, CAN/CAN FD, карта системы питания)
 schema/canmap.schema.json   JSON Schema (canmap schema -o …)
-examples/                   примеры карт
-docs/                       формат, CI
+docs/                       формат, шаблоны PDF, веб-редактор, CI
 src/canmap/
   model.py                  модель данных (pydantic)
   loader.py                 загрузка YAML с позициями узлов
-  resolve.py                вычисление ID, раскладка SDO
+  protocols.py, canopen.py  вычисление CAN ID: CANopen, J1939, явные ID
+  resolve.py                ссылки, раскладка SDO
   validate.py               правила проверки
   bits.py                   раскладка бит, pack/unpack
   docmodel.py               общее представление для документов
@@ -160,11 +194,10 @@ src/canmap/
   codegen/                  C и Python
   diff.py                   сравнение версий карты, changelog
   web/                      веб-редактор: FastAPI, операции над YAML, собранный UI (static/)
-  templates/                шаблоны документов
-  fonts/                    PT Sans (OFL)
+  templates/                шаблоны документов (pdf/ — Typst)
+  fonts/                    PT Sans, PT Serif (OFL)
 web/                        исходники интерфейса (Vue 3 + TypeScript + Vite)
-tests/                      тесты, эталонные (golden) файлы
-legacy/                     исходная карта в старом формате
+tests/                      тесты; data/ — фикстуры, golden/ — эталонные файлы
 ```
 
 ## Тесты
@@ -174,11 +207,11 @@ uv run pytest                     # или: .venv/Scripts/python -m pytest
 UPDATE_GOLDEN=1 uv run pytest     # обновить эталонные файлы после намеренных изменений
 ```
 
-Тесты C-кода компилируют сгенерированные файлы `gcc` (и `arm-none-eabi-gcc`, если
-установлен) и сравнивают результат `pack`/`unpack` побайтно с Python-модулем и cantools.
+Тесты используют собственные фикстуры из `tests/data/` и не зависят от примеров. Тесты C-кода
+компилируют сгенерированные файлы `gcc` (и `arm-none-eabi-gcc`, если установлен) и
+сравнивают `pack`/`unpack` побайтно с Python-модулем и cantools для всех примеров.
 
-## Состояние
+## Планы
 
-Готовы этапы 1–6 плана ([canmap_tasks.md](canmap_tasks.md)): формат, проверка,
-Excel, PDF/Markdown/HTML, C/Python/DBC, веб-редактор. Не реализованы: импорт DBC/Excel
-(этап 7), работа с живой шиной (этап 8), плагины протоколов (этап 9).
+Импорт существующих карт из DBC и Excel; работа с живой шиной (декодирование логов,
+монитор, симулятор); плагины для не-CAN протоколов (Modbus, UART-пакеты).

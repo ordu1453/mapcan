@@ -109,10 +109,11 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
     const frameNode = (f: Data, fp: Path): TreeNode => {
       const rf = frames.get(pathKey(fp));
       const fnode: TreeNode = {
-        key: pathKey(fp), path: fp, kind: "frame", label: f.name, sub: frameSub(rf), children: [],
+        key: pathKey(fp), path: fp, kind: "frame", label: f.name,
+        sub: f.pgn != null ? `PGN ${hex(f.pgn, 4)}` : frameSub(rf), children: [],
         dir: rf?.device ? rf.direction : null,
         search: [f.name, txt(f.title, lang), txt(f.description, lang), rf?.can_id != null ? hex(rf.can_id) : "",
-          rf?.can_id != null ? String(rf.can_id) : ""].join(" ").toLowerCase(),
+          rf?.can_id != null ? String(rf.can_id) : "", f.pgn != null ? hex(f.pgn, 4) : ""].join(" ").toLowerCase(),
       };
       (f.signals ?? []).forEach((s: Data, si: number) => {
         const sp = [...fp, "signals", si];
@@ -145,7 +146,7 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
       const dp: Path = [...bp, "devices", di];
       const dnode: TreeNode = {
         key: pathKey(dp), path: dp, kind: "device", label: d.short ? `${d.short} · ${d.name}` : d.name,
-        sub: d.node_id != null ? hex(d.node_id, 2) : "", children: [],
+        sub: d.node_id != null ? hex(d.node_id, 2) : d.address != null ? `SA ${hex(d.address, 2)}` : "", children: [],
         search: [d.name, d.short ?? "", txt(d.title, lang)].join(" ").toLowerCase(),
       };
       (d.frames ?? []).forEach((f: Data, fi: number) => dnode.children.push(frameNode(f, [...dp, "frames", fi])));

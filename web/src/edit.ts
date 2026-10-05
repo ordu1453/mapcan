@@ -37,7 +37,12 @@ export function addDevice(busPath: Path): Promise<boolean> {
   const bus = getAt(data(), busPath);
   const devices: Data[] = bus.devices ?? [];
   const value: Record<string, unknown> = { name: uniqueName("device", devices.map((d) => d.name)) };
-  if (bus.protocol !== "can") {
+  if (bus.protocol === "j1939") {
+    const used = new Set(devices.map((d) => d.address));
+    let a = 0x10;
+    while (used.has(a)) a++;
+    value.address = a;
+  } else if (bus.protocol !== "can") {
     const used = new Set(devices.map((d) => d.node_id));
     let id = 1;
     while (used.has(id)) id++;
@@ -53,6 +58,20 @@ export function addFrame(ownerPath: Path): Promise<boolean> {
   const isDevice = ownerPath.length === 4;
   const base = isDevice ? `${owner.name}_frame` : "frame";
   const value: Record<string, unknown> = { name: uniqueName(base, allFrameNames(bus)) };
+  if (bus.protocol === "j1939") {
+    const used = new Set<number>();
+    for (const f of [...(bus.frames ?? []), ...(bus.devices ?? []).flatMap((d: Data) => d.frames ?? [])]) {
+      if (f.pgn != null) used.add(f.pgn);
+    }
+    let pgn = 0xff00;                                   // проприетарный диапазон PDU2
+    while (used.has(pgn) && pgn < 0xffff) pgn++;
+    value.pgn = pgn;
+    value.priority = 6;
+    value.dlc = 8;
+    value.cycle_ms = 100;
+    value.signals = [];
+    return insertAndSelect([...ownerPath, "frames"], value);
+  }
   if (bus.protocol === "canopen" && isDevice) {
     const usedTypes = new Set((owner.frames ?? []).map((f: Data) => f.type));
     value.type = ["pdo_tx1", "pdo_tx2", "pdo_tx3", "pdo_tx4", "pdo_rx1", "pdo_rx2", "pdo_rx3", "pdo_rx4"]

@@ -70,7 +70,7 @@ lint:
 | `title` | Название в документах («Шина 1») |
 | `interface` | Интерфейс (`can0`, `PCAN_USBBUS1`…) |
 | `bitrate` | Скорость, бит/с |
-| `protocol` | `canopen` — ID вычисляются из функционального кода и `node_id`; `can` — ID задаются явно |
+| `protocol` | `canopen` — ID вычисляются из функционального кода и `node_id`; `j1939` — из PGN, приоритета и адреса устройства; `can` — ID задаются явно |
 | `fd` | `true` для CAN FD (DLC до 64) |
 | `frames` | Широковещательные кадры без владельца (`nmt`, `sync`, `time`) |
 | `devices` | Устройства |
@@ -83,6 +83,7 @@ lint:
 | `short` | Короткое обозначение для таблиц (`BMS`) |
 | `title` | Полное название |
 | `node_id` | Адрес CANopen (1..127) |
+| `address` | Адрес источника J1939 (0..253) |
 | `description` | Описание |
 | `frames` | Кадры, которыми обменивается устройство |
 
@@ -94,7 +95,9 @@ lint:
 | `title` | Короткий заголовок («СОСТОЯНИЯ») |
 | `description` | Назначение кадра |
 | `type` | `nmt`, `sync`, `emcy`, `time`, `pdo_tx1..4`, `pdo_rx1..4`, `sdo_tx`, `sdo_rx`, `heartbeat`, `raw` |
-| `id` | Явный CAN ID (обязателен для `raw` и шин `can`; для CANopen переопределяет вычисленный) |
+| `id` | Явный CAN ID (обязателен на шинах `can`; на CANopen и J1939 переопределяет вычисленный) |
+| `pgn`, `priority`, `destination` | J1939: номер группы параметров, приоритет 0..7 (по умолчанию 6), адрес получателя для PDU1 (по умолчанию 0xFF) |
+| `receivers` | Имена устройств шины, принимающих кадр |
 | `extended` | 29-битный ID |
 | `dlc` | Длина данных (по умолчанию 8) |
 | `direction` | `tx` / `rx` относительно устройства. По умолчанию из типа: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` — `tx`; `pdo_rx*`, `sdo_rx`, `nmt` — `rx` |
@@ -125,7 +128,7 @@ lint:
 |---|---|
 | `name` | Идентификатор (уникален в кадре вместе с именами флагов) |
 | `description` | Описание |
-| `kind` | `enum`, `flag`, `bitfield`, `metric`, `raw`, `bytes`. Если не задан: есть `values` → `enum`, есть `flags` → `bitfield`, есть `factor`/`offset`/`unit` → `metric`, иначе `raw` |
+| `kind` | `enum`, `flag`, `bitfield`, `metric`, `raw`, `float`, `bytes`. Если не задан: есть `values` → `enum`, есть `flags` → `bitfield`, есть `factor`/`offset`/`unit` → `metric`, иначе `raw` |
 | `start_bit` + `bit_length` | Каноническая позиция |
 | `byte` [+ `bit`] [+ `byte_length` \| `bit_length`] | Сокращённая запись (см. ниже) |
 | `byte_order` | `little_endian` (по умолчанию) или `big_endian` |
@@ -136,7 +139,20 @@ lint:
 | `factor`, `offset`, `unit`, `min`, `max` | Физическое преобразование и диапазон (в физических единицах) |
 | `multiplexer` | `true` — сигнал-селектор мультиплексора |
 | `mux` | Значение (или список) селектора, при котором сигнал присутствует |
+| `initial` | Значение по умолчанию в физических единицах (в C — `…_INITIAL_RAW`, в DBC — `GenSigStartValue`) |
+| `invalid` | Сырое значение (или список), означающее «нет данных / недостоверно», напр. `0xFF` |
 | `comment` | Примечание |
+
+#### Числа с плавающей точкой
+
+`kind: float` — IEEE 754, 32 бита (по умолчанию) или 64 бита (`bit_length: 64`), любой порядок
+байт. `factor` и `offset` допустимы. В C поле имеет тип `float` или `double`, в DBC сигнал
+помечается как float.
+
+```yaml
+- {name: pack_voltage, byte: 0, kind: float, unit: В}
+- {name: timestamp, byte: 0, kind: float, bit_length: 64, unit: с}
+```
 
 #### Сокращённая запись позиции
 
@@ -171,6 +187,41 @@ signals:
 
 Сигналы с разными `mux` могут занимать одни и те же биты — это не считается пересечением.
 Сигнал без `mux` присутствует при любом значении селектора.
+
+### Протоколы и CAN ID
+
+| `protocol` | Как получается ID |
+|---|---|
+| `canopen` | Из `type` кадра и `node_id` устройства (таблица ниже); `id` переопределяет |
+| `j1939` | 29 бит: `priority << 26 \| PGN << 8 \| address`. Для PDU1 (PF < 240) младший байт PGN заменяется на `destination` |
+| `can` | Только явный `id`; 29-битный ID — `extended: true`; для CAN FD у шины `fd: true` |
+
+J1939:
+
+```yaml
+buses:
+  - name: j1939
+    protocol: j1939
+    bitrate: 250000
+    devices:
+      - name: engine
+        address: 0x00
+        frames:
+          - name: eec1
+            pgn: 0xF004          # PDU2 → ID 0x0CF00400
+            priority: 3
+            cycle_ms: 20
+            receivers: [cluster]
+            signals:
+              - {name: engine_speed, byte: 3, byte_length: 2, factor: 0.125, unit: об/мин, invalid: 0xFFFF}
+      - name: diag
+        address: 0xF9
+        frames:
+          - name: request
+            pgn: 0xEA00          # PDU1: адресный
+            destination: 0x00    # → ID 0x18EA00F9
+            dlc: 3
+```
 
 ### SDO (`sdo[]`)
 
@@ -233,5 +284,9 @@ values: *dc_states
 | `cycle-missing`, `cycle-unexpected` | error/warning | режим передачи |
 | `direction-mismatch`, `frame-type-protocol` | warning | согласованность типа кадра |
 | `sdo-frame-type`, `sdo-duplicate` | warning/error | описание SDO |
+| `j1939-address`, `j1939-pdu1-pgn`, `j1939-destination`, `j1939-field-protocol` | error/warning | адрес J1939 вне диапазона или повторяется, PDU1-PGN с ненулевым младшим байтом, DA у PDU2, поля J1939 на другой шине |
+| `unknown-receiver` | error | получатель кадра не описан на шине |
+| `float-length` | error | float не 32 и не 64 бита |
+| `initial-range`, `invalid-overflow` | warning/error | значение по умолчанию вне диапазона, `invalid` не помещается в поле |
 | `logo-missing`, `logo-format` | warning/error | файл логотипа не найден / неподдерживаемый формат |
 | `missing-description`, `empty-frame` | info | полнота описания |

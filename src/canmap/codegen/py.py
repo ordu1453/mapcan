@@ -14,6 +14,20 @@ from .common import frames_with_layout, is_byte_array, num, physical, selector_o
 
 RUNTIME = '''
 
+def _f2b(value, bits):
+    """float → сырые биты IEEE 754."""
+    if bits == 32:
+        return struct.unpack("<I", struct.pack("<f", value))[0]
+    return struct.unpack("<Q", struct.pack("<d", value))[0]
+
+
+def _b2f(raw, bits):
+    """Сырые биты IEEE 754 → float."""
+    if bits == 32:
+        return struct.unpack("<f", struct.pack("<I", raw))[0]
+    return struct.unpack("<d", struct.pack("<Q", raw))[0]
+
+
 def _get(data, start, length, big_endian, signed=False):
     value, done, pos = 0, 0, start
     while done < length:
@@ -65,6 +79,7 @@ class PyGen:
             "",
             "from __future__ import annotations",
             "",
+            "import struct",
             "from dataclasses import dataclass, field",
             "from enum import IntEnum",
             RUNTIME,
@@ -109,10 +124,13 @@ class PyGen:
         out.append(f'    """0x{f.can_id:03X} {f.name}: {doc}"""' if doc else f'    """0x{f.can_id:03X} {f.name}"""')
         out += ["", f"    ID = 0x{f.can_id:03X}", f"    DLC = {f.dlc}", ""]
         for s in f.layout:
+            init = s.initial_raw
             if is_byte_array(s):
                 out.append(f"    {s.name}: bytes = field(default=bytes({s.bit_length // 8}))")
+            elif s.kind == "float":
+                out.append(f"    {s.name}: float = {num(init if init is not None else 0.0)}")
             else:
-                out.append(f"    {s.name}: int = 0")
+                out.append(f"    {s.name}: int = {init if init is not None else 0}")
         if not f.layout:
             out.append("    pass")
 
@@ -144,7 +162,8 @@ class PyGen:
                     "",
                     f"    @{s.name}_phys.setter",
                     f"    def {s.name}_phys(self, value: float) -> None:",
-                    f"        self.{s.name} = round((value - {num(s.offset)}) / {num(s.factor)})",
+                    (f"        self.{s.name} = (value - {num(s.offset)}) / {num(s.factor)}" if s.kind == "float"
+                     else f"        self.{s.name} = round((value - {num(s.offset)}) / {num(s.factor)})"),
                 ]
         out.append("")
         return out
@@ -162,7 +181,8 @@ class PyGen:
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        buf[{b0}:{b0 + n}] = bytes(self.{s.name})[:{n}].ljust({n}, b'\\0')"]
         be = s.byte_order == "big_endian"
-        return [f"        _set(buf, self.{s.name}, {s.start_bit}, {s.bit_length}, {be})"]
+        value = f"_f2b(self.{s.name}, {s.bit_length})" if s.kind == "float" else f"self.{s.name}"
+        return [f"        _set(buf, {value}, {s.start_bit}, {s.bit_length}, {be})"]
 
     @staticmethod
     def _unpack_stmt(s) -> list[str]:
@@ -170,6 +190,8 @@ class PyGen:
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        msg.{s.name} = bytes(data[{b0}:{b0 + n}])"]
         be = s.byte_order == "big_endian"
+        if s.kind == "float":
+            return [f"        msg.{s.name} = _b2f(_get(data, {s.start_bit}, {s.bit_length}, {be}), {s.bit_length})"]
         return [f"        msg.{s.name} = _get(data, {s.start_bit}, {s.bit_length}, {be}, {s.signed})"]
 
 

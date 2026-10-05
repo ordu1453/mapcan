@@ -204,7 +204,8 @@ def test_cli_export_refuses_on_errors(tmp_path):
 def test_cli_build(tmp_path):
     r = runner.invoke(app, ["build", str(REFERENCE), "-o", str(tmp_path), "--formats", "md,html,dbc,c,py,xlsx"])
     assert r.exit_code == 0, r.output
-    for p in ("canmap.md", "canmap.html", "canmap.xlsx", "dbc/bus1.dbc", "c/bus1.h", "c/bus1.c",
+    stem = REFERENCE.stem
+    for p in (f"{stem}.md", f"{stem}.html", f"{stem}.xlsx", "dbc/bus1.dbc", "c/bus1.h", "c/bus1.c",
               "py/bus1_canmap.py"):
         assert (tmp_path / p).exists(), p
 

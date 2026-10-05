@@ -7,6 +7,7 @@ import json
 
 TEMPLATES = {
     "canopen": "CANopen: шина и одно устройство",
+    "j1939": "SAE J1939: ECU с одним PGN",
     "can": "CAN с явными ID: шина и одно устройство",
     "empty": "Пустая: только шина",
 }
@@ -70,6 +71,33 @@ def new_map_text(template: str, title: str, author: str = "", github: str | None
             "                  1: OK",
             "                  2: WARNING",
             "                  3: ALARM",
+            "",
+        ]
+    elif template == "j1939":
+        lines += [
+            "  - name: j1939",
+            "    title: Шина J1939",
+            "    bitrate: 250000",
+            "    protocol: j1939",
+            "    devices:",
+            "      - name: ecu",
+            "        title: Блок управления",
+            "        address: 0x00",
+            "        frames:",
+            "          - name: status",
+            "            description: Состояние блока",
+            "            pgn: 0xFF00",
+            "            priority: 6",
+            "            dlc: 8",
+            "            cycle_ms: 100",
+            "            signals:",
+            "              - name: state",
+            "                description: Режим работы",
+            "                byte: 0",
+            "                values:",
+            "                  0: OFF",
+            "                  1: ON",
+            "                  0xFF: NOT_AVAILABLE",
             "",
         ]
     else:

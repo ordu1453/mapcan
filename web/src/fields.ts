@@ -2,7 +2,12 @@
 
 import type { NodeKind } from "./model";
 
-export type FieldType = "text" | "loc" | "int" | "hex" | "float" | "bool" | "select" | "date" | "intlist";
+export type FieldType = "text" | "loc" | "int" | "hex" | "float" | "bool" | "select" | "date" | "intlist" | "strlist";
+
+/** Контекст поля: протокол шины, к которой относится узел. */
+export interface FieldCtx {
+  protocol: string;
+}
 
 export interface FieldDef {
   key: string;            // может быть вложенным: "value.unit"
@@ -13,7 +18,7 @@ export interface FieldDef {
   wide?: boolean;
   /** Показывать поле только если условие истинно (node — данные узла). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  when?: (node: any) => boolean;
+  when?: (node: any, ctx: FieldCtx) => boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,7 +35,8 @@ const FRAME_TYPES: Array<[string, string]> = [
 
 const KINDS: Array<[string, string]> = [
   ["", "авто"], ["enum", "enum — перечисление"], ["flag", "flag — флаг"], ["bitfield", "bitfield — битовое поле"],
-  ["metric", "metric — величина"], ["raw", "raw — целое"], ["bytes", "bytes — байты"],
+  ["metric", "metric — величина"], ["raw", "raw — целое"], ["float", "float — IEEE 754 (32/64 бит)"],
+  ["bytes", "bytes — байты"],
 ];
 
 export const FIELDS: Record<NodeKind, FieldDef[]> = {
@@ -45,7 +51,8 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   bus: [
     { key: "name", label: "Имя", type: "text", hint: "идентификатор: имена файлов DBC/C" },
     { key: "title", label: "Название", type: "loc" },
-    { key: "protocol", label: "Протокол", type: "select", options: [["canopen", "CANopen"], ["can", "CAN (явные ID)"]] },
+    { key: "protocol", label: "Протокол", type: "select",
+      options: [["canopen", "CANopen"], ["j1939", "SAE J1939"], ["can", "CAN (явные ID)"]] },
     { key: "bitrate", label: "Скорость, бит/с", type: "int" },
     { key: "interface", label: "Интерфейс", type: "text" },
     { key: "fd", label: "CAN FD", type: "bool" },
@@ -55,17 +62,25 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "name", label: "Имя", type: "text" },
     { key: "short", label: "Обозначение", type: "text", hint: "напр. BMS" },
     { key: "title", label: "Название", type: "loc" },
-    { key: "node_id", label: "node_id", type: "hex", hint: "адрес CANopen 1..127" },
+    { key: "node_id", label: "node_id", type: "hex", hint: "адрес CANopen 1..127",
+      when: (_n, c) => c.protocol === "canopen" },
+    { key: "address", label: "Адрес (SA)", type: "hex", hint: "адрес J1939 0..253",
+      when: (_n, c) => c.protocol === "j1939" },
     { key: "description", label: "Описание", type: "loc", wide: true },
   ],
   frame: [
     { key: "name", label: "Имя", type: "text" },
     { key: "title", label: "Заголовок", type: "loc", hint: "напр. СОСТОЯНИЯ" },
-    { key: "type", label: "Тип", type: "select", options: FRAME_TYPES },
-    { key: "id", label: "CAN ID", type: "hex", hint: "пусто — вычислить из типа и node_id" },
+    { key: "type", label: "Тип", type: "select", options: FRAME_TYPES, when: (_n, c) => c.protocol === "canopen" },
+    { key: "id", label: "CAN ID", type: "hex", hint: "пусто — вычислить (CANopen: тип + node_id, J1939: PGN + SA)" },
+    { key: "pgn", label: "PGN", type: "hex", hint: "J1939, напр. 0xF004", when: (_n, c) => c.protocol === "j1939" },
+    { key: "priority", label: "Приоритет", type: "int", hint: "0..7, по умолчанию 6", when: (_n, c) => c.protocol === "j1939" },
+    { key: "destination", label: "Получатель (DA)", type: "hex", hint: "PDU1; пусто — 0xFF (всем)",
+      when: (n, c) => c.protocol === "j1939" && n?.pgn != null && ((n.pgn >> 8) & 0xff) < 240 },
+    { key: "receivers", label: "Получатели", type: "strlist", hint: "имена устройств через запятую", wide: true },
     { key: "dlc", label: "DLC", type: "int" },
     { key: "direction", label: "Направление", type: "select", options: [["", "по типу"], ["tx", "TX"], ["rx", "RX"]] },
-    { key: "extended", label: "29-битный ID", type: "bool" },
+    { key: "extended", label: "29-битный ID", type: "bool", when: (_n, c) => c.protocol !== "j1939" },
     { key: "description", label: "Описание", type: "loc", wide: true },
     { key: "comment", label: "Примечание", type: "loc", wide: true },
   ],
@@ -83,6 +98,8 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "max", label: "max", type: "float", when: numeric },
     { key: "multiplexer", label: "Селектор mux", type: "bool" },
     { key: "mux", label: "mux (значения селектора)", type: "intlist", hint: "напр. 0 или 1, 2" },
+    { key: "initial", label: "По умолчанию", type: "float", hint: "физическое значение" },
+    { key: "invalid", label: "Нет данных (raw)", type: "intlist", hint: "напр. 0xFF или 0xFE, 0xFF" },
     { key: "value_format", label: "Значения в документах", type: "select", options: [["", "десятичные"], ["hex", "hex"]],
       when: (n) => n?.values != null },
     { key: "comment", label: "Примечание", type: "loc", wide: true },
@@ -130,6 +147,10 @@ export function parseInput(type: FieldType, raw: string): unknown {
       if (!Number.isFinite(v)) throw new ParseError(`«${raw}» — не число`);
       return v;
     }
+    case "strlist": {
+      const parts = s.split(/[\s,;]+/).filter(Boolean);
+      return parts.length ? parts : null;
+    }
     case "intlist": {
       const parts = s.split(/[\s,;]+/).filter(Boolean).map((x) => (/^0x/i.test(x) ? parseInt(x, 16) : Number(x)));
       if (parts.some((x) => !Number.isInteger(x))) throw new ParseError(`«${raw}» — список целых чисел`);
@@ -143,6 +164,6 @@ export function parseInput(type: FieldType, raw: string): unknown {
 export function formatValue(type: FieldType, v: unknown): string {
   if (v === null || v === undefined) return "";
   if (type === "hex" && typeof v === "number") return "0x" + v.toString(16).toUpperCase().padStart(2, "0");
-  if (type === "intlist" && Array.isArray(v)) return v.join(", ");
+  if ((type === "intlist" || type === "strlist") && Array.isArray(v)) return v.join(", ");
   return String(v);
 }

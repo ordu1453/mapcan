@@ -208,14 +208,20 @@ class _Writer:
             self.autowidth(ws, widths)
             ws.freeze_panes = "B2"
         else:
-            self.header(ws, 1, [L["device"], L["id"], L["description"], L["direction"], L["period"]])
+            cols = [("device", L["device"], 16), ("id", L["id"], 13)]
+            if a.get("has_pgn"):
+                cols.append(("pgn", L["pgn"], 10))
+            cols += [("description", L["description"], 50), ("direction", L["direction"], 12),
+                     ("period", L["period"], 16)]
+            if a.get("has_receivers"):
+                cols.append(("receivers", L["receivers"], 30))
+            self.header(ws, 1, [c[1] for c in cols])
             for r, row in enumerate(a["rows"], 2):
-                for i, v in enumerate([row["device"], row["id"], row["description"], row["direction"],
-                                       row["period"]], 1):
-                    self.put(ws, r, i, v, self.mono if i == 2 else None)
-            self.autowidth(ws, {1: 16, 2: 12, 3: 50, 4: 12, 5: 16})
+                for i, (key, _, _) in enumerate(cols, 1):
+                    self.put(ws, r, i, row[key], self.mono if key in ("id", "pgn") else None)
+            self.autowidth(ws, {i: c[2] for i, c in enumerate(cols, 1)})
             ws.freeze_panes = "A2"
-            ws.auto_filter.ref = f"A1:E{len(a['rows']) + 1}"
+            ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(a['rows']) + 1}"
 
     @staticmethod
     def _cells_text(cells: list[dict]) -> str:
@@ -278,6 +284,8 @@ class _Writer:
                     fr["description"],
                     " · ".join(x for x in (fr["type_label"], fr["period"], fr["direction"]) if x),
                     f"DLC {fr['dlc']}",
+                    f"{L['pgn']} {fr['pgn']} · {L['priority']} {fr['priority']}" if fr.get("pgn") else "",
+                    f"{L['receivers']}: {fr['receivers']}" if fr.get("receivers") else "",
                 ) if x)
                 idtext = fr["id"] + (f"\n({fr['id_formula']})" if fr["id_formula"] else "")
                 self._cell(ws, fr_start, idx, "frame", ftext, content, fill=st.frame_fill, merge_to=fr_end)

@@ -24,7 +24,11 @@ const node = computed(() => getAt(data.value, path.value[0] === "document" ? ["d
 const readonly = computed(() => !!store.state?.readonly);
 const diags = computed(() => store.state?.diagnostics ?? []);
 
-const fields = computed(() => (FIELDS[kind.value] ?? []).filter((f) => !f.when || f.when(node.value) || fieldValue(f) != null));
+const fieldCtx = computed(() => ({
+  protocol: path.value[0] === "buses" ? getAt(data.value, path.value.slice(0, 2))?.protocol ?? "canopen" : "",
+}));
+const fields = computed(() => (FIELDS[kind.value] ?? []).filter(
+  (f) => !f.when || f.when(node.value, fieldCtx.value) || fieldValue(f) != null));
 
 function fieldValue(def: FieldDef) {
   return getAt(node.value, def.key.split("."));
@@ -40,7 +44,14 @@ const DEFAULTS: Record<string, string> = {
 };
 
 function placeholderFor(def: FieldDef): string {
-  if (kind.value === "frame" && def.key === "id" && rframe.value) return hex(rframe.value.can_id) + " (вычислен)";
+  if (kind.value === "frame" && def.key === "id" && rframe.value) {
+    return hex(rframe.value.can_id, rframe.value.extended ? 8 : 3) + " (вычислен)";
+  }
+  if (def.key === "receivers") {
+    const bus = getAt(data.value, path.value.slice(0, 2));
+    return (bus?.devices ?? []).map((d: any) => d.name).filter((n: string) => n !== node.value?.name).join(", ");
+  }
+  if (def.key === "priority" && fieldCtx.value.protocol === "j1939") return "6";
   return DEFAULTS[def.key] ?? "";
 }
 

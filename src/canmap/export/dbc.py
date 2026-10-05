@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from pathlib import Path
 
 import cantools
 from cantools.database.can import Message, Node
 from cantools.database.can import Signal as DbcSignal
+from cantools.database.can.formats.dbc.dbc_loader import ATTRIBUTE_DEFINITION_VFRAMEFORMAT
+from cantools.database.can.formats.dbc.dbc_specifics import DbcSpecifics
 from cantools.database.conversion import BaseConversion
 
 from .. import bits as B
@@ -22,9 +25,11 @@ def _signal(name: str, s: Signal, start: int, length: int, lang: str, comment: s
         start=dbc_start,
         length=length,
         byte_order="big_endian" if be else "little_endian",
-        is_signed=s.signed,
+        is_signed=s.signed and s.kind != "float",
         conversion=BaseConversion.factory(scale=s.factor, offset=s.offset, choices=choices,
-                                          is_float=False),
+                                          is_float=s.kind == "float"),
+        raw_initial=s.initial_raw,
+        raw_invalid=s.invalid_values[0] if s.invalid_values else None,
         minimum=s.min,
         maximum=s.max,
         unit=s.unit,
@@ -64,9 +69,12 @@ def bus_database(cmap: CanMap, bus: Bus, lang: str | None = None) -> cantools.da
             choices = {v: ev.name for v, ev in enum_entries(s.values)} or None
             sigs.append(_signal(s.name, s, s.start_bit, s.bit_length, lang, desc, choices,
                                 sel.name if sel else None))
-        senders, receivers = [], []
+        senders, receivers = [], list(f.receivers)
         if f.device is not None:
-            (senders if f.direction == "tx" else receivers).append(f.device.name)
+            if f.direction == "tx":
+                senders.append(f.device.name)
+            elif f.device.name not in receivers:
+                receivers.append(f.device.name)
         for sg in sigs:
             sg.receivers = list(receivers)
         cycle = f.transmission.cycle_ms if f.transmission else None
@@ -80,9 +88,17 @@ def bus_database(cmap: CanMap, bus: Bus, lang: str | None = None) -> cantools.da
             cycle_time=cycle,
             is_extended_frame=f.extended,
             is_fd=bus.fd,
+            protocol="j1939" if bus.protocol == "j1939" else None,
             strict=False,
         ))
-    return cantools.database.Database(messages=messages, nodes=nodes, version=cmap.document.version)
+    dbc_specifics = None
+    if bus.protocol == "j1939":
+        # Признак J1939 хранится в атрибуте VFrameFormat = J1939PG; без определения атрибута
+        # cantools его не записывает.
+        dbc_specifics = DbcSpecifics(attribute_definitions=OrderedDict(
+            VFrameFormat=ATTRIBUTE_DEFINITION_VFRAMEFORMAT))
+    return cantools.database.Database(messages=messages, nodes=nodes, version=cmap.document.version,
+                                      dbc_specifics=dbc_specifics)
 
 
 def export_dbc(cmap: CanMap, out: str | Path, bus_name: str | None = None) -> list[Path]:

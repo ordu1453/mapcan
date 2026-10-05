@@ -51,6 +51,7 @@
           "default": "canopen",
           "enum": [
             "canopen",
+            "j1939",
             "can"
           ],
           "title": "Protocol",
@@ -145,7 +146,23 @@
             }
           ],
           "default": null,
+          "description": "CANopen: адрес узла 1..127.",
           "title": "Node Id"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939: адрес источника 0..253.",
+          "title": "Address"
         },
         "description": {
           "anyOf": [
@@ -529,13 +546,66 @@
             }
           ],
           "default": null,
-          "description": "Явный CAN ID. Для типов CANopen вычисляется из node_id.",
+          "description": "Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN.",
           "title": "Id"
         },
         "extended": {
           "default": false,
           "title": "Extended",
           "type": "boolean"
+        },
+        "pgn": {
+          "anyOf": [
+            {
+              "maximum": 262143,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939: номер группы параметров (PGN).",
+          "title": "Pgn"
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "maximum": 7,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939: приоритет 0..7 (по умолчанию 6).",
+          "title": "Priority"
+        },
+        "destination": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем).",
+          "title": "Destination"
+        },
+        "receivers": {
+          "description": "Устройства шины, принимающие кадр (имена).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Receivers",
+          "type": "array"
         },
         "dlc": {
           "default": 8,
@@ -1027,7 +1097,8 @@
                 "bitfield",
                 "metric",
                 "raw",
-                "bytes"
+                "bytes",
+                "float"
               ],
               "type": "string"
             },
@@ -1244,6 +1315,38 @@
           "default": null,
           "description": "Значение(я) селектора, при которых сигнал присутствует.",
           "title": "Mux"
+        },
+        "initial": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Значение по умолчанию (в физических единицах).",
+          "title": "Initial"
+        },
+        "invalid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сырое значение (или значения), означающее «нет данных / недостоверно».",
+          "title": "Invalid"
         },
         "comment": {
           "anyOf": [

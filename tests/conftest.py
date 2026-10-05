@@ -9,7 +9,7 @@ from canmap.loader import load
 from canmap.validate import validate_text
 
 ROOT = Path(__file__).resolve().parent.parent
-REFERENCE = ROOT / "canmap.yaml"
+REFERENCE = Path(__file__).resolve().parent / "data" / "reference.yaml"
 DATA = Path(__file__).resolve().parent / "data"
 GOLDEN = Path(__file__).resolve().parent / "golden"
 

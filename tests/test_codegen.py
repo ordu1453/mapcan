@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -37,7 +38,7 @@ def sample(frame) -> dict:
         if is_byte_array(s):
             vals[s.name] = bytes((0x11 * (k + 1) + i) & 0xFF for k in range(s.bit_length // 8))
         else:
-            vals[s.name] = _value(s, i)
+            vals[s.name] = 1.5 + 0.25 * i if s.kind == "float" else _value(s, i)
     if sel is not None:
         muxed = [s for s in frame.layout if s.mux is not None]
         if muxed:
@@ -62,7 +63,8 @@ def _import(path):
     return mod
 
 
-MAPS = [REFERENCE, ROOT / "examples" / "minimal.yaml"]
+MAPS = [REFERENCE, ROOT / "examples" / "minimal.yaml", ROOT / "examples" / "j1939.yaml",
+        ROOT / "examples" / "vehicle-can.yaml"]
 
 
 @pytest.fixture(scope="module", params=MAPS, ids=lambda p: p.stem)
@@ -157,6 +159,8 @@ GCC = shutil.which("gcc") or shutil.which("cc")
 def _c_lit(s, v) -> str:
     if isinstance(v, bytes):
         return "{" + ", ".join(f"0x{b:02X}" for b in v) + "}"
+    if s.kind == "float":
+        return repr(float(v)) + ("" if s.bit_length == 64 else "f")
     if s.signed:
         return f"({v}LL)"
     return f"{v}ULL"
@@ -194,6 +198,14 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
                 if is_byte_array(s):
                     main.append(f'        hex("{f.name}.{s.name}", u.{s.name}, {s.bit_length // 8});')
                     expected.append(f"{f.name}.{s.name}" + "".join(f" {b:02X}" for b in vals[s.name]))
+                elif s.kind == "float":
+                    # Сравнение по точным битам IEEE 754.
+                    w = 64 if s.bit_length == 64 else 32
+                    main.append(f'        printf("{f.name}.{s.name} %" PRIu64 "\\n", '
+                                f'(uint64_t)canmap_f{w}_to_bits(u.{s.name}));')
+                    fmt, ufmt = ("<d", "<Q") if w == 64 else ("<f", "<I")
+                    bits = struct.unpack(ufmt, struct.pack(fmt, vals[s.name]))[0]
+                    expected.append(f"{f.name}.{s.name} {bits}")
                 else:
                     main.append(f'        printf("{f.name}.{s.name} %" PRId64 "\\n", (int64_t)u.{s.name});')
                     expected.append(f"{f.name}.{s.name} {vals[s.name]}")

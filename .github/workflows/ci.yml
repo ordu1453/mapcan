@@ -47,10 +47,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
-      - name: Validate reference map
-        run: uv run canmap validate canmap.yaml --strict
-      - name: Build documents and code
-        run: uv run canmap build canmap.yaml -o build
+      - name: Validate examples
+        shell: bash
+        run: |
+          for f in $(find examples -name '*.yaml'); do uv run canmap validate "$f" --strict; done
+      - name: Build documents and code for every example
+        shell: bash
+        run: |
+          for f in $(find examples -name '*.yaml'); do
+            uv run canmap build "$f" -o "build/$(basename "$(dirname "$f")")-$(basename "$f" .yaml)"               --pdf-template canmap --pdf-template gost-2.105
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: canmap-build

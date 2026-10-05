@@ -114,6 +114,10 @@
     [*#L.dlc*], str(fr.dlc),
     [*#L.direction*], fr.direction,
     [*#L.period*], fr.period,
+    ..if fr.at("pgn", default: "") != "" { ([*#L.pgn*], mono(fr.pgn, th: th), [*#L.priority*], fr.priority, [], []) },
+    ..if fr.at("receivers", default: "") != "" {
+      ([*#L.receivers*], table.cell(colspan: 5, fr.receivers))
+    },
   )
 }
 
@@ -162,12 +166,19 @@
       ..rows.flatten(),
     )
   } else {
+    let pg = a.at("has_pgn", default: false)
+    let rc = a.at("has_receivers", default: false)
+    let cols = (26mm, 22mm) + (if pg { (15mm,) } else { () }) + (1fr, 22mm, 22mm) + (if rc { (28mm,) } else { () })
+    let heads = (L.device, L.id) + (if pg { (L.pgn,) } else { () }) + (L.purpose, L.direction, L.period) + (if rc { (L.receivers,) } else { () })
     table(
-      columns: (30mm, 18mm, 1fr, 14mm, 26mm),
+      columns: cols,
       stroke: 0.5pt + th.line,
       inset: (x: 4pt, y: 3pt),
-      table.header(_head(th, L.device), _head(th, L.id), _head(th, L.purpose), _head(th, L.direction), _head(th, L.period)),
-      ..a.rows.map(r => (r.device, mono(r.id, th: th), r.description, r.direction, r.period)).flatten(),
+      table.header(..heads.map(h => _head(th, h))),
+      ..a.rows.map(r => (
+        (r.device, mono(r.id, th: th)) + (if pg { (mono(r.pgn, th: th),) } else { () })
+        + (r.description, r.direction, r.period) + (if rc { (r.receivers,) } else { () })
+      )).flatten(),
     )
   }
 }
