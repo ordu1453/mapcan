@@ -113,8 +113,8 @@ const fmtDate = (t: number) => new Date(t * 1000).toLocaleString("ru-RU", { date
             <option v-for="d in listing.drives" :key="d" :value="d" :selected="listing.dir.toUpperCase().startsWith(d)">{{ d }}</option>
           </select>
           <input v-model="dirInput" class="mono fd-path" @keydown.enter="go(dirInput)" />
-          <button class="small" title="Рабочая папка canmap serve" @click="go(store.meta?.cwd ?? '')">Рабочая</button>
-          <button class="small" @click="go(store.meta?.home ?? '')">Домой</button>
+          <button class="small" title="Рабочая папка canmap serve" @click="go(store.meta?.cwd ?? '')">Рабочая папка</button>
+          <button class="small" @click="go(store.meta?.home ?? '')">Домашняя папка</button>
         </div>
 
         <p v-if="error" class="banner error">{{ error }}</p>

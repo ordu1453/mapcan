@@ -254,7 +254,7 @@ const status = computed(() => {
   <div class="bitgrid-wrap">
     <div v-if="muxOptions.length" class="mux-bar">
       <span class="muted">Селектор <b>{{ selector?.name }}</b>:</span>
-      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">все</button>
+      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">Все</button>
       <button v-for="[v, n] in muxOptions" :key="v" :class="{ active: muxValue === v }"
               @click="emit('update:muxValue', v)">{{ v }}{{ n ? " · " + n : "" }}</button>
     </div>

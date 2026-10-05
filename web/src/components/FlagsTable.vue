@@ -52,7 +52,7 @@ function remove(i: number) {
   <section class="subtable">
     <header>
       <h4>Флаги битового поля</h4>
-      <button v-if="!readonly" class="small" @click="addFlag(path)">+ флаг</button>
+      <button v-if="!readonly" class="small" @click="addFlag(path)">+ Флаг</button>
     </header>
     <table v-if="flags?.length">
       <thead><tr><th class="num">Бит</th><th class="num">Длина</th><th>Имя</th><th>Описание</th><th></th></tr></thead>

@@ -209,7 +209,7 @@ function onLayout(p: Path, start: number, length: number) {
           <button class="icon" title="Выше" @click="moveNode(path, -1)">↑</button>
           <button class="icon" title="Ниже" @click="moveNode(path, 1)">↓</button>
           <button class="icon" title="Дублировать" @click="duplicateNode(path)">⧉</button>
-          <button class="icon danger" title="Удалить" @click="removeNode(path)">✕</button>
+          <button class="icon danger" title="Удалить (Delete)" @click="removeNode(path)">✕</button>
         </template>
       </div>
     </header>
@@ -292,7 +292,7 @@ function onLayout(p: Path, start: number, length: number) {
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">Сигналов нет. Протяните мышью по битам в раскладке выше или нажмите «+ сигнал».</p>
+      <p v-else class="muted">Сигналов нет. Протяните мышью по битам в раскладке выше или нажмите «+ Сигнал».</p>
     </section>
 
     <!-- Кадры устройства / шины -->

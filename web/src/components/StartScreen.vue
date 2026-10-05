@@ -35,7 +35,7 @@ import { actions, store } from "../store";
           <button class="small" @click="store.dialog = 'profile'">Заполнить профиль</button>
         </template>
       </section>
-      <p class="muted start-hint">Ctrl+O — открыть, Ctrl+S — сохранить, Ctrl+Shift+S — сохранить как.</p>
+      <p class="muted start-hint">Ctrl+O — открыть, Ctrl+S — сохранить, Ctrl+Shift+S — сохранить как, Ctrl+Z / Ctrl+Y — отменить / повторить, Delete — удалить выбранный узел.</p>
     </div>
   </div>
 </template>

@@ -95,7 +95,7 @@ function remove(r: Row) {
   <section class="subtable">
     <header>
       <h4>{{ title ?? "Значения" }}</h4>
-      <button v-if="!readonly" class="small" @click="add">+ значение</button>
+      <button v-if="!readonly" class="small" @click="add">+ Значение</button>
     </header>
     <table v-if="rows.length">
       <thead><tr><th class="num">Значение</th><th>Имя</th><th>Описание</th><th v-if="!readonly"></th></tr></thead>

@@ -118,7 +118,7 @@ async function addToHistory() {
         <button :disabled="loading" @click="compareGit">Сравнить</button>
         <span class="muted">или</span>
       </template>
-      <label class="button">С файлом… <input type="file" accept=".yaml,.yml" hidden @change="compareFile" /></label>
+      <label class="button">Выбрать файл… <input type="file" accept=".yaml,.yml" hidden @change="compareFile" /></label>
     </div>
 
     <p v-if="error" class="banner error">{{ error }}</p>

@@ -135,17 +135,17 @@ export function childActions(path: Path): ChildAction[] {
   const node = getAt(data(), path);
   switch (kind) {
     case "document":
-      return [{ label: "шину", run: addBus }];
+      return [{ label: "Шина", run: addBus }];
     case "bus":
-      return [{ label: "устройство", run: () => addDevice(path) }, { label: "кадр", run: () => addFrame(path) }];
+      return [{ label: "Устройство", run: () => addDevice(path) }, { label: "Кадр", run: () => addFrame(path) }];
     case "device":
-      return [{ label: "кадр", run: () => addFrame(path) }];
+      return [{ label: "Кадр", run: () => addFrame(path) }];
     case "frame":
       return node?.sdo || ["sdo_tx", "sdo_rx"].includes(node?.type)
-        ? [{ label: "SDO-обмен", run: () => addSdo(path) }, { label: "сигнал", run: () => addSignal(path) }]
-        : [{ label: "сигнал", run: () => addSignal(path) }];
+        ? [{ label: "SDO-обмен", run: () => addSdo(path) }, { label: "Сигнал", run: () => addSignal(path) }]
+        : [{ label: "Сигнал", run: () => addSignal(path) }];
     case "signal":
-      return node?.flags || node?.kind === "bitfield" ? [{ label: "флаг", run: () => addFlag(path) }] : [];
+      return node?.flags || node?.kind === "bitfield" ? [{ label: "Флаг", run: () => addFlag(path) }] : [];
     default:
       return [];
   }
@@ -160,6 +160,21 @@ export async function removeNode(path: Path): Promise<boolean> {
   const name = node?.name ?? path.join(".");
   if (!confirm(`Удалить «${name}»?`)) return false;
   return actions.apply([{ op: "remove", path }]);
+}
+
+/** Delete — удалить выбранный узел дерева (вне полей ввода и диалогов). */
+export function installDeleteShortcut(): void {
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Delete" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    const t = e.target as HTMLElement;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+    if (document.querySelector(".modal-backdrop") || !store.state?.data || store.state.readonly || store.busy) return;
+    if (store.tab !== "editor") return;
+    const path = store.selected;
+    if (path.length < 2 || typeof path[path.length - 1] !== "number") return;
+    e.preventDefault();
+    void removeNode(path);
+  });
 }
 
 export async function duplicateNode(path: Path): Promise<boolean> {

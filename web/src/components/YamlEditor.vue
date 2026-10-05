@@ -77,7 +77,7 @@ function onKey(e: KeyboardEvent) {
       <span class="muted">Правка YAML целиком. Комментарии сохраняются как есть.</span>
       <span class="spacer" />
       <span v-if="local" class="badge warning">не применено</span>
-      <button :disabled="!local || store.state?.readonly" @click="revert">Отменить правку</button>
+      <button :disabled="!local || store.state?.readonly" @click="revert">Сбросить изменения</button>
       <button class="primary" :disabled="!local || store.state?.readonly" title="Ctrl+Enter" @click="apply">Применить</button>
     </div>
     <div class="yaml-body">

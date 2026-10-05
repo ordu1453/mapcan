@@ -25,6 +25,7 @@ function cycleTheme() {
   applyTheme();
 }
 applyTheme();
+const THEME_NAMES: Record<string, string> = { auto: "как в системе", light: "светлая", dark: "тёмная" };
 
 const DOWNLOADS: Array<[string, string]> = [
   ["xlsx", "Excel (.xlsx)"], ["md", "Markdown"], ["html", "HTML"],
@@ -115,6 +116,6 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenu));
       <span class="avatar">{{ initials }}</span>
       <span class="uname">{{ store.meta?.user.name || "Профиль" }}</span>
     </button>
-    <button class="icon" :title="`Тема: ${theme}`" @click="cycleTheme">{{ theme === "dark" ? "☾" : theme === "light" ? "☀" : "◐" }}</button>
+    <button class="icon" :title="`Тема: ${THEME_NAMES[theme]}`" @click="cycleTheme">{{ theme === "dark" ? "☾" : theme === "light" ? "☀" : "◐" }}</button>
   </header>
 </template>

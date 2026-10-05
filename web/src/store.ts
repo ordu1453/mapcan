@@ -238,7 +238,8 @@ export function installShortcuts(): void {
     if (!mod) return;
     const t = e.target as HTMLElement;
     const inField = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
-    const k = e.key.toLowerCase();
+    // e.code — физическая клавиша: сочетания работают и в русской раскладке.
+    const k = e.code.startsWith("Key") ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (k === "s" && e.shiftKey) {
       e.preventDefault();
       if (store.state) store.dialog = "saveas";

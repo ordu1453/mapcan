@@ -111,7 +111,7 @@ function removeAgree(i: number) {
         <span v-for="d in logoDiags" :key="d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
         <div v-if="!readonly" class="row-actions">
           <button class="small" @click="fileInput?.click()">{{ doc.logo ? "Заменить…" : "Загрузить…" }}</button>
-          <button v-if="doc.logo" class="small" @click="removeLogo">Убрать</button>
+          <button v-if="doc.logo" class="small" @click="removeLogo">Удалить</button>
           <input ref="fileInput" type="file" accept=".png,.jpg,.jpeg,.svg,.gif,.webp" hidden @change="upload" />
         </div>
       </div>
@@ -136,7 +136,7 @@ function removeAgree(i: number) {
     <div class="subtable agree">
       <header>
         <span class="field-label">СОГЛАСОВАНО</span>
-        <button v-if="!readonly" class="small" @click="addAgree">+ согласующий</button>
+        <button v-if="!readonly" class="small" @click="addAgree">+ Согласующий</button>
       </header>
       <table v-if="agree.length">
         <thead><tr><th>Должность</th><th>И. О. Фамилия</th><th v-if="!readonly"></th></tr></thead>
