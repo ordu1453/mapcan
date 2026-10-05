@@ -42,7 +42,13 @@ def make_yaml(text: str = "") -> YAML:
             _, ind, bsi = load_yaml_guess_indent(text)
         except Exception:  # noqa: BLE001 — оставим отступы по умолчанию
             pass
-    y.indent(mapping=bsi or 2, sequence=ind or 4, offset=bsi or 2)
+    if bsi is None:
+        # В тексте нет списков: ind — отступ словаря; списки — в принятом стиле «  - »
+        mapping = ind or 2
+        y.indent(mapping=mapping, sequence=mapping + 2, offset=mapping)
+    else:
+        # bsi — отступ «-» (0 — списки без отступа), ind — отступ содержимого элемента
+        y.indent(mapping=bsi or ind or 2, sequence=ind or 4, offset=bsi)
     return y
 
 
@@ -117,18 +123,25 @@ def merge_text(orig: str, canon_old: str, canon_new: str) -> str:
     return "".join(_blank_before_insert(out, fresh))
 
 
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
 def _blank_before_insert(lines: list[str], fresh: list[bool]) -> list[str]:
-    """ruamel относит пустые строки-разделители к концу предыдущего элемента списка,
-    поэтому вставленный в конец элемент оказывается *после* разделителя. Переносим
-    разделитель за вставленный блок, если тот начинается с «- »."""
+    """ruamel относит пустые строки-разделители к концу предыдущего элемента списка
+    (или последнего ключа словаря), поэтому вставленный в конец элемент оказывается
+    *после* разделителя. Переносим разделитель за вставленный блок, если тот начинается
+    с «- » или это ключ, дописанный в конец вложенного словаря."""
     out = list(lines)
     i = 0
     while i < len(out):
-        if fresh[i] and out[i].lstrip().startswith("- ") and i > 0 and not out[i - 1].strip() and not fresh[i - 1]:
+        if fresh[i] and out[i].strip() and i > 0 and not out[i - 1].strip() and not fresh[i - 1]:
             j = i
             while j < len(out) and fresh[j] and out[j].strip():
                 j += 1
-            if j < len(out) and out[j].strip():
+            item = out[i].lstrip().startswith("- ")
+            tail = j < len(out) and _indent(out[j]) < _indent(out[i])
+            if j < len(out) and out[j].strip() and (item or tail):
                 k = i
                 while k > 0 and not out[k - 1].strip() and not fresh[k - 1]:
                     k -= 1

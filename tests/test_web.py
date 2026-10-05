@@ -279,3 +279,13 @@ def test_appended_item_goes_before_blank_separator(client):
             "                byte: 2\n"
             "\n"
             "          - name: cc_event\n") in st["text"]
+
+
+def test_appended_key_goes_before_blank_separator(tmp_path):
+    p = tmp_path / "m.yaml"
+    p.write_text("canmap: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n\nbuses: []\n", encoding="utf-8")
+    s = EditorSession(p)
+    s.apply([{"op": "insert", "path": ["document", "history"], "index": 0,
+              "value": {"version": "0.1.0", "changes": ["first"]}}])
+    assert s.text == ("canmap: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n"
+                      "  history:\n    - version: 0.1.0\n      changes:\n        - first\n\nbuses: []\n")
