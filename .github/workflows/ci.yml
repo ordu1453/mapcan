@@ -11,10 +11,10 @@ on:
   pull_request:
   workflow_call:
     inputs:
-      linux:
-        description: Запускать тест на Linux (ubuntu-latest)
+      skip-linux:
+        description: Не запускать тест на Linux (ubuntu-latest)
         type: boolean
-        default: true
+        default: false
 
 defaults:
   run:
@@ -42,7 +42,7 @@ jobs:
         run: uv run pytest
 
   test-linux:
-    if: inputs.linux != false        # при обычном push inputs пуст — тест запускается
+    if: ${{ !inputs.skip-linux }}    # при обычном push inputs пуст — тест запускается
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

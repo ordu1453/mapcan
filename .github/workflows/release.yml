@@ -55,7 +55,7 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yml
     with:
-      linux: false       # Linux-тест идёт в ci на main; релиз не ждёт облачные раннеры
+      skip-linux: true   # Linux-тест идёт в ci на main; релиз не ждёт облачные раннеры
 
   python:
     needs: [version, ci]
