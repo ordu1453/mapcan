@@ -80,6 +80,22 @@ class EditorSession:
             self.saved_text = self.text
             self.version += 1
 
+    def save_as(self, path: str | Path, overwrite: bool = False) -> None:
+        """Сохранить текущий текст в другой файл и продолжить работу с ним."""
+        with self.lock:
+            self._check_writable()
+            target = Path(path).resolve()
+            if target.exists() and not overwrite and target != self.path:
+                raise FileExistsError(f"файл уже существует: {target}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(self.text.replace("\n", self.newline).encode("utf-8"))
+            self.path = target
+            self.disk_hash = _hash(self.text)
+            self.saved_text = self.text
+            self._result = loads(self.text, target.name)
+            self._report = check(self._result)
+            self.version += 1
+
     # ------------------------------------------------------------------ правка
 
     def _check_writable(self) -> None:

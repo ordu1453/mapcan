@@ -233,7 +233,8 @@
     columns: (auto, auto, auto, 1fr),
     table.header(L.version, L.date, L.author, L.description),
     ..doc.history.map(h => (
-      text(weight: "bold", h.version), h.date, h.author,
+      text(weight: "bold", h.version), h.date,
+      [#h.author #if h.github != "" { linebreak(); link(h.github_url, text(fill: accent, "@" + h.github)) }],
       list(..h.changes),
     )).flatten(),
   )

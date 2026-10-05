@@ -3,7 +3,7 @@
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
 import { buildTree, diagIndex, framePathOf, getAt, pathKey } from "./model";
-import type { Op, Path, ResolvedFrame, State } from "./types";
+import type { Meta, Op, Path, ResolvedFrame, SessionResult, State } from "./types";
 
 interface Toast {
   id: number;
@@ -11,8 +11,12 @@ interface Toast {
   text: string;
 }
 
+export type DialogKind = "open" | "new" | "saveas" | "profile" | null;
+
 export const store = reactive({
+  meta: null as Meta | null,
   state: null as State | null,
+  dialog: null as DialogKind,
   selected: ["document"] as Path,
   tab: "editor" as "editor" | "yaml",
   busy: false,
@@ -59,8 +63,78 @@ async function run(fn: () => Promise<State>, okText?: string): Promise<boolean> 
   }
 }
 
+function acceptSession(r: SessionResult): void {
+  store.meta = r.meta;
+  store.fileChangedBanner = false;
+  store.selected = ["document"];
+  store.muxView = {};
+  store.tab = "editor";
+  store.state = null;
+  if (r.state) {
+    accept(r.state);
+    if (!r.state.data) store.tab = "yaml";
+  }
+}
+
+/** Операция со сменой файла; при несохранённых правках спрашивает, что с ними делать. */
+async function switchFile(fn: (force: boolean) => Promise<SessionResult>, okText?: string): Promise<boolean> {
+  store.busy = true;
+  try {
+    try {
+      acceptSession(await fn(false));
+    } catch (e) {
+      if (!(e instanceof ApiError && e.code === "unsaved")) throw e;
+      if (confirm(`${e.message}.
+
+Сохранить их перед продолжением?`)) {
+        accept(await api.save());
+      } else if (!confirm("Продолжить без сохранения? Несохранённые изменения будут потеряны.")) {
+        return false;
+      }
+      acceptSession(await fn(true));
+    }
+    if (okText) toast(okText, "info");
+    return true;
+  } catch (e) {
+    toast(e instanceof Error ? e.message : String(e));
+    return false;
+  } finally {
+    store.busy = false;
+  }
+}
+
 export const actions = {
-  load: () => run(api.state),
+  load: async () => {
+    try {
+      store.meta = await api.meta();
+      store.state = null;
+      if (store.meta.open) accept(await api.state());
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  },
+  refreshMeta: async () => {
+    store.meta = await api.meta();
+  },
+  openFile: (path: string) => switchFile((force) => api.open(path, force)),
+  newFile: (path: string, template: string, title: string, overwrite = false) =>
+    switchFile((force) => api.newFile({ path, template, title, force, overwrite }), "Создана новая карта"),
+  saveAs: async (path: string, overwrite = false): Promise<boolean> => {
+    try {
+      acceptSession(await api.saveAs(path, overwrite));
+      toast("Сохранено", "info");
+      return true;
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "exists" && confirm(`${e.message}
+
+Перезаписать?`)) {
+        return actions.saveAs(path, true);
+      }
+      if (!(e instanceof ApiError && e.code === "exists")) toast(e instanceof Error ? e.message : String(e));
+      return false;
+    }
+  },
+  closeFile: () => switchFile((force) => api.close(force)),
   apply: (ops: Op[]) => {
     if (store.state?.readonly) {
       toast("Режим только для чтения");
@@ -125,7 +199,9 @@ export function startEvents(): void {
   connectEvents(
     (m) => {
       if (m.type === "file-changed") store.fileChangedBanner = true;
-      else if (m.type === "state" && store.state && m.version !== store.state.version) void api.state().then(accept);
+      else if (m.type === "session" && m.session_id !== store.meta?.session_id) void actions.load();
+      else if (m.type === "state" && store.state &&
+        (m.session_id !== store.state.session_id || m.version !== store.state.version)) void api.state().then(accept);
     },
     (online) => {
       store.online = online;
@@ -140,9 +216,15 @@ export function installShortcuts(): void {
     const t = e.target as HTMLElement;
     const inField = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
     const k = e.key.toLowerCase();
-    if (k === "s") {
+    if (k === "s" && e.shiftKey) {
       e.preventDefault();
-      void actions.save();
+      if (store.state) store.dialog = "saveas";
+    } else if (k === "s") {
+      e.preventDefault();
+      if (store.state) void actions.save();
+    } else if (k === "o") {
+      e.preventDefault();
+      store.dialog = "open";
     } else if (!inField && k === "z" && !e.shiftKey) {
       e.preventDefault();
       void actions.undo();

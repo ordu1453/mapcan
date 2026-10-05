@@ -43,7 +43,7 @@ buses: [...]              # одна или несколько шин
 | `author`, `organization` | строка | |
 | `language` | `ru` \| `en` | Язык документов (по умолчанию `ru`) |
 | `bit_numbering` | `lsb0` | Явная фиксация нумерации бит |
-| `history` | список | `{version, date, author, changes: [текст, ...]}` |
+| `history` | список | `{version, date, author, github, changes: [текст, ...]}`; `github` — имя пользователя GitHub автора |
 
 **Текст** — строка или объект с переводами: `{ru: "Состояние", en: "State"}`.
 

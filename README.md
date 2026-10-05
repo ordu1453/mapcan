@@ -14,7 +14,7 @@ YAML-карта сигналов CAN как единственный источ�
 | C: `#define` ID, `enum`, маски, структуры, `pack`/`unpack` | `canmap gen c canmap.yaml -o firmware/` |
 | Python-модуль для тестов и стендов | `canmap gen py canmap.yaml -o tools/` |
 | всё сразу (для CI) | `canmap build canmap.yaml -o build/` |
-| веб-редактор: дерево, формы, битовая карта, проверка на лету | `canmap serve canmap.yaml` |
+| веб-редактор: файлы, дерево, формы, битовая карта, проверка на лету | `canmap serve [canmap.yaml]` |
 | сравнение двух версий карты, changelog | `canmap diff old.yaml canmap.yaml` |
 
 Формат файла описан в [docs/format.md](docs/format.md), минимальный пример —
@@ -70,7 +70,7 @@ canmap gen py      FILE [-o DIR] [--bus NAME]
 canmap build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py]
 canmap schema      [-o schema.json]
 canmap template    pdf|md|html|xlsx-style -o FILE
-canmap serve       FILE [--port 8765] [--readonly] [--no-browser]
+canmap serve       [FILE|DIR] [--port 8765] [--readonly] [--no-browser]
 canmap diff        OLD NEW [--format text|md|json]
 canmap rules
 ```
@@ -124,10 +124,11 @@ if (st.internal_error & IMD_STATE_INTERNAL_ERROR_TIMEOUT_ERROR_MASK) { ... }
 ## Веб-редактор
 
 ```sh
-canmap serve canmap.yaml
+canmap serve canmap.yaml      # или просто `canmap serve` — создать/открыть карту из браузера
 ```
 
-Откроется браузер с редактором: дерево карты с поиском (имя, `0x196`, описание), формы
+Откроется браузер с редактором. Файлы создаются, открываются и сохраняются из меню «Файл»;
+профиль автора (имя, GitHub) подписывает записи истории изменений. В редакторе: дерево карты с поиском (имя, `0x196`, описание), формы
 свойств, битовая карта кадра (протянуть мышью — новый сигнал, перетащить — сдвиг, за край —
 длина; пересечения подсвечиваются), таблицы значений и флагов, проверка на лету, вкладка
 YAML, предпросмотр и скачивание всех форматов, сравнение с версией из git и запись

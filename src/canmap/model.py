@@ -75,6 +75,10 @@ class HistoryEntry(_Base):
     version: str
     date: _dt.date | None = None
     author: str | None = None
+    github: str | None = Field(
+        None, pattern=r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$",
+        description="Имя пользователя GitHub автора изменения.",
+    )
     changes: list[Text] = Field(default_factory=list)
 
 

@@ -72,6 +72,7 @@ export interface State {
   resolved: { frames: ResolvedFrame[]; language: string } | null;
   diagnostics: Diagnostic[];
   palette: string[];
+  session_id: number;
 }
 
 export type Op =
@@ -88,6 +89,53 @@ export interface DiffResult {
   label: string;
   lines: string[];
   changes: Array<Record<string, unknown>>;
+}
+
+export interface UserProfile {
+  name: string;
+  github: string | null;
+  github_url: string | null;
+}
+
+export interface RecentFile {
+  path: string;
+  name: string;
+  dir: string;
+  exists: boolean;
+}
+
+export interface Meta {
+  version: string;
+  user: UserProfile;
+  recent: RecentFile[];
+  cwd: string;
+  home: string;
+  readonly: boolean;
+  templates: Record<string, string>;
+  open: boolean;
+  file: string | null;
+  session_id: number;
+}
+
+export interface FsEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  size: number | null;
+  mtime: number;
+}
+
+export interface FsList {
+  dir: string;
+  parent: string | null;
+  entries: FsEntry[];
+  drives: string[];
+  sep: string;
+}
+
+export interface SessionResult {
+  meta: Meta;
+  state: State | null;
 }
 
 export interface GitRevs {

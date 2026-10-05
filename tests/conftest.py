@@ -43,3 +43,9 @@ def run(yaml_text: str, disable=()):
 
 def codes(yaml_text: str) -> set[str]:
     return run(yaml_text)[1].codes()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_user_config(tmp_path_factory, monkeypatch):
+    """Профиль и недавние файлы — во временной папке, а не в ~/.canmap."""
+    monkeypatch.setenv("CANMAP_CONFIG_DIR", str(tmp_path_factory.mktemp("canmap-config")))

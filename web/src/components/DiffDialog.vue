@@ -82,9 +82,13 @@ async function addToHistory() {
     toast("Укажите версию и хотя бы одно изменение");
     return;
   }
+  const user = store.meta?.user;
+  const entry: Record<string, unknown> = { version: version.value.trim(), date: date.value };
+  if (user?.name) entry.author = user.name;
+  if (user?.github) entry.github = user.github;
+  entry.changes = lines;
   const ok = await actions.apply([
-    { op: "insert", path: ["document", "history"], index: 0,
-      value: { version: version.value.trim(), date: date.value, changes: lines } },
+    { op: "insert", path: ["document", "history"], index: 0, value: entry },
     { op: "set", path: ["document", "version"], value: version.value.trim() },
     { op: "set", path: ["document", "date"], value: date.value },
   ]);
@@ -141,6 +145,15 @@ async function addToHistory() {
           <label class="field wide"><span class="field-label">Изменения (по строке)</span>
             <textarea v-model="changes" rows="6" /></label>
         </div>
+        <p class="muted">
+          Автор:
+          <template v-if="store.meta?.user.name">
+            <b>{{ store.meta.user.name }}</b>
+            <span v-if="store.meta.user.github" class="mono">@{{ store.meta.user.github }}</span>
+          </template>
+          <template v-else>не указан —</template>
+          <button class="link" @click="store.dialog = 'profile'">{{ store.meta?.user.name ? "изменить" : "заполнить профиль" }}</button>
+        </p>
         <button class="primary" @click="addToHistory">Добавить в историю</button>
       </section>
     </template>

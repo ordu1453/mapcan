@@ -39,7 +39,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "subtitle", label: "Подзаголовок", type: "loc", wide: true },
     { key: "version", label: "Версия", type: "text" },
     { key: "date", label: "Дата", type: "date" },
-    { key: "author", label: "Автор", type: "text" },
+    { key: "author", label: "Автор документа", type: "text" },
     { key: "organization", label: "Организация", type: "text" },
     { key: "language", label: "Язык документов", type: "select", options: [["ru", "русский"], ["en", "английский"]] },
   ],

@@ -351,8 +351,10 @@ class _Writer:
                 self.put(ws, r, 4, ch)
                 r += 1
             start = r - len(changes)
-            for col, val in ((1, h["version"]), (2, h["date"]), (3, h["author"])):
-                self.put(ws, start, col, val, self.bold if col == 1 else None)
+            for col, val in ((1, h["version"]), (2, h["date"]), (3, h["author_label"])):
+                c = self.put(ws, start, col, val, self.bold if col == 1 else None)
+                if col == 3 and h["github_url"]:
+                    c.hyperlink = h["github_url"]
                 self.merge(ws, start, r - 1, col)
         self.autowidth(ws, {1: 10, 2: 12, 3: 18, 4: 90})
         ws.freeze_panes = "A2"

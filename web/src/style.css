@@ -287,3 +287,57 @@ table.list tr.clickable:hover { background: var(--hover); }
   .tree-panel { border-right: none; border-bottom: 1px solid var(--line); }
   .topbar { flex-wrap: wrap; }
 }
+
+/* ------------------------------------------------------------------ меню файла, профиль, версия */
+.brand .version { font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 2px; }
+.menu { position: relative; }
+.dropdown kbd { margin-left: auto; padding-left: 16px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.dropdown button { display: flex; align-items: baseline; gap: 6px; width: 100%; }
+.dropdown button:disabled { opacity: 0.45; }
+.dd-dir { font-size: 11px; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.dd-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.user-chip { gap: 6px; padding: 2px 8px 2px 3px; border-radius: 16px; }
+.user-chip .avatar {
+  width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--accent-fg); font-size: 10px; font-weight: 700;
+}
+.user-chip.empty .avatar { background: var(--hover); color: var(--muted); border: 1px dashed var(--line-strong); }
+.user-chip .uname { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+a.gh { color: var(--accent); margin-left: 4px; }
+
+/* ------------------------------------------------------------------ стартовый экран */
+.start { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px; overflow: auto; }
+.start-card { width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
+.start-card h1 { margin: 0; color: var(--accent); font-size: 26px; }
+.start-ver { font-size: 14px; font-weight: 400; }
+.start-actions { display: flex; gap: 10px; }
+.start-actions button { padding: 8px 18px; font-size: 14px; }
+.start-card h3 { font-size: 13px; margin-bottom: 6px; }
+.start-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.start-recent li { display: flex; gap: 10px; align-items: baseline; }
+.start-recent .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-user { padding-top: 12px; border-top: 1px solid var(--line); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.start-hint { font-size: 12px; margin: 0; }
+
+/* ------------------------------------------------------------------ диалог файлов */
+.fd { display: flex; gap: 14px; height: 100%; min-height: 0; }
+.fd-recent { width: 230px; flex: none; display: flex; flex-direction: column; gap: 4px; overflow: auto; }
+.fd-recent h4 { margin-bottom: 4px; }
+.fd-recent-item { flex-direction: column; align-items: flex-start; gap: 0; text-align: left; white-space: normal; border-color: var(--line); }
+.fd-recent-item span { font-size: 11px; word-break: break-all; }
+.fd-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.fd-nav { display: flex; gap: 6px; align-items: center; }
+.fd-path { flex: 1; }
+.fd-drive { width: auto; }
+.fd-list { flex: 1; min-height: 160px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 4px 0; }
+.fd-row { display: grid; grid-template-columns: 20px 1fr 80px 130px; gap: 8px; align-items: center; padding: 3px 10px; cursor: pointer; user-select: none; }
+.fd-row:hover { background: var(--hover); }
+.fd-row.sel { background: var(--accent-soft); }
+.fd-row .fd-ico { color: var(--muted); }
+.fd-row.dir .fd-ico { color: var(--accent); }
+.fd-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-row > span:nth-child(3), .fd-row > span:nth-child(4) { font-size: 11px; text-align: right; }
+.fd-list > p { padding: 6px 10px; margin: 0; }
+.fd-actions { display: flex; gap: 8px; align-items: center; }
+.fd-target { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dropdown.left { left: 0; right: auto; min-width: 280px; }

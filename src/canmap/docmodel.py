@@ -119,7 +119,11 @@ class ViewBuilder:
                 "bit_note": self.L["bit_note"],
                 "history": [
                     {"version": h.version, "date": h.date.isoformat() if h.date else "",
-                     "author": h.author or "", "changes": [self.t(c) for c in h.changes]}
+                     "author": h.author or "",
+                     "github": h.github or "",
+                     "github_url": f"https://github.com/{h.github}" if h.github else "",
+                     "author_label": " ".join(x for x in (h.author or "", f"@{h.github}" if h.github else "") if x),
+                     "changes": [self.t(c) for c in h.changes]}
                     for h in d.history
                 ],
             },

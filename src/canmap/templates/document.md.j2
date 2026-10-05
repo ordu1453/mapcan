@@ -123,6 +123,6 @@ _{{ L.no_signals }}_
 | {{ L.version }} | {{ L.date }} | {{ L.author }} | {{ L.description }} |
 |---|---|---|---|
 {% for h in document.history -%}
-| {{ h.version }} | {{ h.date }} | {{ h.author }} | {{ cell(h.changes | join("\n")) }} |
+| {{ h.version }} | {{ h.date }} | {{ h.author }}{% if h.github %}{% if h.author %} {% endif %}[@{{ h.github }}]({{ h.github_url }}){% endif %} | {{ cell(h.changes | join("\n")) }} |
 {% endfor %}
 {%- endif %}

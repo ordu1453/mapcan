@@ -313,10 +313,14 @@ function onLayout(p: Path, start: number, length: number) {
     <section v-if="kind === 'document'" class="card">
       <h3>История изменений</h3>
       <table v-if="node?.history?.length" class="list">
-        <thead><tr><th>Версия</th><th>Дата</th><th>Изменения</th><th v-if="!readonly"></th></tr></thead>
+        <thead><tr><th>Версия</th><th>Дата</th><th>Автор</th><th>Изменения</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="(h, i) in node.history" :key="i">
             <td class="mono">{{ h.version }}</td><td>{{ h.date }}</td>
+            <td>
+              {{ h.author }}
+              <a v-if="h.github" class="mono gh" :href="`https://github.com/${h.github}`" target="_blank" rel="noopener">@{{ h.github }}</a>
+            </td>
             <td><ul class="plain"><li v-for="(c, k) in h.changes ?? []" :key="k">{{ txt(c, lang) }}</li></ul></td>
             <td v-if="!readonly" class="act">
               <button class="icon" title="Удалить запись" @click="actions.apply([{ op: 'remove', path: ['document', 'history', i] }])">✕</button>

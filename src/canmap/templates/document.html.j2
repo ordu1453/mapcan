@@ -171,7 +171,7 @@ table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; co
 <thead><tr><th>{{ L.version }}</th><th>{{ L.date }}</th><th>{{ L.author }}</th><th>{{ L.description }}</th></tr></thead>
 <tbody>
 {%- for h in document.history %}
-<tr><td><b>{{ h.version }}</b></td><td>{{ h.date }}</td><td>{{ h.author }}</td><td><ul style="margin:0;padding-left:18px">{% for c in h.changes %}<li>{{ c }}</li>{% endfor %}</ul></td></tr>
+<tr><td><b>{{ h.version }}</b></td><td>{{ h.date }}</td><td>{{ h.author }}{% if h.github %}{% if h.author %}<br>{% endif %}<a href="{{ h.github_url }}">@{{ h.github }}</a>{% endif %}</td><td><ul style="margin:0;padding-left:18px">{% for c in h.changes %}<li>{{ c }}</li>{% endfor %}</ul></td></tr>
 {%- endfor %}
 </tbody></table>
 {% endif %}

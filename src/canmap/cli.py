@@ -105,13 +105,15 @@ def validate(
 
 @app.command()
 def serve(
-    path: Path = MapArg,
+    path: Optional[Path] = typer.Argument(
+        None, exists=True, dir_okay=True, readable=True,
+        help="Карта для открытия или рабочая папка. Без аргумента — стартовый экран."),
     host: str = typer.Option("127.0.0.1", "--host", help="Адрес для прослушивания."),
     port: int = typer.Option(8765, "--port", help="Порт."),
     readonly: bool = typer.Option(False, "--readonly", help="Только просмотр, без сохранения."),
     no_browser: bool = typer.Option(False, "--no-browser", help="Не открывать браузер."),
 ) -> None:
-    """Веб-редактор карты: дерево, формы, битовая сетка, проверка на лету, экспорт."""
+    """Веб-редактор: открыть/создать карту, дерево, формы, битовая сетка, проверка, экспорт."""
     import threading
     import webbrowser
 
@@ -122,13 +124,19 @@ def serve(
 
     if host not in ("127.0.0.1", "localhost", "::1"):
         typer.secho(f"Внимание: редактор доступен по сети ({host}) без аутентификации. "
-                    "Любой, кто откроет адрес, сможет менять файл.", fg=typer.colors.YELLOW, err=True)
-    session = EditorSession(path, readonly=readonly)
+                    "Любой, кто откроет адрес, сможет открывать и менять файлы.",
+                    fg=typer.colors.YELLOW, err=True)
+    session, cwd = None, Path.cwd()
+    if path is not None and path.is_dir():
+        cwd = path
+    elif path is not None:
+        session = EditorSession(path, readonly=readonly)
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/"
-    typer.echo(f"canmap: {path} → {url}  (Ctrl+C — остановить)")
+    typer.echo(f"canmap {__version__}: {path or cwd} → {url}  (Ctrl+C — остановить)")
     if not no_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-    uvicorn.run(create_app(session), host=host, port=port, log_level="warning")
+    uvicorn.run(create_app(session, cwd=cwd.resolve(), readonly=readonly), host=host, port=port,
+                log_level="warning")
 
 
 class DiffFormat(str, Enum):
