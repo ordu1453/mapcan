@@ -4,7 +4,7 @@ from canmap.web.yamlops import OpError, apply_ops, dump, layout_keys, make_yaml,
 
 from .conftest import DATA, REFERENCE, ROOT
 
-FILES = [REFERENCE, ROOT / "examples" / "minimal.yaml", DATA / "bad_map.yaml"]
+FILES = [REFERENCE, ROOT / "examples" / "minimal.yaml", DATA / "invalid_map.yaml"]
 
 
 def _edit(text: str, ops: list[dict]) -> str:

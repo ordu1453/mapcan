@@ -127,11 +127,11 @@ canmap language    [en|ru]
 ### Пример вывода проверки
 
 ```text
-$ canmap validate tests/data/bad_map.yaml
-tests/data/bad_map.yaml:21:25: error[number-comma]: значение '0,1': дробная часть отделена запятой, нужно 0.1
-tests/data/bad_map.yaml:24:17: error[number-cyrillic-x]: значение '0х196': в префиксе 0x используется кириллическая «х»
-tests/data/bad_map.yaml:33:22: error[invalid-identifier]: имя значения 'NO DATA': допустимы латинские буквы, цифры и _
-tests/data/bad_map.yaml:62:36: error[duplicate-signal-name]: флаг 'dc_status' уже есть в кадре 'pcu_state' (сигнал)
+$ canmap validate tests/data/invalid_map.yaml
+tests/data/invalid_map.yaml:21:25: error[number-comma]: значение '0,1': дробная часть отделена запятой, нужно 0.1
+tests/data/invalid_map.yaml:24:17: error[number-cyrillic-x]: значение '0х196': в префиксе 0x используется кириллическая «х»
+tests/data/invalid_map.yaml:33:22: error[invalid-identifier]: имя значения 'NO DATA': допустимы латинские буквы, цифры и _
+tests/data/invalid_map.yaml:62:36: error[duplicate-signal-name]: флаг 'dc_status' уже есть в кадре 'pcu_state' (сигнал)
 ...
 FAIL: ошибок: 12, предупреждений: 2, замечаний: 0
 ```

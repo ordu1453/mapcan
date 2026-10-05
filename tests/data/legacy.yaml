@@ -1,0 +1,251 @@
+can:
+  interface: vcan0
+  bitrate: 500000
+
+map:
+  - device: imd
+
+    frames:
+
+      - id: 0x1A1
+        cycle_ms: 100
+
+        data:
+
+          - byte: 0
+            length: 1
+            type: code
+            parameter: insulation_status
+            values:
+              0: NO_DATA
+              1: OK
+              2: WARNING
+              3: ALARM
+
+          - byte: 1
+            length: 1
+            type: bitfield
+            parameters:
+
+              - bit: 0
+                parameter: low_bus_voltage_error
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 1
+                parameter: timeout_error
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 2
+                parameter: anomaly_error
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 3
+                parameter: self_test_error
+                values:
+                  0: OK
+                  1: ALARM
+
+          - byte: 2
+            length: 1
+            type: code
+            parameter: imd_status
+            values:
+              0: NOT_WORKING
+              1: WORKING
+              2: CRITICAL_FAULT
+
+      - id: 0x2A1
+        cycle_ms: 100
+
+        data:
+          - byte: 0
+            length: 1
+            type: code
+            parameter: resistance_calculated
+            values:
+              0: NOT
+              1: YES
+
+          - byte: 1
+            length: 2
+            type: metric
+            parameter: resistance_plus
+            byte_order: little_endian
+            scale: 1000
+
+          - byte: 3
+            length: 2
+            type: metric
+            parameter: resistance_minus
+            byte_order: little_endian
+            scale: 1000
+
+          - byte: 5
+            length: 1
+            type: code
+            parameter: bus_voltage_calculated
+            values:
+              0: NOT
+              1: YES
+
+          - byte: 6
+            length: 2
+            type: metric
+            parameter: bus_voltage
+            byte_order: little_endian
+            scale: 0,1
+
+  - device: cmu
+
+    frames:
+
+      - id: 0x1A2
+        cycle_ms: 50
+
+        data:
+
+          - byte: 0
+            length: 1
+            type: code
+            parameter: cmu_status
+            values:
+              0: NO DATA
+              1: OK
+              2: WARNING
+              3: ALARM
+
+          - byte: 1
+            length: 1
+            type: bitfield
+            parameters:
+
+              - bit: 0
+                parameter: cell_overvoltage
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 1
+                parameter: cell_undervoltage
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 2
+                parameter: cell_disbalance
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 3
+                parameter: voltage_sensor_connection
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 4
+                parameter: cell_overheat
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 5
+                parameter: cell_overcooling
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 6
+                parameter: temperature_sensor_connection
+                values:
+                  0: OK
+                  1: ALARM
+  
+  - device: pcu
+
+    frames:
+
+      - id: 0x1A3
+        cycle_ms: 100
+
+        data:
+
+          - byte: 0
+            length: 1
+            type: code
+            parameter: dc_status
+            values:
+              0: DC_INIT
+              1: DC_PRECHARGE
+              2: DC_IDLE
+              3: DC_CHARGE
+              4: DC_DISCHARGE
+              5: DC_DIRECT_CHARGE
+              6: DC_DIRECT_DISCHARGE
+
+          - byte: 1
+            length: 1
+            type: bitfield
+            parameters:
+
+              - bit: 0
+                parameter: dc_status
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 1
+                parameter: dc_overvoltage
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 2
+                parameter: dc_undervoltage
+                values:
+                  0: OK
+                  1: ALARM
+
+              - bit: 3
+                parameter: dc_overcurrent
+                values:
+                  0: OK
+                  1: ALARM
+
+      - id: 0x2A3
+        cycle_ms: 100
+
+        data:
+          - byte: 0
+            length: 2
+            type: metric
+            parameter: dc_output_voltage
+            byte_order: little_endian
+            scale: 10
+
+          - byte: 2
+            length: 2
+            type: metric
+            parameter: dc_input_voltage
+            byte_order: little_endian
+            scale: 10
+
+          - byte: 4
+            length: 2
+            type: metric
+            parameter: dc_output_current
+            byte_order: little_endian
+            scale: 10
+
+          - byte: 6
+            length: 2
+            type: metric
+            parameter: dc_input_current
+            byte_order: little_endian
+            scale: 10

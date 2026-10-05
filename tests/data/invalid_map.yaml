@@ -1,0 +1,71 @@
+canmap: 1
+document:
+  title: Карта с ошибками
+lint:
+  signal_name: snake_case
+buses:
+  - name: bus1
+    protocol: canopen
+    devices:
+      - name: imd
+        node_id: 0x21
+        frames:
+          - name: imd_data
+            type: pdo_tx2
+            cycle_ms: 100
+            signals:
+              - name: bus_voltage
+                description: Напряжение
+                byte: 6
+                byte_length: 2
+                factor: 0,1
+                unit: В
+          - name: imd_state
+            id: 0х196
+            type: pdo_tx1
+            dlc: 2
+            cycle_ms: 100
+            signals:
+              - name: cmu_status
+                description: Статус
+                byte: 0
+                values:
+                  0: NO DATA
+                  1: OK
+                  2: NO_DATA_X
+              - name: wide
+                description: Слишком широкий
+                byte: 1
+                byte_length: 2
+              - name: tiny
+                description: Маленький
+                byte: 0
+                bit: 7
+                bit_length: 2
+                values:
+                  5: TOO_BIG
+      - name: pcu
+        node_id: 0x23
+        frames:
+          - name: pcu_state
+            type: pdo_tx1
+            cycle_ms: 100
+            signals:
+              - name: dc_status
+                description: Состояние
+                byte: 0
+                values: {0: DC_INIT, 1: NO_DATA}
+              - name: error_code
+                description: Ошибки
+                byte: 1
+                flags:
+                  - {bit: 0, name: dc_status}
+                  - {bit: 8, name: OutOfRange}
+          - name: pcu_dup
+            id: 0x1A3
+            transmission: {mode: cyclic}
+            signals:
+              - name: muxed
+                description: x
+                byte: 0
+                mux: 1

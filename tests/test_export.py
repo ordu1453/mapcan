@@ -181,7 +181,7 @@ def test_cli_validate_ok():
 
 
 def test_cli_validate_errors_json():
-    r = runner.invoke(app, ["validate", str(DATA / "bad_map.yaml"), "--format", "json"])
+    r = runner.invoke(app, ["validate", str(DATA / "invalid_map.yaml"), "--format", "json"])
     assert r.exit_code == 1
     items = json.loads(r.output)
     assert any(i["code"] == "number-comma" and i["line"] for i in items)
@@ -196,7 +196,7 @@ def test_cli_strict(tmp_path):
 
 
 def test_cli_export_refuses_on_errors(tmp_path):
-    r = runner.invoke(app, ["export", "md", str(DATA / "bad_map.yaml"), "-o", str(tmp_path / "x.md")])
+    r = runner.invoke(app, ["export", "md", str(DATA / "invalid_map.yaml"), "-o", str(tmp_path / "x.md")])
     assert r.exit_code == 1
     assert not (tmp_path / "x.md").exists()
 

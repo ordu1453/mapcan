@@ -451,7 +451,7 @@ def test_info_rules():
 
 
 def test_bad_map_finds_all_problems():
-    _, rep = validate_file(DATA / "bad_map.yaml")
+    _, rep = validate_file(DATA / "invalid_map.yaml")
     expected = {
         "number-comma", "number-cyrillic-x", "invalid-identifier", "signal-out-of-frame",
         "bit-overlap", "enum-overflow", "name-inconsistent", "duplicate-signal-name",
@@ -463,7 +463,7 @@ def test_bad_map_finds_all_problems():
 
 def test_legacy_map_rejected():
     """Старый формат не проходит схему, а не молча принимается."""
-    _, rep = validate_file(DATA / "legacy_v0.yaml")
+    _, rep = validate_file(DATA / "legacy.yaml")
     assert rep.errors > 0
 
 
