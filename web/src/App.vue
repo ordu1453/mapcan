@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { api } from "./api";
 import { actions, store } from "./store";
 import DiagnosticsPanel from "./components/DiagnosticsPanel.vue";
 import DiffDialog from "./components/DiffDialog.vue";
@@ -27,7 +28,34 @@ onMounted(async () => {
   } catch {
     /* хранилище недоступно */
   }
+  void checkUpdate();
 });
+
+const UPDATE_KEY = "canmap-update-dismissed";
+
+async function checkUpdate() {
+  try {
+    const u = await api.update();
+    let dismissed = "";
+    try {
+      dismissed = localStorage.getItem(UPDATE_KEY) ?? "";
+    } catch {
+      /* хранилище недоступно */
+    }
+    if (u.newer && u.latest !== dismissed) store.update = u;
+  } catch {
+    /* проверка обновлений не важна для работы */
+  }
+}
+
+function dismissUpdate() {
+  try {
+    if (store.update?.latest) localStorage.setItem(UPDATE_KEY, store.update.latest);
+  } catch {
+    /* хранилище недоступно */
+  }
+  store.update = null;
+}
 
 function keepMine() {
   store.fileChangedBanner = false;
@@ -37,6 +65,14 @@ function keepMine() {
 <template>
   <div class="app">
     <TopBar @preview="preview = $event" @diff="diffOpen = true" />
+
+    <div v-if="store.update" class="update-banner">
+      Доступна новая версия canmap <b>{{ store.update.latest }}</b> (у вас {{ store.update.current }}).
+      <a v-if="store.update.installer" class="button small primary-link" :href="store.update.installer"
+         target="_blank" rel="noopener">Скачать установщик</a>
+      <a class="button small" :href="store.update.url" target="_blank" rel="noopener">Что нового</a>
+      <button class="small" @click="dismissUpdate">Скрыть</button>
+    </div>
 
     <div v-if="store.fileChangedBanner && store.state" class="disk-banner">
       Файл <b class="mono">{{ store.state.file }}</b> изменён на диске другой программой.

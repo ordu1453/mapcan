@@ -117,6 +117,14 @@ export interface Meta {
   session_id: number;
 }
 
+export interface UpdateInfo {
+  current: string;
+  latest: string | null;
+  newer: boolean;
+  url: string;
+  installer: string | null;
+}
+
 export interface FsEntry {
   name: string;
   path: string;

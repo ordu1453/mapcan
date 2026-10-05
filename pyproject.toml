@@ -23,12 +23,19 @@ dependencies = [
 [project.optional-dependencies]
 # Этап 8 (работа с шиной) — зарезервировано.
 bus = ["python-can>=4.3"]
+# Отдельное окно приложения (`canmap app`); без него редактор открывается в браузере.
+desktop = ["pywebview>=5"]
 
 [project.scripts]
 canmap = "canmap.cli:main"
 
+[project.gui-scripts]
+canmap-app = "canmap.launcher:main"
+
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.5", "jsonschema>=4", "httpx>=0.27"]
+# Сборка canmap.exe и установщика (packaging/, .github/workflows/release.yml).
+package = ["pyinstaller>=6.10"]
 
 [build-system]
 requires = ["hatchling>=1.24"]

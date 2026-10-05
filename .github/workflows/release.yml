@@ -1,0 +1,170 @@
+name: release
+
+# Выпуск версии: поднять версию (pyproject.toml, src/canmap/__init__.py, web/package.json),
+# закоммитить и запушить тег vX.Y.Z. Workflow проверит, соберёт и опубликует GitHub Release:
+#   canmap-X.Y.Z-setup.exe          — установщик для Windows
+#   canmap-X.Y.Z-windows-x64.zip    — та же сборка без установки
+#   canmap-X.Y.Z-py3-none-any.whl   — для uv tool install / pipx
+#   Docker-образ ghcr.io/<владелец>/mapcan:X.Y.Z и :latest
+# Ручной запуск (Actions → release → Run workflow) — пробная сборка без публикации.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Tag matches package version
+        shell: bash
+        run: |
+          v=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          init=$(grep -m1 '^__version__' src/canmap/__init__.py | cut -d'"' -f2)
+          web=$(node -p "require('./web/package.json').version")
+          echo "pyproject=$v __init__=$init web=$web ref=$GITHUB_REF_NAME"
+          if [ "$v" != "$init" ] || [ "$v" != "$web" ]; then
+            echo "::error::версии в pyproject.toml, src/canmap/__init__.py и web/package.json различаются"; exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then
+            echo "::error::тег $GITHUB_REF_NAME не совпадает с версией пакета $v"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  python:
+    needs: [version, ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-python
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    needs: [version, ci]
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: uv sync --locked --no-dev --extra desktop --group package
+      - name: Build (PyInstaller)
+        run: uv run --no-sync pyinstaller packaging/canmap.spec --noconfirm
+      - name: Smoke test
+        shell: bash
+        run: |
+          set -e
+          out=$(dist/canmap/canmap.exe --version | tr -d '\r')
+          echo "$out"
+          [ "$out" = "canmap $VERSION" ]
+          test -f dist/canmap/canmap-app.exe
+          dist/canmap/canmap.exe validate examples/minimal.yaml
+          dist/canmap/canmap.exe build examples/vehicle-can.yaml -o smoke
+          test -s smoke/vehicle-can.pdf && test -s smoke/vehicle-can.xlsx
+      - name: Installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc /Qp "/DAppVersion=$env:VERSION" packaging\canmap.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Portable zip
+        shell: pwsh
+        run: Compress-Archive -Path dist\canmap\* -DestinationPath "dist\canmap-$env:VERSION-windows-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows
+          path: |
+            dist/canmap-*-setup.exe
+            dist/canmap-*-windows-x64.zip
+          if-no-files-found: error
+
+  docker:
+    needs: [version, ci]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image name
+        shell: bash
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ needs.version.outputs.version }}
+            ${{ env.IMAGE }}:latest
+
+  publish:
+    needs: [version, python, windows]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: assets
+          merge-multiple: true
+      - name: Checksums
+        working-directory: assets
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Release notes
+        shell: bash
+        run: |
+          # checkout оставляет облегчённую копию тега — забираем аннотацию заново.
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          {
+            git tag -l --format='%(contents)' "$TAG" | sed '/-----BEGIN PGP SIGNATURE-----/,$d'
+            echo
+            echo "## Установка"
+            echo
+            echo "- **Windows:** скачайте \`canmap-$VERSION-setup.exe\` и запустите. Права администратора не нужны."
+            echo "  Без установки — \`canmap-$VERSION-windows-x64.zip\` (запуск: \`canmap-app.exe\`)."
+            echo "- **Python 3.11+:** \`uv tool install \"canmap[desktop] @ https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/canmap-$VERSION-py3-none-any.whl\"\`"
+            echo "- **Docker:** \`docker run --rm -v \"\$PWD:/work\" ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION build canmap.yaml -o build\`"
+          } > notes.md
+          cat notes.md
+      - name: Publish GitHub Release
+        run: |
+          gh release create "$TAG" assets/* --verify-tag --title "canmap $VERSION" \
+            --notes-file notes.md --generate-notes

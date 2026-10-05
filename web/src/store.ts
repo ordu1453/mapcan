@@ -3,7 +3,7 @@
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
 import { buildTree, diagIndex, framePathOf, getAt, pathKey } from "./model";
-import type { Meta, Op, Path, PdfTemplate, ResolvedFrame, SessionResult, State } from "./types";
+import type { Meta, Op, Path, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
 interface Toast {
   id: number;
@@ -35,6 +35,7 @@ export const store = reactive({
   toasts: [] as Toast[],
   muxView: {} as Record<string, number | null>, // выбранное значение селектора по кадру
   revealLine: null as number | null,           // строка для перехода во вкладке YAML
+  update: null as UpdateInfo | null,           // доступная новая версия (плашка вверху)
 });
 
 let toastId = 0;
@@ -222,6 +223,7 @@ export function startEvents(): void {
   connectEvents(
     (m) => {
       if (m.type === "file-changed") store.fileChangedBanner = true;
+      else if (m.type === "open-request") void actions.openFile(m.path);
       else if (m.type === "session" && m.session_id !== store.meta?.session_id) void actions.load();
       else if (m.type === "state" && store.state &&
         (m.session_id !== store.state.session_id || m.version !== store.state.version)) void api.state().then(accept);

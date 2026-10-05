@@ -109,20 +109,19 @@ def serve(
         None, exists=True, dir_okay=True, readable=True,
         help="Карта для открытия или рабочая папка. Без аргумента — стартовый экран."),
     host: str = typer.Option("127.0.0.1", "--host", help="Адрес для прослушивания."),
-    port: int = typer.Option(8765, "--port", help="Порт."),
+    port: Optional[int] = typer.Option(None, "--port", help="Порт; по умолчанию 8765 или свободный."),
     readonly: bool = typer.Option(False, "--readonly", help="Только просмотр, без сохранения."),
     no_browser: bool = typer.Option(False, "--no-browser", help="Не открывать браузер."),
 ) -> None:
-    """Веб-редактор: открыть/создать карту, дерево, формы, битовая сетка, проверка, экспорт."""
-    import threading
+    """Веб-редактор в браузере (для сервера и разработки; на рабочем месте удобнее `canmap app`)."""
     import webbrowser
 
-    import uvicorn
-
+    from .launcher import DEFAULT_PORT, LOCAL_HOSTS, ServerThread, browser_url, pick_port
     from .web.app import create_app
     from .web.session import EditorSession
 
-    if host not in ("127.0.0.1", "localhost", "::1"):
+    local = host in LOCAL_HOSTS
+    if not local:
         typer.secho(f"Внимание: редактор доступен по сети ({host}) без аутентификации. "
                     "Любой, кто откроет адрес, сможет открывать и менять файлы.",
                     fg=typer.colors.YELLOW, err=True)
@@ -131,12 +130,34 @@ def serve(
         cwd = path
     elif path is not None:
         session = EditorSession(path, readonly=readonly)
-    url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/"
+    if port is None:
+        port = pick_port(host, DEFAULT_PORT) if local else DEFAULT_PORT
+    url = browser_url(host, port)
+    server = ServerThread(create_app(session, cwd=cwd.resolve(), readonly=readonly, check_updates=local),
+                          host, port)
+    try:
+        server.start()
+    except RuntimeError as e:
+        typer.secho(f"Ошибка: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from e
     typer.echo(f"canmap {__version__}: {path or cwd} → {url}  (Ctrl+C — остановить)")
     if not no_browser:
-        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-    uvicorn.run(create_app(session, cwd=cwd.resolve(), readonly=readonly), host=host, port=port,
-                log_level="warning")
+        webbrowser.open(url)
+    server.wait()
+
+
+@app.command("app")
+def app_cmd(
+    path: Optional[Path] = typer.Argument(
+        None, exists=True, dir_okay=True, readable=True,
+        help="Карта для открытия или рабочая папка. Без аргумента — стартовый экран."),
+    browser: bool = typer.Option(False, "--browser", help="Открыть в браузере вместо окна приложения."),
+    readonly: bool = typer.Option(False, "--readonly", help="Только просмотр, без сохранения."),
+) -> None:
+    """Редактор в отдельном окне (pywebview); повторный запуск открывает файл в уже запущенном окне."""
+    from .launcher import run
+
+    raise typer.Exit(run(path, window=not browser, readonly=readonly))
 
 
 class DiffFormat(str, Enum):

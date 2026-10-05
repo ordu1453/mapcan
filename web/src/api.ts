@@ -1,4 +1,4 @@
-import type { DiffResult, FsList, GitRevs, Meta, Op, PdfTemplate, SessionResult, State, UserProfile } from "./types";
+import type { DiffResult, FsList, GitRevs, Meta, Op, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code = "") {
@@ -32,6 +32,7 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
 
 export const api = {
   meta: () => call<Meta>("GET", "/api/meta"),
+  update: () => call<UpdateInfo>("GET", "/api/update"),
   setUser: (u: { name: string; github: string | null }) => call<UserProfile>("PUT", "/api/user", u),
   list: (dir = "") => call<FsList>("GET", `/api/fs/list?dir=${encodeURIComponent(dir)}`),
   open: (path: string, force = false) => call<SessionResult>("POST", "/api/file/open", { path, force }),
@@ -80,7 +81,8 @@ export const api = {
 export type WsMessage =
   | { type: "hello" | "state"; version: number; session_id: number }
   | { type: "session"; session_id: number }
-  | { type: "file-changed" };
+  | { type: "file-changed" }
+  | { type: "open-request"; path: string };
 
 /** WebSocket с автоматическим переподключением. */
 export function connectEvents(onMessage: (m: WsMessage) => void, onStatus: (online: boolean) => void): void {

@@ -11,6 +11,7 @@ import string
 import subprocess
 import tempfile
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from .. import __version__
+from .. import __version__, updates
 from ..diff import changelog_lines, diff_maps
 from ..loader import loads
 from ..model import CanMap
@@ -84,6 +85,11 @@ class CloseBody(BaseModel):
 class UserBody(BaseModel):
     name: str = ""
     github: str | None = None
+
+
+class ActivateBody(BaseModel):
+    token: str
+    path: str | None = None       # файл, который просят открыть (двойной щелчок по .yaml)
 
 
 class AppError(Exception):
@@ -236,7 +242,15 @@ def _git(args: list[str], cwd: Path) -> str:
 
 
 def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
-               cwd: Path | None = None, readonly: bool | None = None) -> FastAPI:
+               cwd: Path | None = None, readonly: bool | None = None, *,
+               check_updates: bool = False, instance_token: str | None = None,
+               on_activate: Callable[[], None] | None = None) -> FastAPI:
+    """Приложение редактора.
+
+    ``check_updates`` — отвечать на /api/update сведениями с GitHub Releases;
+    ``instance_token`` — разрешить /api/instance/activate (повторный запуск canmap
+    передаёт файл уже работающему экземпляру), ``on_activate`` — вывести окно на передний план.
+    """
     hub = Hub()
     lock = asyncio.Lock()
     root = cwd or (session.path.parent if session else Path.cwd())
@@ -311,6 +325,35 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     @app.get("/api/meta")
     async def get_meta() -> dict:
         return wsp.meta()
+
+    @app.get("/api/update")
+    async def get_update() -> dict:
+        if not check_updates:
+            return {"current": __version__, "latest": None, "newer": False,
+                    "url": updates.RELEASES_URL, "installer": None}
+        return await run_in_threadpool(updates.check)
+
+    @app.post("/api/instance/activate")
+    async def activate(body: ActivateBody) -> dict:
+        if not instance_token or body.token != instance_token:
+            raise AppError(403, "token", "неверный токен экземпляра")
+        if on_activate is not None:
+            await run_in_threadpool(on_activate)
+        if body.path:
+            path = wsp.resolve(body.path)
+            s = wsp.session
+            async with lock:
+                if s is not None and s.text != s.saved_text:
+                    # Есть несохранённые правки — открывает вкладка, спросив пользователя.
+                    await hub.broadcast({"type": "open-request", "path": str(path)})
+                    return {"ok": True}
+                if path.is_file() and (s is None or s.path != path):
+                    try:
+                        wsp.open(path)
+                    except (OSError, UnicodeDecodeError) as e:
+                        raise AppError(400, "read", f"не удалось прочитать {path.name}: {e}") from e
+                    await session_changed()
+        return {"ok": True}
 
     @app.get("/api/user")
     async def get_user() -> dict:

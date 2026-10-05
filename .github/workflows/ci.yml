@@ -2,7 +2,9 @@ name: ci
 
 on:
   push:
+    branches: ["**"]     # теги проверяет release.yml (вызывает этот workflow)
   pull_request:
+  workflow_call:
 
 jobs:
   test:

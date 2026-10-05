@@ -51,14 +51,24 @@ YAML можно писать и вручную — с подсказками в 
 
 ## Установка
 
-Нужен Python 3.11–3.13. Внешние программы не нужны: PDF собирается встроенным
-компилятором Typst из pip-пакета `typst`, шрифты PT Sans и PT Serif (OFL) идут в комплекте.
+**Windows, без Python.** Скачайте `canmap-X.Y.Z-setup.exe` со страницы
+[Releases](https://github.com/ordu1453/MapCAN/releases/latest) и запустите — права администратора
+не нужны. Установщик добавит canmap в меню «Пуск» и на рабочий стол, в «Открыть с помощью» для
+`.yaml` и (по желанию) команду `canmap` в PATH. Редактор открывается в собственном окне; повторный
+запуск или двойной щелчок по карте открывает её в уже запущенном окне. О новой версии редактор
+сообщит плашкой вверху — обновление ставится поверх. Без установки: `canmap-X.Y.Z-windows-x64.zip`,
+запуск — `canmap-app.exe`.
 
-**Для пользователей** (команда `canmap` доступна глобально, обновление одной командой):
+Windows может предупредить о неизвестном издателе (SmartScreen): установщик не подписан
+сертификатом. «Подробнее → Выполнить в любом случае».
+
+**С Python 3.11–3.13** (Windows, Linux, macOS). Внешние программы не нужны: PDF собирается
+встроенным компилятором Typst из pip-пакета `typst`, шрифты PT Sans и PT Serif (OFL) идут в комплекте.
 
 ```sh
-uv tool install git+<адрес репозитория>     # или: pipx install git+<адрес>
+uv tool install "canmap[desktop] @ git+https://github.com/ordu1453/MapCAN"   # или: pipx install …
 uv tool upgrade canmap
+canmap app                     # редактор в отдельном окне (без [desktop] — в браузере)
 ```
 
 **Для разработки** (с [uv](https://docs.astral.sh/uv/), окружение по `uv.lock`):
@@ -88,7 +98,8 @@ pip install --no-index --find-links wheelhouse canmap
 ## Команды
 
 ```text
-canmap serve       [FILE|DIR] [--port 8765] [--readonly] [--no-browser]
+canmap app         [FILE|DIR] [--browser] [--readonly]
+canmap serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
 canmap validate    FILE [--strict] [--info] [--format json] [--disable КОД]
 canmap export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
 canmap export pdf  FILE [-o OUT] [--template canmap|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR]
@@ -153,8 +164,9 @@ if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { 
 ## Веб-редактор
 
 ```sh
-canmap serve                  # стартовый экран: новая карта, открыть, недавние
-canmap serve my-map.yaml      # сразу открыть карту
+canmap app                    # отдельное окно: стартовый экран — новая карта, открыть, недавние
+canmap app my-map.yaml        # сразу открыть карту
+canmap serve my-map.yaml      # то же в браузере (сервер, разработка)
 ```
 
 Файлы создаются, открываются и сохраняются из меню «Файл»; профиль автора (имя, GitHub)
@@ -174,7 +186,27 @@ canmap serve my-map.yaml      # сразу открыть карту
 
 Пример для пользователей карты — [docs/ci-example.md](docs/ci-example.md): при изменении
 YAML карта проверяется, а PDF, Excel, DBC и C-заголовки пересобираются и сохраняются
-как артефакты. Docker-образ со всем необходимым: [Dockerfile](Dockerfile).
+как артефакты. Docker-образ со всем необходимым: [Dockerfile](Dockerfile),
+готовый — `ghcr.io/ordu1453/mapcan:<версия>`.
+
+### Выпуск версии
+
+1. Поднять версию в `pyproject.toml`, `src/canmap/__init__.py` и `web/package.json`
+   (`uv lock`, `npm run build` в `web/`), закоммитить.
+2. Поставить и запушить тег: `git tag -a vX.Y.Z -m "canmap X.Y.Z: …" && git push origin main vX.Y.Z`.
+
+[release.yml](.github/workflows/release.yml) прогонит тесты, проверит, что тег совпадает с версией,
+соберёт установщик и zip для Windows (PyInstaller + Inno Setup), wheel и Docker-образ и опубликует
+GitHub Release; текст аннотации тега станет описанием релиза. Ручной запуск workflow
+(Actions → release → Run workflow) — пробная сборка без публикации.
+
+Локальная сборка Windows-версии:
+
+```sh
+uv sync --extra desktop --group package
+uv run pyinstaller packaging/canmap.spec --noconfirm        # → dist/canmap/
+iscc /DAppVersion=X.Y.Z packaging/canmap.iss                # → dist/canmap-X.Y.Z-setup.exe
+```
 
 ## Структура репозитория
 
@@ -193,10 +225,13 @@ src/canmap/
   export/                   xlsx, pdf (Typst), md/html (Jinja2), dbc
   codegen/                  C и Python
   diff.py                   сравнение версий карты, changelog
+  launcher.py               canmap app: окно, один экземпляр, выбор порта
+  updates.py                проверка новой версии на GitHub Releases
   web/                      веб-редактор: FastAPI, операции над YAML, собранный UI (static/)
   templates/                шаблоны документов (pdf/ — Typst)
   fonts/                    PT Sans, PT Serif (OFL)
 web/                        исходники интерфейса (Vue 3 + TypeScript + Vite)
+packaging/                  сборка для Windows: PyInstaller (canmap.spec), установщик (canmap.iss), иконка
 tests/                      тесты; data/ — фикстуры, golden/ — эталонные файлы
 ```
 
