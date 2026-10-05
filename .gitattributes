@@ -1,0 +1,3 @@
+# Собранный фронтенд всегда с LF, как его выдаёт сборка на CI (vite пишет смешанные концы строк)
+src/canmap/web/static/** text eol=lf
+web/index.html text eol=lf
