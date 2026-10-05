@@ -8,6 +8,7 @@ const emit = defineEmits<{ preview: [fmt: "html" | "pdf" | "md"]; diff: [] }>();
 const menu = ref<"file" | "export" | null>(null);
 const theme = ref<string>(localStorage.getItem("canmap-theme") ?? "auto");
 const hasMap = computed(() => !!store.state);
+const pdfTitle = computed(() => store.pdfTemplates.find((x) => x.name === store.pdfTemplate)?.title ?? "");
 
 function applyTheme() {
   const root = document.documentElement;
@@ -26,7 +27,7 @@ function cycleTheme() {
 applyTheme();
 
 const DOWNLOADS: Array<[string, string]> = [
-  ["xlsx", "Excel (.xlsx)"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "HTML"],
+  ["xlsx", "Excel (.xlsx)"], ["md", "Markdown"], ["html", "HTML"],
   ["dbc", "DBC (.zip)"], ["c", "C-код (.zip)"], ["py", "Python-модуль (.zip)"],
 ];
 
@@ -94,8 +95,11 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenu));
         <div v-if="menu === 'export'" class="dropdown" @click="menu = null">
           <div class="dd-title">Предпросмотр</div>
           <button @click="emit('preview', 'html')">HTML</button>
-          <button @click="emit('preview', 'pdf')">PDF</button>
+          <button @click="emit('preview', 'pdf')">PDF… <span class="muted dd-dir">{{ pdfTitle }}</span></button>
           <button @click="emit('preview', 'md')">Markdown</button>
+          <div class="dd-title">Скачать PDF</div>
+          <a v-for="t in store.pdfTemplates" :key="t.name" :href="api.exportUrl('pdf', true, t.name)" :title="t.description"
+             @click="actions.setPdfTemplate(t.name)">{{ t.title }}</a>
           <div class="dd-title">Скачать</div>
           <a v-for="[f, l] in DOWNLOADS" :key="f" :href="api.exportUrl(f, true)">{{ l }}</a>
         </div>

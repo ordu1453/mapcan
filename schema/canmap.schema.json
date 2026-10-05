@@ -263,6 +263,89 @@
           "title": "Bit Numbering",
           "type": "string"
         },
+        "logo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты.",
+          "title": "Logo"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД) или «RU.12345678.00001-01» (ЕСПД).",
+          "title": "Designation"
+        },
+        "litera": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Литера документа (ЕСКД), напр. «О1».",
+          "title": "Litera"
+        },
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Город для титульного листа.",
+          "title": "City"
+        },
+        "signatures": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signatures"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approve": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Person"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Блок «УТВЕРЖДАЮ» титульного листа."
+        },
+        "agree": {
+          "description": "Блоки «СОГЛАСОВАНО».",
+          "items": {
+            "$ref": "#/$defs/Person"
+          },
+          "title": "Agree",
+          "type": "array"
+        },
         "history": {
           "items": {
             "$ref": "#/$defs/HistoryEntry"
@@ -707,6 +790,31 @@
         }
       },
       "title": "LocalizedText",
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": false,
+      "description": "Должностное лицо для блоков «УТВЕРЖДАЮ» / «СОГЛАСОВАНО».",
+      "properties": {
+        "position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "title": "Person",
       "type": "object"
     },
     "SdoExchange": {
@@ -1157,6 +1265,79 @@
         "name"
       ],
       "title": "Signal",
+      "type": "object"
+    },
+    "Signatures": {
+      "additionalProperties": false,
+      "description": "Подписи основной надписи ЕСКД (ГОСТ 2.104) и листов утверждения.",
+      "properties": {
+        "developed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Разраб.",
+          "title": "Developed"
+        },
+        "checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Пров.",
+          "title": "Checked"
+        },
+        "tech_control": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Т. контр.",
+          "title": "Tech Control"
+        },
+        "norm_control": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Н. контр.",
+          "title": "Norm Control"
+        },
+        "approved": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Утв.",
+          "title": "Approved"
+        }
+      },
+      "title": "Signatures",
       "type": "object"
     },
     "Transmission": {

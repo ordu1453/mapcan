@@ -30,6 +30,7 @@ from .session import ConflictError, EditorSession, ReadOnlyError
 from .yamlops import OpError
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+LOGO_MAX_BYTES = 5 * 1024 * 1024
 
 EXPORT_FORMATS = {
     "xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"),
@@ -200,7 +201,7 @@ def _zip(paths: list[Path], root: Path) -> bytes:
     return buf.getvalue()
 
 
-def build_export(cmap: CanMap, fmt: str, stem: str, lang: str | None) -> bytes:
+def build_export(cmap: CanMap, fmt: str, stem: str, lang: str | None, template: str | None = None) -> bytes:
     from ..codegen.c import generate_c
     from ..codegen.py import generate_py
     from ..export.dbc import export_dbc
@@ -217,7 +218,7 @@ def build_export(cmap: CanMap, fmt: str, stem: str, lang: str | None) -> bytes:
         if fmt == "xlsx":
             return export_xlsx(cmap, root / f"{stem}.xlsx", lang=lang).read_bytes()
         if fmt == "pdf":
-            return export_pdf(cmap, root / f"{stem}.pdf", lang=lang).read_bytes()
+            return export_pdf(cmap, root / f"{stem}.pdf", template=template, lang=lang).read_bytes()
         if fmt == "dbc":
             return _zip(export_dbc(cmap, root), root)
         if fmt == "c":
@@ -443,10 +444,23 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     # ---------------------------------------------------------------- export
 
+    @app.get("/api/templates")
+    async def get_templates() -> dict:
+        from ..export.pdf import DEFAULT_TEMPLATE_NAME, PDF_TEMPLATES
+
+        return {"pdf": [{"name": t.name, "title": t.title, "description": t.description}
+                        for t in PDF_TEMPLATES.values()],
+                "default": DEFAULT_TEMPLATE_NAME}
+
     @app.get("/api/export/{fmt}")
-    async def get_export(fmt: str, lang: str | None = None, download: bool = False) -> Response:
+    async def get_export(fmt: str, lang: str | None = None, download: bool = False,
+                         template: str | None = None) -> Response:
+        from ..export.pdf import PDF_TEMPLATES
+
         if fmt not in EXPORT_FORMATS:
             raise HTTPException(404, f"неизвестный формат: {fmt}")
+        if template is not None and template not in PDF_TEMPLATES:
+            raise HTTPException(400, f"неизвестный шаблон PDF: {template}")
         s = wsp.require()
         cmap = s.map
         if cmap is None:
@@ -454,14 +468,55 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         media, ext = EXPORT_FORMATS[fmt]
         stem = s.path.stem
         try:
-            data = await run_in_threadpool(build_export, cmap, fmt, stem, lang)
+            data = await run_in_threadpool(build_export, cmap, fmt, stem, lang, template)
         except Exception as e:  # noqa: BLE001 — показать причину в UI
             raise HTTPException(500, f"ошибка экспорта {fmt}: {e}") from e
         name = f"{stem}{ext}" if ext != ".zip" else f"{stem}-{fmt}.zip"
+        if fmt == "pdf" and template and template != "canmap":
+            name = f"{stem}-{template}.pdf"
         disp = "attachment" if download or ext == ".zip" or fmt == "xlsx" else "inline"
         return Response(data, media_type=media,
                         headers={"Content-Disposition": f'{disp}; filename="{name}"',
                                  "Cache-Control": "no-store"})
+
+    # ---------------------------------------------------------------- логотип
+
+    def logo_file() -> Path | None:
+        s = wsp.require()
+        doc = (s.doc or {}).get("document") or {}
+        raw = doc.get("logo") if isinstance(doc, dict) else None
+        if not raw:
+            return None
+        p = Path(str(raw)).expanduser()
+        return p if p.is_absolute() else s.path.parent / p
+
+    @app.get("/api/logo")
+    async def get_logo() -> Response:
+        p = logo_file()
+        if p is None or not p.is_file():
+            raise AppError(404, "no-logo", "логотип не задан или файл не найден")
+        return FileResponse(p, headers={"Cache-Control": "no-store"})
+
+    @app.post("/api/logo")
+    async def post_logo(file: UploadFile = File(...)) -> dict:
+        from ..model import LOGO_FORMATS
+
+        writable()
+        ext = Path(file.filename or "").suffix.lower()
+        if ext not in LOGO_FORMATS:
+            raise AppError(400, "logo-format", "поддерживаются " + ", ".join(LOGO_FORMATS))
+        data = await file.read()
+        if len(data) > LOGO_MAX_BYTES:
+            raise AppError(400, "logo-size", f"файл больше {LOGO_MAX_BYTES // (1024 * 1024)} МБ")
+        async with lock:
+            s = wsp.require()
+            target = s.path.parent / f"{s.path.stem}-logo{ext}"
+            try:
+                target.write_bytes(data)
+            except OSError as e:
+                raise AppError(400, "write", f"не удалось сохранить логотип: {e}") from e
+            s.apply([{"op": "set", "path": ["document", "logo"], "value": target.name}])
+            return await changed()
 
     # ---------------------------------------------------------------- diff
 

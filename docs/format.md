@@ -43,6 +43,10 @@ buses: [...]              # одна или несколько шин
 | `author`, `organization` | строка | |
 | `language` | `ru` \| `en` | Язык документов (по умолчанию `ru`) |
 | `bit_numbering` | `lsb0` | Явная фиксация нумерации бит |
+| `logo` | путь | Логотип предприятия (PNG/JPG/SVG/GIF/WEBP), относительно файла карты |
+| `designation`, `litera`, `city` | строка | Обозначение документа, литера, город — для шаблонов ГОСТ |
+| `signatures` | объект | `{developed, checked, tech_control, norm_control, approved}` — подписи основной надписи |
+| `approve`, `agree` | `{position, name}`, список | Блоки «УТВЕРЖДАЮ» и «СОГЛАСОВАНО» титульного листа |
 | `history` | список | `{version, date, author, github, changes: [текст, ...]}`; `github` — имя пользователя GitHub автора |
 
 **Текст** — строка или объект с переводами: `{ru: "Состояние", en: "State"}`.
@@ -229,4 +233,5 @@ values: *dc_states
 | `cycle-missing`, `cycle-unexpected` | error/warning | режим передачи |
 | `direction-mismatch`, `frame-type-protocol` | warning | согласованность типа кадра |
 | `sdo-frame-type`, `sdo-duplicate` | warning/error | описание SDO |
+| `logo-missing`, `logo-format` | warning/error | файл логотипа не найден / неподдерживаемый формат |
 | `missing-description`, `empty-frame` | info | полнота описания |

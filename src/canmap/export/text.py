@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
@@ -22,6 +23,21 @@ def _env(template_dir: Path, autoescape: bool) -> Environment:
     )
 
 
+_MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
+         ".svg": "image/svg+xml", ".webp": "image/webp"}
+
+
+def logo_data_uri(path: str) -> str:
+    """Логотип как data: URI — HTML остаётся одним самодостаточным файлом."""
+    if not path:
+        return ""
+    p = Path(path)
+    mime = _MIME.get(p.suffix.lower())
+    if not mime or not p.is_file():
+        return ""
+    return f"data:{mime};base64,{base64.b64encode(p.read_bytes()).decode('ascii')}"
+
+
 def render(cmap: CanMap, kind: str, template: str | Path | None = None, lang: str | None = None) -> str:
     """kind: "md" или "html". ``template`` — свой Jinja2-шаблон."""
     default = {"md": "document.md.j2", "html": "document.html.j2"}[kind]
@@ -32,7 +48,10 @@ def render(cmap: CanMap, kind: str, template: str | Path | None = None, lang: st
         env, name = _env(TEMPLATES, kind == "html"), default
     if kind == "html":
         env.autoescape = True
-    out = env.get_template(name).render(**build_view(cmap, lang))
+    view = build_view(cmap, lang)
+    if kind == "html":
+        view["document"]["logo"] = logo_data_uri(view["document"]["logo_file"])
+    out = env.get_template(name).render(**view)
     if kind == "md":
         # Убрать лишние пустые строки, которые остаются от управляющих блоков.
         lines, blank = [], 0

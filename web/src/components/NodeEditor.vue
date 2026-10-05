@@ -7,6 +7,7 @@ import { getAt, nodeKind, pathKey, samePath, startsWith, txt } from "../model";
 import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store } from "../store";
 import type { Path } from "../types";
 import BitGrid from "./BitGrid.vue";
+import DocumentRequisites from "./DocumentRequisites.vue";
 import FieldInput from "./FieldInput.vue";
 import FlagsTable from "./FlagsTable.vue";
 import ValueTable from "./ValueTable.vue";
@@ -257,6 +258,8 @@ function onLayout(p: Path, start: number, length: number) {
                     @commit="commit(def, $event)" />
       </div>
     </section>
+
+    <DocumentRequisites v-if="kind === 'document'" />
 
     <ValueTable v-if="showValues" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
                 :readonly="readonly" :diags="diags" />

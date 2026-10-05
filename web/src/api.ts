@@ -1,4 +1,4 @@
-import type { DiffResult, FsList, GitRevs, Meta, Op, SessionResult, State, UserProfile } from "./types";
+import type { DiffResult, FsList, GitRevs, Meta, Op, PdfTemplate, SessionResult, State, UserProfile } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code = "") {
@@ -47,13 +47,26 @@ export const api = {
   save: (force = false) => call<State>("POST", "/api/save", { force }),
   reload: () => call<State>("POST", "/api/reload"),
   gitRevs: () => call<GitRevs>("GET", "/api/git/revs"),
+  templates: () => call<{ pdf: PdfTemplate[]; default: string }>("GET", "/api/templates"),
+  uploadLogo: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return call<State>("POST", "/api/logo", fd);
+  },
+  logoUrl: (version: number) => `/api/logo?v=${version}`,
   diffGit: (rev: string) => call<DiffResult>("POST", "/api/diff/git", { rev }),
   diffUpload: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
     return call<DiffResult>("POST", "/api/diff/upload", fd);
   },
-  exportUrl: (fmt: string, download = false) => `/api/export/${fmt}${download ? "?download=true" : ""}`,
+  exportUrl: (fmt: string, download = false, template?: string) => {
+    const q = new URLSearchParams();
+    if (download) q.set("download", "true");
+    if (template) q.set("template", template);
+    const s = q.toString();
+    return `/api/export/${fmt}${s ? "?" + s : ""}`;
+  },
   exportText: async (fmt: string) => {
     const r = await fetch(`/api/export/${fmt}`);
     if (!r.ok) {

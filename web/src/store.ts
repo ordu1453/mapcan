@@ -3,7 +3,7 @@
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
 import { buildTree, diagIndex, framePathOf, getAt, pathKey } from "./model";
-import type { Meta, Op, Path, ResolvedFrame, SessionResult, State } from "./types";
+import type { Meta, Op, Path, PdfTemplate, ResolvedFrame, SessionResult, State } from "./types";
 
 interface Toast {
   id: number;
@@ -13,8 +13,18 @@ interface Toast {
 
 export type DialogKind = "open" | "new" | "saveas" | "profile" | null;
 
+function savedTemplate(): string {
+  try {
+    return localStorage.getItem("canmap-pdf-template") ?? "canmap";
+  } catch {
+    return "canmap";
+  }
+}
+
 export const store = reactive({
   meta: null as Meta | null,
+  pdfTemplates: [] as PdfTemplate[],
+  pdfTemplate: savedTemplate(),                // выбранный шаблон PDF (запоминается в браузере)
   state: null as State | null,
   dialog: null as DialogKind,
   selected: ["document"] as Path,
@@ -107,6 +117,11 @@ export const actions = {
   load: async () => {
     try {
       store.meta = await api.meta();
+      if (!store.pdfTemplates.length) {
+        const t = await api.templates();
+        store.pdfTemplates = t.pdf;
+        if (!t.pdf.some((x) => x.name === store.pdfTemplate)) store.pdfTemplate = t.default;
+      }
       store.state = null;
       if (store.meta.open) accept(await api.state());
     } catch (e) {
@@ -169,6 +184,14 @@ export const actions = {
   },
   select: (p: Path) => {
     store.selected = p;
+  },
+  setPdfTemplate: (name: string) => {
+    store.pdfTemplate = name;
+    try {
+      localStorage.setItem("canmap-pdf-template", name);
+    } catch {
+      /* хранилище недоступно */
+    }
   },
 };
 

@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+from pathlib import Path
 from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
@@ -82,6 +83,26 @@ class HistoryEntry(_Base):
     changes: list[Text] = Field(default_factory=list)
 
 
+class Person(_Base):
+    """Должностное лицо для блоков «УТВЕРЖДАЮ» / «СОГЛАСОВАНО»."""
+
+    position: str | None = None
+    name: str = ""
+
+
+class Signatures(_Base):
+    """Подписи основной надписи ЕСКД (ГОСТ 2.104) и листов утверждения."""
+
+    developed: str | None = Field(None, description="Разраб.")
+    checked: str | None = Field(None, description="Пров.")
+    tech_control: str | None = Field(None, description="Т. контр.")
+    norm_control: str | None = Field(None, description="Н. контр.")
+    approved: str | None = Field(None, description="Утв.")
+
+
+LOGO_FORMATS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")
+
+
 class Document(_Base):
     title: Text
     subtitle: Text | None = None
@@ -95,6 +116,16 @@ class Document(_Base):
         description="Нумерация бит: lsb0 — бит 0 это младший бит байта 0. "
         "Поле фиксирует соглашение явно и выводится во всех документах.",
     )
+    # Оформление и реквизиты (шаблоны ГОСТ)
+    logo: str | None = Field(
+        None, description="Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты.")
+    designation: str | None = Field(
+        None, description="Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД) или «RU.12345678.00001-01» (ЕСПД).")
+    litera: str | None = Field(None, description="Литера документа (ЕСКД), напр. «О1».")
+    city: str | None = Field(None, description="Город для титульного листа.")
+    signatures: Signatures | None = None
+    approve: Person | None = Field(None, description="Блок «УТВЕРЖДАЮ» титульного листа.")
+    agree: list[Person] = Field(default_factory=list, description="Блоки «СОГЛАСОВАНО».")
     history: list[HistoryEntry] = Field(default_factory=list)
 
 
@@ -359,7 +390,18 @@ class CanMap(_Base):
     buses: list[Bus] = Field(min_length=1)
 
     _source: str | None = PrivateAttr(default=None)
+    _base_dir: Path | None = PrivateAttr(default=None)   # каталог файла карты (для логотипа)
 
     @property
     def lang(self) -> str:
         return self.document.language
+
+    @property
+    def logo_path(self) -> Path | None:
+        """Абсолютный путь логотипа (относительный — от каталога карты)."""
+        if not self.document.logo:
+            return None
+        p = Path(self.document.logo).expanduser()
+        if not p.is_absolute():
+            p = (self._base_dir or Path.cwd()) / p
+        return p

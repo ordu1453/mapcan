@@ -137,11 +137,27 @@ class _Writer:
 
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    def add_logo(ws, path: str, anchor: str, height_px: int = 48) -> None:
+        """Логотип (PNG/JPG/GIF) в лист; SVG Excel не поддерживает — пропускаем."""
+        if not path or Path(path).suffix.lower() not in (".png", ".jpg", ".jpeg", ".gif"):
+            return
+        try:
+            from openpyxl.drawing.image import Image as XLImage
+            img = XLImage(path)
+        except (ImportError, OSError, ValueError):
+            return
+        if img.height:
+            img.width = round(img.width * height_px / img.height)
+            img.height = height_px
+        ws.add_image(img, anchor)
+
     def summary_sheet(self) -> None:
         L, d = self.L, self.view["document"]
         ws = self.sheet(L["summary"])
         ws["A1"] = d["title"]
         ws["A1"].font = Font(name=self.st.font, size=16, bold=True)
+        self.add_logo(ws, d.get("logo_file", ""), "H1")
         r = 2
         if d["subtitle"]:
             ws.cell(r, 1, d["subtitle"]).font = Font(name=self.st.font, size=12, italic=True)

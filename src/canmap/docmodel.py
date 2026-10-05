@@ -106,6 +106,10 @@ class ViewBuilder:
 
     def build(self) -> dict:
         d = self.cmap.document
+        date = d.date or _dt.date.today()
+        sig = d.signatures
+        logo = self.cmap.logo_path
+        buses = [self.bus(b) for b in self.cmap.buses]
         return {
             "lang": self.lang,
             "labels": self.L,
@@ -113,9 +117,29 @@ class ViewBuilder:
                 "title": self.t(d.title),
                 "subtitle": self.t(d.subtitle),
                 "version": d.version,
-                "date": (d.date or _dt.date.today()).isoformat(),
+                "date": date.isoformat(),
+                "date_ru": date.strftime("%d.%m.%Y"),
+                "year": str(date.year),
                 "author": d.author or "",
                 "organization": d.organization or "",
+                "designation": d.designation or "",
+                "litera": d.litera or "",
+                "city": d.city or "",
+                # Путь логотипа для шаблона выставляет экспортёр (logo); logo_file — исходный файл.
+                "logo": "",
+                "logo_file": str(logo) if logo and logo.is_file() else "",
+                "signatures": {
+                    k: (getattr(sig, k) or "") if sig else ""
+                    for k in ("developed", "checked", "tech_control", "norm_control", "approved")
+                },
+                "approve": {"position": d.approve.position or "", "name": d.approve.name} if d.approve else None,
+                "agree": [{"position": p.position or "", "name": p.name} for p in d.agree],
+                "stats": {
+                    "buses": len(buses),
+                    "devices": sum(b["stats"]["devices"] for b in buses),
+                    "frames": sum(b["stats"]["frames"] for b in buses),
+                    "signals": sum(b["stats"]["signals"] for b in buses),
+                },
                 "bit_note": self.L["bit_note"],
                 "history": [
                     {"version": h.version, "date": h.date.isoformat() if h.date else "",
@@ -127,7 +151,7 @@ class ViewBuilder:
                     for h in d.history
                 ],
             },
-            "buses": [self.bus(b) for b in self.cmap.buses],
+            "buses": buses,
             "palette": PALETTE,
             "empty_color": EMPTY_COLOR,
         }

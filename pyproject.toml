@@ -1,6 +1,6 @@
 [project]
 name = "canmap"
-version = "0.3.0"
+version = "0.4.0"
 description = "YAML-карта сигналов CAN как единственный источник правды: проверка, Excel/PDF/Markdown/HTML, DBC, C/Python-код"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -13,6 +13,7 @@ dependencies = [
     "openpyxl>=3.1",
     "typst>=0.13",
     "cantools>=39",
+    "pillow>=10",              # логотип в Excel (openpyxl)
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "websockets>=12",

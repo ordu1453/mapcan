@@ -341,3 +341,23 @@ a.gh { color: var(--accent); margin-left: 4px; }
 .fd-actions { display: flex; gap: 8px; align-items: center; }
 .fd-target { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dropdown.left { left: 0; right: auto; min-width: 280px; }
+
+/* ------------------------------------------------------------------ реквизиты, логотип, шаблоны */
+.logo-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
+.logo-box {
+  width: 200px; height: 90px; flex: none; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  display: flex; align-items: center; justify-content: center; padding: 6px; overflow: hidden;
+}
+.logo-box.empty { background: var(--bg); border-style: dashed; }
+.logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.logo-actions { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.row-actions { display: flex; gap: 6px; margin-top: 4px; }
+.sub-h { font-size: 12px; margin: 14px 0 8px; color: var(--muted); font-weight: 600; }
+.sign-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.subtable.agree { margin-top: 10px; }
+.tpl-pick { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.tpl-pick select { min-width: 240px; }
+.tpl-desc { margin: 0; font-size: 12px; }
+.preview-wrap { flex: 1; position: relative; display: flex; }
+.preview-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+a.primary-link { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }

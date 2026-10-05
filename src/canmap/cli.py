@@ -198,14 +198,33 @@ class TemplateKind(str, Enum):
 
 @app.command()
 def template(
-    kind: TemplateKind = typer.Argument(..., help="pdf | md | html | xlsx-style"),
-    out: Path = typer.Option(..., "-o", "--output", help="Куда сохранить копию шаблона."),
+    kind: Optional[TemplateKind] = typer.Argument(None, help="pdf | md | html | xlsx-style"),
+    out: Optional[Path] = typer.Option(None, "-o", "--output", help="Куда сохранить копию шаблона."),
+    name: str = typer.Option("canmap", "--name", help="Встроенный PDF-шаблон (см. --list)."),
+    list_: bool = typer.Option(False, "--list", help="Показать встроенные шаблоны PDF."),
 ) -> None:
-    """Сохранить встроенный шаблон для правки (своё оформление)."""
+    """Список шаблонов PDF или копия встроенного шаблона для правки (своё оформление)."""
+    from .export.pdf import PDF_TEMPLATES, TEMPLATES_DIR
+
+    if list_ or kind is None:
+        for t in PDF_TEMPLATES.values():
+            typer.echo(f"{t.name:12} {t.title}")
+            typer.echo(f"{'':12} {t.description}")
+        return
+    if out is None:
+        raise typer.BadParameter("укажите -o/--output")
     base = Path(__file__).parent / "templates"
-    src = {"pdf": base / "document.typ", "md": base / "document.md.j2",
-           "html": base / "document.html.j2", "xlsx-style": base / "xlsx_style.yaml"}[kind.value]
     out.parent.mkdir(parents=True, exist_ok=True)
+    if kind == TemplateKind.pdf:
+        if name not in PDF_TEMPLATES:
+            raise typer.BadParameter(f"нет шаблона {name!r}; доступны: {', '.join(PDF_TEMPLATES)}")
+        shutil.copyfile(PDF_TEMPLATES[name].path, out)
+        lib = out.parent / "lib.typ"
+        shutil.copyfile(TEMPLATES_DIR / "lib.typ", lib)    # общие элементы, импортируются шаблоном
+        _done([out, lib])
+        return
+    src = {"md": base / "document.md.j2", "html": base / "document.html.j2",
+           "xlsx-style": base / "xlsx_style.yaml"}[kind.value]
     shutil.copyfile(src, out)
     _done(out)
 
@@ -232,12 +251,14 @@ def export_xlsx_cmd(
 def export_pdf_cmd(
     path: Path = MapArg,
     out: Optional[Path] = typer.Option(None, "-o", "--output"),
-    template: Optional[Path] = typer.Option(None, "--template", exists=True, help="Свой .typ-шаблон."),
+    template: Optional[str] = typer.Option(
+        None, "--template",
+        help="Встроенный шаблон (canmap, gost-2.105, gost-19, gost-7.32) или путь к своему .typ."),
     font_path: list[Path] = typer.Option([], "--font-path", help="Каталог с дополнительными шрифтами."),
     lang: Optional[str] = LangOpt,
     force: bool = ForceOpt,
 ) -> None:
-    """PDF через Typst: титул, оглавление, битовые диаграммы, таблицы."""
+    """PDF через Typst: титул, оглавление, битовые диаграммы, таблицы; шаблоны ГОСТ."""
     from .export.pdf import PdfError, export_pdf
 
     res = _load_checked(path, force)
@@ -330,6 +351,8 @@ def build(
     path: Path = MapArg,
     out: Path = typer.Option(Path("build"), "-o", "--output", help="Каталог результатов."),
     formats: str = typer.Option(",".join(ALL_FORMATS), "--formats", help="Через запятую: " + ",".join(ALL_FORMATS)),
+    pdf_template: list[str] = typer.Option(
+        [], "--pdf-template", help="Шаблон PDF (можно несколько раз; по умолчанию canmap)."),
     force: bool = ForceOpt,
 ) -> None:
     """Проверить карту и собрать все артефакты (для CI)."""
@@ -349,7 +372,8 @@ def build(
     out.mkdir(parents=True, exist_ok=True)
     steps = {
         "xlsx": lambda: export_xlsx(m, out / f"{stem}.xlsx"),
-        "pdf": lambda: export_pdf(m, out / f"{stem}.pdf"),
+        "pdf": lambda: [export_pdf(m, out / (f"{stem}.pdf" if len(pdf_template) <= 1 else f"{stem}-{t}.pdf"), t)
+                        for t in (pdf_template or ["canmap"])],
         "md": lambda: export_text(m, out / f"{stem}.md", "md"),
         "html": lambda: export_text(m, out / f"{stem}.html", "html"),
         "dbc": lambda: export_dbc(m, out / "dbc"),

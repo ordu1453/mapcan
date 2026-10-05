@@ -92,7 +92,7 @@ class EditorSession:
             self.path = target
             self.disk_hash = _hash(self.text)
             self.saved_text = self.text
-            self._result = loads(self.text, target.name)
+            self._result = loads(self.text, target.name, target.parent)
             self._report = check(self._result)
             self.version += 1
 
@@ -110,7 +110,7 @@ class EditorSession:
             self.doc = self.yaml.load(text)
         except YAMLError:
             self.doc = None           # синтаксическая ошибка: доступна только вкладка YAML
-        self._result = loads(text, str(self.path.name))
+        self._result = loads(text, str(self.path.name), self.path.parent)
         self._report = check(self._result)
         self.version += 1
 

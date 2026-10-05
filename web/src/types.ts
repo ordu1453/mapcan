@@ -138,6 +138,12 @@ export interface SessionResult {
   state: State | null;
 }
 
+export interface PdfTemplate {
+  name: string;
+  title: string;
+  description: string;
+}
+
 export interface GitRevs {
   available: boolean;
   tags: string[];

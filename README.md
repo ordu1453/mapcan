@@ -7,7 +7,7 @@ YAML-карта сигналов CAN как единственный источ�
 |---|---|
 | проверка карты с указанием файла и строки | `canmap validate canmap.yaml` |
 | Excel: адресация, содержание, битовые карты, изменения | `canmap export xlsx canmap.yaml` |
-| PDF: титул, оглавление, битовые диаграммы, таблицы | `canmap export pdf canmap.yaml` |
+| PDF: титул, оглавление, битовые диаграммы, таблицы; шаблоны ЕСКД, ЕСПД, ГОСТ 7.32 | `canmap export pdf canmap.yaml --template gost-2.105` |
 | Markdown для README/вики | `canmap export md canmap.yaml` |
 | HTML-страница с поиском | `canmap export html canmap.yaml` |
 | DBC для CANalyzer, SavvyCAN, PCAN-View, Wireshark | `canmap export dbc canmap.yaml -o dbc/` |
@@ -61,7 +61,7 @@ pip install --no-index --find-links wheelhouse canmap
 ```text
 canmap validate FILE [--strict] [--info] [--format json] [--disable КОД]
 canmap export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
-canmap export pdf  FILE [-o OUT] [--template my.typ] [--font-path DIR]
+canmap export pdf  FILE [-o OUT] [--template canmap|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR]
 canmap export md   FILE [-o OUT] [--template my.md.j2]
 canmap export html FILE [-o OUT] [--template my.html.j2]
 canmap export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
@@ -69,7 +69,7 @@ canmap gen c       FILE [-o DIR] [--prefix ne_] [--bus NAME]
 canmap gen py      FILE [-o DIR] [--bus NAME]
 canmap build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py]
 canmap schema      [-o schema.json]
-canmap template    pdf|md|html|xlsx-style -o FILE
+canmap template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
 canmap serve       [FILE|DIR] [--port 8765] [--readonly] [--no-browser]
 canmap diff        OLD NEW [--format text|md|json]
 canmap rules
@@ -95,10 +95,11 @@ FAIL: ошибок: 12, предупреждений: 2, замечаний: 0
 
 * **Excel** — `canmap template xlsx-style -o style.yaml`, правка шрифтов, цветов и набора
   колонок, затем `canmap export xlsx map.yaml --style style.yaml`.
-* **PDF** — `canmap template pdf -o corp.typ`, правка шаблона Typst (рамки по ГОСТ,
-  логотип, колонтитулы), затем `--template corp.typ`. Данные карты доступны шаблону
-  как `json(bytes(sys.inputs.data))`; структура данных — в
-  [src/canmap/docmodel.py](src/canmap/docmodel.py). Свои шрифты — `--font-path DIR`.
+* **PDF** — четыре встроенных шаблона: `canmap`, ЕСКД `gost-2.105` (рамка и основная
+  надпись), ЕСПД `gost-19`, отчёт `gost-7.32`. Реквизиты (обозначение, литера, подписи,
+  «Утверждаю», «Согласовано») и логотип предприятия задаются в `document`. Свой вариант:
+  `canmap template pdf --name gost-2.105 -o corp.typ`, затем `--template corp.typ`.
+  Подробнее — [docs/templates.md](docs/templates.md).
 * **Markdown/HTML** — Jinja2-шаблоны, те же данные.
 
 ## Сгенерированный C-код

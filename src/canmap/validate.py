@@ -14,7 +14,7 @@ from . import bits as B
 from .canopen import FUNCTION_CODES
 from .diagnostics import Report
 from .loader import LoadResult, SourceMap, load, loads
-from .model import CanMap, Frame, Signal, enum_entries
+from .model import LOGO_FORMATS, CanMap, Frame, Signal, enum_entries
 
 STYLE_RE = {
     "snake_case": re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$"),
@@ -66,6 +66,8 @@ RULES = {
     "sdo-duplicate": ("error", "Повтор SDO-обмена (команда, индекс, субиндекс)"),
     "name-style": ("warning", "Имя не соответствует правилу стиля (lint)"),
     "name-inconsistent": ("warning", "Одно и то же имя значения записано по-разному"),
+    "logo-missing": ("warning", "Файл логотипа не найден"),
+    "logo-format": ("error", "Неподдерживаемый формат логотипа"),
     "missing-description": ("info", "Нет описания сигнала"),
     "empty-frame": ("info", "В кадре не описаны сигналы"),
 }
@@ -86,6 +88,14 @@ def validate_map(cmap: CanMap, src: SourceMap, disable: Iterable[str] = ()) -> R
     report = Report()
     ctx = _Ctx(cmap, src, report, set(cmap.lint.disable) | set(disable))
     value_spellings: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
+
+    logo = cmap.logo_path
+    if logo is not None:
+        if logo.suffix.lower() not in LOGO_FORMATS:
+            ctx.emit("logo-format", f"логотип {cmap.document.logo!r}: поддерживаются "
+                     + ", ".join(LOGO_FORMATS), ("document", "logo"))
+        elif not logo.is_file():
+            ctx.emit("logo-missing", f"файл логотипа не найден: {logo}", ("document", "logo"))
 
     for bus in cmap.buses:
         _check_bus(ctx, bus)

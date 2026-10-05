@@ -177,7 +177,7 @@ def _make_yaml() -> YAML:
     return y
 
 
-def loads(text: str, filename: str | None = None) -> LoadResult:
+def loads(text: str, filename: str | None = None, base_dir: str | Path | None = None) -> LoadResult:
     report = Report()
     src = SourceMap(filename)
     try:
@@ -203,6 +203,10 @@ def loads(text: str, filename: str | None = None) -> LoadResult:
         _pydantic_messages(err, src, report)
         return LoadResult(None, report, src, raw)
     cmap._source = filename
+    if base_dir is not None:
+        cmap._base_dir = Path(base_dir)
+    elif filename:
+        cmap._base_dir = Path(filename).resolve().parent
     resolve(cmap)
     return LoadResult(cmap, report, src, raw)
 
