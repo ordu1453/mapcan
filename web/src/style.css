@@ -18,6 +18,7 @@
   --ok: #2e7d32;
   --grid-empty: #eceff2;
   --shadow: 0 6px 24px rgba(16, 24, 32, 0.14);
+  --y-key: #1f4e79; --y-str: #2e7d32; --y-num: #a3420e; --y-tag: #7b3fa0;
   --mono: "Cascadia Mono", "DejaVu Sans Mono", Consolas, monospace;
   color-scheme: light;
 }
@@ -27,6 +28,7 @@
     --accent: #6ea8dc; --accent-fg: #0d1a26; --accent-soft: #1f3347; --hover: #232a31;
     --error: #ff6b6b; --error-soft: #3a1f21; --warning: #f0a646; --warning-soft: #3a2d17; --info: #7bb4e8;
     --info-soft: #1d2c3b; --ok: #6cc070; --grid-empty: #262d34; --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    --y-key: #7fb6e6; --y-str: #9ccc8a; --y-num: #e8a36b; --y-tag: #c79be0;
     color-scheme: dark;
   }
 }
@@ -35,6 +37,7 @@
   --accent: #6ea8dc; --accent-fg: #0d1a26; --accent-soft: #1f3347; --hover: #232a31;
   --error: #ff6b6b; --error-soft: #3a1f21; --warning: #f0a646; --warning-soft: #3a2d17; --info: #7bb4e8;
   --info-soft: #1d2c3b; --ok: #6cc070; --grid-empty: #262d34; --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  --y-key: #7fb6e6; --y-str: #9ccc8a; --y-num: #e8a36b; --y-tag: #c79be0;
   color-scheme: dark;
 }
 
@@ -242,10 +245,26 @@ table.list tr.clickable:hover { background: var(--hover); }
 .gutter .error { background: var(--error-soft); color: var(--error); font-weight: 700; }
 .gutter .warning { background: var(--warning-soft); color: var(--warning); }
 .gutter .info { color: var(--info); }
-.yaml-body textarea {
-  flex: 1; border: none; border-radius: 0; resize: none; padding: 6px 10px; white-space: pre; overflow: auto;
-  tab-size: 2; background: var(--panel);
+.gutter .in-node { box-shadow: inset 3px 0 var(--accent); color: var(--fg); }
+.yaml-code { flex: 1; position: relative; min-width: 0; overflow: hidden; background: var(--panel); }
+.yaml-body textarea, .yaml-hl {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: none; border-radius: 0;
+  padding: 6px 10px; white-space: pre; tab-size: 2; overflow: auto;
 }
+.yaml-body textarea {
+  resize: none; background: transparent; color: transparent; caret-color: var(--fg);
+}
+.yaml-body textarea::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.yaml-hl { overflow: hidden; color: var(--fg); background: transparent; pointer-events: none; }
+/* Запас под полосы прокрутки textarea, чтобы слой докручивался до того же места. */
+.yaml-hl code { font: inherit; display: inline-block; padding: 0 40px 40px 0; }
+.yaml-node { position: absolute; left: 0; right: 0; background: var(--accent-soft); pointer-events: none; }
+.y-key { color: var(--y-key); }
+.y-str { color: var(--y-str); }
+.y-num, .y-bool { color: var(--y-num); }
+.y-comment { color: var(--muted); font-style: italic; }
+.y-punct { color: var(--muted); }
+.y-anchor, .y-tag { color: var(--y-tag); }
 
 /* ------------------------------------------------------------------ диагностика */
 .diag-panel { border-top: 1px solid var(--line-strong); background: var(--panel); max-height: 32vh; display: flex; flex-direction: column; }
