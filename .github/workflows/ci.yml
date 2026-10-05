@@ -1,23 +1,37 @@
 name: ci
 
+# Основной раннер — self-hosted Windows (машина разработчика), без очереди облачных раннеров.
+# Если он недоступен, переключить всё на раннеры GitHub:  gh variable set CI_RUNNER --body github
+# Вернуть свой раннер:                                    gh variable delete CI_RUNNER
+# Linux-тест всегда идёт на ubuntu-latest (GitHub).
+
 on:
   push:
     branches: ["**"]     # теги проверяет release.yml (вызывает этот workflow)
   pull_request:
   workflow_call:
+    inputs:
+      linux:
+        description: Запускать тест на Linux (ubuntu-latest)
+        type: boolean
+        default: true
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python: ["3.12"]
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ vars.CI_RUNNER == 'github' && 'windows-latest' || fromJSON('["self-hosted","Windows"]') }}
     steps:
+      - name: Use Git Bash
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "3.12"
       - name: Install
         run: uv sync --locked
       - name: Lint
@@ -27,9 +41,24 @@ jobs:
       - name: Tests
         run: uv run pytest
 
-  web:
+  test-linux:
+    if: inputs.linux != false        # при обычном push inputs пуст — тест запускается
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - run: uv run pytest
+
+  web:
+    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
+    steps:
+      - name: Use Git Bash
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -44,20 +73,25 @@ jobs:
 
   docs:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
     steps:
+      - name: Use Git Bash
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
       - run: uv sync --locked
       - name: Validate examples
-        shell: bash
         run: |
           for f in $(find examples -name '*.yaml'); do uv run canmap validate "$f" --strict; done
       - name: Build documents and code for every example
-        shell: bash
         run: |
           for f in $(find examples -name '*.yaml'); do
-            uv run canmap build "$f" -o "build/$(basename "$(dirname "$f")")-$(basename "$f" .yaml)"               --pdf-template canmap --pdf-template gost-2.105
+            uv run canmap build "$f" -o "build/$(basename "$(dirname "$f")")-$(basename "$f" .yaml)" \
+              --pdf-template canmap --pdf-template gost-2.105
           done
       - uses: actions/upload-artifact@v4
         with:

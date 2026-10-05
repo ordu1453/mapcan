@@ -7,6 +7,9 @@ name: release
 #   canmap-X.Y.Z-py3-none-any.whl   — для uv tool install / pipx
 #   Docker-образ ghcr.io/<владелец>/mapcan:X.Y.Z и :latest
 # Ручной запуск (Actions → release → Run workflow) — пробная сборка без публикации.
+#
+# Раннеры — как в ci.yml: свой self-hosted Windows, а при CI_RUNNER=github — раннеры GitHub.
+# Docker-образ собирается на ubuntu-latest и публикацию релиза не задерживает.
 
 on:
   push:
@@ -19,16 +22,23 @@ permissions:
 concurrency:
   group: release-${{ github.ref }}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
+      - name: Use Git Bash
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
       - uses: actions/checkout@v4
       - id: v
         name: Tag matches package version
-        shell: bash
         run: |
           v=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           init=$(grep -m1 '^__version__' src/canmap/__init__.py | cut -d'"' -f2)
@@ -44,13 +54,21 @@ jobs:
 
   ci:
     uses: ./.github/workflows/ci.yml
+    with:
+      linux: false       # Linux-тест идёт в ci на main; релиз не ждёт облачные раннеры
 
   python:
     needs: [version, ci]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
     steps:
+      - name: Use Git Bash
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
       - run: uv build
       - uses: actions/upload-artifact@v4
         with:
@@ -60,10 +78,14 @@ jobs:
 
   windows:
     needs: [version, ci]
-    runs-on: windows-latest
+    runs-on: ${{ vars.CI_RUNNER == 'github' && 'windows-latest' || fromJSON('["self-hosted","Windows"]') }}
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
+      - name: Use Git Bash
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
@@ -73,7 +95,6 @@ jobs:
       - name: Build (PyInstaller)
         run: uv run --no-sync pyinstaller packaging/canmap.spec --noconfirm
       - name: Smoke test
-        shell: bash
         run: |
           set -e
           out=$(dist/canmap/canmap.exe --version | tr -d '\r')
@@ -84,14 +105,21 @@ jobs:
           dist/canmap/canmap.exe build examples/vehicle-can.yaml -o smoke
           test -s smoke/vehicle-can.pdf && test -s smoke/vehicle-can.xlsx
       - name: Installer (Inno Setup)
-        shell: pwsh
+        shell: powershell
         run: |
+          # Установленный Inno Setup или своя копия в кэше инструментов раннера (ставится без прав администратора).
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          $local = Join-Path $env:RUNNER_TOOL_CACHE "innosetup"
+          if (-not (Test-Path $iscc)) { $iscc = Join-Path $local "ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            $setup = Join-Path $env:RUNNER_TEMP "innosetup.exe"
+            Invoke-WebRequest "https://jrsoftware.org/download.php/is.exe" -OutFile $setup
+            Start-Process $setup -Wait -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR=`"$local`""
+          }
           & $iscc /Qp "/DAppVersion=$env:VERSION" packaging\canmap.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Portable zip
-        shell: pwsh
+        shell: powershell
         run: Compress-Archive -Path dist\canmap\* -DestinationPath "dist\canmap-$env:VERSION-windows-x64.zip"
       - uses: actions/upload-artifact@v4
         with:
@@ -129,7 +157,7 @@ jobs:
   publish:
     needs: [version, python, windows]
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
     permissions:
       contents: write
     env:
@@ -137,6 +165,10 @@ jobs:
       TAG: ${{ github.ref_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Use Git Bash
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -149,7 +181,6 @@ jobs:
         working-directory: assets
         run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - name: Release notes
-        shell: bash
         run: |
           # checkout оставляет облегчённую копию тега — забираем аннотацию заново.
           git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
