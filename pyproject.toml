@@ -1,6 +1,6 @@
 [project]
 name = "canmap"
-version = "0.7.2"
+version = "0.7.3"
 description = "YAML-карта сигналов CAN как единственный источник правды: проверка, Excel/PDF/Markdown/HTML, DBC, C/Python-код"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
