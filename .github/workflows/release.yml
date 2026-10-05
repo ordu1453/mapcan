@@ -113,8 +113,11 @@ jobs:
           if (-not (Test-Path $iscc)) { $iscc = Join-Path $local "ISCC.exe" }
           if (-not (Test-Path $iscc)) {
             $setup = Join-Path $env:RUNNER_TEMP "innosetup.exe"
-            Invoke-WebRequest "https://jrsoftware.org/download.php/is.exe" -OutFile $setup
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -UseBasicParsing -OutFile $setup `
+              "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
             Start-Process $setup -Wait -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR=`"$local`""
+            if (-not (Test-Path $iscc)) { Write-Error "Inno Setup не установился в $local"; exit 1 }
           }
           & $iscc /Qp "/DAppVersion=$env:VERSION" packaging\canmap.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
