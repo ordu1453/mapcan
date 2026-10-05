@@ -3,6 +3,7 @@
 import { computed, ref, watch } from "vue";
 import { formatValue, parseInput, ParseError, type FieldDef } from "../fields";
 import type { Diagnostic } from "../types";
+import { t } from "../i18n";
 
 const props = defineProps<{
   def: FieldDef;
@@ -83,10 +84,10 @@ const level = computed(() => {
 
 <template>
   <label class="field" :class="[{ wide: def.wide }, level]">
-    <span class="field-label">{{ def.label }}</span>
+    <span class="field-label">{{ t(def.label) }}</span>
 
     <select v-if="def.type === 'select'" :value="value ?? ''" :disabled="readonly" @change="onSelect">
-      <option v-for="[v, l] in def.options" :key="v" :value="v">{{ l }}</option>
+      <option v-for="[v, l] in def.options" :key="v" :value="v">{{ t(l) }}</option>
       <option v-if="value != null && !def.options?.some(([v]) => v === String(value))" :value="String(value)">
         {{ value }}
       </option>
@@ -100,7 +101,7 @@ const level = computed(() => {
       <input v-model="draft" :readonly="readonly" :placeholder="placeholder" @change="commit" @keydown.enter="commit" />
       <input v-if="showEn" v-model="draftEn" class="en" :readonly="readonly" placeholder="English"
              @change="commit" @keydown.enter="commit" />
-      <button v-else-if="!readonly" type="button" class="link" title="Добавить перевод" @click="showEn = true">en</button>
+      <button v-else-if="!readonly" type="button" class="link" :title="t('Добавить перевод')" @click="showEn = true">en</button>
     </span>
 
     <input v-else :type="def.type === 'date' ? 'date' : 'text'" v-model="draft" :readonly="readonly"
@@ -109,6 +110,6 @@ const level = computed(() => {
 
     <span v-if="error" class="field-msg error">{{ error }}</span>
     <span v-for="d in diags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
-    <span v-if="def.hint && !error && !diags?.length" class="field-hint">{{ def.hint }}</span>
+    <span v-if="def.hint && !error && !diags?.length" class="field-hint">{{ t(def.hint) }}</span>
   </label>
 </template>

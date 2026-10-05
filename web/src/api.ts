@@ -34,6 +34,7 @@ export const api = {
   meta: () => call<Meta>("GET", "/api/meta"),
   update: () => call<UpdateInfo>("GET", "/api/update"),
   setUser: (u: { name: string; github: string | null }) => call<UserProfile>("PUT", "/api/user", u),
+  setLanguage: (language: string) => call<Meta>("PUT", "/api/language", { language }),
   list: (dir = "") => call<FsList>("GET", `/api/fs/list?dir=${encodeURIComponent(dir)}`),
   open: (path: string, force = false) => call<SessionResult>("POST", "/api/file/open", { path, force }),
   newFile: (b: { path: string; template: string; title: string; force?: boolean; overwrite?: boolean }) =>

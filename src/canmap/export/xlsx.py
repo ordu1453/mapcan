@@ -13,6 +13,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from ruamel.yaml import YAML
 
 from ..docmodel import build_view
+from ..i18n import _
 from ..model import CanMap
 
 CONTENT_COLUMNS = ["device", "frame", "id", "byte", "bits", "signal", "description", "encoding", "values"]
@@ -45,7 +46,7 @@ class XlsxStyle:
             names = {f.name for f in fields(cls)}
             for k, v in data.items():
                 if k not in names:
-                    raise ValueError(f"неизвестный параметр стиля: {k}")
+                    raise ValueError(_("неизвестный параметр стиля: {key}", key=k))
                 if k == "max_width":
                     st.max_width.update(v)
                 else:

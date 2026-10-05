@@ -18,6 +18,8 @@ from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
+from .i18n import N_
+
 FORMAT_VERSION = 1
 
 ByteOrder = Literal["little_endian", "big_endian"]
@@ -246,9 +248,9 @@ class Signal(_Base):
 
         sugar = self.byte is not None or self.bit is not None or self.byte_length is not None
         if self.start_bit is not None and sugar:
-            raise ValueError("укажите либо start_bit, либо byte/bit, но не оба способа")
+            raise ValueError(N_("укажите либо start_bit, либо byte/bit, но не оба способа"))
         if self.bit_length is not None and self.byte_length is not None:
-            raise ValueError("укажите либо bit_length, либо byte_length")
+            raise ValueError(N_("укажите либо bit_length, либо byte_length"))
 
         if self.byte_length is not None:
             self.bit_length = self.byte_length * 8
@@ -262,7 +264,7 @@ class Signal(_Base):
 
         if self.start_bit is None:
             if self.byte is None:
-                raise ValueError("не задана позиция сигнала (start_bit или byte)")
+                raise ValueError(N_("не задана позиция сигнала (start_bit или byte)"))
             bit = self.bit or 0
             if self.byte_order == "little_endian":
                 self.start_bit = self.byte * 8 + bit
@@ -358,7 +360,7 @@ class Frame(_Base):
     def _normalize(self) -> Frame:
         if self.cycle_ms is not None:
             if self.transmission is not None:
-                raise ValueError("cycle_ms задан и на уровне кадра, и в transmission")
+                raise ValueError(N_("cycle_ms задан и на уровне кадра, и в transmission"))
             self.transmission = Transmission(mode="cyclic", cycle_ms=self.cycle_ms)
             self.cycle_ms = None
         return self

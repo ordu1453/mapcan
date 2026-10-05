@@ -23,10 +23,11 @@ from starlette.concurrency import run_in_threadpool
 
 from .. import __version__, updates
 from ..diff import changelog_lines, diff_maps
+from ..i18n import _, configured_language, get_language, normalize_language, set_language
 from ..loader import loads
 from ..model import CanMap
 from ..userconfig import UserConfig, normalize_github
-from .newmap import TEMPLATES, new_map_text
+from .newmap import new_map_text, template_labels
 from .session import ConflictError, EditorSession, ReadOnlyError
 from .yamlops import OpError
 
@@ -87,6 +88,10 @@ class UserBody(BaseModel):
     github: str | None = None
 
 
+class LanguageBody(BaseModel):
+    language: str
+
+
 class ActivateBody(BaseModel):
     token: str
     path: str | None = None       # файл, который просят открыть (двойной щелчок по .yaml)
@@ -128,7 +133,7 @@ class Workspace:
 
     def require(self) -> EditorSession:
         if self.session is None:
-            raise AppError(409, "no-session", "карта не открыта")
+            raise AppError(409, "no-session", _("карта не открыта"))
         return self.session
 
     def resolve(self, raw: str) -> Path:
@@ -138,7 +143,7 @@ class Workspace:
     def check_unsaved(self, force: bool) -> None:
         s = self.session
         if s is not None and not force and s.text != s.saved_text:
-            raise AppError(409, "unsaved", f"в «{s.path.name}» есть несохранённые изменения")
+            raise AppError(409, "unsaved", _("в «{name}» есть несохранённые изменения", name=s.path.name))
 
     def remember(self, path: Path) -> None:
         self.config.touch_recent(path)
@@ -159,12 +164,14 @@ class Workspace:
             recent.append({"path": r, "name": p.name, "dir": str(p.parent), "exists": p.is_file()})
         return {
             "version": __version__,
+            "language": get_language(),
+            "language_chosen": configured_language() is not None,
             "user": self.config.user.to_dict(),
             "recent": recent,
             "cwd": str(self.cwd),
             "home": str(Path.home()),
             "readonly": self.readonly,
-            "templates": TEMPLATES,
+            "templates": template_labels(),
             "open": s is not None,
             "file": str(s.path) if s else None,
             "session_id": self.generation,
@@ -174,11 +181,11 @@ class Workspace:
 def list_dir(d: Path) -> dict:
     """Содержимое папки для диалога файлов: подпапки и YAML-файлы."""
     if not d.is_dir():
-        raise AppError(404, "not-found", f"папка не найдена: {d}")
+        raise AppError(404, "not-found", _("папка не найдена: {path}", path=d))
     try:
         items = list(d.iterdir())
     except PermissionError as e:
-        raise AppError(403, "denied", f"нет доступа к папке: {d}") from e
+        raise AppError(403, "denied", _("нет доступа к папке: {path}", path=d)) from e
     entries = []
     for it in items:
         if it.name.startswith(".") or it.name in ("node_modules", "__pycache__"):
@@ -242,7 +249,7 @@ def _git(args: list[str], cwd: Path) -> str:
     r = subprocess.run(["git", *args], cwd=cwd, stdin=subprocess.DEVNULL, capture_output=True,
                        text=True, encoding="utf-8", timeout=15, creationflags=_NO_WINDOW)
     if r.returncode != 0:
-        raise HTTPException(400, r.stderr.strip() or "ошибка git")
+        raise HTTPException(400, r.stderr.strip() or _("ошибка git"))
     return r.stdout
 
 
@@ -323,7 +330,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     def writable() -> None:
         if wsp.readonly:
-            raise AppError(403, "readonly", "редактор запущен в режиме только для чтения")
+            raise AppError(403, "readonly", _("редактор запущен в режиме только для чтения"))
 
     # ---------------------------------------------------------------- метаданные, профиль
 
@@ -341,7 +348,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     @app.post("/api/instance/activate")
     async def activate(body: ActivateBody) -> dict:
         if not instance_token or body.token != instance_token:
-            raise AppError(403, "token", "неверный токен экземпляра")
+            raise AppError(403, "token", _("неверный токен экземпляра"))
         if on_activate is not None:
             await run_in_threadpool(on_activate)
         if body.path:
@@ -356,7 +363,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                     try:
                         wsp.open(path)
                     except (OSError, UnicodeDecodeError) as e:
-                        raise AppError(400, "read", f"не удалось прочитать {path.name}: {e}") from e
+                        raise AppError(400, "read",
+                                       _("не удалось прочитать {name}: {error}", name=path.name, error=e)) from e
                     await session_changed()
         return {"ok": True}
 
@@ -375,8 +383,25 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         try:
             wsp.config.save()
         except OSError as e:
-            raise AppError(500, "config", f"не удалось сохранить настройки: {e}") from e
+            raise AppError(500, "config", _("не удалось сохранить настройки: {error}", error=e)) from e
         return wsp.config.user.to_dict()
+
+    @app.put("/api/language")
+    async def put_language(body: LanguageBody) -> dict:
+        lang = normalize_language(body.language)
+        if lang is None:
+            raise AppError(400, "language", _("неизвестный язык: {language}", language=body.language))
+        wsp.config.language = lang
+        try:
+            wsp.config.save()
+        except OSError as e:
+            raise AppError(500, "config", _("не удалось сохранить настройки: {error}", error=e)) from e
+        set_language(lang)
+        async with lock:
+            if wsp.session is not None:
+                wsp.session.recheck()        # сообщения проверки — на новом языке
+                await changed()
+        return wsp.meta()
 
     # ---------------------------------------------------------------- файлы
 
@@ -395,12 +420,13 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         async with lock:
             path = wsp.resolve(body.path)
             if not path.is_file():
-                raise AppError(404, "not-found", f"файл не найден: {path}")
+                raise AppError(404, "not-found", _("файл не найден: {path}", path=path))
             wsp.check_unsaved(body.force)
             try:
                 wsp.open(path)
             except (OSError, UnicodeDecodeError) as e:
-                raise AppError(400, "read", f"не удалось прочитать {path.name}: {e}") from e
+                raise AppError(400, "read",
+                               _("не удалось прочитать {name}: {error}", name=path.name, error=e)) from e
             return await session_changed()
 
     @app.post("/api/file/new")
@@ -409,7 +435,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         async with lock:
             path = yaml_path(body.path)
             if path.exists() and not body.overwrite:
-                raise AppError(409, "exists", f"файл уже существует: {path}")
+                raise AppError(409, "exists", _("файл уже существует: {path}", path=path))
             wsp.check_unsaved(body.force)
             user = wsp.config.user
             try:
@@ -420,7 +446,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(text, encoding="utf-8", newline="\n")
             except OSError as e:
-                raise AppError(400, "write", f"не удалось создать {path}: {e}") from e
+                raise AppError(400, "write", _("не удалось создать {path}: {error}", path=path, error=e)) from e
             wsp.open(path)
             return await session_changed()
 
@@ -435,7 +461,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             except FileExistsError as e:
                 raise AppError(409, "exists", str(e)) from e
             except OSError as e:
-                raise AppError(400, "write", f"не удалось сохранить {path}: {e}") from e
+                raise AppError(400, "write", _("не удалось сохранить {path}: {error}", path=path, error=e)) from e
             wsp.generation += 1
             wsp.remember(path)
             return await session_changed()
@@ -496,7 +522,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def get_templates() -> dict:
         from ..export.pdf import DEFAULT_TEMPLATE_NAME, PDF_TEMPLATES
 
-        return {"pdf": [{"name": t.name, "title": t.title, "description": t.description}
+        return {"pdf": [{"name": t.name, "title": _(t.title), "description": _(t.description)}
                         for t in PDF_TEMPLATES.values()],
                 "default": DEFAULT_TEMPLATE_NAME}
 
@@ -506,19 +532,19 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         from ..export.pdf import PDF_TEMPLATES
 
         if fmt not in EXPORT_FORMATS:
-            raise HTTPException(404, f"неизвестный формат: {fmt}")
+            raise HTTPException(404, _("неизвестный формат: {fmt}", fmt=fmt))
         if template is not None and template not in PDF_TEMPLATES:
-            raise HTTPException(400, f"неизвестный шаблон PDF: {template}")
+            raise HTTPException(400, _("неизвестный шаблон PDF: {template}", template=template))
         s = wsp.require()
         cmap = s.map
         if cmap is None:
-            raise HTTPException(409, "карта содержит ошибки структуры — экспорт невозможен")
+            raise HTTPException(409, _("карта содержит ошибки структуры — экспорт невозможен"))
         media, ext = EXPORT_FORMATS[fmt]
         stem = s.path.stem
         try:
             data = await run_in_threadpool(build_export, cmap, fmt, stem, lang, template)
         except Exception as e:  # noqa: BLE001 — показать причину в UI
-            raise HTTPException(500, f"ошибка экспорта {fmt}: {e}") from e
+            raise HTTPException(500, _("ошибка экспорта {fmt}: {error}", fmt=fmt, error=e)) from e
         name = f"{stem}{ext}" if ext != ".zip" else f"{stem}-{fmt}.zip"
         if fmt == "pdf" and template and template != "canmap":
             name = f"{stem}-{template}.pdf"
@@ -542,7 +568,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def get_logo() -> Response:
         p = logo_file()
         if p is None or not p.is_file():
-            raise AppError(404, "no-logo", "логотип не задан или файл не найден")
+            raise AppError(404, "no-logo", _("логотип не задан или файл не найден"))
         return FileResponse(p, headers={"Cache-Control": "no-store"})
 
     @app.post("/api/logo")
@@ -552,17 +578,17 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         writable()
         ext = Path(file.filename or "").suffix.lower()
         if ext not in LOGO_FORMATS:
-            raise AppError(400, "logo-format", "поддерживаются " + ", ".join(LOGO_FORMATS))
+            raise AppError(400, "logo-format", _("поддерживаются {formats}", formats=", ".join(LOGO_FORMATS)))
         data = await file.read()
         if len(data) > LOGO_MAX_BYTES:
-            raise AppError(400, "logo-size", f"файл больше {LOGO_MAX_BYTES // (1024 * 1024)} МБ")
+            raise AppError(400, "logo-size", _("файл больше {mb} МБ", mb=LOGO_MAX_BYTES // (1024 * 1024)))
         async with lock:
             s = wsp.require()
             target = s.path.parent / f"{s.path.stem}-logo{ext}"
             try:
                 target.write_bytes(data)
             except OSError as e:
-                raise AppError(400, "write", f"не удалось сохранить логотип: {e}") from e
+                raise AppError(400, "write", _("не удалось сохранить логотип: {error}", error=e)) from e
             s.apply([{"op": "set", "path": ["document", "logo"], "value": target.name}])
             return await changed()
 
@@ -571,11 +597,11 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     def _diff_against(old_text: str, label: str) -> dict:
         old = loads(old_text, label)
         if old.map is None:
-            raise HTTPException(400, f"{label}: карта не загружается: "
-                                + "; ".join(d.message for d in old.report.diagnostics[:3]))
+            raise HTTPException(400, _("{label}: карта не загружается: {errors}", label=label,
+                                  errors="; ".join(d.message for d in old.report.diagnostics[:3])))
         new = wsp.require().map
         if new is None:
-            raise HTTPException(409, "текущая карта содержит ошибки структуры")
+            raise HTTPException(409, _("текущая карта содержит ошибки структуры"))
         d = diff_maps(old.map, new)
         return {**d.to_dict(), "lines": changelog_lines(d, new.lang), "label": label}
 
@@ -621,7 +647,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError as e:
-            raise HTTPException(400, "файл не в UTF-8") from e
+            raise HTTPException(400, _("файл не в UTF-8")) from e
         return _diff_against(text, file.filename or "upload.yaml")
 
     # ---------------------------------------------------------------- websocket

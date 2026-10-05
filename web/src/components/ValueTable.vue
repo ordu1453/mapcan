@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { actions } from "../store";
 import { nextFreeKey, startsWith, txt } from "../model";
 import type { Diagnostic, Op, Path } from "../types";
+import { t } from "../i18n";
 
 const props = defineProps<{
   path: Path;                       // путь сигнала или флага
@@ -54,7 +55,7 @@ function setValue(r: Row, e: Event) {
   }
   if (n === r.num) return;
   if (rows.value.some((x) => x.num === n)) {
-    alert(`Значение ${n} уже есть в таблице`);
+    alert(t("Значение {n} уже есть в таблице", { n }));
     (e.target as HTMLInputElement).value = fmt(r.num);
     return;
   }
@@ -94,11 +95,11 @@ function remove(r: Row) {
 <template>
   <section class="subtable">
     <header>
-      <h4>{{ title ?? "Значения" }}</h4>
-      <button v-if="!readonly" class="small" @click="add">+ Значение</button>
+      <h4>{{ title ?? t("Значения") }}</h4>
+      <button v-if="!readonly" class="small" @click="add">{{ t("+ Значение") }}</button>
     </header>
     <table v-if="rows.length">
-      <thead><tr><th class="num">Значение</th><th>Имя</th><th>Описание</th><th v-if="!readonly"></th></tr></thead>
+      <thead><tr><th class="num">{{ t("Значение") }}</th><th>{{ t("Имя") }}</th><th>{{ t("Описание") }}</th><th v-if="!readonly"></th></tr></thead>
       <tbody>
         <tr v-for="r in rows" :key="r.key" :class="rowDiags(r)[0]?.level">
           <td class="num"><input class="mono" :value="fmt(r.num)" :readonly="readonly" @change="setValue(r, $event)" /></td>
@@ -107,10 +108,10 @@ function remove(r: Row) {
             <div v-for="d in rowDiags(r)" :key="d.message" class="field-msg" :class="d.level">{{ d.message }}</div>
           </td>
           <td><input :value="r.description" :readonly="readonly" @change="setEntry(r, 'description', $event)" /></td>
-          <td v-if="!readonly" class="act"><button class="icon" title="Удалить" @click="remove(r)">✕</button></td>
+          <td v-if="!readonly" class="act"><button class="icon" :title="t('Удалить')" @click="remove(r)">✕</button></td>
         </tr>
       </tbody>
     </table>
-    <p v-else class="muted">Таблица значений пуста.</p>
+    <p v-else class="muted">{{ t("Таблица значений пуста.") }}</p>
   </section>
 </template>

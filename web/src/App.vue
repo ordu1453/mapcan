@@ -5,6 +5,7 @@ import { actions, store } from "./store";
 import DiagnosticsPanel from "./components/DiagnosticsPanel.vue";
 import DiffDialog from "./components/DiffDialog.vue";
 import FileDialog from "./components/FileDialog.vue";
+import LanguageDialog from "./components/LanguageDialog.vue";
 import MapTree from "./components/MapTree.vue";
 import NodeEditor from "./components/NodeEditor.vue";
 import PreviewDialog from "./components/PreviewDialog.vue";
@@ -12,6 +13,7 @@ import ProfileDialog from "./components/ProfileDialog.vue";
 import StartScreen from "./components/StartScreen.vue";
 import TopBar from "./components/TopBar.vue";
 import YamlEditor from "./components/YamlEditor.vue";
+import { t } from "./i18n";
 
 const preview = ref<"html" | "pdf" | "md" | null>(null);
 const diffOpen = ref(false);
@@ -19,7 +21,16 @@ const diffOpen = ref(false);
 onMounted(async () => {
   await actions.load();
   if (store.state && !store.state.data) store.tab = "yaml";
-  // Первый запуск: предложить заполнить профиль автора.
+  // Первый запуск: выбрать язык, затем — заполнить профиль автора.
+  if (store.meta && !store.meta.language_chosen) {
+    store.dialog = "language";
+    return;
+  }
+  askProfile();
+  void checkUpdate();
+});
+
+function askProfile() {
   try {
     if (store.meta && !store.meta.user.name && !localStorage.getItem("canmap-profile-asked")) {
       localStorage.setItem("canmap-profile-asked", "1");
@@ -28,8 +39,13 @@ onMounted(async () => {
   } catch {
     /* хранилище недоступно */
   }
+}
+
+function languageChosen() {
+  store.dialog = null;
+  askProfile();
   void checkUpdate();
-});
+}
 
 const UPDATE_KEY = "canmap-update-dismissed";
 
@@ -67,21 +83,22 @@ function keepMine() {
     <TopBar @preview="preview = $event" @diff="diffOpen = true" />
 
     <div v-if="store.update" class="update-banner">
-      Доступна новая версия canmap <b>{{ store.update.latest }}</b> (у вас {{ store.update.current }}).
+      {{ t("Доступна новая версия canmap {latest} (у вас {current}).",
+            { latest: store.update.latest, current: store.update.current }) }}
       <a v-if="store.update.installer" class="button small primary-link" :href="store.update.installer"
-         target="_blank" rel="noopener">Скачать установщик</a>
-      <a class="button small" :href="store.update.url" target="_blank" rel="noopener">Что нового</a>
-      <button class="small" @click="dismissUpdate">Скрыть</button>
+         target="_blank" rel="noopener">{{ t("Скачать установщик") }}</a>
+      <a class="button small" :href="store.update.url" target="_blank" rel="noopener">{{ t("Что нового") }}</a>
+      <button class="small" @click="dismissUpdate">{{ t("Скрыть") }}</button>
     </div>
 
     <div v-if="store.fileChangedBanner && store.state" class="disk-banner">
-      Файл <b class="mono">{{ store.state.file }}</b> изменён на диске другой программой.
-      <button @click="actions.reload()">Перечитать с диска</button>
-      <button @click="keepMine">Оставить мою версию</button>
-      <span v-if="store.state.dirty" class="muted">Несохранённые правки при перечитывании будут потеряны.</span>
+      {{ t("Файл {file} изменён на диске другой программой.", { file: store.state.file }) }}
+      <button @click="actions.reload()">{{ t("Перечитать с диска") }}</button>
+      <button @click="keepMine">{{ t("Оставить мою версию") }}</button>
+      <span v-if="store.state.dirty" class="muted">{{ t("Несохранённые правки при перечитывании будут потеряны.") }}</span>
     </div>
 
-    <div v-if="!store.meta" class="loading">Загрузка…</div>
+    <div v-if="!store.meta" class="loading">{{ t("Загрузка…") }}</div>
     <StartScreen v-else-if="!store.state" />
     <main v-else class="workspace" :class="{ 'no-tree': store.tab === 'yaml' && !store.state.data }">
       <MapTree v-if="store.state.data" :key="'t' + store.state.session_id" />
@@ -97,6 +114,7 @@ function keepMine() {
     <FileDialog v-if="store.dialog === 'open' || store.dialog === 'new' || store.dialog === 'saveas'"
                 :key="store.dialog" :mode="store.dialog" @close="store.dialog = null" />
     <ProfileDialog v-if="store.dialog === 'profile'" @close="store.dialog = null" />
+    <LanguageDialog v-if="store.dialog === 'language'" @close="languageChosen" />
 
     <div class="toasts">
       <div v-for="t in store.toasts" :key="t.id" class="toast" :class="t.kind">{{ t.text }}</div>

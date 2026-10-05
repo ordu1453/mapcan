@@ -12,10 +12,11 @@ import FieldInput from "./FieldInput.vue";
 import FlagsTable from "./FlagsTable.vue";
 import HistoryEditor from "./HistoryEditor.vue";
 import ValueTable from "./ValueTable.vue";
+import { N_, t } from "../i18n";
 
 const KIND_LABEL: Record<string, string> = {
-  document: "Документ", history: "История", revision: "Запись истории", bus: "Шина", device: "Устройство", frame: "Кадр", signal: "Сигнал",
-  flag: "Флаг", sdo: "SDO-обмен", unknown: "",
+  document: N_("Документ"), history: "", revision: N_("Запись истории"), bus: N_("Шина"),
+  device: N_("Устройство"), frame: N_("Кадр"), signal: N_("Сигнал"), flag: N_("Флаг"), sdo: N_("SDO-обмен"), unknown: "",
 };
 
 const path = computed<Path>(() => store.selected);
@@ -41,19 +42,19 @@ function fieldDiags(def: FieldDef) {
 }
 
 const DEFAULTS: Record<string, string> = {
-  dlc: "8 (по умолчанию)", factor: "1", offset: "0", bit_length: "1", protocol: "canopen",
+  dlc: N_("8 (по умолчанию)"), factor: "1", offset: "0", bit_length: "1", protocol: "canopen",
 };
 
 function placeholderFor(def: FieldDef): string {
   if (kind.value === "frame" && def.key === "id" && rframe.value) {
-    return hex(rframe.value.can_id, rframe.value.extended ? 8 : 3) + " (вычислен)";
+    return hex(rframe.value.can_id, rframe.value.extended ? 8 : 3) + " " + t("(вычислен)");
   }
   if (def.key === "receivers") {
     const bus = getAt(data.value, path.value.slice(0, 2));
     return (bus?.devices ?? []).map((d: any) => d.name).filter((n: string) => n !== node.value?.name).join(", ");
   }
   if (def.key === "priority" && fieldCtx.value.protocol === "j1939") return "6";
-  return DEFAULTS[def.key] ?? "";
+  return t(DEFAULTS[def.key] ?? "");
 }
 
 function commit(def: FieldDef, value: unknown) {
@@ -75,7 +76,7 @@ const crumbs = computed(() => {
     const k = nodeKind(sub);
     if (k === "unknown" || k === "document") continue;
     const nd = getAt(data.value, sub);
-    const label = k === "history" ? "История изменений" : k === "revision" ? nd?.version
+    const label = k === "history" ? t("История изменений") : k === "revision" ? nd?.version
       : k === "bus" ? txt(nd?.title, lang.value) || nd?.name : nd?.name;
     out.push({ label, path: sub });
   }
@@ -195,14 +196,14 @@ function onLayout(p: Path, start: number, length: number) {
     <header class="ne-head">
       <div>
         <div class="crumbs">
-          <a @click="actions.select(['document'])">{{ txt(data?.document?.title, lang) || "Документ" }}</a>
+          <a @click="actions.select(['document'])">{{ txt(data?.document?.title, lang) || t("Документ") }}</a>
           <template v-for="c in crumbs" :key="c.path.join('/')">
             <span class="sep">›</span><a @click="actions.select(c.path)">{{ c.label }}</a>
           </template>
         </div>
         <h2>
-          <span class="kind-badge">{{ KIND_LABEL[kind] }}</span>
-          {{ kind === "document" ? txt(node?.title, lang) : kind === "history" ? "изменений"
+          <span v-if="KIND_LABEL[kind]" class="kind-badge">{{ t(KIND_LABEL[kind]) }}</span>
+          {{ kind === "document" ? txt(node?.title, lang) : kind === "history" ? t("История изменений")
             : kind === "revision" ? node?.version : node?.name }}
           <span v-if="kind === 'frame' && rframe" class="mono id-badge">{{ hex(rframe.can_id, rframe.extended ? 8 : 3) }}</span>
         </h2>
@@ -210,10 +211,10 @@ function onLayout(p: Path, start: number, length: number) {
       <div class="ne-actions">
         <button v-for="a in add" :key="a.label" class="small" @click="a.run()">+ {{ a.label }}</button>
         <template v-if="isListItem && !readonly">
-          <button class="icon" title="Выше" @click="moveNode(path, -1)">↑</button>
-          <button class="icon" title="Ниже" @click="moveNode(path, 1)">↓</button>
-          <button class="icon" title="Дублировать" @click="duplicateNode(path)">⧉</button>
-          <button class="icon danger" title="Удалить (Delete)" @click="removeNode(path)">✕</button>
+          <button class="icon" :title="t('Выше')" @click="moveNode(path, -1)">↑</button>
+          <button class="icon" :title="t('Ниже')" @click="moveNode(path, 1)">↓</button>
+          <button class="icon" :title="t('Дублировать')" @click="duplicateNode(path)">⧉</button>
+          <button class="icon danger" :title="t('Удалить (Delete)')" @click="removeNode(path)">✕</button>
         </template>
       </div>
     </header>
@@ -224,14 +225,14 @@ function onLayout(p: Path, start: number, length: number) {
 
     <!-- Битовая карта для кадра, сигнала, флага -->
     <section v-if="rframe && rframe.dlc > 0 && ['frame', 'signal', 'flag', 'sdo'].includes(kind)" class="card">
-      <h3>Раскладка кадра <span class="muted">{{ frameData?.name }} · DLC {{ rframe.dlc }}</span></h3>
+      <h3>{{ t("Раскладка кадра") }} <span class="muted">{{ frameData?.name }} · DLC {{ rframe.dlc }}</span></h3>
       <BitGrid :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly"
                v-model:mux-value="muxValue"
                @select="actions.select" @create="onCreate" @layout="onLayout" />
     </section>
 
     <section v-if="kind !== 'history'" class="card">
-      <h3>Свойства</h3>
+      <h3>{{ t("Свойства") }}</h3>
       <div class="form-grid">
         <!-- позиция сигнала -->
         <template v-if="kind === 'signal' && rsignal">
@@ -240,11 +241,12 @@ function onLayout(p: Path, start: number, length: number) {
             <input class="mono" :value="rsignal.start_bit" :readonly="readonly || rsignal.synthetic" @change="setLayout('start_bit', $event)" />
           </label>
           <label class="field" :class="layoutDiags[0]?.level">
-            <span class="field-label">Длина, бит</span>
+            <span class="field-label">{{ t("Длина, бит") }}</span>
             <input class="mono" :value="rsignal.bit_length" :readonly="readonly || rsignal.synthetic" @change="setLayout('bit_length', $event)" />
             <span class="field-hint">
-              байты {{ rangeLabel(Math.floor(Math.min(...rsignal.occupied) / 8), Math.floor(Math.max(...rsignal.occupied) / 8)) }},
-              биты {{ rangeLabel(Math.min(...rsignal.occupied), Math.max(...rsignal.occupied)) }}
+              {{ t("байты {bytes}, биты {bits}", {
+                bytes: rangeLabel(Math.floor(Math.min(...rsignal.occupied) / 8), Math.floor(Math.max(...rsignal.occupied) / 8)),
+                bits: rangeLabel(Math.min(...rsignal.occupied), Math.max(...rsignal.occupied)) }) }}
             </span>
             <span v-for="d in layoutDiags" :key="d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
           </label>
@@ -253,16 +255,16 @@ function onLayout(p: Path, start: number, length: number) {
         <!-- режим передачи кадра -->
         <template v-if="kind === 'frame'">
           <label class="field">
-            <span class="field-label">Передача</span>
+            <span class="field-label">{{ t("Передача") }}</span>
             <select :value="txMode" :disabled="readonly" @change="setMode">
-              <option value="">не указано</option>
-              <option value="cyclic">циклически</option>
-              <option value="event">по событию</option>
-              <option value="on_request">по запросу</option>
+              <option value="">{{ t("не указано") }}</option>
+              <option value="cyclic">{{ t("циклически") }}</option>
+              <option value="event">{{ t("по событию") }}</option>
+              <option value="on_request">{{ t("по запросу") }}</option>
             </select>
           </label>
           <label v-if="txMode === 'cyclic'" class="field">
-            <span class="field-label">Период, мс</span>
+            <span class="field-label">{{ t("Период, мс") }}</span>
             <input class="mono" :value="txCycle ?? ''" :readonly="readonly" @change="setCycle" />
           </label>
         </template>
@@ -283,9 +285,9 @@ function onLayout(p: Path, start: number, length: number) {
 
     <!-- Сигналы кадра -->
     <section v-if="kind === 'frame'" class="card">
-      <h3>Сигналы <span class="muted">{{ frameSignals.length }}</span></h3>
+      <h3>{{ t("Сигналы") }} <span class="muted">{{ frameSignals.length }}</span></h3>
       <table v-if="frameSignals.length" class="list">
-        <thead><tr><th></th><th>Сигнал</th><th>Биты</th><th>Тип</th><th>Описание</th></tr></thead>
+        <thead><tr><th></th><th>{{ t("Сигнал") }}</th><th>{{ t("Биты") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Описание") }}</th></tr></thead>
         <tbody>
           <tr v-for="(r, i) in frameSignals" :key="r.s.name" class="clickable"
               @click="actions.select(r.s.synthetic ? path : r.s.path)">
@@ -297,14 +299,14 @@ function onLayout(p: Path, start: number, length: number) {
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">Сигналов нет. Протяните мышью по битам в раскладке выше или нажмите «+ Сигнал».</p>
+      <p v-else class="muted">{{ t("Сигналов нет. Протяните мышью по битам в раскладке выше или нажмите «+ Сигнал».") }}</p>
     </section>
 
     <!-- Кадры устройства / шины -->
     <section v-if="childFrames.length" class="card">
-      <h3>Кадры</h3>
+      <h3>{{ t("Кадры") }}</h3>
       <table class="list">
-        <thead><tr><th>ID</th><th>Кадр</th><th>Тип</th><th>Сигналов</th><th>Описание</th></tr></thead>
+        <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Сигналов") }}</th><th>{{ t("Описание") }}</th></tr></thead>
         <tbody>
           <tr v-for="f in childFrames" :key="f.name" class="clickable" @click="actions.select(f.path)">
             <td class="mono">{{ f.id }}</td><td class="mono">{{ f.name }}</td><td>{{ f.type }}</td>
@@ -315,9 +317,9 @@ function onLayout(p: Path, start: number, length: number) {
     </section>
 
     <section v-if="devices.length" class="card">
-      <h3>Устройства</h3>
+      <h3>{{ t("Устройства") }}</h3>
       <table class="list">
-        <thead><tr><th>Устройство</th><th>node_id</th><th>Название</th><th>Кадров</th></tr></thead>
+        <thead><tr><th>{{ t("Устройство") }}</th><th>node_id</th><th>{{ t("Название") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
         <tbody>
           <tr v-for="(d, i) in devices" :key="d.name" class="clickable" @click="actions.select([...path, 'devices', i])">
             <td class="mono">{{ d.short ? d.short + " · " : "" }}{{ d.name }}</td>
@@ -330,12 +332,12 @@ function onLayout(p: Path, start: number, length: number) {
 
     <!-- История изменений — отдельный узел дерева -->
     <section v-if="kind === 'document'" class="card">
-      <h3>История изменений <span class="muted">{{ node?.history?.length ?? 0 }}</span></h3>
+      <h3>{{ t("История изменений") }} <span class="muted">{{ node?.history?.length ?? 0 }}</span></h3>
       <p v-if="node?.history?.length" class="muted">
-        Последняя запись: <b class="mono">{{ node.history[0].version }}</b>
-        <template v-if="node.history[0].date"> от {{ node.history[0].date }}</template>
+        {{ t("Последняя запись:") }} <b class="mono">{{ node.history[0].version }}</b>
+        <template v-if="node.history[0].date"> {{ t("от {date}", { date: node.history[0].date }) }}</template>
       </p>
-      <button class="small" @click="actions.select(HISTORY_PATH)">Открыть историю</button>
+      <button class="small" @click="actions.select(HISTORY_PATH)">{{ t("Открыть историю") }}</button>
     </section>
   </div>
 </template>

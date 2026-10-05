@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..docmodel import build_view
+from ..i18n import N_, _
 from ..model import CanMap
 
 PKG_DIR = Path(__file__).resolve().parent.parent
@@ -34,17 +35,17 @@ class PdfTemplate:
 PDF_TEMPLATES: dict[str, PdfTemplate] = {
     t.name: t
     for t in [
-        PdfTemplate("canmap", "canmap — техническое оформление",
-                    "Цветные битовые диаграммы, колонтитулы, титульный лист в свободной форме."),
-        PdfTemplate("gost-2.105", "ЕСКД — ГОСТ 2.105 / 2.104",
-                    "Текстовый конструкторский документ: рамка, основная надпись (формы 2 и 2а), "
-                    "дополнительные графы, титульный лист, лист регистрации изменений."),
-        PdfTemplate("gost-19", "ЕСПД — ГОСТ 19.104 / 19.106",
-                    "Программный документ: лист утверждения, титульный лист, аннотация, "
-                    "обозначение на каждой странице, лист регистрации изменений."),
-        PdfTemplate("gost-7.32", "Отчёт — ГОСТ 7.32-2017",
-                    "Отчёт: титульный лист, список исполнителей, реферат, содержание, "
-                    "нумерованные таблицы, приложение."),
+        PdfTemplate("canmap", N_("canmap — техническое оформление"),
+                    N_("Цветные битовые диаграммы, колонтитулы, титульный лист в свободной форме.")),
+        PdfTemplate("gost-2.105", N_("ЕСКД — ГОСТ 2.105 / 2.104"),
+                    N_("Текстовый конструкторский документ: рамка, основная надпись (формы 2 и 2а), "
+                       "дополнительные графы, титульный лист, лист регистрации изменений.")),
+        PdfTemplate("gost-19", N_("ЕСПД — ГОСТ 19.104 / 19.106"),
+                    N_("Программный документ: лист утверждения, титульный лист, аннотация, "
+                       "обозначение на каждой странице, лист регистрации изменений.")),
+        PdfTemplate("gost-7.32", N_("Отчёт — ГОСТ 7.32-2017"),
+                    N_("Отчёт: титульный лист, список исполнителей, реферат, содержание, "
+                       "нумерованные таблицы, приложение.")),
     ]
 }
 DEFAULT_TEMPLATE_NAME = "canmap"
@@ -64,7 +65,7 @@ def resolve_template(template: str | Path | None) -> Path:
     if p.is_file():
         return p
     known = ", ".join(PDF_TEMPLATES)
-    raise PdfError(f"шаблон не найден: {template} (встроенные: {known})")
+    raise PdfError(_("шаблон не найден: {template} (встроенные: {known})", template=template, known=known))
 
 
 def view_json(cmap: CanMap, lang: str | None = None, logo: str = "") -> str:
@@ -111,7 +112,7 @@ def export_pdf(
                 format=fmt,
             )
         except typst.TypstError as e:
-            raise PdfError(f"ошибка компиляции Typst ({tpl.name}): {e}") from e
+            raise PdfError(_("ошибка компиляции Typst ({name}): {error}", name=tpl.name, error=e)) from e
     if isinstance(result, list):     # svg/png: по файлу на страницу
         stem, suffix = out.stem, out.suffix
         for i, page in enumerate(result, 1):

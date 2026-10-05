@@ -5,12 +5,18 @@ from __future__ import annotations
 import datetime as _dt
 import json
 
+from ..i18n import N_, _, get_language
+
 TEMPLATES = {
-    "canopen": "CANopen: шина и одно устройство",
-    "j1939": "SAE J1939: ECU с одним PGN",
-    "can": "CAN с явными ID: шина и одно устройство",
-    "empty": "Пустая: только шина",
+    "canopen": N_("CANopen: шина и одно устройство"),
+    "j1939": N_("SAE J1939: ECU с одним PGN"),
+    "can": N_("CAN с явными ID: шина и одно устройство"),
+    "empty": N_("Пустая: только шина"),
 }
+
+
+def template_labels() -> dict[str, str]:
+    return {k: _(v) for k, v in TEMPLATES.items()}
 
 
 def _q(s: str) -> str:
@@ -21,50 +27,55 @@ def _q(s: str) -> str:
 def new_map_text(template: str, title: str, author: str = "", github: str | None = None,
                  today: _dt.date | None = None) -> str:
     if template not in TEMPLATES:
-        raise ValueError(f"неизвестный шаблон: {template}")
+        raise ValueError(_("неизвестный шаблон: {template}", template=template))
+    # Содержимое новой карты — на языке интерфейса; он же становится языком документов.
     today = today or _dt.date.today()
     lines = [
-        "# Карта сигналов canmap (формат v1).",
-        "# Байты и биты нумеруются с 0; start_bit — позиция младшего бита; physical = raw * factor + offset.",
+        "# " + _("Карта сигналов canmap (формат v1)."),
+        "# " + _("Байты и биты нумеруются с 0; start_bit — позиция младшего бита; physical = raw * factor + offset."),
         "",
         "canmap: 1",
         "",
         "document:",
-        f"  title: {_q(title or 'Новая карта')}",
+        f"  title: {_q(title or _('Новая карта'))}",
         "  version: 0.1.0",
         f"  date: {today.isoformat()}",
     ]
     if author:
         lines.append(f"  author: {_q(author)}")
-    lines += ["  language: ru", "  history:", "    - version: 0.1.0", f"      date: {today.isoformat()}"]
+    lines += [f"  language: {get_language()}", "  history:", "    - version: 0.1.0", f"      date: {today.isoformat()}"]
     if author:
         lines.append(f"      author: {_q(author)}")
     if github:
         lines.append(f"      github: {github}")
-    lines += ["      changes:", "        - Создана карта.", "", "buses:"]
+    lines += ["      changes:", "        - " + _("Создана карта."), "", "buses:"]
+    bus1 = "    title: " + _q(_("Шина 1"))
+    device = "        title: " + _q(_("Устройство"))
+    device_state = "            description: " + _q(_("Состояние устройства"))
+    status = "                description: " + _q(_("Статус"))
 
     if template == "empty":
-        lines += ["  - name: bus1", "    title: Шина 1", "    bitrate: 500000", "    protocol: canopen",
+        lines += ["  - name: bus1", bus1, "    bitrate: 500000", "    protocol: canopen",
                   "    devices: []", ""]
     elif template == "canopen":
         lines += [
             "  - name: bus1",
-            "    title: Шина 1",
+            bus1,
             "    bitrate: 500000",
             "    protocol: canopen",
             "    devices:",
             "      - name: device",
-            "        title: Устройство",
+            device,
             "        node_id: 0x10",
             "        frames:",
             "          - name: device_state",
             "            type: pdo_tx1",
-            "            description: Состояние устройства",
+            device_state,
             "            dlc: 1",
             "            cycle_ms: 100",
             "            signals:",
             "              - name: status",
-            "                description: Статус",
+            status,
             "                byte: 0",
             "                values:",
             "                  0: NO_DATA",
@@ -76,23 +87,23 @@ def new_map_text(template: str, title: str, author: str = "", github: str | None
     elif template == "j1939":
         lines += [
             "  - name: j1939",
-            "    title: Шина J1939",
+            "    title: " + _q(_("Шина J1939")),
             "    bitrate: 250000",
             "    protocol: j1939",
             "    devices:",
             "      - name: ecu",
-            "        title: Блок управления",
+            "        title: " + _q(_("Блок управления")),
             "        address: 0x00",
             "        frames:",
             "          - name: status",
-            "            description: Состояние блока",
+            "            description: " + _q(_("Состояние блока")),
             "            pgn: 0xFF00",
             "            priority: 6",
             "            dlc: 8",
             "            cycle_ms: 100",
             "            signals:",
             "              - name: state",
-            "                description: Режим работы",
+            "                description: " + _q(_("Режим работы")),
             "                byte: 0",
             "                values:",
             "                  0: OFF",
@@ -103,21 +114,21 @@ def new_map_text(template: str, title: str, author: str = "", github: str | None
     else:
         lines += [
             "  - name: bus1",
-            "    title: Шина 1",
+            bus1,
             "    bitrate: 250000",
             "    protocol: can",
             "    devices:",
             "      - name: device",
-            "        title: Устройство",
+            device,
             "        frames:",
             "          - name: device_state",
             "            id: 0x100",
-            "            description: Состояние устройства",
+            device_state,
             "            dlc: 1",
             "            cycle_ms: 100",
             "            signals:",
             "              - name: status",
-            "                description: Статус",
+            status,
             "                byte: 0",
             "                values:",
             "                  0: NO_DATA",

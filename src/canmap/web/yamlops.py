@@ -18,6 +18,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarint import HexCapsInt, HexInt
 from ruamel.yaml.util import load_yaml_guess_indent
 
+from ..i18n import _
 from ..model import Signal
 
 # Ключи, числа в которых принято писать в hex.
@@ -228,7 +229,7 @@ def _get(doc, path: list) -> Any:
             else:
                 raise KeyError(el)
         except (KeyError, IndexError, ValueError, TypeError) as e:
-            raise OpError(f"путь не найден: {path}") from e
+            raise OpError(_("путь не найден: {path}", path=path)) from e
     return node
 
 
@@ -243,7 +244,7 @@ def _find_key(m: dict, key: Any) -> Any:
 
 def _parent(doc, path: list) -> tuple[Any, Any]:
     if not path:
-        raise OpError("пустой путь")
+        raise OpError(_("пустой путь"))
     return _get(doc, path[:-1]), path[-1]
 
 
@@ -265,16 +266,16 @@ def op_set(doc, path: list, value: Any) -> None:
         try:
             _ensure_parent(doc, path)
         except (KeyError, IndexError, ValueError, TypeError) as e:
-            raise OpError(f"путь не найден: {path}") from e
+            raise OpError(_("путь не найден: {path}", path=path)) from e
     parent, last = _parent(doc, path)
     if isinstance(parent, list):
         idx = int(last)
         if not 0 <= idx < len(parent):
-            raise OpError(f"индекс вне списка: {path}")
+            raise OpError(_("индекс вне списка: {path}", path=path))
         parent[idx] = to_node(value, None, parent[idx])
         return
     if not isinstance(parent, dict):
-        raise OpError(f"родитель не словарь: {path}")
+        raise OpError(_("родитель не словарь: {path}", path=path))
     key = _find_key(parent, last) if (last in parent or _key(last) in parent) else last
     if value is None or value == "":
         if key in parent:
@@ -288,15 +289,15 @@ def op_remove(doc, path: list) -> None:
     if isinstance(parent, list):
         idx = int(last)
         if not 0 <= idx < len(parent):
-            raise OpError(f"индекс вне списка: {path}")
+            raise OpError(_("индекс вне списка: {path}", path=path))
         del parent[idx]
     elif isinstance(parent, dict):
         try:
             del parent[_find_key(parent, last)]
         except KeyError as e:
-            raise OpError(f"ключ не найден: {path}") from e
+            raise OpError(_("ключ не найден: {path}", path=path)) from e
     else:
-        raise OpError(f"нельзя удалить: {path}")
+        raise OpError(_("нельзя удалить: {path}", path=path))
 
 
 def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
@@ -306,7 +307,7 @@ def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
         parent[last] = CommentedSeq()
     seq = _get(doc, path)
     if not isinstance(seq, list):
-        raise OpError(f"не список: {path}")
+        raise OpError(_("не список: {path}", path=path))
     node = to_node(value, path[-1] if path else None)
     if index is None or index >= len(seq):
         seq.append(node)
@@ -317,10 +318,10 @@ def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
 def op_move(doc, path: list, to: int) -> None:
     parent, last = _parent(doc, path)
     if not isinstance(parent, list):
-        raise OpError(f"перемещать можно только элементы списка: {path}")
+        raise OpError(_("перемещать можно только элементы списка: {path}", path=path))
     idx, to = int(last), int(to)
     if not (0 <= idx < len(parent) and 0 <= to < len(parent)):
-        raise OpError("индекс вне списка")
+        raise OpError(_("индекс вне списка"))
     item = parent.pop(idx)
     parent.insert(to, item)
 
@@ -329,13 +330,13 @@ def op_rename_key(doc, path: list, new_key: Any) -> None:
     """Переименовать ключ словаря, сохранив позицию (например, число в таблице значений)."""
     parent, last = _parent(doc, path)
     if not isinstance(parent, CommentedMap):
-        raise OpError(f"не словарь: {path}")
+        raise OpError(_("не словарь: {path}", path=path))
     old = _find_key(parent, last)
     new = _key(new_key) if isinstance(old, int) or path[-2:-1] == ["values"] else new_key
     if new == old:
         return
     if new in parent:
-        raise OpError(f"ключ {new!r} уже существует")
+        raise OpError(_("ключ {key!r} уже существует", key=new))
     pos = list(parent.keys()).index(old)
     value = parent.pop(old)
     parent.insert(pos, new, value)
@@ -372,9 +373,9 @@ def layout_keys(start: int, length: int, big_endian: bool, kind: str | None) -> 
 def op_set_layout(doc, path: list, start_bit: int, bit_length: int) -> None:
     sig = _get(doc, path)
     if not isinstance(sig, CommentedMap):
-        raise OpError(f"не сигнал: {path}")
+        raise OpError(_("не сигнал: {path}", path=path))
     if start_bit < 0 or not 1 <= bit_length <= 64:
-        raise OpError("недопустимая позиция")
+        raise OpError(_("недопустимая позиция"))
     big = sig.get("byte_order") == "big_endian"
     used_canonical = "start_bit" in sig and not any(k in sig for k in ("byte", "bit", "byte_length"))
     keys = list(sig.keys())
@@ -406,9 +407,9 @@ def apply_ops(doc, ops: list[dict]) -> None:
     for o in ops:
         kind = o.get("op")
         if kind not in OPS:
-            raise OpError(f"неизвестная операция: {kind!r}")
+            raise OpError(_("неизвестная операция: {op!r}", op=kind))
         if not isinstance(o.get("path"), list):
-            raise OpError("path должен быть списком")
+            raise OpError(_("path должен быть списком"))
         try:
             OPS[kind](doc, o)
         except OpError:

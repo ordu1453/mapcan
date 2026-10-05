@@ -113,7 +113,13 @@ canmap diff        OLD NEW [--format text|md|json]
 canmap schema      [-o schema.json]
 canmap template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
 canmap rules
+canmap language    [en|ru]
 ```
+
+Язык интерфейса (сообщения проверки, CLI, редактор) — английский по умолчанию; выбирается
+при первом запуске редактора, переключателем на его верхней панели или `canmap language ru`.
+Переменная окружения `CANMAP_LANG=ru|en` важнее сохранённого выбора. Язык документов задаётся
+отдельно — полем `document.language` карты.
 
 Экспорт и генерация сначала проверяют карту и прерываются при ошибках
 (`--force` — генерировать всё равно). `validate` возвращает код 1 при ошибках,

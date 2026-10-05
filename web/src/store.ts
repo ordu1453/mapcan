@@ -2,6 +2,7 @@
 
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
+import { setLang, t } from "./i18n";
 import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath } from "./model";
 import type { Meta, Op, Path, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
@@ -11,7 +12,7 @@ interface Toast {
   text: string;
 }
 
-export type DialogKind = "open" | "new" | "saveas" | "profile" | null;
+export type DialogKind = "open" | "new" | "saveas" | "profile" | "language" | null;
 
 function savedTemplate(): string {
   try {
@@ -97,11 +98,9 @@ async function switchFile(fn: (force: boolean) => Promise<SessionResult>, okText
       acceptSession(await fn(false));
     } catch (e) {
       if (!(e instanceof ApiError && e.code === "unsaved")) throw e;
-      if (confirm(`${e.message}.
-
-Сохранить их перед продолжением?`)) {
+      if (confirm(`${e.message}.\n\n${t("Сохранить их перед продолжением?")}`)) {
         accept(await api.save());
-      } else if (!confirm("Продолжить без сохранения? Несохранённые изменения будут потеряны.")) {
+      } else if (!confirm(t("Продолжить без сохранения? Несохранённые изменения будут потеряны."))) {
         return false;
       }
       acceptSession(await fn(true));
@@ -120,6 +119,7 @@ export const actions = {
   load: async () => {
     try {
       store.meta = await api.meta();
+      setLang(store.meta.language);
       if (!store.pdfTemplates.length) {
         const t = await api.templates();
         store.pdfTemplates = t.pdf;
@@ -134,18 +134,26 @@ export const actions = {
   refreshMeta: async () => {
     store.meta = await api.meta();
   },
+  setLanguage: async (language: string): Promise<void> => {
+    try {
+      store.meta = await api.setLanguage(language);
+      setLang(store.meta.language);
+      store.pdfTemplates = (await api.templates()).pdf;     // названия шаблонов — на новом языке
+      if (store.meta.open) accept(await api.state());      // сообщения проверки — тоже
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  },
   openFile: (path: string) => switchFile((force) => api.open(path, force)),
   newFile: (path: string, template: string, title: string, overwrite = false) =>
-    switchFile((force) => api.newFile({ path, template, title, force, overwrite }), "Создана новая карта"),
+    switchFile((force) => api.newFile({ path, template, title, force, overwrite }), t("Создана новая карта")),
   saveAs: async (path: string, overwrite = false): Promise<boolean> => {
     try {
       acceptSession(await api.saveAs(path, overwrite));
-      toast("Сохранено", "info");
+      toast(t("Сохранено"), "info");
       return true;
     } catch (e) {
-      if (e instanceof ApiError && e.code === "exists" && confirm(`${e.message}
-
-Перезаписать?`)) {
+      if (e instanceof ApiError && e.code === "exists" && confirm(`${e.message}\n\n${t("Перезаписать?")}`)) {
         return actions.saveAs(path, true);
       }
       if (!(e instanceof ApiError && e.code === "exists")) toast(e instanceof Error ? e.message : String(e));
@@ -155,7 +163,7 @@ export const actions = {
   closeFile: () => switchFile((force) => api.close(force)),
   apply: (ops: Op[]) => {
     if (store.state?.readonly) {
-      toast("Режим только для чтения");
+      toast(t("Режим только для чтения"));
       return Promise.resolve(false);
     }
     return run(() => api.ops(ops));
@@ -165,17 +173,17 @@ export const actions = {
   redo: () => run(api.redo),
   reload: async () => {
     store.fileChangedBanner = false;
-    return run(api.reload, "Файл перечитан с диска");
+    return run(api.reload, t("Файл перечитан с диска"));
   },
   save: async (force = false): Promise<void> => {
     store.busy = true;
     try {
       accept(await api.save(force));
       store.fileChangedBanner = false;
-      toast("Сохранено", "info");
+      toast(t("Сохранено"), "info");
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        if (confirm("Файл изменён на диске другой программой.\nПерезаписать его вашей версией?")) {
+        if (confirm(t("Файл изменён на диске другой программой.\nПерезаписать его вашей версией?"))) {
           return actions.save(true);
         }
       } else {

@@ -106,6 +106,8 @@ export interface RecentFile {
 
 export interface Meta {
   version: string;
+  language: string;
+  language_chosen: boolean;      // false — первый запуск, язык ещё не выбран
   user: UserProfile;
   recent: RecentFile[];
   cwd: string;

@@ -14,6 +14,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.error import MarkedYAMLError
 
 from .diagnostics import Diagnostic, Report
+from .i18n import _
 from .model import CanMap
 from .resolve import resolve
 
@@ -119,24 +120,25 @@ def _fix_number(value, path, src: SourceMap, report: Report, is_key=False):
     """Распознать типичные ошибки записи чисел, сообщить и исправить для продолжения проверки."""
     if not isinstance(value, str):
         return value
-    what = "ключ" if is_key else "значение"
+    what = _("ключ") if is_key else _("значение")
     if _COMMA_NUMBER.match(value):
         fixed = float(value.replace(",", "."))
         report.add(src.diag(
             "error", "number-comma",
-            f"{what} {value!r}: дробная часть отделена запятой, нужно {fixed!r}", path))
+            _("{what} {value!r}: дробная часть отделена запятой, нужно {fixed!r}",
+              what=what, value=value, fixed=fixed), path))
         return fixed
     m = _CYR_HEX.match(value)
     if m:
         report.add(src.diag(
             "error", "number-cyrillic-x",
-            f"{what} {value!r}: в префиксе 0x используется кириллическая «х»", path))
+            _("{what} {value!r}: в префиксе 0x используется кириллическая «х»", what=what, value=value), path))
         return int(m.group(1), 16)
     m = _HEX_STR.match(value)
     if m:
         report.add(src.diag(
             "warning", "number-quoted",
-            f"{what} {value!r} записано строкой; уберите кавычки", path))
+            _("{what} {value!r} записано строкой; уберите кавычки", what=what, value=value), path))
         return int(m.group(1), 16)
     return value
 
@@ -149,11 +151,11 @@ def _pydantic_messages(err: ValidationError, src: SourceMap, report: Report) -> 
         clean = tuple(x for x in loc if isinstance(x, int) or x in _known_keys(src))
         msg = e["msg"]
         if msg.startswith("Value error, "):
-            msg = msg[len("Value error, "):]
+            msg = _(msg[len("Value error, "):])      # сообщения валидаторов модели помечены N_()
         if e["type"] == "extra_forbidden":
-            msg = f"неизвестное поле {loc[-1]!r}"
+            msg = _("неизвестное поле {name!r}", name=loc[-1])
         elif e["type"] == "missing":
-            msg = f"отсутствует обязательное поле {loc[-1]!r}"
+            msg = _("отсутствует обязательное поле {name!r}", name=loc[-1])
         key = (clean, msg)
         if key in seen:
             continue
@@ -188,11 +190,11 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
         col = mark.column + 1 if mark else None
         problem = e.problem or str(e)
         if "duplicate key" in str(e):
-            problem = "повторяющийся ключ: " + (e.problem or "")
+            problem = _("повторяющийся ключ: {problem}", problem=e.problem or "")
         report.add(Diagnostic("error", "yaml", problem.strip(), filename, line, col))
         return LoadResult(None, report, src)
     if raw is None:
-        report.add(Diagnostic("error", "yaml", "пустой файл", filename, 1, 1))
+        report.add(Diagnostic("error", "yaml", _("пустой файл"), filename, 1, 1))
         return LoadResult(None, report, src, raw)
 
     data = _plain(raw, (), src, report)

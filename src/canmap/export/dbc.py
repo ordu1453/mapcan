@@ -13,6 +13,7 @@ from cantools.database.can.formats.dbc.dbc_specifics import DbcSpecifics
 from cantools.database.conversion import BaseConversion
 
 from .. import bits as B
+from ..i18n import _
 from ..model import Bus, CanMap, Signal, enum_entries, text
 
 
@@ -107,7 +108,7 @@ def export_dbc(cmap: CanMap, out: str | Path, bus_name: str | None = None) -> li
     out = Path(out)
     buses = [b for b in cmap.buses if bus_name in (None, b.name)]
     if not buses:
-        raise ValueError(f"шина {bus_name!r} не найдена")
+        raise ValueError(_("шина {name!r} не найдена", name=bus_name))
     written = []
     for b in buses:
         if len(buses) == 1 and out.suffix.lower() == ".dbc":

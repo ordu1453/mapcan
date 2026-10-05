@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from "vue";
+import { t } from "../i18n";
 
 defineProps<{ title: string; wide?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -17,7 +18,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
       <header>
         <h3>{{ title }}</h3>
         <slot name="actions" />
-        <button class="icon" title="Закрыть (Esc)" @click="emit('close')">✕</button>
+        <button class="icon" :title="t('Закрыть (Esc)')" @click="emit('close')">✕</button>
       </header>
       <div class="modal-body"><slot /></div>
     </div>

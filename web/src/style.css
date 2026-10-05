@@ -266,6 +266,10 @@ table.list tr.clickable:hover { background: var(--hover); }
 .y-punct { color: var(--muted); }
 .y-anchor, .y-tag { color: var(--y-tag); }
 
+.lang-pick { padding: 3px 4px; }
+.lang-choice { display: flex; gap: 8px; justify-content: center; padding: 8px 0 4px; }
+.lang-choice button { min-width: 120px; justify-content: center; }
+
 /* ------------------------------------------------------------------ история изменений */
 .history-changes { display: flex; flex-direction: column; gap: 6px; }
 .history-change { display: flex; align-items: flex-start; gap: 6px; }

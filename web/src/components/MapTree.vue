@@ -4,6 +4,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import { pathKey, type TreeNode } from "../model";
 import { store, tree } from "../store";
 import TreeItem from "./TreeItem.vue";
+import { t } from "../i18n";
 
 const query = ref("");
 const expanded = ref(new Set<string>(["document", "buses/0"]));
@@ -52,8 +53,8 @@ watch(
 <template>
   <aside class="tree-panel">
     <div class="tree-search">
-      <input v-model="query" type="search" placeholder="Поиск: имя, 0x196, описание…" />
-      <span v-if="count !== null" class="muted">{{ count ? `найдено узлов: ${count}` : "ничего не найдено" }}</span>
+      <input v-model="query" type="search" :placeholder="t('Поиск: имя, 0x196, описание…')" />
+      <span v-if="count !== null" class="muted">{{ count ? t("найдено узлов: {n}", { n: count }) : t("ничего не найдено") }}</span>
     </div>
     <ul class="tree">
       <TreeItem v-for="n in roots" :key="n.key" :node="n" :depth="0" :expanded="expanded" :visible="visible"

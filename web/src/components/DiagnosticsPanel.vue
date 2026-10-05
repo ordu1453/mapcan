@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { ownerPath } from "../model";
 import { actions, store } from "../store";
 import type { Diagnostic, Level } from "../types";
+import { t } from "../i18n";
 
 const open = ref(true);
 const show = ref<Record<Level, boolean>>({ error: true, warning: true, info: false });
@@ -26,22 +27,22 @@ function go(d: Diagnostic) {
   <section class="diag-panel" :class="{ closed: !open }">
     <header @click="open = !open">
       <span class="twisty">{{ open ? "▾" : "▸" }}</span>
-      <b>Проверка</b>
+      <b>{{ t("Проверка") }}</b>
       <span v-for="lvl in (['error', 'warning', 'info'] as Level[])" :key="lvl" class="chip" :class="[lvl, { off: !show[lvl] }]"
             @click.stop="show[lvl] = !show[lvl]">
-        {{ { error: "ошибки", warning: "предупреждения", info: "замечания" }[lvl] }}: {{ counts[lvl] }}
+        {{ { error: t("ошибки"), warning: t("предупреждения"), info: t("замечания") }[lvl] }}: {{ counts[lvl] }}
       </span>
-      <span v-if="!counts.error && !counts.warning" class="ok">✓ карта корректна</span>
+      <span v-if="!counts.error && !counts.warning" class="ok">{{ t("✓ карта корректна") }}</span>
     </header>
     <ul v-if="open">
       <li v-for="(d, i) in items" :key="i" :class="d.level" @click="go(d)">
         <span class="lvl">{{ d.level === "error" ? "✖" : d.level === "warning" ? "▲" : "i" }}</span>
-        <span class="mono loc">{{ d.line ? `стр. ${d.line}` : "" }}</span>
+        <span class="mono loc">{{ d.line ? t("стр. {line}", { line: d.line }) : "" }}</span>
         <span class="mono code">{{ d.code }}</span>
         <span class="msg">{{ d.message }}</span>
         <span class="mono path muted">{{ d.path }}</span>
       </li>
-      <li v-if="!items.length" class="muted empty">Нет сообщений выбранных уровней.</li>
+      <li v-if="!items.length" class="muted empty">{{ t("Нет сообщений выбранных уровней.") }}</li>
     </ul>
   </section>
 </template>

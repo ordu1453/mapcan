@@ -3,6 +3,7 @@
 import { actions, resolvedFrames, store, toast } from "./store";
 import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
+import { t } from "./i18n";
 
 const data = (): Data => store.state?.data;
 
@@ -103,7 +104,7 @@ export function addSignal(framePath: Path, layout?: { start_bit: number; bit_len
   if (!pos) {
     const placed = placeNewSignal(framePath);
     if (!placed) {
-      toast("В кадре нет свободных бит: освободите место или увеличьте DLC");
+      toast(t("В кадре нет свободных бит: освободите место или увеличьте DLC"));
       return Promise.resolve(false);
     }
     pos = placed.pos;
@@ -193,19 +194,19 @@ export function childActions(path: Path): ChildAction[] {
   const node = getAt(data(), path);
   switch (kind) {
     case "document":
-      return [{ label: "Шина", run: addBus }];
+      return [{ label: t("Шина"), run: addBus }];
     case "history":
-      return [{ label: "Запись", run: addRevision }];
+      return [{ label: t("Запись"), run: addRevision }];
     case "bus":
-      return [{ label: "Устройство", run: () => addDevice(path) }, { label: "Кадр", run: () => addFrame(path) }];
+      return [{ label: t("Устройство"), run: () => addDevice(path) }, { label: t("Кадр"), run: () => addFrame(path) }];
     case "device":
-      return [{ label: "Кадр", run: () => addFrame(path) }];
+      return [{ label: t("Кадр"), run: () => addFrame(path) }];
     case "frame":
       return node?.sdo || ["sdo_tx", "sdo_rx"].includes(node?.type)
-        ? [{ label: "SDO-обмен", run: () => addSdo(path) }, { label: "Сигнал", run: () => addSignal(path) }]
-        : [{ label: "Сигнал", run: () => addSignal(path) }];
+        ? [{ label: t("SDO-обмен"), run: () => addSdo(path) }, { label: t("Сигнал"), run: () => addSignal(path) }]
+        : [{ label: t("Сигнал"), run: () => addSignal(path) }];
     case "signal":
-      return node?.flags || node?.kind === "bitfield" ? [{ label: "Флаг", run: () => addFlag(path) }] : [];
+      return node?.flags || node?.kind === "bitfield" ? [{ label: t("Флаг"), run: () => addFlag(path) }] : [];
     default:
       return [];
   }
@@ -219,7 +220,7 @@ export async function removeNode(path: Path): Promise<boolean> {
   const node = getAt(data(), path);
   const revision = nodeKind(path) === "revision";
   const name = (revision ? node?.version : node?.name) ?? path.join(".");
-  if (!confirm(revision ? `Удалить запись истории «${name}»?` : `Удалить «${name}»?`)) return false;
+  if (!confirm(revision ? t("Удалить запись истории «{name}»?", { name }) : t("Удалить «{name}»?", { name }))) return false;
   const ok = await actions.apply([{ op: "remove", path }]);
   // Переходим к родителю (сигнал → кадр, кадр → устройство/шина…), а не к соседнему элементу
   if (ok) actions.select(revision ? HISTORY_PATH : path.length > 2 ? path.slice(0, -2) : ["document"]);

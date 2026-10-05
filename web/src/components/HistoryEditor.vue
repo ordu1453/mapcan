@@ -7,6 +7,7 @@ import { getAt, HISTORY_PATH, txt } from "../model";
 import { actions, lang, store } from "../store";
 import type { Path } from "../types";
 import FieldInput from "./FieldInput.vue";
+import { t } from "../i18n";
 
 const props = defineProps<{ path: Path }>();
 
@@ -50,30 +51,30 @@ async function addChange() {
 <template>
   <!-- Одна запись: список изменений -->
   <section v-if="isEntry" class="card">
-    <h3>Изменения <span class="muted">{{ changes.length }}</span></h3>
+    <h3>{{ t("Изменения") }} <span class="muted">{{ changes.length }}</span></h3>
     <div class="history-changes">
       <div v-for="(c, i) in changes" :key="i" class="history-change">
         <FieldInput :def="changeDef(i)" :value="c" :diags="changeDiags(i)" :readonly="readonly"
                     @commit="setChange(i, $event)" />
         <span v-if="!readonly" class="history-change-act">
-          <button class="icon" title="Выше" :disabled="i === 0" @click="moveChange(i, -1)">↑</button>
-          <button class="icon" title="Ниже" :disabled="i === changes.length - 1" @click="moveChange(i, 1)">↓</button>
-          <button class="icon danger" title="Удалить пункт" @click="removeChange(i)">✕</button>
+          <button class="icon" :title="t('Выше')" :disabled="i === 0" @click="moveChange(i, -1)">↑</button>
+          <button class="icon" :title="t('Ниже')" :disabled="i === changes.length - 1" @click="moveChange(i, 1)">↓</button>
+          <button class="icon danger" :title="t('Удалить пункт')" @click="removeChange(i)">✕</button>
         </span>
       </div>
-      <p v-if="!changes.length" class="muted">Изменений пока нет.</p>
+      <p v-if="!changes.length" class="muted">{{ t("Изменений пока нет.") }}</p>
       <div v-if="!readonly" class="history-add">
-        <input v-model="draft" placeholder="Новое изменение — Enter, чтобы добавить" @keydown.enter="addChange" />
-        <button :disabled="!draft.trim()" @click="addChange">Добавить</button>
+        <input v-model="draft" :placeholder="t('Новое изменение — Enter, чтобы добавить')" @keydown.enter="addChange" />
+        <button :disabled="!draft.trim()" @click="addChange">{{ t("Добавить") }}</button>
       </div>
     </div>
   </section>
 
   <!-- Вся история -->
   <section v-else class="card">
-    <h3>Записи <span class="muted">{{ history.length }}</span></h3>
+    <h3>{{ t("Записи") }} <span class="muted">{{ history.length }}</span></h3>
     <table v-if="history.length" class="list">
-      <thead><tr><th>Версия</th><th>Дата</th><th>Автор</th><th>Изменения</th></tr></thead>
+      <thead><tr><th>{{ t("Версия") }}</th><th>{{ t("Дата") }}</th><th>{{ t("Автор") }}</th><th>{{ t("Изменения") }}</th></tr></thead>
       <tbody>
         <tr v-for="(h, i) in history" :key="i" class="clickable" @click="actions.select([...HISTORY_PATH, i])">
           <td class="mono">{{ h.version }}</td><td>{{ h.date }}</td>
@@ -86,10 +87,10 @@ async function addChange() {
         </tr>
       </tbody>
     </table>
-    <p v-else class="muted">Записей пока нет.</p>
+    <p v-else class="muted">{{ t("Записей пока нет.") }}</p>
     <p v-if="!readonly" class="muted">
-      Добавьте запись кнопкой «+ Запись» или сформируйте её из различий в «Сравнить версии» → «Добавить в историю».
+      {{ t("Добавьте запись кнопкой «+ Запись» или сформируйте её из различий в «Сравнить версии» → «Добавить в историю».") }}
     </p>
-    <button v-if="!readonly && !history.length" class="primary" @click="addRevision">+ Первая запись</button>
+    <button v-if="!readonly && !history.length" class="primary" @click="addRevision">{{ t("+ Первая запись") }}</button>
   </section>
 </template>

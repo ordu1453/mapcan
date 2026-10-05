@@ -3,6 +3,7 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { actions, store } from "../store";
 import { highlight, nodeLines } from "../yamltext";
+import { t } from "../i18n";
 
 const text = ref(store.state?.text ?? "");
 const ta = ref<HTMLTextAreaElement | null>(null);
@@ -102,11 +103,11 @@ function onKey(e: KeyboardEvent) {
 <template>
   <div class="yaml-editor">
     <div class="yaml-bar">
-      <span class="muted">Правка YAML целиком. Комментарии сохраняются как есть.</span>
+      <span class="muted">{{ t("Правка YAML целиком. Комментарии сохраняются как есть.") }}</span>
       <span class="spacer" />
-      <span v-if="local" class="badge warning">не применено</span>
-      <button :disabled="!local || store.state?.readonly" @click="revert">Сбросить изменения</button>
-      <button class="primary" :disabled="!local || store.state?.readonly" title="Ctrl+Enter" @click="apply">Применить</button>
+      <span v-if="local" class="badge warning">{{ t("не применено") }}</span>
+      <button :disabled="!local || store.state?.readonly" @click="revert">{{ t("Сбросить изменения") }}</button>
+      <button class="primary" :disabled="!local || store.state?.readonly" title="Ctrl+Enter" @click="apply">{{ t("Применить") }}</button>
     </div>
     <div class="yaml-body">
       <div ref="gutter" class="gutter mono">

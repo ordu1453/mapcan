@@ -13,26 +13,27 @@ import typer
 
 from . import __version__
 from .diagnostics import Report
+from .i18n import LANGUAGES, _, get_language, normalize_language
 from .loader import LoadResult
 from .validate import RULES, validate_file
 
 app = typer.Typer(
-    help="canmap — карта сигналов CAN в YAML → проверка, документация, код.",
+    help=_("canmap — карта сигналов CAN в YAML → проверка, документация, код."),
     no_args_is_help=True,
     add_completion=False,
     rich_markup_mode=None,
     pretty_exceptions_enable=False,
 )
-export_app = typer.Typer(help="Экспорт документов и файлов для сторонних инструментов.", no_args_is_help=True)
-gen_app = typer.Typer(help="Генерация кода.", no_args_is_help=True)
+export_app = typer.Typer(help=_("Экспорт документов и файлов для сторонних инструментов."), no_args_is_help=True)
+gen_app = typer.Typer(help=_("Генерация кода."), no_args_is_help=True)
 app.add_typer(export_app, name="export")
 app.add_typer(gen_app, name="gen")
 
 COLORS = {"error": typer.colors.RED, "warning": typer.colors.YELLOW, "info": typer.colors.BLUE}
 
-MapArg = typer.Argument(..., exists=True, dir_okay=False, readable=True, help="YAML-файл карты.")
-LangOpt = typer.Option(None, "--lang", help="Язык документа (ru/en); по умолчанию из карты.")
-ForceOpt = typer.Option(False, "--force", help="Генерировать, даже если есть ошибки проверки.")
+MapArg = typer.Argument(..., exists=True, dir_okay=False, readable=True, help=_("YAML-файл карты."))
+LangOpt = typer.Option(None, "--lang", help=_("Язык документа (ru/en); по умолчанию из карты."))
+ForceOpt = typer.Option(False, "--force", help=_("Генерировать, даже если есть ошибки проверки."))
 
 
 class OutFormat(str, Enum):
@@ -48,16 +49,16 @@ def _print_report(report: Report, show_info: bool = False, stream=None) -> None:
 
 
 def _summary(report: Report) -> str:
-    return (f"ошибок: {report.errors}, предупреждений: {report.warnings}, "
-            f"замечаний: {report.count('info')}")
+    return _("ошибок: {errors}, предупреждений: {warnings}, замечаний: {infos}",
+             errors=report.errors, warnings=report.warnings, infos=report.count("info"))
 
 
 def _load_checked(path: Path, force: bool) -> LoadResult:
     res, report = validate_file(path)
     _print_report(report)
     if res.map is None or (report.errors and not force):
-        typer.secho(f"Генерация прервана: {_summary(report)}. "
-                    "Исправьте ошибки (canmap validate) или используйте --force.",
+        typer.secho(_("Генерация прервана: {summary}. "
+                      "Исправьте ошибки (canmap validate) или используйте --force.", summary=_summary(report)),
                     fg=typer.colors.RED, err=True)
         raise typer.Exit(1)
     return res
@@ -73,7 +74,7 @@ def _default_out(path: Path, ext: str, out: Optional[Path]) -> Path:
 
 
 @app.callback(invoke_without_command=True)
-def _main(version: bool = typer.Option(False, "--version", help="Показать версию.")) -> None:
+def _main(version: bool = typer.Option(False, "--version", help=_("Показать версию."))) -> None:
     if version:
         typer.echo(f"canmap {__version__}")
         raise typer.Exit()
@@ -82,15 +83,14 @@ def _main(version: bool = typer.Option(False, "--version", help="Показат�
 # --------------------------------------------------------------------------- #
 
 
-@app.command()
+@app.command(help=_("Проверить карту. Код возврата 1 при ошибках (и предупреждениях с --strict)."))
 def validate(
     path: Path = MapArg,
-    strict: bool = typer.Option(False, "--strict", help="Считать предупреждения ошибками."),
-    fmt: OutFormat = typer.Option(OutFormat.text, "--format", help="Формат вывода."),
-    show_info: bool = typer.Option(False, "--info", help="Показывать замечания уровня info."),
-    disable: list[str] = typer.Option([], "--disable", help="Отключить правило (можно несколько раз)."),
+    strict: bool = typer.Option(False, "--strict", help=_("Считать предупреждения ошибками.")),
+    fmt: OutFormat = typer.Option(OutFormat.text, "--format", help=_("Формат вывода.")),
+    show_info: bool = typer.Option(False, "--info", help=_("Показывать замечания уровня info.")),
+    disable: list[str] = typer.Option([], "--disable", help=_("Отключить правило (можно несколько раз).")),
 ) -> None:
-    """Проверить карту. Код возврата 1 при ошибках (и предупреждениях с --strict)."""
     res, report = validate_file(path, disable)
     if fmt == OutFormat.json:
         typer.echo(report.to_json())
@@ -103,17 +103,16 @@ def validate(
         raise typer.Exit(1)
 
 
-@app.command()
+@app.command(help=_("Веб-редактор в браузере (для сервера и разработки; на рабочем месте удобнее `canmap app`)."))
 def serve(
     path: Optional[Path] = typer.Argument(
         None, exists=True, dir_okay=True, readable=True,
-        help="Карта для открытия или рабочая папка. Без аргумента — стартовый экран."),
-    host: str = typer.Option("127.0.0.1", "--host", help="Адрес для прослушивания."),
-    port: Optional[int] = typer.Option(None, "--port", help="Порт; по умолчанию 8765 или свободный."),
-    readonly: bool = typer.Option(False, "--readonly", help="Только просмотр, без сохранения."),
-    no_browser: bool = typer.Option(False, "--no-browser", help="Не открывать браузер."),
+        help=_("Карта для открытия или рабочая папка. Без аргумента — стартовый экран.")),
+    host: str = typer.Option("127.0.0.1", "--host", help=_("Адрес для прослушивания.")),
+    port: Optional[int] = typer.Option(None, "--port", help=_("Порт; по умолчанию 8765 или свободный.")),
+    readonly: bool = typer.Option(False, "--readonly", help=_("Только просмотр, без сохранения.")),
+    no_browser: bool = typer.Option(False, "--no-browser", help=_("Не открывать браузер.")),
 ) -> None:
-    """Веб-редактор в браузере (для сервера и разработки; на рабочем месте удобнее `canmap app`)."""
     import webbrowser
 
     from .launcher import DEFAULT_PORT, LOCAL_HOSTS, ServerThread, browser_url, pick_port
@@ -122,8 +121,8 @@ def serve(
 
     local = host in LOCAL_HOSTS
     if not local:
-        typer.secho(f"Внимание: редактор доступен по сети ({host}) без аутентификации. "
-                    "Любой, кто откроет адрес, сможет открывать и менять файлы.",
+        typer.secho(_("Внимание: редактор доступен по сети ({host}) без аутентификации. "
+                      "Любой, кто откроет адрес, сможет открывать и менять файлы.", host=host),
                     fg=typer.colors.YELLOW, err=True)
     session, cwd = None, Path.cwd()
     if path is not None and path.is_dir():
@@ -138,26 +137,46 @@ def serve(
     try:
         server.start()
     except RuntimeError as e:
-        typer.secho(f"Ошибка: {e}", fg=typer.colors.RED, err=True)
+        typer.secho(_("Ошибка: {error}", error=e), fg=typer.colors.RED, err=True)
         raise typer.Exit(1) from e
-    typer.echo(f"canmap {__version__}: {path or cwd} → {url}  (Ctrl+C — остановить)")
+    typer.echo(_("canmap {version}: {path} → {url}  (Ctrl+C — остановить)",
+                 version=__version__, path=path or cwd, url=url))
     if not no_browser:
         webbrowser.open(url)
     server.wait()
 
 
-@app.command("app")
+@app.command("app", help=_("Редактор в отдельном окне (pywebview); "
+                            "повторный запуск открывает файл в уже запущенном окне."))
 def app_cmd(
     path: Optional[Path] = typer.Argument(
         None, exists=True, dir_okay=True, readable=True,
-        help="Карта для открытия или рабочая папка. Без аргумента — стартовый экран."),
-    browser: bool = typer.Option(False, "--browser", help="Открыть в браузере вместо окна приложения."),
-    readonly: bool = typer.Option(False, "--readonly", help="Только просмотр, без сохранения."),
+        help=_("Карта для открытия или рабочая папка. Без аргумента — стартовый экран.")),
+    browser: bool = typer.Option(False, "--browser", help=_("Открыть в браузере вместо окна приложения.")),
+    readonly: bool = typer.Option(False, "--readonly", help=_("Только просмотр, без сохранения.")),
 ) -> None:
-    """Редактор в отдельном окне (pywebview); повторный запуск открывает файл в уже запущенном окне."""
     from .launcher import run
 
     raise typer.Exit(run(path, window=not browser, readonly=readonly))
+
+
+@app.command(help=_("Показать или выбрать язык интерфейса утилиты (en, ru)."))
+def language(
+    lang: Optional[str] = typer.Argument(None, help=_("Новый язык: en или ru.")),
+) -> None:
+    from .userconfig import UserConfig
+
+    if lang is None:
+        typer.echo(get_language())
+        return
+    norm = normalize_language(lang)
+    if norm is None:
+        raise typer.BadParameter(_("неизвестный язык: {language}", language=lang)
+                                 + f" ({', '.join(LANGUAGES)})")
+    cfg = UserConfig.load()
+    cfg.language = norm
+    cfg.save()
+    typer.echo(norm)
 
 
 class DiffFormat(str, Enum):
@@ -166,14 +185,13 @@ class DiffFormat(str, Enum):
     json = "json"
 
 
-@app.command()
+@app.command(help=_("Сравнить две версии карты (кадры, сигналы, значения) и вывести changelog."))
 def diff(
-    old: Path = typer.Argument(..., exists=True, dir_okay=False, help="Старая версия карты."),
-    new: Path = typer.Argument(..., exists=True, dir_okay=False, help="Новая версия карты."),
+    old: Path = typer.Argument(..., exists=True, dir_okay=False, help=_("Старая версия карты.")),
+    new: Path = typer.Argument(..., exists=True, dir_okay=False, help=_("Новая версия карты.")),
     fmt: DiffFormat = typer.Option(DiffFormat.text, "--format", help="text | md | json"),
     lang: Optional[str] = LangOpt,
 ) -> None:
-    """Сравнить две версии карты (кадры, сигналы, значения) и вывести changelog."""
     from .diff import diff_maps, render_diff
     from .loader import load
 
@@ -182,23 +200,21 @@ def diff(
         res = load(p)
         if res.map is None:
             _print_report(res.report)
-            typer.secho(f"{p}: карта не загружена", fg=typer.colors.RED, err=True)
+            typer.secho(_("{path}: карта не загружена", path=p), fg=typer.colors.RED, err=True)
             raise typer.Exit(1)
         maps.append(res.map)
     d = diff_maps(maps[0], maps[1], lang)
     typer.echo(render_diff(d, fmt.value, lang or maps[1].lang))
 
 
-@app.command()
+@app.command(help=_("Список правил проверки."))
 def rules() -> None:
-    """Список правил проверки."""
     for code, (level, desc) in RULES.items():
-        typer.echo(f"{code:24} {level:8} {desc}")
+        typer.echo(f"{code:24} {level:8} {_(desc)}")
 
 
-@app.command()
-def schema(out: Optional[Path] = typer.Option(None, "-o", "--output", help="Файл JSON Schema.")) -> None:
-    """Вывести JSON Schema формата (для подсказок в IDE)."""
+@app.command(help=_("Вывести JSON Schema формата (для подсказок в IDE)."))
+def schema(out: Optional[Path] = typer.Option(None, "-o", "--output", help=_("Файл JSON Schema."))) -> None:
     from .schema import json_schema
 
     text = json.dumps(json_schema(), ensure_ascii=False, indent=2)
@@ -217,28 +233,28 @@ class TemplateKind(str, Enum):
     xlsx_style = "xlsx-style"
 
 
-@app.command()
+@app.command(help=_("Список шаблонов PDF или копия встроенного шаблона для правки (своё оформление)."))
 def template(
     kind: Optional[TemplateKind] = typer.Argument(None, help="pdf | md | html | xlsx-style"),
-    out: Optional[Path] = typer.Option(None, "-o", "--output", help="Куда сохранить копию шаблона."),
-    name: str = typer.Option("canmap", "--name", help="Встроенный PDF-шаблон (см. --list)."),
-    list_: bool = typer.Option(False, "--list", help="Показать встроенные шаблоны PDF."),
+    out: Optional[Path] = typer.Option(None, "-o", "--output", help=_("Куда сохранить копию шаблона.")),
+    name: str = typer.Option("canmap", "--name", help=_("Встроенный PDF-шаблон (см. --list).")),
+    list_: bool = typer.Option(False, "--list", help=_("Показать встроенные шаблоны PDF.")),
 ) -> None:
-    """Список шаблонов PDF или копия встроенного шаблона для правки (своё оформление)."""
     from .export.pdf import PDF_TEMPLATES, TEMPLATES_DIR
 
     if list_ or kind is None:
         for t in PDF_TEMPLATES.values():
-            typer.echo(f"{t.name:12} {t.title}")
-            typer.echo(f"{'':12} {t.description}")
+            typer.echo(f"{t.name:12} {_(t.title)}")
+            typer.echo(f"{'':12} {_(t.description)}")
         return
     if out is None:
-        raise typer.BadParameter("укажите -o/--output")
+        raise typer.BadParameter(_("укажите -o/--output"))
     base = Path(__file__).parent / "templates"
     out.parent.mkdir(parents=True, exist_ok=True)
     if kind == TemplateKind.pdf:
         if name not in PDF_TEMPLATES:
-            raise typer.BadParameter(f"нет шаблона {name!r}; доступны: {', '.join(PDF_TEMPLATES)}")
+            raise typer.BadParameter(_("нет шаблона {name!r}; доступны: {known}", name=name,
+                                       known=", ".join(PDF_TEMPLATES)))
         shutil.copyfile(PDF_TEMPLATES[name].path, out)
         lib = out.parent / "lib.typ"
         shutil.copyfile(TEMPLATES_DIR / "lib.typ", lib)    # общие элементы, импортируются шаблоном
@@ -253,33 +269,31 @@ def template(
 # --------------------------------------------------------------------------- #
 
 
-@export_app.command("xlsx")
+@export_app.command("xlsx", help=_("Excel: адресация, содержание, битовые карты, изменения."))
 def export_xlsx_cmd(
     path: Path = MapArg,
     out: Optional[Path] = typer.Option(None, "-o", "--output"),
-    style: Optional[Path] = typer.Option(None, "--style", exists=True, help="YAML с оформлением."),
+    style: Optional[Path] = typer.Option(None, "--style", exists=True, help=_("YAML с оформлением.")),
     lang: Optional[str] = LangOpt,
     force: bool = ForceOpt,
 ) -> None:
-    """Excel: адресация, содержание, битовые карты, изменения."""
     from .export.xlsx import XlsxStyle, export_xlsx
 
     res = _load_checked(path, force)
     _done(export_xlsx(res.map, _default_out(path, ".xlsx", out), XlsxStyle.load(style), lang))
 
 
-@export_app.command("pdf")
+@export_app.command("pdf", help=_("PDF через Typst: титул, оглавление, битовые диаграммы, таблицы; шаблоны ГОСТ."))
 def export_pdf_cmd(
     path: Path = MapArg,
     out: Optional[Path] = typer.Option(None, "-o", "--output"),
     template: Optional[str] = typer.Option(
         None, "--template",
-        help="Встроенный шаблон (canmap, gost-2.105, gost-19, gost-7.32) или путь к своему .typ."),
-    font_path: list[Path] = typer.Option([], "--font-path", help="Каталог с дополнительными шрифтами."),
+        help=_("Встроенный шаблон (canmap, gost-2.105, gost-19, gost-7.32) или путь к своему .typ.")),
+    font_path: list[Path] = typer.Option([], "--font-path", help=_("Каталог с дополнительными шрифтами.")),
     lang: Optional[str] = LangOpt,
     force: bool = ForceOpt,
 ) -> None:
-    """PDF через Typst: титул, оглавление, битовые диаграммы, таблицы; шаблоны ГОСТ."""
     from .export.pdf import PdfError, export_pdf
 
     res = _load_checked(path, force)
@@ -290,74 +304,69 @@ def export_pdf_cmd(
         raise typer.Exit(2) from e
 
 
-@export_app.command("md")
+@export_app.command("md", help=_("Markdown для README/вики."))
 def export_md_cmd(
     path: Path = MapArg,
     out: Optional[Path] = typer.Option(None, "-o", "--output"),
-    template: Optional[Path] = typer.Option(None, "--template", exists=True, help="Свой Jinja2-шаблон."),
+    template: Optional[Path] = typer.Option(None, "--template", exists=True, help=_("Свой Jinja2-шаблон.")),
     lang: Optional[str] = LangOpt,
     force: bool = ForceOpt,
 ) -> None:
-    """Markdown для README/вики."""
     from .export.text import export_text
 
     res = _load_checked(path, force)
     _done(export_text(res.map, _default_out(path, ".md", out), "md", template, lang))
 
 
-@export_app.command("html")
+@export_app.command("html", help=_("Самодостаточная HTML-страница с поиском."))
 def export_html_cmd(
     path: Path = MapArg,
     out: Optional[Path] = typer.Option(None, "-o", "--output"),
-    template: Optional[Path] = typer.Option(None, "--template", exists=True, help="Свой Jinja2-шаблон."),
+    template: Optional[Path] = typer.Option(None, "--template", exists=True, help=_("Свой Jinja2-шаблон.")),
     lang: Optional[str] = LangOpt,
     force: bool = ForceOpt,
 ) -> None:
-    """Самодостаточная HTML-страница с поиском."""
     from .export.text import export_text
 
     res = _load_checked(path, force)
     _done(export_text(res.map, _default_out(path, ".html", out), "html", template, lang))
 
 
-@export_app.command("dbc")
+@export_app.command("dbc", help=_("DBC (по файлу на шину)."))
 def export_dbc_cmd(
     path: Path = MapArg,
     out: Optional[Path] = typer.Option(None, "-o", "--output",
-                                       help="Файл .dbc (одна шина) или каталог."),
-    bus: Optional[str] = typer.Option(None, "--bus", help="Только указанная шина."),
+                                       help=_("Файл .dbc (одна шина) или каталог.")),
+    bus: Optional[str] = typer.Option(None, "--bus", help=_("Только указанная шина.")),
     force: bool = ForceOpt,
 ) -> None:
-    """DBC (по файлу на шину)."""
     from .export.dbc import export_dbc
 
     res = _load_checked(path, force)
     _done(export_dbc(res.map, out or Path("."), bus))
 
 
-@gen_app.command("c")
+@gen_app.command("c", help=_("C: #define ID, enum, маски, структуры, pack/unpack."))
 def gen_c_cmd(
     path: Path = MapArg,
-    out: Path = typer.Option(Path("."), "-o", "--output", help="Каталог для .h/.c."),
-    prefix: str = typer.Option("", "--prefix", help="Префикс имён (напр. ne_)."),
-    bus: list[str] = typer.Option([], "--bus", help="Только указанные шины."),
+    out: Path = typer.Option(Path("."), "-o", "--output", help=_("Каталог для .h/.c.")),
+    prefix: str = typer.Option("", "--prefix", help=_("Префикс имён (напр. ne_).")),
+    bus: list[str] = typer.Option([], "--bus", help=_("Только указанные шины.")),
     force: bool = ForceOpt,
 ) -> None:
-    """C: #define ID, enum, маски, структуры, pack/unpack."""
     from .codegen.c import generate_c
 
     res = _load_checked(path, force)
     _done(generate_c(res.map, out, prefix, bus or None))
 
 
-@gen_app.command("py")
+@gen_app.command("py", help=_("Python-модуль с теми же структурами (для тестов и стендов)."))
 def gen_py_cmd(
     path: Path = MapArg,
-    out: Path = typer.Option(Path("."), "-o", "--output", help="Каталог для модулей."),
-    bus: list[str] = typer.Option([], "--bus", help="Только указанные шины."),
+    out: Path = typer.Option(Path("."), "-o", "--output", help=_("Каталог для модулей.")),
+    bus: list[str] = typer.Option([], "--bus", help=_("Только указанные шины.")),
     force: bool = ForceOpt,
 ) -> None:
-    """Python-модуль с теми же структурами (для тестов и стендов)."""
     from .codegen.py import generate_py
 
     res = _load_checked(path, force)
@@ -367,16 +376,15 @@ def gen_py_cmd(
 ALL_FORMATS = ["xlsx", "pdf", "md", "html", "dbc", "c", "py"]
 
 
-@app.command()
+@app.command(help=_("Проверить карту и собрать все артефакты (для CI)."))
 def build(
     path: Path = MapArg,
-    out: Path = typer.Option(Path("build"), "-o", "--output", help="Каталог результатов."),
-    formats: str = typer.Option(",".join(ALL_FORMATS), "--formats", help="Через запятую: " + ",".join(ALL_FORMATS)),
+    out: Path = typer.Option(Path("build"), "-o", "--output", help=_("Каталог результатов.")),
+    formats: str = typer.Option(",".join(ALL_FORMATS), "--formats", help=_("Через запятую: ") + ",".join(ALL_FORMATS)),
     pdf_template: list[str] = typer.Option(
-        [], "--pdf-template", help="Шаблон PDF (можно несколько раз; по умолчанию canmap)."),
+        [], "--pdf-template", help=_("Шаблон PDF (можно несколько раз; по умолчанию canmap).")),
     force: bool = ForceOpt,
 ) -> None:
-    """Проверить карту и собрать все артефакты (для CI)."""
     from .codegen.c import generate_c
     from .codegen.py import generate_py
     from .export.dbc import export_dbc
@@ -387,7 +395,7 @@ def build(
     wanted = [f.strip() for f in formats.split(",") if f.strip()]
     unknown = set(wanted) - set(ALL_FORMATS)
     if unknown:
-        raise typer.BadParameter(f"неизвестные форматы: {', '.join(sorted(unknown))}")
+        raise typer.BadParameter(_("неизвестные форматы: {formats}", formats=", ".join(sorted(unknown))))
     res = _load_checked(path, force)
     m, stem = res.map, path.stem
     out.mkdir(parents=True, exist_ok=True)

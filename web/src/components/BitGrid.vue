@@ -7,6 +7,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { coexist, occupiedBits, rangeLabel } from "../bits";
 import { samePath, startsWith } from "../model";
 import type { Path, ResolvedFrame, ResolvedSignal } from "../types";
+import { t } from "../i18n";
 
 const props = defineProps<{
   frame: ResolvedFrame;
@@ -240,32 +241,33 @@ const status = computed(() => {
   const p = preview.value;
   const d = drag.value;
   if (p && d) {
-    const verb = d.mode === "create" ? "Новый сигнал" : d.mode === "move" ? "Сдвиг" : "Длина";
-    return `${verb}: биты ${rangeLabel(p.start, p.start + p.length - 1)} (${p.length} бит)`;
+    const verb = d.mode === "create" ? t("Новый сигнал") : d.mode === "move" ? t("Сдвиг") : t("Длина");
+    return t("{verb}: биты {bits} ({n} бит)", { verb, bits: rangeLabel(p.start, p.start + p.length - 1), n: p.length });
   }
   if (hover.value !== null) {
     const b = hover.value;
     const c = cells.value[b];
     const who = c?.owners.map((s) => s.name).join(", ");
-    return `бит ${b} — байт ${Math.floor(b / 8)}, бит ${b % 8}${who ? " · " + who : ""}${c?.flag ? " · " + c.flag : ""}`;
+    return t("бит {bit} — байт {byte}, бит {inbyte}", { bit: b, byte: Math.floor(b / 8), inbyte: b % 8 })
+      + (who ? " · " + who : "") + (c?.flag ? " · " + c.flag : "");
   }
   return props.readonly
-    ? "Только просмотр"
-    : "Протяните по свободным битам — новый сигнал. Перетащите сигнал — сдвиг, за край — длина.";
+    ? t("Только просмотр")
+    : t("Протяните по свободным битам — новый сигнал. Перетащите сигнал — сдвиг, за край — длина.");
 });
 </script>
 
 <template>
   <div class="bitgrid-wrap">
     <div v-if="muxOptions.length" class="mux-bar">
-      <span class="muted">Селектор <b>{{ selector?.name }}</b>:</span>
-      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">Все</button>
+      <span class="muted">{{ t("Селектор") }} <b>{{ selector?.name }}</b>:</span>
+      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">{{ t("Все") }}</button>
       <button v-for="[v, n] in muxOptions" :key="v" :class="{ active: muxValue === v }"
               @click="emit('update:muxValue', v)">{{ v }}{{ n ? " · " + n : "" }}</button>
     </div>
 
     <div class="bitgrid" :style="{ gridTemplateRows: `26px repeat(${frame.dlc}, 34px)` }" @mouseleave="hover = null">
-      <div class="bg-head corner">Байт</div>
+      <div class="bg-head corner">{{ t("Байт") }}</div>
       <div v-for="b in 8" :key="'h' + b" class="bg-head" :style="{ gridColumn: b + 1, gridRow: 1 }">{{ 8 - b }}</div>
 
       <template v-for="row in frame.dlc" :key="'r' + row">
@@ -274,7 +276,7 @@ const status = computed(() => {
 
       <div v-for="c in cells" :key="c.bit" class="bg-cell" :class="cellClass(c)" :style="{
              ...cellStyle(c), gridRow: Math.floor(c.bit / 8) + 2, gridColumn: 9 - (c.bit % 8) }"
-           :title="`бит ${c.bit}`" @mousedown="onDown(c, $event)" @mouseenter="onEnter(c)">
+           :title="t('бит {bit}', { bit: c.bit })" @mousedown="onDown(c, $event)" @mouseenter="onEnter(c)">
         <span v-for="h in handles(c)" :key="h" class="grip" :class="h" :data-edge="h" />
       </div>
 

@@ -4,6 +4,7 @@ import { actions } from "../store";
 import { addFlag } from "../edit";
 import { startsWith, txt } from "../model";
 import type { Diagnostic, Path } from "../types";
+import { t } from "../i18n";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const props = defineProps<{
@@ -51,11 +52,11 @@ function remove(i: number) {
 <template>
   <section class="subtable">
     <header>
-      <h4>Флаги битового поля</h4>
-      <button v-if="!readonly" class="small" @click="addFlag(path)">+ Флаг</button>
+      <h4>{{ t("Флаги битового поля") }}</h4>
+      <button v-if="!readonly" class="small" @click="addFlag(path)">{{ t("+ Флаг") }}</button>
     </header>
     <table v-if="flags?.length">
-      <thead><tr><th class="num">Бит</th><th class="num">Длина</th><th>Имя</th><th>Описание</th><th></th></tr></thead>
+      <thead><tr><th class="num">{{ t("Бит") }}</th><th class="num">{{ t("Длина") }}</th><th>{{ t("Имя") }}</th><th>{{ t("Описание") }}</th><th></th></tr></thead>
       <tbody>
         <tr v-for="(f, i) in flags" :key="i" :class="rowDiags(i)[0]?.level">
           <td class="num"><input class="mono" :value="f.bit" :readonly="readonly" @change="setInt(i, 'bit', $event)" /></td>
@@ -66,12 +67,12 @@ function remove(i: number) {
           </td>
           <td><input :value="txt(f.description)" :readonly="readonly" @change="setText(i, 'description', $event)" /></td>
           <td class="act">
-            <button class="icon" title="Открыть" @click="actions.select([...path, 'flags', i])">›</button>
-            <button v-if="!readonly" class="icon" title="Удалить" @click="remove(i)">✕</button>
+            <button class="icon" :title="t('Открыть')" @click="actions.select([...path, 'flags', i])">›</button>
+            <button v-if="!readonly" class="icon" :title="t('Удалить')" @click="remove(i)">✕</button>
           </td>
         </tr>
       </tbody>
     </table>
-    <p v-else class="muted">Флагов нет.</p>
+    <p v-else class="muted">{{ t("Флагов нет.") }}</p>
   </section>
 </template>

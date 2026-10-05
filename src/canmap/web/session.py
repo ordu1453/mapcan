@@ -12,6 +12,7 @@ from ruamel.yaml.error import YAMLError
 
 from .. import bits as B
 from ..docmodel import PALETTE
+from ..i18n import _
 from ..loader import LoadResult, loads
 from ..model import CanMap, Frame, enum_entries
 from ..validate import check
@@ -71,7 +72,7 @@ class EditorSession:
         with self.lock:
             self._check_writable()
             if self.disk_changed() and not force:
-                raise ConflictError("файл изменён на диске другой программой")
+                raise ConflictError(_("файл изменён на диске другой программой"))
             data = self.text.replace("\n", self.newline)
             tmp = self.path.with_suffix(self.path.suffix + ".tmp")
             tmp.write_bytes(data.encode("utf-8"))
@@ -86,7 +87,7 @@ class EditorSession:
             self._check_writable()
             target = Path(path).resolve()
             if target.exists() and not overwrite and target != self.path:
-                raise FileExistsError(f"файл уже существует: {target}")
+                raise FileExistsError(_("файл уже существует: {path}", path=target))
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(self.text.replace("\n", self.newline).encode("utf-8"))
             self.path = target
@@ -100,7 +101,7 @@ class EditorSession:
 
     def _check_writable(self) -> None:
         if self.readonly:
-            raise ReadOnlyError("редактор запущен в режиме только для чтения")
+            raise ReadOnlyError(_("редактор запущен в режиме только для чтения"))
 
     def _set_text(self, text: str) -> None:
         """Принять текст: разобрать в ruamel-документ и пересчитать проверку."""
@@ -113,6 +114,13 @@ class EditorSession:
         self._result = loads(text, str(self.path.name), self.path.parent)
         self._report = check(self._result)
         self.version += 1
+
+    def recheck(self) -> None:
+        """Пересобрать сообщения проверки (после смены языка интерфейса)."""
+        with self.lock:
+            self._result = loads(self.text, str(self.path.name), self.path.parent)
+            self._report = check(self._result)
+            self.version += 1
 
     def _commit(self, new_text: str) -> bool:
         if new_text == self.text:
@@ -128,7 +136,7 @@ class EditorSession:
         with self.lock:
             self._check_writable()
             if self.doc is None:
-                raise OpError("в YAML синтаксическая ошибка — исправьте текст во вкладке YAML")
+                raise OpError(_("в YAML синтаксическая ошибка — исправьте текст во вкладке YAML"))
             canon_old = dump(self.yaml, self.doc)
             try:
                 apply_ops(self.doc, ops)
