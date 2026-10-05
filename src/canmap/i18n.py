@@ -27,7 +27,7 @@ def configured_language() -> str | None:
     env = normalize_language(os.environ.get("CANMAP_LANG"))
     if env:
         return env
-    from .userconfig import UserConfig     # здесь: userconfig сам использует перевод
+    from .userconfig import UserConfig  # здесь: userconfig сам использует перевод
 
     return normalize_language(UserConfig.load().language)
 

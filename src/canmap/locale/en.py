@@ -179,7 +179,8 @@ EN: dict[str, str] = {
     "Одно и то же имя значения записано по-разному": "The same value name is spelled differently",
     "Адрес J1939 вне 0..253 или повторяется на шине": "J1939 address outside 0..253 or repeated on the bus",
     "PDU1-PGN (PF < 240) с ненулевым младшим байтом": "PDU1 PGN (PF < 240) with a non-zero low byte",
-    "destination задан для PDU2-PGN (PF ≥ 240) и не используется": "destination set for a PDU2 PGN (PF ≥ 240) and unused",
+    "destination задан для PDU2-PGN (PF ≥ 240) и не используется":
+        "destination set for a PDU2 PGN (PF ≥ 240) and unused",
     "pgn/priority/destination/address на шине не J1939": "pgn/priority/destination/address on a non-J1939 bus",
     "Получатель кадра не описан на шине": "Frame receiver is not described on the bus",
     "Сигнал float должен быть 32 или 64 бита": "A float signal must be 32 or 64 bits",
@@ -198,7 +199,8 @@ EN: dict[str, str] = {
     "имя сигнала": "signal name",
     "флаг": "flag",
     "сигнал": "signal",
-    "{what} {name!r}: допустимы латинские буквы, цифры и _": "{what} {name!r}: only Latin letters, digits and _ are allowed",
+    "{what} {name!r}: допустимы латинские буквы, цифры и _":
+        "{what} {name!r}: only Latin letters, digits and _ are allowed",
     "{what} {name!r} не в стиле {style}": "{what} {name!r} is not in {style} style",
     "{fields} у кадра на шине {protocol}": "{fields} on a frame on a {protocol} bus",
     "тип {type} на шине с протоколом {protocol}": "type {type} on a bus with protocol {protocol}",
@@ -227,17 +229,21 @@ EN: dict[str, str] = {
         "signal {name!r} occupies bytes {first}..{last}, but DLC = {dlc}",
     "flags у сигнала типа {kind}": "flags on a signal of kind {kind}",
     "сигнал-флаг {name!r} длиной {bits} бит": "flag signal {name!r} is {bits} bits long",
-    "сигнал {name!r}: float — 32 или 64 бита, задано {bits}": "signal {name!r}: float must be 32 or 64 bits, {bits} set",
+    "сигнал {name!r}: float — 32 или 64 бита, задано {bits}":
+        "signal {name!r}: float must be 32 or 64 bits, {bits} set",
     "сигнал {name!r} без описания": "signal {name!r} has no description",
     "имя {name!r} у значений {a} и {b}": "name {name!r} is used for values {a} and {b}",
     "флаг {name!r} (биты {first}..{last}) вне поля длиной {bits} бит":
         "flag {name!r} (bits {first}..{last}) is outside the {bits}-bit field",
     "файл логотипа не найден: {path}": "logo file not found: {path}",
     "address у устройства на шине {protocol}": "address on a device on a {protocol} bus",
-    "адрес {address:#04x} уже занят устройством {other!r}": "address {address:#04x} is already used by device {other!r}",
-    "адрес {address:#04x} вне 0..253 (254, 255 — служебные)": "address {address:#04x} outside 0..253 (254, 255 are reserved)",
+    "адрес {address:#04x} уже занят устройством {other!r}":
+        "address {address:#04x} is already used by device {other!r}",
+    "адрес {address:#04x} вне 0..253 (254, 255 — служебные)":
+        "address {address:#04x} outside 0..253 (254, 255 are reserved)",
     "node_id {node_id:#x} вне 1..127": "node_id {node_id:#x} outside 1..127",
-    "node_id {node_id:#04x} уже занят устройством {other!r}": "node_id {node_id:#04x} is already used by device {other!r}",
+    "node_id {node_id:#04x} уже занят устройством {other!r}":
+        "node_id {node_id:#04x} is already used by device {other!r}",
     "нужен pgn (или id)": "pgn (or id) is required",
     "у устройства нет address": "the device has no address",
     "кадр {name!r}: {why}": "frame {name!r}: {why}",
@@ -247,25 +253,30 @@ EN: dict[str, str] = {
     "обмен {name!r} повторяет {other!r} (0x{command:02X}, 0x{index:04X}:{subindex})":
         "exchange {name!r} repeats {other!r} (0x{command:02X}, 0x{index:04X}:{subindex})",
     "флаг {name!r} уже есть в кадре {frame!r} ({other})": "flag {name!r} already exists in frame {frame!r} ({other})",
-    "сигнал {name!r} уже есть в кадре {frame!r} ({other})": "signal {name!r} already exists in frame {frame!r} ({other})",
+    "сигнал {name!r} уже есть в кадре {frame!r} ({other})":
+        "signal {name!r} already exists in frame {frame!r} ({other})",
     "значение {value} ({name}) не помещается в {bits} бит (знаковое: {lo}..{hi})":
         "value {value} ({name}) does not fit in {bits} bits (signed: {lo}..{hi})",
     "значение {value} ({name}) не помещается в {bits} бит (беззнаковое: {lo}..{hi})":
         "value {value} ({name}) does not fit in {bits} bits (unsigned: {lo}..{hi})",
-    "invalid = {value} не помещается в {bits} бит ({lo}..{hi})": "invalid = {value} does not fit in {bits} bits ({lo}..{hi})",
+    "invalid = {value} не помещается в {bits} бит ({lo}..{hi})":
+        "invalid = {value} does not fit in {bits} bits ({lo}..{hi})",
     "initial = {value:g} → raw {raw} вне {lo}..{hi}": "initial = {value:g} → raw {raw} outside {lo}..{hi}",
     "initial = {value:g} вне min/max": "initial = {value:g} outside min/max",
-    "у сигнала {name!r} задан mux, но в кадре нет multiplexer": "signal {name!r} has mux, but the frame has no multiplexer",
+    "у сигнала {name!r} задан mux, но в кадре нет multiplexer":
+        "signal {name!r} has mux, but the frame has no multiplexer",
     "флаг {name!r} пересекается с {other!r} по биту {bit}": "flag {name!r} overlaps {other!r} at bit {bit}",
     "значение {value} не помещается во флаг {name!r}": "value {value} does not fit in flag {name!r}",
     "бит {bit}": "bit {bit}",
     "биты {first}..{last}": "bits {first}..{last}",
-    "сигнал {name!r} пересекается с {other!r}: {bits} (байт {byte})": "signal {name!r} overlaps {other!r}: {bits} (byte {byte})",
+    "сигнал {name!r} пересекается с {other!r}: {bits} (байт {byte})":
+        "signal {name!r} overlaps {other!r}: {bits} (byte {byte})",
     "значение {name!r} записано иначе, чем {main!r} в других местах":
         "value {name!r} is spelled differently from {main!r} elsewhere",
     "min {min} > max {max}": "min {min} > max {max}",
     "mux {value} не помещается в селектор {name!r}": "mux {value} does not fit in selector {name!r}",
-    "mux {value} отсутствует в values селектора {name!r}": "mux {value} is missing from the values of selector {name!r}",
+    "mux {value} отсутствует в values селектора {name!r}":
+        "mux {value} is missing from the values of selector {name!r}",
     "{key} = {value:g} вне представимого диапазона {lo:g}..{hi:g} {unit}":
         "{key} = {value:g} is outside the representable range {lo:g}..{hi:g} {unit}",
 
