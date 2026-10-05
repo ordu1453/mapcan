@@ -236,7 +236,7 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
 
             webview.settings["ALLOW_DOWNLOADS"] = True
             win = webview.create_window("canmap", url, width=1440, height=900, min_size=(960, 600),
-                                        maximized=True, text_select=True)
+                                        maximized=True, text_select=True, zoomable=True)
             def set_minimized(value: bool):
                 def handler() -> None:
                     nonlocal minimized
