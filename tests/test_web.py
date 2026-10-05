@@ -257,11 +257,17 @@ def test_git_revs_reason(client, mapfile):
 
 def test_websocket_notifications(client, mapfile):
     with client.websocket_connect("/ws") as ws:
-        assert ws.receive_json()["type"] == "hello"
+        hello = ws.receive_json()
+        assert hello["type"] == "hello" and hello["app"] == client.get("/api/meta").json()["version"]
         ops(client, {"op": "set", "path": SIG + ["unit"], "value": "кВ"})
         assert ws.receive_json()["type"] == "state"
         mapfile.write_text("# внешняя правка\n" + mapfile.read_text(encoding="utf-8"), encoding="utf-8")
         assert ws.receive_json()["type"] == "file-changed"
+
+
+def test_index_not_cached(client):
+    r = client.get("/")
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-cache"
 
 
 def test_appended_item_goes_before_blank_separator(client):

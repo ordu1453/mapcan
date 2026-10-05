@@ -223,7 +223,9 @@ export const selectedResolvedFrame = computed(() => {
 export function startEvents(): void {
   connectEvents(
     (m) => {
-      if (m.type === "file-changed") store.fileChangedBanner = true;
+      // Вкладка осталась от прошлой версии canmap, а сервер уже обновлён — подгружаем новый интерфейс
+      if (m.type === "hello" && m.app && store.meta && m.app !== store.meta.version) location.reload();
+      else if (m.type === "file-changed") store.fileChangedBanner = true;
       else if (m.type === "open-request") void actions.openFile(m.path);
       else if (m.type === "session" && m.session_id !== store.meta?.session_id) void actions.load();
       else if (m.type === "state" && store.state &&

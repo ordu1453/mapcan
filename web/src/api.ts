@@ -79,7 +79,7 @@ export const api = {
 };
 
 export type WsMessage =
-  | { type: "hello" | "state"; version: number; session_id: number }
+  | { type: "hello" | "state"; version: number; session_id: number; app?: string }
   | { type: "session"; session_id: number }
   | { type: "file-changed" }
   | { type: "open-request"; path: string };

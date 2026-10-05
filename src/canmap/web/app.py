@@ -632,7 +632,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         hub.clients.add(ws)
         try:
             s = wsp.session
-            await ws.send_json({"type": "hello", "version": s.version if s else 0,
+            await ws.send_json({"type": "hello", "version": s.version if s else 0, "app": __version__,
                                 "session_id": wsp.generation})
             while True:
                 await ws.receive_text()        # клиент ничего не шлёт; ждём закрытия
@@ -651,7 +651,9 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             candidate = (STATIC_DIR / full_path).resolve()
             if full_path and candidate.is_file() and STATIC_DIR in candidate.parents:
                 return FileResponse(candidate)
-            return FileResponse(STATIC_DIR / "index.html")
+            # index.html ссылается на бандл с хешем в имени: без no-cache браузер после
+            # обновления canmap может показать закэшированный интерфейс старой версии
+            return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
     else:
         @app.get("/", include_in_schema=False)
         async def no_ui():

@@ -138,7 +138,22 @@ def _message_box(text: str, title: str = "canmap", yes_no: bool = False) -> bool
     return True
 
 
+def _unblock_bundle() -> None:
+    """Снять с DLL сборки отметку «скачано из интернета» (Zone.Identifier).
+
+    После распаковки zip-архива из браузера .NET отказывается загружать Python.Runtime.dll
+    (pythonnet) с такой отметкой, и окно pywebview не открывается.
+    """
+    root = getattr(sys, "_MEIPASS", None)
+    if os.name != "nt" or not getattr(sys, "frozen", False) or not root:
+        return
+    for dll in Path(root).rglob("*.dll"):
+        with contextlib.suppress(OSError):
+            os.remove(f"{dll}:Zone.Identifier")
+
+
 def _webview():
+    _unblock_bundle()
     try:
         import webview
     except ImportError:
