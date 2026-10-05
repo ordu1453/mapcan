@@ -160,7 +160,7 @@ jobs:
             echo
             echo "- **Windows:** скачайте \`canmap-$VERSION-setup.exe\` и запустите. Права администратора не нужны."
             echo "  Без установки — \`canmap-$VERSION-windows-x64.zip\` (запуск: \`canmap-app.exe\`)."
-            echo "- **Python 3.11+:** \`uv tool install \"canmap[desktop] @ https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/canmap-$VERSION-py3-none-any.whl\"\`"
+            echo "- **Python 3.12:** \`uv tool install \"canmap[desktop] @ https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/canmap-$VERSION-py3-none-any.whl\"\`"
             echo "- **Docker:** \`docker run --rm -v \"\$PWD:/work\" ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION build canmap.yaml -o build\`"
           } > notes.md
           cat notes.md
