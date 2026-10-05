@@ -77,9 +77,9 @@ def test_both_position_forms_rejected():
 
 
 def test_compute_id():
-    assert compute_id("pdo_tx1", 0x16) == 0x196
-    assert compute_id("emcy", 0x17) == 0x097
-    assert compute_id("sdo_rx", 0x16) == 0x616
+    assert compute_id("pdo_tx1", 0x21) == 0x1A1
+    assert compute_id("emcy", 0x22) == 0x0A2
+    assert compute_id("sdo_rx", 0x21) == 0x621
     assert compute_id("sync", None) == 0x080
     assert compute_id("pdo_tx1", None) is None
     assert compute_id("raw", 1) is None
@@ -122,13 +122,13 @@ def test_sdo_layout(ref_map):
 
 def test_reference_ids(ref_map):
     ids = {f.name: f.can_id for b in ref_map.buses for f in b.all_frames()}
-    assert ids["imd_state"] == 0x196
-    assert ids["imd_data"] == 0x296
-    assert ids["imd_command"] == 0x216
-    assert ids["imd_sdo_request"] == 0x616
-    assert ids["imd_sdo_response"] == 0x596
-    assert ids["cc_event"] == 0x097
-    assert ids["cc_parse_data"] == 0x297
-    assert ids["cc_request"] == 0x217
-    assert ids["bup_command"] == 0x218
-    assert ids["train_data"] == 0x001
+    assert ids["imd_state"] == 0x1A1
+    assert ids["imd_data"] == 0x2A1
+    assert ids["imd_command"] == 0x221
+    assert ids["imd_sdo_request"] == 0x621
+    assert ids["imd_sdo_response"] == 0x5A1
+    assert ids["cmu_event"] == 0x0A2
+    assert ids["cmu_parse_data"] == 0x2A2
+    assert ids["cmu_request"] == 0x222
+    assert ids["pcu_command"] == 0x223
+    assert ids["host_data"] == 0x001

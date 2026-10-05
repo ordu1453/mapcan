@@ -52,7 +52,7 @@ def test_state(client):
     assert not [d for d in st["diagnostics"] if d["level"] == "error"]
     assert st["data"]["buses"][0]["name"] == "bus1"
     f = next(f for f in st["resolved"]["frames"] if f["name"] == "imd_state")
-    assert f["can_id"] == 0x196
+    assert f["can_id"] == 0x1A1
     assert f["signals"][1]["flags"][0]["occupied"] == [8]
     sdo = next(f for f in st["resolved"]["frames"] if f["name"] == "imd_sdo_request")
     assert sdo["signals"][0]["synthetic"]
@@ -235,7 +235,7 @@ def test_diff_upload(client):
     ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.01})
     r = client.post("/api/diff/upload", files={"file": ("old.yaml", REFERENCE.read_bytes())})
     assert r.status_code == 200
-    assert r.json()["lines"] == ["0x296 imd_data: bus_voltage.factor 0.1 → 0.01"]
+    assert r.json()["lines"] == ["0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01"]
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
@@ -278,7 +278,7 @@ def test_appended_item_goes_before_blank_separator(client):
             "              - name: spare\n"
             "                byte: 2\n"
             "\n"
-            "          - name: cc_event\n") in st["text"]
+            "          - name: cmu_event\n") in st["text"]
 
 
 def test_appended_key_goes_before_blank_separator(tmp_path):

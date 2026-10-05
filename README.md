@@ -47,7 +47,6 @@ YAML можно писать и вручную — с подсказками в 
 | [examples/minimal.yaml](examples/minimal.yaml) | Все виды сигналов в одном кадре CANopen: enum, битовое поле, величины, big-endian |
 | [examples/j1939.yaml](examples/j1939.yaml) | SAE J1939: двигатель (EEC1, ET1), панель приборов, адресный запрос PDU1, «нет данных» 0xFF/0xFFFF |
 | [examples/vehicle-can.yaml](examples/vehicle-can.yaml) | CAN с явными 11/29-битными ID: float32, мультиплексированные напряжения ячеек, получатели, CAN FD с DLC 64 и float64 |
-| [examples/minimal.yaml](examples/minimal.yaml) | Реальная CANopen-карта системы питания: две шины, SDO, EMCY, мультиплексор |
 
 ## Установка
 
@@ -132,7 +131,7 @@ $ canmap validate tests/data/bad_map.yaml
 tests/data/bad_map.yaml:21:25: error[number-comma]: значение '0,1': дробная часть отделена запятой, нужно 0.1
 tests/data/bad_map.yaml:24:17: error[number-cyrillic-x]: значение '0х196': в префиксе 0x используется кириллическая «х»
 tests/data/bad_map.yaml:33:22: error[invalid-identifier]: имя значения 'NO DATA': допустимы латинские буквы, цифры и _
-tests/data/bad_map.yaml:62:36: error[duplicate-signal-name]: флаг 'dc_status' уже есть в кадре 'bup_state' (сигнал)
+tests/data/bad_map.yaml:62:36: error[duplicate-signal-name]: флаг 'dc_status' уже есть в кадре 'pcu_state' (сигнал)
 ...
 FAIL: ошибок: 12, предупреждений: 2, замечаний: 0
 ```
@@ -217,7 +216,7 @@ iscc /DAppVersion=X.Y.Z packaging/canmap.iss                # → dist/canmap-X.
 ## Структура репозитория
 
 ```text
-examples/                   примеры карт (CANopen, J1939, CAN/CAN FD, карта системы питания)
+examples/                   примеры карт (CANopen, J1939, CAN/CAN FD)
 schema/canmap.schema.json   JSON Schema (canmap schema -o …)
 docs/                       формат, шаблоны PDF, веб-редактор, CI
 src/canmap/

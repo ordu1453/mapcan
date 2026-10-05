@@ -23,7 +23,7 @@ from canmap.web.session import EditorSession
 
 from .conftest import DATA, REFERENCE
 
-LOGO_PNG = DATA / "logo.png"      # нейтральный тестовый логотип
+LOGO_PNG = DATA / "logo.png"          # нейтральный тестовый логотип
 LOGO_SVG = DATA / "logo.svg"
 
 

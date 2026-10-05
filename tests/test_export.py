@@ -39,12 +39,12 @@ def test_view_grid_and_flags(ref_map):
     bus = v["buses"][0]
     imd = next(d for d in bus["devices"] if d["name"] == "imd")
     state = imd["frames"][0]
-    assert state["id"] == "0x196" and state["id_formula"] == "0x180 + node_id"
+    assert state["id"] == "0x1A1" and state["id_formula"] == "0x180 + node_id"
     byte1 = state["grid"][1]["segments"]
     labels = [s["label"] for s in byte1]
     assert labels == ["internal_error", "self_test_error", "anomaly_error", "timeout_error",
                       "low_bus_voltage_error"]
-    parse = next(f for f in bus["devices"][1]["frames"] if f["name"] == "cc_parse_data")
+    parse = next(f for f in bus["devices"][1]["frames"] if f["name"] == "cmu_parse_data")
     seg = parse["grid"][1]["segments"][0]
     assert seg["label"] == "voltage_data | temperature_data" and not seg["conflict"]
     assert any("при parse_type = 0" in s["mux"] for s in parse["signals"])
@@ -81,7 +81,7 @@ def test_xlsx(ref_map, tmp_path):
     assert any(isinstance(t, str) and t.startswith("3 – ALARM") for t in texts)
     addr = wb["Адресация Шина 1"]
     row = [c.value for c in addr[6]]  # PDO TX 1
-    assert row[0] == "PDO TX 1" and "0x196" in row[4]
+    assert row[0] == "PDO TX 1" and "0x1A1" in row[4]
 
 
 def test_xlsx_custom_columns(ref_map, tmp_path):
@@ -118,13 +118,13 @@ def test_pdf_custom_template(ref_map, tmp_path):
 
 
 def test_markdown_golden(ref_map):
-    golden("canmap.md", render(ref_map, "md"))
+    golden("reference.md", render(ref_map, "md"))
 
 
 def test_html(ref_map):
     html = render(ref_map, "html")
     assert html.startswith("<!doctype html>")
-    assert 'id="frame-cc_parse_data"' in html
+    assert 'id="frame-cmu_parse_data"' in html
     assert "&lt;" not in html.split("<style>")[0]  # заголовок без двойного экранирования
     assert "<script>alert" not in html
 
@@ -136,7 +136,7 @@ def test_html_escapes(ref_map):
 
 
 def test_c_header_golden(ref_map):
-    golden("bus1.h", CGen(ref_map, ref_map.buses[0]).header())
+    golden("reference_bus1.h", CGen(ref_map, ref_map.buses[0]).header())
 
 
 # --------------------------------------------------------------------------- schema

@@ -112,7 +112,7 @@ def test_python_enums(py_modules):
         pytest.skip("только для эталонной карты")
     mod = py_modules["bus1"]
     assert mod.ImdStateInsulationStatus.ALARM == 3
-    assert mod.IMD_STATE_ID == 0x196
+    assert mod.IMD_STATE_ID == 0x1A1
     assert mod.IMD_STATE_INTERNAL_ERROR_TIMEOUT_ERROR_MASK == 0x2
 
 
@@ -145,10 +145,10 @@ def test_dbc_file_loads(ref_map, tmp_path):
 
     paths = export_dbc(ref_map, tmp_path)
     db = cantools.database.load_file(paths[0], encoding="cp1251")
-    m = db.get_message_by_frame_id(0x297)
+    m = db.get_message_by_frame_id(0x2A2)
     assert m.is_multiplexed()
     assert m.get_signal_by_name("parse_type").is_multiplexer
-    assert db.get_message_by_frame_id(0x196).cycle_time == 100
+    assert db.get_message_by_frame_id(0x1A1).cycle_time == 100
 
 
 # --------------------------------------------------------------------------- C

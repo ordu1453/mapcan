@@ -91,7 +91,7 @@ def test_number_cyrillic_x():
 def test_number_quoted_hex():
     assert "number-quoted" in codes(one_bus("""
         - name: f
-          id: "0x196"
+          id: "0x1A1"
     """))
 
 
@@ -160,7 +160,7 @@ def test_duplicate_signal_name():
 
 
 def test_duplicate_flag_vs_signal_name():
-    """Случай 0x198: флаг битового поля назван как сигнал кадра."""
+    """Случай 0x1A3: флаг битового поля назван как сигнал кадра."""
     assert "duplicate-signal-name" in codes(one_bus("""
         - name: f
           type: pdo_tx1
