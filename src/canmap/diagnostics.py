@@ -19,6 +19,7 @@ class Diagnostic:
     line: int | None = None      # 1-based
     column: int | None = None    # 1-based
     path: str = ""
+    node: list = field(default_factory=list)   # путь узла в YAML (для веб-редактора)
 
     def format(self) -> str:
         loc = self.file or "<input>"

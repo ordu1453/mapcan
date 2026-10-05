@@ -14,6 +14,8 @@ YAML-карта сигналов CAN как единственный источ�
 | C: `#define` ID, `enum`, маски, структуры, `pack`/`unpack` | `canmap gen c canmap.yaml -o firmware/` |
 | Python-модуль для тестов и стендов | `canmap gen py canmap.yaml -o tools/` |
 | всё сразу (для CI) | `canmap build canmap.yaml -o build/` |
+| веб-редактор: дерево, формы, битовая карта, проверка на лету | `canmap serve canmap.yaml` |
+| сравнение двух версий карты, changelog | `canmap diff old.yaml canmap.yaml` |
 
 Формат файла описан в [docs/format.md](docs/format.md), минимальный пример —
 [examples/minimal.yaml](examples/minimal.yaml).
@@ -68,6 +70,8 @@ canmap gen py      FILE [-o DIR] [--bus NAME]
 canmap build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py]
 canmap schema      [-o schema.json]
 canmap template    pdf|md|html|xlsx-style -o FILE
+canmap serve       FILE [--port 8765] [--readonly] [--no-browser]
+canmap diff        OLD NEW [--format text|md|json]
 canmap rules
 ```
 
@@ -117,6 +121,19 @@ if (imd_state_unpack(&st, rx_data, rx_len) == 0 &&
 if (st.internal_error & IMD_STATE_INTERNAL_ERROR_TIMEOUT_ERROR_MASK) { ... }
 ```
 
+## Веб-редактор
+
+```sh
+canmap serve canmap.yaml
+```
+
+Откроется браузер с редактором: дерево карты с поиском (имя, `0x196`, описание), формы
+свойств, битовая карта кадра (протянуть мышью — новый сигнал, перетащить — сдвиг, за край —
+длина; пересечения подсвечиваются), таблицы значений и флагов, проверка на лету, вкладка
+YAML, предпросмотр и скачивание всех форматов, сравнение с версией из git и запись
+changelog в историю. Файл сохраняется с комментариями и форматированием — в `git diff`
+только изменённые строки. Подробнее — [docs/web.md](docs/web.md).
+
 ## CI
 
 Пример для пользователей карты — [docs/ci-example.md](docs/ci-example.md): при изменении
@@ -139,8 +156,11 @@ src/canmap/
   docmodel.py               общее представление для документов
   export/                   xlsx, pdf (Typst), md/html (Jinja2), dbc
   codegen/                  C и Python
+  diff.py                   сравнение версий карты, changelog
+  web/                      веб-редактор: FastAPI, операции над YAML, собранный UI (static/)
   templates/                шаблоны документов
   fonts/                    PT Sans (OFL)
+web/                        исходники интерфейса (Vue 3 + TypeScript + Vite)
 tests/                      тесты, эталонные (golden) файлы
 legacy/                     исходная карта в старом формате
 ```
@@ -157,6 +177,6 @@ UPDATE_GOLDEN=1 uv run pytest     # обновить эталонные файл
 
 ## Состояние
 
-Готовы этапы 1–5 плана ([canmap_tasks.md](canmap_tasks.md)): формат, проверка,
-Excel, PDF/Markdown/HTML, C/Python/DBC. Не реализованы: веб-редактор (этап 6),
-импорт DBC/Excel (этап 7), работа с живой шиной (этап 8), плагины протоколов (этап 9).
+Готовы этапы 1–6 плана ([canmap_tasks.md](canmap_tasks.md)): формат, проверка,
+Excel, PDF/Markdown/HTML, C/Python/DBC, веб-редактор. Не реализованы: импорт DBC/Excel
+(этап 7), работа с живой шиной (этап 8), плагины протоколов (этап 9).

@@ -1,0 +1,283 @@
+<script setup lang="ts">
+// Интерактивная битовая карта кадра: DLC строк × 8 бит (бит 7 слева, как в документах).
+//  * протяжка по свободным битам — новый сигнал;
+//  * перетаскивание выбранного сигнала — сдвиг;
+//  * ручки на младшем/старшем бите (little-endian) — изменение длины.
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { coexist, occupiedBits, rangeLabel } from "../bits";
+import { samePath, startsWith } from "../model";
+import type { Path, ResolvedFrame, ResolvedSignal } from "../types";
+
+const props = defineProps<{
+  frame: ResolvedFrame;
+  selected: Path;
+  palette: string[];
+  readonly?: boolean;
+  muxValue: number | null;
+}>();
+const emit = defineEmits<{
+  select: [path: Path];
+  layout: [path: Path, start: number, length: number];
+  create: [start: number, length: number];
+  "update:muxValue": [value: number | null];
+}>();
+
+type Drag =
+  | { mode: "create"; anchor: number; cur: number }
+  | { mode: "move"; sig: ResolvedSignal; grab: number; cur: number }
+  | { mode: "resize"; sig: ResolvedSignal; edge: "lo" | "hi"; cur: number };
+
+const drag = ref<Drag | null>(null);
+const hover = ref<number | null>(null);
+
+const nbits = computed(() => props.frame.dlc * 8);
+
+const selector = computed(() => props.frame.signals.find((s) => s.multiplexer) ?? null);
+const muxOptions = computed(() => {
+  const sel = selector.value;
+  if (!sel) return [];
+  const vals = new Map<number, string>();
+  for (const v of sel.values) vals.set(v.value, v.name);
+  for (const s of props.frame.signals) for (const m of s.mux ?? []) if (!vals.has(m)) vals.set(m, "");
+  return [...vals.entries()].sort((a, b) => a[0] - b[0]);
+});
+
+function visible(s: ResolvedSignal): boolean {
+  return props.muxValue === null || s.mux === null || s.mux.includes(props.muxValue);
+}
+
+const selectedSignal = computed(() =>
+  props.frame.signals.find((s) => startsWith(props.selected, s.path) && !s.synthetic) ?? null,
+);
+const selectedFlag = computed(() => {
+  const s = selectedSignal.value;
+  if (!s || props.selected.length !== s.path.length + 2) return null;
+  return s.flags[Number(props.selected[s.path.length + 1])] ?? null;
+});
+
+/** Биты, которые займёт сигнал при текущем перетаскивании. */
+const preview = computed<{ start: number; length: number; bits: Set<number> } | null>(() => {
+  const d = drag.value;
+  if (!d) return null;
+  let start: number;
+  let length: number;
+  let be = false;
+  if (d.mode === "create") {
+    start = Math.min(d.anchor, d.cur);
+    length = Math.abs(d.cur - d.anchor) + 1;
+  } else if (d.mode === "move") {
+    be = d.sig.byte_order === "big_endian";
+    start = d.sig.start_bit + (d.cur - d.grab);
+    length = d.sig.bit_length;
+  } else {
+    const lo = d.sig.start_bit;
+    const hi = d.sig.start_bit + d.sig.bit_length - 1;
+    if (d.edge === "lo") {
+      start = Math.min(d.cur, hi);
+      length = hi - start + 1;
+    } else {
+      start = lo;
+      length = Math.max(d.cur, lo) - lo + 1;
+    }
+  }
+  if (start < 0) return null;
+  return { start, length, bits: new Set(occupiedBits(start, length, be)) };
+});
+
+interface Cell {
+  bit: number;
+  owners: ResolvedSignal[];
+  flag: string | null;
+  conflict: boolean;
+}
+
+const cells = computed<Cell[]>(() => {
+  const out: Cell[] = [];
+  const dragged = drag.value && drag.value.mode !== "create" ? drag.value.sig : null;
+  for (let bit = 0; bit < nbits.value; bit++) {
+    const owners = props.frame.signals.filter(
+      (s) => visible(s) && s.occupied.includes(bit) && !(dragged && samePath(s.path, dragged.path)),
+    );
+    let flag: string | null = null;
+    if (owners.length === 1) flag = owners[0].flags.find((f) => f.occupied.includes(bit))?.name ?? null;
+    let conflict = false;
+    for (let i = 0; i < owners.length && !conflict; i++)
+      for (let j = 0; j < i; j++) if (coexist(owners[i].mux, owners[j].mux)) conflict = true;
+    out.push({ bit, owners, flag, conflict });
+  }
+  return out;
+});
+
+function colorOf(s: ResolvedSignal): string {
+  const i = props.frame.signals.indexOf(s);
+  return props.palette[i % props.palette.length] ?? "#ccc";
+}
+
+interface Segment {
+  row: number;
+  col: number;
+  span: number;
+  label: string;
+  color: string;
+  conflict: boolean;
+  selected: boolean;
+}
+
+/** Подписи: подряд идущие биты строки с одинаковым владельцем объединяются. */
+const segments = computed<Segment[]>(() => {
+  const out: Segment[] = [];
+  for (let row = 0; row < props.frame.dlc; row++) {
+    let col = 0;
+    while (col < 8) {
+      const c = cells.value[row * 8 + (7 - col)];
+      const key = c.owners.map((s) => s.name).join("|") + "#" + (c.flag ?? "");
+      let span = 1;
+      while (col + span < 8) {
+        const n = cells.value[row * 8 + (7 - col - span)];
+        if (n.owners.map((s) => s.name).join("|") + "#" + (n.flag ?? "") !== key) break;
+        span++;
+      }
+      if (c.owners.length) {
+        const sel = selectedSignal.value;
+        out.push({
+          row, col, span,
+          label: c.flag ?? c.owners.map((s) => s.name).join(" | "),
+          color: colorOf(c.owners[0]),
+          conflict: c.conflict,
+          selected: !!sel && c.owners.some((s) => samePath(s.path, sel.path)),
+        });
+      }
+      col += span;
+    }
+  }
+  return out;
+});
+
+function cellClass(c: Cell) {
+  const sel = selectedSignal.value;
+  const isSel = !!sel && c.owners.some((s) => samePath(s.path, sel.path));
+  const flagSel = selectedFlag.value?.occupied.includes(c.bit) ?? false;
+  const p = preview.value;
+  return {
+    empty: !c.owners.length,
+    conflict: c.conflict,
+    selected: isSel,
+    "flag-selected": flagSel,
+    preview: !!p && p.bits.has(c.bit),
+    "preview-bad": !!p && p.bits.has(c.bit) && (c.owners.length > 0 || c.bit >= nbits.value),
+    synthetic: c.owners.length > 0 && c.owners.every((s) => s.synthetic),
+  };
+}
+
+function cellStyle(c: Cell) {
+  return c.owners.length ? { background: colorOf(c.owners[0]) } : {};
+}
+
+function handle(c: Cell): "lo" | "hi" | null {
+  const s = selectedSignal.value;
+  if (!s || props.readonly || s.byte_order === "big_endian" || s.bit_length === 1) return null;
+  if (c.bit === s.start_bit) return "lo";
+  if (c.bit === s.start_bit + s.bit_length - 1) return "hi";
+  return null;
+}
+
+function onDown(c: Cell, e: MouseEvent) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const sel = selectedSignal.value;
+  const h = handle(c);
+  if (h && sel) {
+    drag.value = { mode: "resize", sig: sel, edge: h, cur: c.bit };
+    return;
+  }
+  const own = c.owners.find((s) => sel && samePath(s.path, sel.path)) ?? c.owners[0];
+  if (own) {
+    emit("select", own.synthetic ? props.frame.path : own.path);
+    if (!props.readonly && !own.synthetic) drag.value = { mode: "move", sig: own, grab: c.bit, cur: c.bit };
+    return;
+  }
+  if (!props.readonly) drag.value = { mode: "create", anchor: c.bit, cur: c.bit };
+}
+
+function onEnter(c: Cell) {
+  hover.value = c.bit;
+  if (drag.value) drag.value.cur = c.bit;
+}
+
+function onUp() {
+  const d = drag.value;
+  const p = preview.value;
+  drag.value = null;
+  if (!d || !p) return;
+  if (d.mode === "create") {
+    emit("create", p.start, p.length);
+  } else if (d.mode === "move") {
+    if (d.cur !== d.grab) emit("layout", d.sig.path, p.start, p.length);
+  } else if (p.start !== d.sig.start_bit || p.length !== d.sig.bit_length) {
+    emit("layout", d.sig.path, p.start, p.length);
+  }
+}
+
+function onKey(e: KeyboardEvent) {
+  if (e.key === "Escape") drag.value = null;
+}
+
+onMounted(() => {
+  window.addEventListener("mouseup", onUp);
+  window.addEventListener("keydown", onKey);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("mouseup", onUp);
+  window.removeEventListener("keydown", onKey);
+});
+
+const status = computed(() => {
+  const p = preview.value;
+  const d = drag.value;
+  if (p && d) {
+    const verb = d.mode === "create" ? "Новый сигнал" : d.mode === "move" ? "Сдвиг" : "Длина";
+    return `${verb}: биты ${rangeLabel(p.start, p.start + p.length - 1)} (${p.length} бит)`;
+  }
+  if (hover.value !== null) {
+    const b = hover.value;
+    const c = cells.value[b];
+    const who = c?.owners.map((s) => s.name).join(", ");
+    return `бит ${b} — байт ${Math.floor(b / 8)}, бит ${b % 8}${who ? " · " + who : ""}${c?.flag ? " · " + c.flag : ""}`;
+  }
+  return props.readonly
+    ? "Только просмотр"
+    : "Протяните по свободным битам — новый сигнал. Перетащите сигнал — сдвиг, за край — длина.";
+});
+</script>
+
+<template>
+  <div class="bitgrid-wrap">
+    <div v-if="muxOptions.length" class="mux-bar">
+      <span class="muted">Селектор <b>{{ selector?.name }}</b>:</span>
+      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">все</button>
+      <button v-for="[v, n] in muxOptions" :key="v" :class="{ active: muxValue === v }"
+              @click="emit('update:muxValue', v)">{{ v }}{{ n ? " · " + n : "" }}</button>
+    </div>
+
+    <div class="bitgrid" :style="{ gridTemplateRows: `26px repeat(${frame.dlc}, 34px)` }" @mouseleave="hover = null">
+      <div class="bg-head corner">Байт</div>
+      <div v-for="b in 8" :key="'h' + b" class="bg-head" :style="{ gridColumn: b + 1, gridRow: 1 }">{{ 8 - b }}</div>
+
+      <template v-for="row in frame.dlc" :key="'r' + row">
+        <div class="bg-byte" :style="{ gridRow: row + 1 }">{{ row - 1 }}</div>
+      </template>
+
+      <div v-for="c in cells" :key="c.bit" class="bg-cell" :class="cellClass(c)" :style="{
+             ...cellStyle(c), gridRow: Math.floor(c.bit / 8) + 2, gridColumn: 9 - (c.bit % 8) }"
+           :title="`бит ${c.bit}`" @mousedown="onDown(c, $event)" @mouseenter="onEnter(c)">
+        <span v-if="handle(c)" class="grip" :class="handle(c)!" />
+      </div>
+
+      <div v-for="(s, i) in segments" :key="'s' + i" class="bg-label" :class="{ conflict: s.conflict, selected: s.selected }"
+           :style="{ gridRow: s.row + 2, gridColumn: `${s.col + 2} / span ${s.span}` }">
+        <span>{{ s.label }}</span>
+      </div>
+    </div>
+    <div class="bitgrid-status muted">{{ status }}</div>
+  </div>
+</template>

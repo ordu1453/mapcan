@@ -1,6 +1,6 @@
 [project]
 name = "canmap"
-version = "0.1.0"
+version = "0.2.0"
 description = "YAML-карта сигналов CAN как единственный источник правды: проверка, Excel/PDF/Markdown/HTML, DBC, C/Python-код"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -13,24 +13,29 @@ dependencies = [
     "openpyxl>=3.1",
     "typst>=0.13",
     "cantools>=39",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "websockets>=12",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
-# Этапы 6 и 8 (веб-редактор и работа с шиной) — зарезервировано.
-web = ["fastapi>=0.110", "uvicorn>=0.29"]
+# Этап 8 (работа с шиной) — зарезервировано.
 bus = ["python-can>=4.3"]
 
 [project.scripts]
 canmap = "canmap.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.5", "jsonschema>=4"]
+dev = ["pytest>=8", "ruff>=0.5", "jsonschema>=4", "httpx>=0.27"]
 
 [build-system]
 requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
+# Собранный фронтенд (src/canmap/web/static, из web/ → npm run build) входит в пакет:
+# Node.js пользователям не нужен.
 packages = ["src/canmap"]
 
 [tool.hatch.build.targets.sdist]

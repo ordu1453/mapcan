@@ -104,6 +104,63 @@ def validate(
 
 
 @app.command()
+def serve(
+    path: Path = MapArg,
+    host: str = typer.Option("127.0.0.1", "--host", help="Адрес для прослушивания."),
+    port: int = typer.Option(8765, "--port", help="Порт."),
+    readonly: bool = typer.Option(False, "--readonly", help="Только просмотр, без сохранения."),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Не открывать браузер."),
+) -> None:
+    """Веб-редактор карты: дерево, формы, битовая сетка, проверка на лету, экспорт."""
+    import threading
+    import webbrowser
+
+    import uvicorn
+
+    from .web.app import create_app
+    from .web.session import EditorSession
+
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        typer.secho(f"Внимание: редактор доступен по сети ({host}) без аутентификации. "
+                    "Любой, кто откроет адрес, сможет менять файл.", fg=typer.colors.YELLOW, err=True)
+    session = EditorSession(path, readonly=readonly)
+    url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/"
+    typer.echo(f"canmap: {path} → {url}  (Ctrl+C — остановить)")
+    if not no_browser:
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    uvicorn.run(create_app(session), host=host, port=port, log_level="warning")
+
+
+class DiffFormat(str, Enum):
+    text = "text"
+    md = "md"
+    json = "json"
+
+
+@app.command()
+def diff(
+    old: Path = typer.Argument(..., exists=True, dir_okay=False, help="Старая версия карты."),
+    new: Path = typer.Argument(..., exists=True, dir_okay=False, help="Новая версия карты."),
+    fmt: DiffFormat = typer.Option(DiffFormat.text, "--format", help="text | md | json"),
+    lang: Optional[str] = LangOpt,
+) -> None:
+    """Сравнить две версии карты (кадры, сигналы, значения) и вывести changelog."""
+    from .diff import diff_maps, render_diff
+    from .loader import load
+
+    maps = []
+    for p in (old, new):
+        res = load(p)
+        if res.map is None:
+            _print_report(res.report)
+            typer.secho(f"{p}: карта не загружена", fg=typer.colors.RED, err=True)
+            raise typer.Exit(1)
+        maps.append(res.map)
+    d = diff_maps(maps[0], maps[1], lang)
+    typer.echo(render_diff(d, fmt.value, lang or maps[1].lang))
+
+
+@app.command()
 def rules() -> None:
     """Список правил проверки."""
     for code, (level, desc) in RULES.items():

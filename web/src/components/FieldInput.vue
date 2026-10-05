@@ -1,0 +1,114 @@
+<script setup lang="ts">
+// Одно поле формы. Значение фиксируется по Enter / потере фокуса — одна правка = один шаг undo.
+import { computed, ref, watch } from "vue";
+import { formatValue, parseInput, ParseError, type FieldDef } from "../fields";
+import type { Diagnostic } from "../types";
+
+const props = defineProps<{
+  def: FieldDef;
+  value: unknown;
+  diags?: Diagnostic[];
+  readonly?: boolean;
+  placeholder?: string;
+  lang?: string;
+}>();
+const emit = defineEmits<{ commit: [value: unknown] }>();
+
+const error = ref("");
+const draft = ref("");
+const draftEn = ref("");
+
+function syncFromValue() {
+  error.value = "";
+  const v = props.value;
+  if (props.def.type === "loc") {
+    if (v && typeof v === "object") {
+      const o = v as Record<string, string>;
+      draft.value = o.ru ?? "";
+      draftEn.value = o.en ?? "";
+    } else {
+      draft.value = (v as string) ?? "";
+      draftEn.value = "";
+    }
+  } else {
+    draft.value = formatValue(props.def.type, v);
+  }
+}
+watch(() => props.value, syncFromValue, { immediate: true, deep: true });
+
+const showEn = ref(false);
+watch(() => draftEn.value, (v) => { if (v) showEn.value = true; }, { immediate: true });
+
+function commit() {
+  try {
+    if (props.def.type === "loc") {
+      const ru = draft.value.trim();
+      const en = draftEn.value.trim();
+      const old = props.value;
+      const extra = old && typeof old === "object" ? { ...(old as Record<string, string>) } : {};
+      let next: unknown;
+      if (en) next = { ...extra, ru, en };
+      else if (Object.keys(extra).some((k) => k !== "ru" && k !== "en")) next = { ...extra, ru, en: undefined };
+      else next = ru || null;
+      if (JSON.stringify(next ?? null) !== JSON.stringify(old ?? null)) emit("commit", next);
+      return;
+    }
+    const next = parseInput(props.def.type, draft.value);
+    const old = props.value ?? null;
+    if (JSON.stringify(next) !== JSON.stringify(old)) emit("commit", next);
+    error.value = "";
+  } catch (e) {
+    error.value = e instanceof ParseError ? e.message : String(e);
+  }
+}
+
+function onSelect(e: Event) {
+  const v = (e.target as HTMLSelectElement).value;
+  let next: unknown = v === "" ? null : v;
+  if (props.def.key.endsWith("bit_length") && v) next = Number(v);
+  emit("commit", next);
+}
+
+function onBool(e: Event) {
+  emit("commit", (e.target as HTMLInputElement).checked ? true : null);
+}
+
+const level = computed(() => {
+  const ds = props.diags ?? [];
+  if (ds.some((d) => d.level === "error")) return "error";
+  if (ds.some((d) => d.level === "warning")) return "warning";
+  return "";
+});
+</script>
+
+<template>
+  <label class="field" :class="[{ wide: def.wide }, level]">
+    <span class="field-label">{{ def.label }}</span>
+
+    <select v-if="def.type === 'select'" :value="value ?? ''" :disabled="readonly" @change="onSelect">
+      <option v-for="[v, l] in def.options" :key="v" :value="v">{{ l }}</option>
+      <option v-if="value != null && !def.options?.some(([v]) => v === String(value))" :value="String(value)">
+        {{ value }}
+      </option>
+    </select>
+
+    <span v-else-if="def.type === 'bool'" class="checkbox">
+      <input type="checkbox" :checked="!!value" :disabled="readonly" @change="onBool" />
+    </span>
+
+    <span v-else-if="def.type === 'loc'" class="loc">
+      <input v-model="draft" :readonly="readonly" :placeholder="placeholder" @change="commit" @keydown.enter="commit" />
+      <input v-if="showEn" v-model="draftEn" class="en" :readonly="readonly" placeholder="English"
+             @change="commit" @keydown.enter="commit" />
+      <button v-else-if="!readonly" type="button" class="link" title="Добавить перевод" @click="showEn = true">en</button>
+    </span>
+
+    <input v-else :type="def.type === 'date' ? 'date' : 'text'" v-model="draft" :readonly="readonly"
+           :placeholder="placeholder" :class="{ mono: def.type === 'hex' || def.type === 'int' || def.type === 'float' }"
+           @change="commit" @keydown.enter="commit" />
+
+    <span v-if="error" class="field-msg error">{{ error }}</span>
+    <span v-for="d in diags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
+    <span v-if="def.hint && !error && !diags?.length" class="field-hint">{{ def.hint }}</span>
+  </label>
+</template>

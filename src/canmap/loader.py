@@ -49,7 +49,7 @@ class SourceMap:
 
     def diag(self, level, code, message, path: Path_ = ()) -> Diagnostic:
         line, col = self.locate(path)
-        return Diagnostic(level, code, message, self.file, line, col, format_path(path))
+        return Diagnostic(level, code, message, self.file, line, col, format_path(path), list(path))
 
 
 def format_path(path: Path_) -> str:

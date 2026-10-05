@@ -1,0 +1,170 @@
+// Структурные правки: добавить / удалить / дублировать / переместить узел.
+
+import { actions, resolvedFrames, store } from "./store";
+import { allFrameNames, freeByte, getAt, nodeKind, pathKey, uniqueName, type Data, type NodeKind } from "./model";
+import type { Op, Path } from "./types";
+
+const data = (): Data => store.state?.data;
+
+export interface ChildAction {
+  label: string;
+  run: () => Promise<boolean>;
+}
+
+function busOf(path: Path): Data {
+  return getAt(data(), path.slice(0, 2));
+}
+
+async function insertAndSelect(listPath: Path, value: unknown, extra: Op[] = []): Promise<boolean> {
+  const list = getAt(data(), listPath) as unknown[] | undefined;
+  const index = list ? list.length : 0;
+  const ok = await actions.apply([{ op: "insert", path: listPath, value }, ...extra.map((o) => fixIndex(o, index))]);
+  if (ok) actions.select([...listPath, index]);
+  return ok;
+}
+
+function fixIndex(o: Op, index: number): Op {
+  return { ...o, path: o.path.map((x) => (x === "$new" ? index : x)) } as Op;
+}
+
+export function addBus(): Promise<boolean> {
+  const names = (data()?.buses ?? []).map((b: Data) => b.name);
+  const name = uniqueName("bus", names);
+  return insertAndSelect(["buses"], { name, title: name, protocol: "can", devices: [] });
+}
+
+export function addDevice(busPath: Path): Promise<boolean> {
+  const bus = getAt(data(), busPath);
+  const devices: Data[] = bus.devices ?? [];
+  const value: Record<string, unknown> = { name: uniqueName("device", devices.map((d) => d.name)) };
+  if (bus.protocol !== "can") {
+    const used = new Set(devices.map((d) => d.node_id));
+    let id = 1;
+    while (used.has(id)) id++;
+    value.node_id = id;
+  }
+  value.frames = [];
+  return insertAndSelect([...busPath, "devices"], value);
+}
+
+export function addFrame(ownerPath: Path): Promise<boolean> {
+  const owner = getAt(data(), ownerPath);
+  const bus = busOf(ownerPath);
+  const isDevice = ownerPath.length === 4;
+  const base = isDevice ? `${owner.name}_frame` : "frame";
+  const value: Record<string, unknown> = { name: uniqueName(base, allFrameNames(bus)) };
+  if (bus.protocol === "canopen" && isDevice) {
+    const usedTypes = new Set((owner.frames ?? []).map((f: Data) => f.type));
+    value.type = ["pdo_tx1", "pdo_tx2", "pdo_tx3", "pdo_tx4", "pdo_rx1", "pdo_rx2", "pdo_rx3", "pdo_rx4"]
+      .find((t) => !usedTypes.has(t)) ?? "raw";
+  }
+  if (!value.type || value.type === "raw") {
+    const used = new Set<number>();
+    for (const f of store.state?.resolved?.frames ?? []) if (f.can_id != null) used.add(f.can_id);
+    let id = 0x100;
+    while (used.has(id)) id++;
+    value.id = id;
+  }
+  value.dlc = 8;
+  value.cycle_ms = 100;
+  value.signals = [];
+  return insertAndSelect([...ownerPath, "frames"], value);
+}
+
+export function addSignal(framePath: Path, layout?: { start_bit: number; bit_length: number }, name?: string): Promise<boolean> {
+  const frame = getAt(data(), framePath);
+  const names = new Set<string>();
+  for (const s of frame.signals ?? []) {
+    names.add(s.name);
+    for (const f of s.flags ?? []) names.add(f.name);
+  }
+  const value = { name: uniqueName(name || "signal", names) };
+  const rf = resolvedFrames.value.get(pathKey(framePath));
+  const pos = layout ?? { start_bit: freeByte(rf, frame.dlc ?? 8) * 8, bit_length: 8 };
+  return insertAndSelect([...framePath, "signals"], value, [
+    { op: "set_layout", path: [...framePath, "signals", "$new"], ...pos },
+  ]);
+}
+
+export function addFlag(signalPath: Path): Promise<boolean> {
+  const sig = getAt(data(), signalPath);
+  const flags: Data[] = sig.flags ?? [];
+  const used = new Set<number>();
+  for (const f of flags) for (let b = f.bit; b < f.bit + (f.bit_length ?? 1); b++) used.add(b);
+  let bit = 0;
+  while (used.has(bit)) bit++;
+  const frameSigs = getAt(data(), signalPath.slice(0, -2)) as Data[];
+  const names = new Set<string>(frameSigs.flatMap((s: Data) => [s.name, ...(s.flags ?? []).map((f: Data) => f.name)]));
+  return insertAndSelect([...signalPath, "flags"], { bit, name: uniqueName("flag", names) });
+}
+
+export function addSdo(framePath: Path): Promise<boolean> {
+  const frame = getAt(data(), framePath);
+  const list: Data[] = frame.sdo ?? [];
+  const last = list[list.length - 1];
+  return insertAndSelect([...framePath, "sdo"], {
+    name: uniqueName("exchange", list.map((e) => e.name)),
+    command: last?.command ?? 0x2b,
+    index: last?.index ?? 0x2000,
+    subindex: (last?.subindex ?? 0) + 1,
+  });
+}
+
+/** Действия «добавить» для узла дерева. */
+export function childActions(path: Path): ChildAction[] {
+  const kind: NodeKind = nodeKind(path);
+  const node = getAt(data(), path);
+  switch (kind) {
+    case "document":
+      return [{ label: "шину", run: addBus }];
+    case "bus":
+      return [{ label: "устройство", run: () => addDevice(path) }, { label: "кадр", run: () => addFrame(path) }];
+    case "device":
+      return [{ label: "кадр", run: () => addFrame(path) }];
+    case "frame":
+      return node?.sdo || ["sdo_tx", "sdo_rx"].includes(node?.type)
+        ? [{ label: "SDO-обмен", run: () => addSdo(path) }, { label: "сигнал", run: () => addSignal(path) }]
+        : [{ label: "сигнал", run: () => addSignal(path) }];
+    case "signal":
+      return node?.flags || node?.kind === "bitfield" ? [{ label: "флаг", run: () => addFlag(path) }] : [];
+    default:
+      return [];
+  }
+}
+
+export function canRemove(path: Path): boolean {
+  return nodeKind(path) !== "document";
+}
+
+export async function removeNode(path: Path): Promise<boolean> {
+  const node = getAt(data(), path);
+  const name = node?.name ?? path.join(".");
+  if (!confirm(`Удалить «${name}»?`)) return false;
+  return actions.apply([{ op: "remove", path }]);
+}
+
+export async function duplicateNode(path: Path): Promise<boolean> {
+  const node = getAt(data(), path);
+  const listPath = path.slice(0, -1);
+  const list = getAt(data(), listPath) as Data[];
+  const copy = JSON.parse(JSON.stringify(node));
+  const names = new Set<string>(list.map((x) => x.name));
+  if (nodeKind(path) === "frame") allFrameNames(busOf(path)).forEach((n) => names.add(n));
+  copy.name = uniqueName(`${node.name}_copy`, names);
+  if (nodeKind(path) === "device" && copy.node_id != null) delete copy.node_id;
+  if (nodeKind(path) === "frame" && copy.id != null) delete copy.id;
+  const index = Number(path[path.length - 1]) + 1;
+  const ok = await actions.apply([{ op: "insert", path: listPath, value: copy, index }]);
+  if (ok) actions.select([...listPath, index]);
+  return ok;
+}
+
+export async function moveNode(path: Path, delta: number): Promise<boolean> {
+  const list = getAt(data(), path.slice(0, -1)) as unknown[];
+  const i = Number(path[path.length - 1]);
+  const to = i + delta;
+  if (!Array.isArray(list) || to < 0 || to >= list.length) return false;
+  const ok = await actions.apply([{ op: "move", path, to }]);
+  if (ok) actions.select([...path.slice(0, -1), to]);
+  return ok;
+}

@@ -1,0 +1,47 @@
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { ownerPath } from "../model";
+import { actions, store } from "../store";
+import type { Diagnostic, Level } from "../types";
+
+const open = ref(true);
+const show = ref<Record<Level, boolean>>({ error: true, warning: true, info: false });
+
+const all = computed(() => store.state?.diagnostics ?? []);
+const counts = computed(() => ({
+  error: all.value.filter((d) => d.level === "error").length,
+  warning: all.value.filter((d) => d.level === "warning").length,
+  info: all.value.filter((d) => d.level === "info").length,
+}));
+const items = computed(() => all.value.filter((d) => show.value[d.level]));
+
+function go(d: Diagnostic) {
+  if (!store.state?.data || !d.node.length) store.tab = "yaml";
+  if (store.tab === "yaml") store.revealLine = d.line;
+  if (d.node.length && store.state?.data) actions.select(ownerPath(d.node));
+}
+</script>
+
+<template>
+  <section class="diag-panel" :class="{ closed: !open }">
+    <header @click="open = !open">
+      <span class="twisty">{{ open ? "▾" : "▸" }}</span>
+      <b>Проверка</b>
+      <span v-for="lvl in (['error', 'warning', 'info'] as Level[])" :key="lvl" class="chip" :class="[lvl, { off: !show[lvl] }]"
+            @click.stop="show[lvl] = !show[lvl]">
+        {{ { error: "ошибки", warning: "предупреждения", info: "замечания" }[lvl] }}: {{ counts[lvl] }}
+      </span>
+      <span v-if="!counts.error && !counts.warning" class="ok">✓ карта корректна</span>
+    </header>
+    <ul v-if="open">
+      <li v-for="(d, i) in items" :key="i" :class="d.level" @click="go(d)">
+        <span class="lvl">{{ d.level === "error" ? "✖" : d.level === "warning" ? "▲" : "i" }}</span>
+        <span class="mono loc">{{ d.line ? `стр. ${d.line}` : "" }}</span>
+        <span class="mono code">{{ d.code }}</span>
+        <span class="msg">{{ d.message }}</span>
+        <span class="mono path muted">{{ d.path }}</span>
+      </li>
+      <li v-if="!items.length" class="muted empty">Нет сообщений выбранных уровней.</li>
+    </ul>
+  </section>
+</template>
