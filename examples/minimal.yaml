@@ -1,71 +1,71 @@
 # yaml-language-server: $schema=../schema/mapcan.schema.json
-# Минимальный пример: все виды сигналов в одном кадре.
+# Minimal example: every kind of signal in one frame.
 
 mapcan: 1
 
 document:
-  title: Пример карты
+  title: Example map
   version: 0.1.0
-  language: ru
+  language: en
 
 buses:
   - name: demo
-    title: Демо-шина
+    title: Demo bus
     bitrate: 500000
     protocol: canopen
     devices:
       - name: pump
-        short: НАС
-        title: Насос
+        short: PMP
+        title: Pump
         node_id: 0x21
         frames:
           - name: pump_state          # ID = 0x180 + 0x21 = 0x1A1
             type: pdo_tx1
-            description: Состояние насоса
+            description: Pump state
             cycle_ms: 100
             signals:
-              - name: mode            # enum, байт 0
-                description: Режим работы
+              - name: mode            # enum, byte 0
+                description: Operating mode
                 byte: 0
                 values:
-                  0: {name: OFF, description: выключен}
-                  1: {name: RUN, description: работа}
-                  2: {name: FAULT, description: авария}
+                  0: {name: OFF, description: off}
+                  1: {name: RUN, description: running}
+                  2: {name: FAULT, description: fault}
 
-              - name: alarms          # битовое поле, байт 1
-                description: Аварии
+              - name: alarms          # bit field, byte 1
+                description: Alarms
                 byte: 1
                 flags:
-                  - {bit: 0, name: overheat, description: перегрев}
-                  - {bit: 1, name: dry_run, description: сухой ход}
+                  - {bit: 0, name: overheat, description: overheating}
+                  - {bit: 1, name: dry_run, description: dry running}
                   - {bit: 4, bit_length: 2, name: sensor_state,
                      values: {0: OK, 1: OPEN, 2: SHORT}}
 
-              - name: pressure        # величина, байты 2..3, little-endian
-                description: Давление
+              - name: pressure        # quantity, bytes 2..3, little-endian
+                description: Pressure
                 byte: 2
                 byte_length: 2
                 factor: 0.01
-                unit: бар
+                unit: bar
                 min: 0
                 max: 16
 
-              - name: temperature     # знаковая величина со смещением
-                description: Температура
+              - name: temperature     # signed quantity with an offset
+                description: Temperature
                 byte: 4
                 signed: true
                 factor: 0.5
                 offset: -20
                 unit: °C
 
-              - name: speed           # big-endian: байт 5 — старший, байт 6 — младший
-                description: Обороты
+              - name: speed           # big-endian: byte 5 is the high byte, byte 6 the low byte
+                description: Speed
                 byte: 5
                 byte_length: 2
                 byte_order: big_endian
-                unit: об/мин
+                unit: rpm
 
-              - name: counter         # произвольная позиция: биты 56..59
-                description: Счётчик сообщений
+              - name: counter         # arbitrary position: bits 56..59
+                description: Message counter
                 start_bit: 56
                 bit_length: 4

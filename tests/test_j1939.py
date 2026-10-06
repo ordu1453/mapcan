@@ -130,12 +130,12 @@ def test_documents_show_j1939_and_defaults():
     bus = v["buses"][0]
     assert bus["addressing"]["has_pgn"] and bus["addressing"]["has_receivers"]
     eec1 = bus["devices"][0]["frames"][0]
-    assert eec1["pgn"] == "0xF004" and eec1["priority"] == "3" and "ПП" in eec1["receivers"]
+    assert eec1["pgn"] == "0xF004" and eec1["priority"] == "3" and "IC" in eec1["receivers"]
     speed = next(s for s in eec1["signals"] if s["name"] == "engine_speed")
-    assert "по умолчанию: 0 об/мин" in speed["values"]
-    assert "нет данных: 0xFFFF" in speed["values"]
+    assert "default: 0 rpm" in speed["values"]
+    assert "no data: 0xFFFF" in speed["values"]
     md = render(m, "md")
-    assert "| PGN |" in md and "`0xF004`" in md and "**Получатели:**" in md
+    assert "| PGN |" in md and "`0xF004`" in md and "**Receivers:**" in md
 
 
 def test_document_float_encoding():
