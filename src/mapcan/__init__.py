@@ -1,6 +1,6 @@
 """mapcan — YAML-карта сигналов как единственный источник правды."""
 
-__version__ = "0.12.0"
+__version__ = "0.13.0"
 
 from .loader import load, loads  # noqa: E402
 from .model import MapCan  # noqa: E402
