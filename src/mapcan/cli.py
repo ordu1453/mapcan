@@ -69,6 +69,10 @@ def _done(paths) -> None:
         typer.echo(f"→ {p}")
 
 
+def _warn(message: str) -> None:
+    typer.secho(message, fg=typer.colors.YELLOW, err=True)
+
+
 def _default_out(path: Path, ext: str, out: Optional[Path]) -> Path:
     return out if out else Path(path.stem + ext)
 
@@ -132,7 +136,8 @@ def serve(
     if port is None:
         port = pick_port(host, DEFAULT_PORT) if local else DEFAULT_PORT
     url = browser_url(host, port)
-    server = ServerThread(create_app(session, cwd=cwd.resolve(), readonly=readonly, check_updates=local),
+    server = ServerThread(create_app(session, cwd=cwd.resolve(), readonly=readonly, check_updates=local,
+                                     allowed_hosts=LOCAL_HOSTS if local else None),
                           host, port)
     try:
         server.start()
@@ -344,7 +349,7 @@ def export_dbc_cmd(
     from .export.dbc import export_dbc
 
     res = _load_checked(path, force)
-    _done(export_dbc(res.map, out or Path("."), bus))
+    _done(export_dbc(res.map, out or Path("."), bus, warn=_warn))
 
 
 @gen_app.command("c", help=_("C: #define ID, enum, маски, структуры, pack/unpack."))
@@ -406,7 +411,7 @@ def build(
                         for t in (pdf_template or ["mapcan"])],
         "md": lambda: export_text(m, out / f"{stem}.md", "md"),
         "html": lambda: export_text(m, out / f"{stem}.html", "html"),
-        "dbc": lambda: export_dbc(m, out / "dbc"),
+        "dbc": lambda: export_dbc(m, out / "dbc", warn=_warn),
         "c": lambda: generate_c(m, out / "c"),
         "py": lambda: generate_py(m, out / "py"),
     }

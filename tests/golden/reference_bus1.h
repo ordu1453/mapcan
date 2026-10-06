@@ -91,6 +91,11 @@ static inline float mapcan_round_f(float x)
 {
     return (x >= 0.0f) ? (x + 0.5f) : (x - 0.5f);
 }
+
+static inline double mapcan_round_d(double x)
+{
+    return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
+}
 #endif /* MAPCAN_BITS_HELPERS */
 
 #define BUS1_BITRATE 500000u
@@ -119,18 +124,18 @@ int sync_unpack(sync_t *msg, const uint8_t *data, size_t size);
 #define TIME_STAMP_ID 0x100u
 #define TIME_STAMP_DLC 6u
 
-#define TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR (1.0f)
-#define TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET (0.0f)
+#define TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR (1.0)
+#define TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET (0.0)
 /* ms_after_midnight: единица измерения — мс */
-static inline float time_stamp_ms_after_midnight_to_phys(uint32_t raw)
+static inline double time_stamp_ms_after_midnight_to_phys(uint32_t raw)
 {
-    return (float)raw * TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR + TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET;
+    return (double)raw * TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR + TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET;
 }
-static inline uint32_t time_stamp_ms_after_midnight_from_phys(float phys)
+static inline uint32_t time_stamp_ms_after_midnight_from_phys(double phys)
 {
-    float r = mapcan_round_f((phys - TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET) / TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 268435455.0f) { r = 268435455.0f; }
+    double r = mapcan_round_d((phys - TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET) / TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR);
+    if (r < 0.0) { return 0u; }
+    if (r >= 268435456.0) { return 268435455u; }
     return (uint32_t)r;
 }
 
@@ -144,8 +149,8 @@ static inline float time_stamp_days_since_1984_to_phys(uint16_t raw)
 static inline uint16_t time_stamp_days_since_1984_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - TIME_STAMP_DAYS_SINCE_1984_OFFSET) / TIME_STAMP_DAYS_SINCE_1984_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -222,8 +227,8 @@ static inline float imd_data_resistance_plus_to_phys(uint16_t raw)
 static inline uint16_t imd_data_resistance_plus_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_DATA_RESISTANCE_PLUS_OFFSET) / IMD_DATA_RESISTANCE_PLUS_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -237,8 +242,8 @@ static inline float imd_data_resistance_minus_to_phys(uint16_t raw)
 static inline uint16_t imd_data_resistance_minus_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_DATA_RESISTANCE_MINUS_OFFSET) / IMD_DATA_RESISTANCE_MINUS_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -258,8 +263,8 @@ static inline float imd_data_bus_voltage_to_phys(uint16_t raw)
 static inline uint16_t imd_data_bus_voltage_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_DATA_BUS_VOLTAGE_OFFSET) / IMD_DATA_BUS_VOLTAGE_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -335,8 +340,8 @@ static inline float imd_sdo_request_alarm_resistance_to_phys(uint16_t raw)
 static inline uint16_t imd_sdo_request_alarm_resistance_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -350,8 +355,8 @@ static inline float imd_sdo_request_warning_resistance_to_phys(uint16_t raw)
 static inline uint16_t imd_sdo_request_warning_resistance_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -572,8 +577,8 @@ static inline float pcu_data_dc_output_voltage_to_phys(uint16_t raw)
 static inline uint16_t pcu_data_dc_output_voltage_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_DATA_DC_OUTPUT_VOLTAGE_OFFSET) / PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -587,8 +592,8 @@ static inline float pcu_data_dc_input_voltage_to_phys(uint16_t raw)
 static inline uint16_t pcu_data_dc_input_voltage_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_DATA_DC_INPUT_VOLTAGE_OFFSET) / PCU_DATA_DC_INPUT_VOLTAGE_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -602,8 +607,8 @@ static inline float pcu_data_dc_output_current_to_phys(uint16_t raw)
 static inline uint16_t pcu_data_dc_output_current_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_DATA_DC_OUTPUT_CURRENT_OFFSET) / PCU_DATA_DC_OUTPUT_CURRENT_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -617,8 +622,8 @@ static inline float pcu_data_dc_input_current_to_phys(uint16_t raw)
 static inline uint16_t pcu_data_dc_input_current_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_DATA_DC_INPUT_CURRENT_OFFSET) / PCU_DATA_DC_INPUT_CURRENT_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 65535.0f) { r = 65535.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -661,8 +666,8 @@ static inline float pcu_command_target_voltage_to_phys(uint8_t raw)
 static inline uint8_t pcu_command_target_voltage_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_COMMAND_TARGET_VOLTAGE_OFFSET) / PCU_COMMAND_TARGET_VOLTAGE_FACTOR);
-    if (r < 0.0f) { r = 0.0f; }
-    if (r > 255.0f) { r = 255.0f; }
+    if (r < 0.0f) { return 0u; }
+    if (r >= 256.0f) { return 255u; }
     return (uint8_t)r;
 }
 

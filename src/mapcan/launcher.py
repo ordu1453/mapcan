@@ -237,7 +237,8 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
         session = None
 
     app = create_app(session, cwd=cwd.resolve(), readonly=readonly, check_updates=check_updates,
-                     instance_token=token if single_instance else None, on_activate=on_activate)
+                     instance_token=token if single_instance else None, on_activate=on_activate,
+                     allowed_hosts=LOCAL_HOSTS)
     server = ServerThread(app, host, port)
     try:
         server.start()

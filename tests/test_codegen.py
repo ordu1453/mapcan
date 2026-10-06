@@ -234,3 +234,121 @@ def test_c_compiles_for_cortex_m(cmap, tmp_path):
         subprocess.run([ARM_GCC, "-std=c99", "-mcpu=cortex-m4", "-mthumb", "-Os", "-Wall", "-Wextra",
                         "-Werror", "-ffreestanding", "-c", str(src), "-o", str(src.with_suffix(".o"))],
                        check=True, capture_output=True, text=True)
+
+
+BOUNDS_MAP = """\
+mapcan: 1
+document:
+  title: Test
+buses:
+  - name: bus
+    protocol: can
+    devices:
+      - name: dev
+        frames:
+          - name: f1
+            id: 0x101
+            signals:
+              - {name: u28, start_bit: 0, bit_length: 28, unit: ms}
+              - {name: s32, start_bit: 28, bit_length: 32, signed: true, factor: 0.5}
+          - name: f2
+            id: 0x102
+            signals:
+              - {name: u64, start_bit: 0, bit_length: 64, factor: 2}
+          - name: f3
+            id: 0x103
+            signals:
+              - {name: s64, start_bit: 0, bit_length: 64, signed: true, factor: 2}
+          - name: f4
+            id: 0x104
+            signals:
+              - {name: s8, start_bit: 0, bit_length: 8, signed: true, factor: 0.5}
+"""
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_c_from_phys_bounds(tmp_path):
+    """Насыщение на границах разрядности и точность длинных полей (double, а не float)."""
+    from mapcan.loader import loads
+
+    cmap = loads(BOUNDS_MAP, "bounds.yaml").map
+    sources = [p for p in generate_c(cmap, tmp_path) if p.suffix == ".c"]
+    checks = [
+        ("f1_u28_from_phys(1e12)", 268435455),        # раньше 2^28: старший бит терялся при упаковке
+        ("f1_u28_from_phys(16777217.0)", 16777217),   # во float округлилось бы до 16777216
+        ("f1_u28_from_phys(-5.0)", 0),
+        ("f1_s32_from_phys(1e12)", 2**31 - 1),
+        ("f1_s32_from_phys(-1e12)", -(2**31)),
+        ("f2_u64_from_phys(1e30)", 2**64 - 1),
+        ("f2_u64_from_phys(-1.0)", 0),
+        ("f3_s64_from_phys(1e30)", 2**63 - 1),
+        ("f3_s64_from_phys(-1e30)", -(2**63)),
+        ("f4_s8_from_phys(1000.0f)", 127),
+        ("f4_s8_from_phys(-1000.0f)", -128),
+    ]
+    main = ["#include <stdio.h>", "#include <inttypes.h>", '#include "bus.h"', "int main(void) {"]
+    for expr, v in checks:
+        fmt, cast = ("PRIu64", "uint64_t") if v >= 2**63 else ("PRId64", "int64_t")
+        main.append(f'    printf("%" {fmt} "\\n", ({cast}){expr});')
+    main += ["    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
+    assert [int(x) for x in out] == [v for _, v in checks]
+
+
+def _dbc(yaml_text: str):
+    from mapcan.loader import loads
+
+    m = loads(yaml_text, "t.yaml").map
+    return cantools.database.load_string(bus_database(m, m.buses[0]).as_dbc_string(), "dbc")
+
+
+def test_dbc_attributes_for_plain_can():
+    """Период, режим передачи, стартовое значение и скорость шины не теряются на шине без J1939."""
+    db = _dbc(BOUNDS_MAP.replace("protocol: can", "protocol: can\n    bitrate: 250000").replace(
+        "id: 0x101", "id: 0x101\n            cycle_ms: 50\n            comment: Note").replace(
+        "id: 0x102", "id: 0x102\n            transmission: {mode: event}").replace(
+        "unit: ms}", "unit: ms, initial: 7, description: Time, comment: Raw ms}"))
+    f1, f2 = db.get_message_by_name("f1"), db.get_message_by_name("f2")
+    assert db.buses[0].baudrate == 250000
+    assert (f1.cycle_time, f1.send_type, f2.send_type) == (50, "Cyclic", "Spontaneous")
+    assert db.get_message_by_name("f3").send_type == "NoMsgSendType"
+    assert f1.comment == "Note"
+    sig = f1.get_signal_by_name("u28")
+    assert sig.raw_initial == 7 and sig.comment == "Time\nRaw ms"
+
+
+def test_dbc_fd_frames():
+    db = _dbc(BOUNDS_MAP.replace("protocol: can", "protocol: can\n    fd: true"))
+    assert all(m.is_fd for m in db.messages)
+
+
+def test_dbc_flag_comment_in_document_language():
+    flags = """\
+          - name: f5
+            id: 0x105
+            signals:
+              - name: st
+                start_bit: 0
+                bit_length: 8
+                flags: [{name: ready, bit: 3}]
+"""
+    yaml_en = BOUNDS_MAP.replace("  title: Test", "  title: Test\n  language: en") + flags
+    assert _dbc(yaml_en).get_message_by_name("f5").get_signal_by_name("ready").comment == "st, bit 3"
+    assert _dbc(BOUNDS_MAP + flags).get_message_by_name("f5").get_signal_by_name("ready").comment == "st, бит 3"
+
+
+def test_dbc_warns_about_unencodable_chars(tmp_path):
+    from mapcan.export.dbc import export_dbc
+    from mapcan.loader import loads
+
+    m = loads(BOUNDS_MAP.replace("unit: ms}", "unit: ms, description: 'Δt ≥ 0'}"), "t.yaml").map
+    warnings = []
+    export_dbc(m, tmp_path, warn=warnings.append)
+    assert len(warnings) == 1 and "'Δ'" in warnings[0] and "'≥'" in warnings[0]
+    export_dbc(loads(BOUNDS_MAP, "t.yaml").map, tmp_path, warn=warnings.append)
+    assert len(warnings) == 1

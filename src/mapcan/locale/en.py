@@ -288,6 +288,10 @@ EN: dict[str, str] = {
     "ошибка git": "git error",
     "редактор запущен в режиме только для чтения": "the editor is running in read-only mode",
     "неверный токен экземпляра": "invalid instance token",
+    "{path}: символы {chars} не входят в кодировку {encoding} и записаны как «?»":
+        "{path}: characters {chars} are not in the {encoding} encoding and were written as '?'",
+    "недопустимый заголовок Host": "invalid Host header",
+    "запрос с чужой страницы отклонён": "request from another site rejected",
     "неизвестный формат: {fmt}": "unknown format: {fmt}",
     "неизвестный шаблон PDF: {template}": "unknown PDF template: {template}",
     "карта содержит ошибки структуры — экспорт невозможен": "the map has structural errors, export is not possible",

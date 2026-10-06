@@ -10,6 +10,7 @@ import zipfile
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from mapcan.web.app import create_app
 from mapcan.web.session import EditorSession
@@ -289,3 +290,26 @@ def test_appended_key_goes_before_blank_separator(tmp_path):
               "value": {"version": "0.1.0", "changes": ["first"]}}])
     assert s.text == ("mapcan: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n"
                       "  history:\n    - version: 0.1.0\n      changes:\n        - first\n\nbuses: []\n")
+
+
+def test_guard_rejects_foreign_host(mapfile):
+    """DNS rebinding: страница чужого домена, указывающего на 127.0.0.1, не получает API."""
+    app = create_app(EditorSession(mapfile), allowed_hosts=("127.0.0.1", "localhost", "::1"))
+    with TestClient(app, base_url="http://127.0.0.1:8765") as c:
+        assert c.get("/api/state").status_code == 200
+        assert c.get("/api/state", headers={"host": "localhost:5173"}).status_code == 200
+        assert c.get("/api/state", headers={"host": "[::1]:8765"}).status_code == 200
+        r = c.get("/api/state", headers={"host": "evil.example:8765"})
+        assert r.status_code == 403 and r.json()["code"] == "forbidden"
+
+
+def test_guard_rejects_cross_origin_writes(client):
+    """CSRF: изменяющий запрос и WebSocket с чужим Origin отклоняются, свои и без Origin — нет."""
+    assert client.post("/api/save", json={}, headers={"origin": "http://evil.example"}).status_code == 403
+    assert client.post("/api/save", json={}, headers={"origin": "http://testserver"}).status_code != 403
+    assert client.post("/api/save", json={}).status_code != 403
+    assert client.get("/api/state", headers={"origin": "http://evil.example"}).status_code == 200
+    with pytest.raises(WebSocketDisconnect), client.websocket_connect("/ws", headers={"origin": "http://evil.example"}):
+        pass
+    with client.websocket_connect("/ws", headers={"origin": "http://testserver"}) as ws:
+        assert ws.receive_json()["type"] == "hello"

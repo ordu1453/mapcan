@@ -92,12 +92,22 @@ static inline float mapcan_round_f(float x)
 {
     return (x >= 0.0f) ? (x + 0.5f) : (x - 0.5f);
 }
+
+static inline double mapcan_round_d(double x)
+{
+    return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
+}
 #endif /* MAPCAN_BITS_HELPERS */
 """
 
 
 def _c_int(v: int) -> str:
     return f"{v}u" if v >= 0 else f"({v})"
+
+
+def _c_bound(v: int) -> str:
+    """Целочисленный литерал границы; INT64_MIN нельзя записать литералом напрямую."""
+    return f"({v + 1} - 1)" if v == -(1 << 63) else _c_int(v)
 
 
 def _c_comment(s: str) -> str:
@@ -214,23 +224,30 @@ class CGen:
                 T = self.ctype(s)
                 lo = -(1 << (s.bit_length - 1)) if s.signed else 0
                 hi = (1 << (s.bit_length - 1)) - 1 if s.signed else (1 << s.bit_length) - 1
+                # В float точно представимы целые до 2^24: длинные поля считаются в double.
+                # Верхняя граница сравнивается с hi + 1 (степень двойки, точна в любом типе),
+                # иначе hi округлилась бы вверх и выпала за разрядность поля.
+                if s.bit_length > 24:
+                    FT, sfx, rnd = "double", "", "mapcan_round_d"
+                else:
+                    FT, sfx, rnd = "float", "f", "mapcan_round_f"
                 fn = self.p(F, S)
                 out += [
-                    f"#define {self.P(F, S, 'FACTOR')} ({num(s.factor)}f)",
-                    f"#define {self.P(F, S, 'OFFSET')} ({num(s.offset)}f)",
+                    f"#define {self.P(F, S, 'FACTOR')} ({num(s.factor)}{sfx})",
+                    f"#define {self.P(F, S, 'OFFSET')} ({num(s.offset)}{sfx})",
                 ]
                 if s.unit:
                     out.append(f"/* {S}: единица измерения — {_c_comment(s.unit)} */")
                 out += [
-                    f"static inline float {fn}_to_phys({T} raw)",
+                    f"static inline {FT} {fn}_to_phys({T} raw)",
                     "{",
-                    f"    return (float)raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};",
+                    f"    return ({FT})raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};",
                     "}",
-                    f"static inline {T} {fn}_from_phys(float phys)",
+                    f"static inline {T} {fn}_from_phys({FT} phys)",
                     "{",
-                    f"    float r = mapcan_round_f((phys - {self.P(F, S, 'OFFSET')}) / {self.P(F, S, 'FACTOR')});",
-                    f"    if (r < {float(lo)!r}f) {{ r = {float(lo)!r}f; }}",
-                    f"    if (r > {float(hi)!r}f) {{ r = {float(hi)!r}f; }}",
+                    f"    {FT} r = {rnd}((phys - {self.P(F, S, 'OFFSET')}) / {self.P(F, S, 'FACTOR')});",
+                    f"    if (r < {float(lo)!r}{sfx}) {{ return {_c_bound(lo)}; }}",
+                    f"    if (r >= {float(hi + 1)!r}{sfx}) {{ return {_c_bound(hi)}; }}",
                     f"    return ({T})r;",
                     "}",
                     "",

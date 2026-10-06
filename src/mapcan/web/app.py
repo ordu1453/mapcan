@@ -11,9 +11,10 @@ import string
 import subprocess
 import tempfile
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
@@ -125,6 +126,49 @@ class Hub:
                 await ws.send_json(message)
             except Exception:  # noqa: BLE001 — вкладка закрыта
                 self.clients.discard(ws)
+
+
+def _hostname(netloc: str) -> str | None:
+    try:
+        return urlsplit("//" + netloc).hostname
+    except ValueError:
+        return None
+
+
+class RequestGuard:
+    """Защита локального сервера от чужих страниц в браузере.
+
+    * ``Host`` должен быть из ``allowed_hosts`` (если задан): иначе страница с домена, который
+      после DNS rebinding указывает на 127.0.0.1, читала бы и меняла файлы как «свой» сайт;
+    * ``Origin`` изменяющих запросов и WebSocket должен совпадать с ``Host``: чужой сайт не может
+      отправить форму или открыть сокет к редактору (CSRF). Запросы без ``Origin`` (curl,
+      повторный запуск mapcan) пропускаются.
+    """
+
+    SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+    def __init__(self, app, allowed_hosts: Collection[str] | None = None):
+        self.app = app
+        self.allowed = {h.strip("[]").lower() for h in allowed_hosts} if allowed_hosts else None
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] in ("http", "websocket"):
+            headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+            host = headers.get("host", "")
+            if self.allowed is not None and _hostname(host) not in self.allowed:
+                return await self._reject(scope, receive, send, _("недопустимый заголовок Host"))
+            origin = headers.get("origin")
+            unsafe = scope["type"] == "websocket" or scope["method"] not in self.SAFE_METHODS
+            if unsafe and origin is not None and urlsplit(origin).netloc.lower() != host.lower():
+                return await self._reject(scope, receive, send, _("запрос с чужой страницы отклонён"))
+        await self.app(scope, receive, send)
+
+    @staticmethod
+    async def _reject(scope, receive, send, message: str) -> None:
+        if scope["type"] == "websocket":
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        await JSONResponse({"detail": message, "code": "forbidden"}, status_code=403)(scope, receive, send)
 
 
 class Workspace:
@@ -265,9 +309,12 @@ def _git(args: list[str], cwd: Path) -> str:
 def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                cwd: Path | None = None, readonly: bool | None = None, *,
                check_updates: bool = False, instance_token: str | None = None,
-               on_activate: Callable[[], None] | None = None) -> FastAPI:
+               on_activate: Callable[[], None] | None = None,
+               allowed_hosts: Collection[str] | None = None) -> FastAPI:
     """Приложение редактора.
 
+    ``allowed_hosts`` — допустимые имена в заголовке ``Host`` (для сервера на localhost),
+    None — любые (сервер слушает сеть);
     ``check_updates`` — отвечать на /api/update сведениями с GitHub Releases;
     ``instance_token`` — разрешить /api/instance/activate (повторный запуск mapcan
     передаёт файл уже работающему экземпляру), ``on_activate`` — вывести окно на передний план.
@@ -306,6 +353,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                   docs_url="/api/docs", redoc_url=None)
     app.state.workspace = wsp
     app.state.hub = hub
+    app.add_middleware(RequestGuard, allowed_hosts=allowed_hosts)
 
     @app.exception_handler(AppError)
     async def _app_error(_: Request, e: AppError):
