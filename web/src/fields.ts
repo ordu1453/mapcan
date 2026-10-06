@@ -1,5 +1,6 @@
 // Поля форм по типам узлов. Значения пишутся операцией set по пути узел + key.
 
+import { HELP } from "./help";
 import { N_, t } from "./i18n";
 import type { NodeKind } from "./model";
 
@@ -16,6 +17,8 @@ export interface FieldDef {
   type: FieldType;
   options?: Array<[string, string]>;
   hint?: string;
+  /** Справка «?» к полю (заполняется из HELP). */
+  help?: string;
   wide?: boolean;
   /** Показывать поле только если условие истинно (node — данные узла). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,6 +102,9 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "byte_order", label: N_("Порядок байт"), type: "select",
       options: [["", "little-endian"], ["big_endian", "big-endian"]] },
     { key: "signed", label: N_("Знаковое"), type: "bool" },
+    { key: "signed_code", label: N_("Код знакового числа"), type: "select",
+      options: [["", N_("дополнительный")], ["ones_complement", N_("обратный")], ["sign_magnitude", N_("прямой")]],
+      when: (n) => !!n?.signed || n?.signed_code != null },
     { key: "factor", label: N_("Масштаб (factor)"), type: "float", when: numeric },
     { key: "offset", label: N_("Смещение (offset)"), type: "float", when: numeric },
     { key: "unit", label: N_("Единица"), type: "text", when: numeric },
@@ -132,6 +138,10 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   ],
   unknown: [],
 };
+
+for (const [kind, defs] of Object.entries(FIELDS)) {
+  for (const d of defs) d.help ??= HELP[`${kind}.${d.key}`];
+}
 
 export class ParseError extends Error {}
 

@@ -187,6 +187,20 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .field-msg.warning { color: var(--warning); }
 .field-msg.info { color: var(--info); }
 .field-hint { font-size: 11px; color: var(--muted); }
+.help-tip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; margin-right: 4px; border: 1px solid var(--muted); border-radius: 50%;
+  font-size: 9px; font-weight: 600; line-height: 1; color: var(--muted); cursor: help; vertical-align: 1px;
+}
+.help-tip:hover, .help-tip.open, .help-tip:focus-visible { border-color: var(--accent); color: var(--accent); }
+.help-pop {
+  display: none; position: absolute; z-index: 30; top: 18px; left: -6px; width: max-content; max-width: 320px;
+  padding: 7px 9px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--panel);
+  color: var(--fg); font-size: 12px; font-weight: normal; line-height: 1.4; white-space: pre-line;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); cursor: auto;
+}
+.help-tip.flip .help-pop { left: auto; right: -6px; }
+.help-tip:hover .help-pop, .help-tip.open .help-pop { display: block; }
 .checkbox { height: 27px; display: flex; align-items: center; }
 .checkbox input { width: auto; }
 .loc { display: flex; gap: 4px; }

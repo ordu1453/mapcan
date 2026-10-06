@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 import { formatValue, parseInput, ParseError, type FieldDef } from "../fields";
 import type { Diagnostic } from "../types";
 import { t } from "../i18n";
+import HelpTip from "./HelpTip.vue";
 
 const props = defineProps<{
   def: FieldDef;
@@ -86,7 +87,7 @@ const level = computed(() => {
 
 <template>
   <label class="field" :class="[{ wide: def.wide }, level]">
-    <span class="field-label">{{ t(def.label) }}</span>
+    <span class="field-label"><HelpTip v-if="def.help" :text="def.help" />{{ t(def.label) }}</span>
 
     <select v-if="def.type === 'select'" :value="value ?? ''" :disabled="readonly" @change="onSelect">
       <option v-for="[v, l] in def.options" :key="v" :value="v">{{ t(l) }}</option>

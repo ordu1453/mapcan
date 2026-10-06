@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
 import { childActions, duplicateNode, moveNode, removeNode, addSignal } from "../edit";
+import { HELP } from "../help";
 import { FIELDS, parseInteger, ParseError, type FieldDef } from "../fields";
 import { getAt, HISTORY_PATH, nodeKind, pathKey, samePath, startsWith, txt } from "../model";
 import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store } from "../store";
@@ -10,6 +11,7 @@ import BitGrid from "./BitGrid.vue";
 import DocumentRequisites from "./DocumentRequisites.vue";
 import FieldInput from "./FieldInput.vue";
 import FlagsTable from "./FlagsTable.vue";
+import HelpTip from "./HelpTip.vue";
 import HistoryEditor from "./HistoryEditor.vue";
 import ValueTable from "./ValueTable.vue";
 import { N_, t } from "../i18n";
@@ -261,12 +263,12 @@ function onLayout(p: Path, start: number, length: number) {
         <!-- позиция сигнала -->
         <template v-if="kind === 'signal' && rsignal">
           <label class="field" :class="layoutDiags[0]?.level">
-            <span class="field-label">{{ t("Начальный бит (LSB)") }}</span>
+            <span class="field-label"><HelpTip :text="HELP['layout.start_bit']" />{{ t("Начальный бит (LSB)") }}</span>
             <input class="mono" :value="rsignal.start_bit" :readonly="readonly || rsignal.synthetic" @change="setLayout('start_bit', $event)" />
             <span v-if="inputErrors.start_bit" class="field-msg error">{{ inputErrors.start_bit }}</span>
           </label>
           <label class="field" :class="layoutDiags[0]?.level">
-            <span class="field-label">{{ t("Длина, бит") }}</span>
+            <span class="field-label"><HelpTip :text="HELP['layout.bit_length']" />{{ t("Длина, бит") }}</span>
             <input class="mono" :value="rsignal.bit_length" :readonly="readonly || rsignal.synthetic" @change="setLayout('bit_length', $event)" />
             <span v-if="inputErrors.bit_length" class="field-msg error">{{ inputErrors.bit_length }}</span>
             <span class="field-hint">
@@ -281,7 +283,7 @@ function onLayout(p: Path, start: number, length: number) {
         <!-- режим передачи кадра -->
         <template v-if="kind === 'frame'">
           <label class="field">
-            <span class="field-label">{{ t("Передача") }}</span>
+            <span class="field-label"><HelpTip :text="HELP['layout.mode']" />{{ t("Передача") }}</span>
             <select :value="txMode" :disabled="readonly" @change="setMode">
               <option value="">{{ t("не указано") }}</option>
               <option value="cyclic">{{ t("циклически") }}</option>
@@ -290,7 +292,7 @@ function onLayout(p: Path, start: number, length: number) {
             </select>
           </label>
           <label v-if="txMode === 'cyclic'" class="field">
-            <span class="field-label">{{ t("Период, мс") }}</span>
+            <span class="field-label"><HelpTip :text="HELP['layout.cycle_ms']" />{{ t("Период, мс") }}</span>
             <input class="mono" :value="txCycle ?? ''" :readonly="readonly" @change="setCycle" />
             <span v-if="inputErrors.cycle_ms" class="field-msg error">{{ inputErrors.cycle_ms }}</span>
           </label>
