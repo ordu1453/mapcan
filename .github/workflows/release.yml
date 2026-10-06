@@ -4,12 +4,14 @@ name: release
 # закоммитить и запушить тег vX.Y.Z. Workflow проверит, соберёт и опубликует GitHub Release:
 #   mapcan-X.Y.Z-setup.exe          — установщик для Windows
 #   mapcan-X.Y.Z-windows-x64.zip    — та же сборка без установки
+#   mapcan-X.Y.Z-linux-x64.tar.gz   — сборка для Linux (редактор открывается в браузере)
 #   mapcan-X.Y.Z-py3-none-any.whl   — для uv tool install / pipx
 #   Docker-образ ghcr.io/<владелец>/mapcan:X.Y.Z и :latest
 # Ручной запуск (Actions → release → Run workflow) — пробная сборка без публикации.
 #
 # Раннеры — как в ci.yml: свой self-hosted Windows, а при CI_RUNNER=github — раннеры GitHub.
-# Docker-образ собирается на ubuntu-latest и публикацию релиза не задерживает.
+# Docker-образ и Linux-сборка идут на ubuntu-latest и публикацию релиза не задерживают:
+# архив для Linux догружается в уже опубликованный релиз (linux-upload).
 
 on:
   push:
@@ -132,6 +134,39 @@ jobs:
             dist/mapcan-*-windows-x64.zip
           if-no-files-found: error
 
+  linux:
+    needs: [version, ci]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        # Без extra desktop: pywebview на Linux требует GTK/Qt, без него mapcan-app открывает браузер.
+        run: uv sync --locked --no-dev --group package
+      - name: Build (PyInstaller)
+        run: uv run --no-sync pyinstaller packaging/mapcan.spec --noconfirm
+      - name: Smoke test
+        run: |
+          set -e
+          out=$(dist/mapcan/mapcan --version)
+          echo "$out"
+          [ "$out" = "mapcan $VERSION" ]
+          test -f dist/mapcan/mapcan-app
+          dist/mapcan/mapcan validate examples/minimal.yaml
+          dist/mapcan/mapcan build examples/vehicle-can.yaml -o smoke
+          test -s smoke/vehicle-can.pdf && test -s smoke/vehicle-can.xlsx
+      - name: Archive
+        run: tar -czf "dist/mapcan-$VERSION-linux-x64.tar.gz" -C dist mapcan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: dist/mapcan-*-linux-x64.tar.gz
+          if-no-files-found: error
+
   docker:
     needs: [version, ci]
     if: github.event_name == 'push'
@@ -194,6 +229,7 @@ jobs:
             echo
             echo "- **Windows:** download \`mapcan-$VERSION-setup.exe\` and run it. No administrator rights required."
             echo "  Without installing: \`mapcan-$VERSION-windows-x64.zip\` (run \`mapcan-app.exe\`)."
+            echo "- **Linux (x64):** extract \`mapcan-$VERSION-linux-x64.tar.gz\` and run \`mapcan/mapcan-app\` (the editor opens in the browser) or \`mapcan/mapcan\` (command line)."
             echo "- **Python 3.12:** \`uv tool install \"mapcan[desktop] @ https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/mapcan-$VERSION-py3-none-any.whl\"\`"
             echo "- **Docker:** \`docker run --rm -v \"\$PWD:/work\" ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION build mapcan.yaml -o build\`"
           } > notes.md
@@ -202,3 +238,26 @@ jobs:
         run: |
           gh release create "$TAG" assets/* --verify-tag --title "mapcan $VERSION" \
             --notes-file notes.md --generate-notes
+
+  linux-upload:
+    needs: [linux, publish]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-linux
+          path: assets
+      - name: Upload to the release
+        working-directory: assets
+        run: |
+          gh release download "$TAG" -p SHA256SUMS.txt
+          sha256sum mapcan-*-linux-x64.tar.gz >> SHA256SUMS.txt && cat SHA256SUMS.txt
+          gh release upload "$TAG" mapcan-*-linux-x64.tar.gz
+          gh release upload "$TAG" SHA256SUMS.txt --clobber

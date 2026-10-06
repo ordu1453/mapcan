@@ -72,6 +72,9 @@ Without installing: `mapcan-X.Y.Z-windows-x64.zip`, run `mapcan-app.exe`.
 Windows may warn about an unknown publisher (SmartScreen): the installer is not signed with a
 certificate. Click "More info → Run anyway".
 
+**Linux (x64), no Python needed.** Download `mapcan-X.Y.Z-linux-x64.tar.gz` from Releases, extract it
+and run `mapcan/mapcan-app` (the editor opens in the browser) or `mapcan/mapcan` (command line).
+
 **With Python 3.12** (Windows, Linux, macOS). No external programs are needed: PDFs are built by the
 bundled Typst compiler from the `typst` pip package, and the PT Sans and PT Serif fonts (OFL) are included.
 
@@ -340,6 +343,9 @@ YAML можно писать и вручную — с подсказками в 
 
 Windows может предупредить о неизвестном издателе (SmartScreen): установщик не подписан
 сертификатом. «Подробнее → Выполнить в любом случае».
+
+**Linux (x64), без Python.** Скачайте `mapcan-X.Y.Z-linux-x64.tar.gz` со страницы Releases, распакуйте
+и запустите `mapcan/mapcan-app` (редактор откроется в браузере) или `mapcan/mapcan` (командная строка).
 
 **С Python 3.12** (Windows, Linux, macOS). Внешние программы не нужны: PDF собирается
 встроенным компилятором Typst из pip-пакета `typst`, шрифты PT Sans и PT Serif (OFL) идут в комплекте.

@@ -1,4 +1,5 @@
-# Сборка Windows-версии: dist/mapcan/ с mapcan-app.exe (окно) и mapcan.exe (CLI).
+# Сборка для Windows и Linux: dist/mapcan/ с mapcan-app.exe (окно) и mapcan.exe (CLI);
+# на Linux — mapcan-app и mapcan, без pywebview редактор открывается в браузере.
 #
 #   uv sync --locked --extra desktop --group package
 #   uv run pyinstaller packaging/mapcan.spec --noconfirm
