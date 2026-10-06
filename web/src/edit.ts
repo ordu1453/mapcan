@@ -152,7 +152,8 @@ export function addFlag(signalPath: Path): Promise<boolean> {
   while (used.has(bit)) bit++;
   const frameSigs = (getAt(data(), signalPath.slice(0, -1)) ?? []) as Data[];
   const names = new Set<string>(frameSigs.flatMap((s: Data) => [s.name, ...(s.flags ?? []).map((f: Data) => f.name)]));
-  return insertAndSelect([...signalPath, "flags"], { bit, name: uniqueName("flag", names) });
+  // Флаги правятся прямо в таблице сигнала — остаёмся на нём
+  return insertAndSelect([...signalPath, "flags"], { bit, name: uniqueName("flag", names) }, [], false);
 }
 
 export function addSdo(framePath: Path): Promise<boolean> {
