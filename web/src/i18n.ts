@@ -24,4 +24,5 @@ export const N_ = (key: string): string => key;
 export function setLang(lang: string | undefined | null): void {
   i18n.lang = lang === "ru" ? "ru" : "en";
   document.documentElement.lang = i18n.lang;
+  document.title = t("mapcan — редактор карты");
 }

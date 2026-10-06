@@ -237,7 +237,7 @@ function onLayout(p: Path, start: number, length: number) {
         <!-- позиция сигнала -->
         <template v-if="kind === 'signal' && rsignal">
           <label class="field" :class="layoutDiags[0]?.level">
-            <span class="field-label">start_bit (LSB)</span>
+            <span class="field-label">{{ t("Начальный бит (LSB)") }}</span>
             <input class="mono" :value="rsignal.start_bit" :readonly="readonly || rsignal.synthetic" @change="setLayout('start_bit', $event)" />
           </label>
           <label class="field" :class="layoutDiags[0]?.level">

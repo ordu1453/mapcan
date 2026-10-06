@@ -104,7 +104,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenu));
           <a v-for="t in store.pdfTemplates" :key="t.name" :href="api.exportUrl('pdf', true, t.name)" :title="t.description"
              @click="actions.setPdfTemplate(t.name)">{{ t.title }}</a>
           <div class="dd-title">{{ t("Скачать") }}</div>
-          <a v-for="[f, l] in DOWNLOADS" :key="f" :href="api.exportUrl(f, true)">{{ l }}</a>
+          <a v-for="[f, l] in DOWNLOADS" :key="f" :href="api.exportUrl(f, true)">{{ t(l) }}</a>
         </div>
       </div>
 

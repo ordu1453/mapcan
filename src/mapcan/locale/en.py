@@ -352,4 +352,8 @@ EN: dict[str, str] = {
     "нельзя удалить: {path}": "cannot remove: {path}",
     "неизвестная операция: {op!r}": "unknown operation: {op!r}",
     "path должен быть списком": "path must be a list",
+    "Интерфейс не собран: выполните <code>npm run build</code> в каталоге <code>web/</code>. "
+    "API доступно на <a href='/api/docs'>/api/docs</a>.":
+        "The interface is not built: run <code>npm run build</code> in <code>web/</code>. "
+        "The API is available at <a href='/api/docs'>/api/docs</a>.",
 }

@@ -5,7 +5,7 @@ import { api } from "../api";
 import { actions, store, toast } from "../store";
 import type { FsEntry, FsList } from "../types";
 import Modal from "./Modal.vue";
-import { N_, t } from "../i18n";
+import { i18n, N_, t } from "../i18n";
 import { hasNativeDialog, nativePick } from "../native";
 
 const props = defineProps<{ mode: "open" | "new" | "saveas" | "example" }>();
@@ -117,11 +117,11 @@ async function openRecent(path: string) {
 }
 
 const fmtSize = (n: number | null) => (n == null ? "" : n < 1024 ? t("{n} Б", { n }) : t("{n} КБ", { n: (n / 1024).toFixed(1) }));
-const fmtDate = (t: number) => new Date(t * 1000).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+const fmtDate = (s: number) => new Date(s * 1000).toLocaleString(i18n.lang === "ru" ? "ru-RU" : "en-US", { dateStyle: "short", timeStyle: "short" });
 </script>
 
 <template>
-  <Modal :title="TITLES[mode]" wide @close="emit('close')">
+  <Modal :title="t(TITLES[mode])" wide @close="emit('close')">
     <div class="fd">
       <aside v-if="mode === 'open' && store.meta?.recent.length" class="fd-recent">
         <h4>{{ t("Недавние") }}</h4>
@@ -187,7 +187,7 @@ const fmtDate = (t: number) => new Date(t * 1000).toLocaleString("ru-RU", { date
           <span class="muted mono fd-target">{{ fullPath }}</span>
           <button v-if="canBrowse" :disabled="store.busy" :title="t('Выбрать в проводнике')" @click="browse">{{ t("Обзор…") }}</button>
           <button @click="emit('close')">{{ t("Отмена") }}</button>
-          <button class="primary" :disabled="!name.trim() || store.busy" @click="submit">{{ ACTION[mode] }}</button>
+          <button class="primary" :disabled="!name.trim() || store.busy" @click="submit">{{ t(ACTION[mode]) }}</button>
         </div>
       </section>
     </div>

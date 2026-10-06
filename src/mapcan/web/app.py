@@ -702,7 +702,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     else:
         @app.get("/", include_in_schema=False)
         async def no_ui():
-            return HTMLResponse("<h1>mapcan</h1><p>Интерфейс не собран: выполните <code>npm run build</code> "
-                                "в каталоге <code>web/</code>. API доступно на <a href='/api/docs'>/api/docs</a>.</p>")
+            return HTMLResponse("<h1>mapcan</h1><p>" + _(
+                "Интерфейс не собран: выполните <code>npm run build</code> в каталоге <code>web/</code>. "
+                "API доступно на <a href='/api/docs'>/api/docs</a>.") + "</p>")
 
     return app
