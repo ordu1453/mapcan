@@ -49,12 +49,3 @@ def codes(yaml_text: str) -> set[str]:
 def _isolated_user_config(tmp_path_factory, monkeypatch):
     """Профиль и недавние файлы — во временной папке, а не в ~/.mapcan."""
     monkeypatch.setenv("MAPCAN_CONFIG_DIR", str(tmp_path_factory.mktemp("mapcan-config")))
-
-
-@pytest.fixture(autouse=True)
-def _russian_messages(monkeypatch):
-    """Тесты сверяют исходные (русские) сообщения; английские проверяются в test_i18n."""
-    from mapcan import i18n
-
-    monkeypatch.delenv("MAPCAN_LANG", raising=False)
-    monkeypatch.setattr(i18n, "_lang", "ru")

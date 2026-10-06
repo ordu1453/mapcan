@@ -1,4 +1,4 @@
-"""Пользовательские настройки mapcan: профиль автора, язык интерфейса и недавние файлы.
+"""Пользовательские настройки mapcan: профиль автора и недавние файлы.
 
 Хранятся в ``~/.mapcan/config.json`` (каталог можно переопределить переменной
 окружения ``MAPCAN_CONFIG_DIR``). Файл общий для CLI и веб-редактора. Каталог прежнего
@@ -13,7 +13,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from .i18n import _, normalize_language
+from .i18n import _
 
 RECENT_LIMIT = 12
 _GITHUB_USER = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")
@@ -68,7 +68,6 @@ class UserProfile:
 class UserConfig:
     user: UserProfile = field(default_factory=UserProfile)
     recent: list[str] = field(default_factory=list)
-    language: str | None = None          # язык интерфейса; None — ещё не выбран (первый запуск)
 
     @classmethod
     def load(cls) -> UserConfig:
@@ -83,15 +82,12 @@ class UserConfig:
         except ValueError:
             gh = None
         recent = [str(p) for p in data.get("recent", []) if isinstance(p, str)]
-        return cls(UserProfile(str(u.get("name", "")), gh), recent[:RECENT_LIMIT],
-                   normalize_language(data.get("language")))
+        return cls(UserProfile(str(u.get("name", "")), gh), recent[:RECENT_LIMIT])
 
     def save(self) -> None:
         d = config_dir()
         d.mkdir(parents=True, exist_ok=True)
         data = {"user": asdict(self.user), "recent": self.recent[:RECENT_LIMIT]}
-        if self.language:
-            data["language"] = self.language
         tmp = d / "config.json.tmp"
         tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(d / "config.json")

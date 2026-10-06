@@ -81,7 +81,7 @@ class HistoryEntry(_Base):
     author: str | None = None
     github: str | None = Field(
         None, pattern=r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$",
-        description="Имя пользователя GitHub автора изменения.",
+        description=N_("Имя пользователя GitHub автора изменения."),
     )
     changes: list[Text] = Field(default_factory=list)
 
@@ -96,11 +96,11 @@ class Person(_Base):
 class Signatures(_Base):
     """Подписи основной надписи ЕСКД (ГОСТ 2.104) и листов утверждения."""
 
-    developed: str | None = Field(None, description="Разраб.")
-    checked: str | None = Field(None, description="Пров.")
-    tech_control: str | None = Field(None, description="Т. контр.")
-    norm_control: str | None = Field(None, description="Н. контр.")
-    approved: str | None = Field(None, description="Утв.")
+    developed: str | None = Field(None, description=N_("Разраб."))
+    checked: str | None = Field(None, description=N_("Пров."))
+    tech_control: str | None = Field(None, description=N_("Т. контр."))
+    norm_control: str | None = Field(None, description=N_("Н. контр."))
+    approved: str | None = Field(None, description=N_("Утв."))
 
 
 LOGO_FORMATS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")
@@ -116,19 +116,20 @@ class Document(_Base):
     language: Literal["ru", "en"] = "ru"
     bit_numbering: Literal["lsb0"] = Field(
         "lsb0",
-        description="Нумерация бит: lsb0 — бит 0 это младший бит байта 0. "
-        "Поле фиксирует соглашение явно и выводится во всех документах.",
+        description=N_("Нумерация бит: lsb0 — бит 0 это младший бит байта 0. "
+        "Поле фиксирует соглашение явно и выводится во всех документах."),
     )
     # Оформление и реквизиты (шаблоны ГОСТ)
     logo: str | None = Field(
-        None, description="Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты.")
+        None, description=N_("Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты."))
     designation: str | None = Field(
-        None, description="Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД) или «RU.12345678.00001-01» (ЕСПД).")
-    litera: str | None = Field(None, description="Литера документа (ЕСКД), напр. «О1».")
-    city: str | None = Field(None, description="Город для титульного листа.")
+        None, description=N_("Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД) "
+                             "или «RU.12345678.00001-01» (ЕСПД)."))
+    litera: str | None = Field(None, description=N_("Литера документа (ЕСКД), напр. «О1»."))
+    city: str | None = Field(None, description=N_("Город для титульного листа."))
     signatures: Signatures | None = None
-    approve: Person | None = Field(None, description="Блок «УТВЕРЖДАЮ» титульного листа.")
-    agree: list[Person] = Field(default_factory=list, description="Блоки «СОГЛАСОВАНО».")
+    approve: Person | None = Field(None, description=N_("Блок «УТВЕРЖДАЮ» титульного листа."))
+    agree: list[Person] = Field(default_factory=list, description=N_("Блоки «СОГЛАСОВАНО»."))
     history: list[HistoryEntry] = Field(default_factory=list)
 
 
@@ -140,7 +141,7 @@ class LintRules(_Base):
     device_name: NameStyle = "snake_case"
     value_name: NameStyle = "UPPER_SNAKE"
     disable: list[str] = Field(
-        default_factory=list, description="Коды правил, которые нужно отключить."
+        default_factory=list, description=N_("Коды правил, которые нужно отключить.")
     )
 
 
@@ -182,27 +183,27 @@ class Signal(_Base):
     description: Text | None = None
     kind: SignalKind | None = Field(
         None,
-        description="Тип сигнала. Если не задан: values → enum, flags → bitfield, "
-        "factor/unit → metric, иначе raw.",
+        description=N_("Тип сигнала. Если не задан: values → enum, flags → bitfield, "
+                       "factor/unit → metric, иначе raw."),
     )
 
     # Позиция: каноническая запись
     start_bit: int | None = Field(
         None, ge=0,
-        description="Позиция младшего бита (LSB) сигнала в нумерации lsb0.",
+        description=N_("Позиция младшего бита (LSB) сигнала в нумерации lsb0."),
     )
     bit_length: int | None = Field(None, ge=1, le=64)
     # Позиция: синтаксический сахар
-    byte: int | None = Field(None, ge=0, description="Первый байт сигнала.")
-    bit: int | None = Field(None, ge=0, le=7, description="Смещение бита в байте.")
+    byte: int | None = Field(None, ge=0, description=N_("Первый байт сигнала."))
+    bit: int | None = Field(None, ge=0, le=7, description=N_("Смещение бита в байте."))
     byte_length: int | None = Field(None, ge=1, le=8)
 
     byte_order: ByteOrder = "little_endian"
     signed: bool = False
     signed_code: SignedCode | None = Field(
-        None, description="Код знакового числа: twos_complement — дополнительный (по умолчанию), "
-        "ones_complement — обратный, sign_magnitude — прямой. Пометка для документации: "
-        "сгенерированный код и DBC работают в дополнительном коде.")
+        None, description=N_("Код знакового числа: twos_complement — дополнительный (по умолчанию), "
+                             "ones_complement — обратный, sign_magnitude — прямой. Пометка для документации: "
+                             "сгенерированный код и DBC работают в дополнительном коде."))
 
     values: ValueTable | None = None
     flags: list[Flag] | None = None
@@ -214,15 +215,15 @@ class Signal(_Base):
     max: float | None = None
 
     value_format: Literal["dec", "hex"] = Field(
-        "dec", description="Как показывать значения enum в документах.")
-    multiplexer: bool = Field(False, description="Сигнал-селектор мультиплексора.")
+        "dec", description=N_("Как показывать значения enum в документах."))
+    multiplexer: bool = Field(False, description=N_("Сигнал-селектор мультиплексора."))
     mux: int | list[int] | None = Field(
-        None, description="Значение(я) селектора, при которых сигнал присутствует."
+        None, description=N_("Значение(я) селектора, при которых сигнал присутствует.")
     )
     initial: float | None = Field(
-        None, description="Значение по умолчанию (в физических единицах).")
+        None, description=N_("Значение по умолчанию (в физических единицах)."))
     invalid: int | list[int] | None = Field(
-        None, description="Сырое значение (или значения), означающее «нет данных / недостоверно».")
+        None, description=N_("Сырое значение (или значения), означающее «нет данных / недостоверно»."))
     comment: Text | None = None
 
     @property
@@ -310,7 +311,7 @@ class SdoExchange(_Base):
 
     name: str
     description: Text | None = None
-    command: int = Field(ge=0, le=0xFF, description="Байт команды (CCS/SCS), напр. 0x2B.")
+    command: int = Field(ge=0, le=0xFF, description=N_("Байт команды (CCS/SCS), напр. 0x2B."))
     index: int = Field(ge=0, le=0xFFFF)
     subindex: int = Field(0, ge=0, le=0xFF)
     value: SdoValue | None = None
@@ -328,25 +329,25 @@ class Transmission(_Base):
 
 class Frame(_Base):
     name: str
-    title: Text | None = Field(None, description="Короткий заголовок, напр. «СОСТОЯНИЯ».")
+    title: Text | None = Field(None, description=N_("Короткий заголовок, напр. «СОСТОЯНИЯ»."))
     description: Text | None = None
     type: FrameType = "raw"
     id: int | None = Field(
         None, ge=0, le=0x1FFFFFFF,
-        description="Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN.",
+        description=N_("Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN."),
     )
     extended: bool = False
     # J1939
-    pgn: int | None = Field(None, ge=0, le=0x3FFFF, description="J1939: номер группы параметров (PGN).")
-    priority: int | None = Field(None, ge=0, le=7, description="J1939: приоритет 0..7 (по умолчанию 6).")
+    pgn: int | None = Field(None, ge=0, le=0x3FFFF, description=N_("J1939: номер группы параметров (PGN)."))
+    priority: int | None = Field(None, ge=0, le=7, description=N_("J1939: приоритет 0..7 (по умолчанию 6)."))
     destination: int | None = Field(
-        None, ge=0, le=0xFF, description="J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем).")
+        None, ge=0, le=0xFF, description=N_("J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем)."))
     receivers: list[str] = Field(
-        default_factory=list, description="Устройства шины, принимающие кадр (имена).")
+        default_factory=list, description=N_("Устройства шины, принимающие кадр (имена)."))
     dlc: int = Field(8, ge=0, le=64)
     direction: Direction | None = None
     transmission: Transmission | None = None
-    cycle_ms: int | None = Field(None, gt=0, description="Сокращение для transmission: cyclic.")
+    cycle_ms: int | None = Field(None, gt=0, description=N_("Сокращение для transmission: cyclic."))
     signals: list[Signal] = Field(default_factory=list)
     sdo: list[SdoExchange] | None = None
     comment: Text | None = None
@@ -389,10 +390,10 @@ class Frame(_Base):
 
 class Device(_Base):
     name: str
-    short: str | None = Field(None, description="Короткое обозначение, напр. «BMS».")
+    short: str | None = Field(None, description=N_("Короткое обозначение, напр. «BMS»."))
     title: Text | None = None
-    node_id: int | None = Field(None, ge=0, le=0x7F, description="CANopen: адрес узла 1..127.")
-    address: int | None = Field(None, ge=0, le=0xFF, description="J1939: адрес источника 0..253.")
+    node_id: int | None = Field(None, ge=0, le=0x7F, description=N_("CANopen: адрес узла 1..127."))
+    address: int | None = Field(None, ge=0, le=0xFF, description=N_("J1939: адрес источника 0..253."))
     description: Text | None = None
     frames: list[Frame] = Field(default_factory=list)
 
@@ -407,7 +408,7 @@ class Bus(_Base):
     description: Text | None = None
     frames: list[Frame] = Field(
         default_factory=list,
-        description="Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME).",
+        description=N_("Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME)."),
     )
     devices: list[Device] = Field(default_factory=list)
 
@@ -421,7 +422,7 @@ class Bus(_Base):
 class MapCan(_Base):
     # Ключ до переименования canmap → mapcan тоже принимается: старые карты открываются без правки.
     mapcan: Literal[1] = Field(FORMAT_VERSION, validation_alias=AliasChoices("mapcan", "canmap"),
-                               title="mapcan", description="Версия формата файла.")
+                               title="mapcan", description=N_("Версия формата файла."))
     document: Document
     lint: LintRules = Field(default_factory=LintRules)
     buses: list[Bus] = Field(min_length=1)

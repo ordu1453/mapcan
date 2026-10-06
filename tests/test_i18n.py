@@ -1,4 +1,4 @@
-"""Язык интерфейса: полнота каталогов переводов, английские сообщения, переключение языка."""
+"""Интерфейс на английском: полнота каталогов переводов, английские сообщения; язык документов."""
 
 from __future__ import annotations
 
@@ -11,9 +11,7 @@ import string
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from mapcan import i18n
 from mapcan.locale.en import EN
-from mapcan.userconfig import UserConfig
 from mapcan.web.app import create_app
 from mapcan.web.session import EditorSession
 
@@ -78,8 +76,7 @@ def test_frontend_catalog_complete():
     assert not stale, stale
 
 
-def test_english_validation_messages(monkeypatch):
-    monkeypatch.setattr(i18n, "_lang", "en")
+def test_english_validation_messages():
     _, report = run(one_bus("""
         - name: f
           id: 0x100
@@ -95,60 +92,49 @@ def test_english_validation_messages(monkeypatch):
     assert not [m for m in msgs.values() if cyr.search(m.replace("Тест", ""))]
 
 
-def test_language_resolution(monkeypatch):
-    monkeypatch.setattr(i18n, "_lang", None)
-    assert i18n.get_language() == "en"                    # по умолчанию
-    cfg = UserConfig.load()
-    cfg.language = "ru"
-    cfg.save()
-    monkeypatch.setattr(i18n, "_lang", None)
-    assert i18n.get_language() == "ru"                    # из настроек
-    monkeypatch.setenv("MAPCAN_LANG", "en")
-    monkeypatch.setattr(i18n, "_lang", None)
-    assert i18n.get_language() == "en"                    # переменная окружения важнее
+def test_no_interface_language_choice(tmp_path):
+    from mapcan.cli import app
 
-
-def test_api_language_switch(tmp_path, monkeypatch):
-    monkeypatch.setattr(i18n, "_lang", "en")
+    assert CliRunner().invoke(app, ["language", "ru"]).exit_code != 0
     p = tmp_path / "mapcan.yaml"
     shutil.copyfile(REFERENCE, p)
     with TestClient(create_app(EditorSession(p))) as c:
         meta = c.get("/api/meta").json()
-        assert meta["language"] == "en" and meta["language_chosen"] is False
+        assert "language" not in meta
         assert meta["templates"]["empty"] == "Empty: just a bus"
         assert [e["title"] for e in meta["examples"]][:3] == ["Minimal", "SAE J1939", "Electric vehicle"]
-        en_msgs = [d["message"] for d in c.get("/api/state").json()["diagnostics"]]
-
-        meta = c.put("/api/language", json={"language": "ru"}).json()
-        assert meta["language"] == "ru" and meta["language_chosen"] is True
-        assert meta["templates"]["empty"] == "Пустая: только шина"
-        ru_msgs = [d["message"] for d in c.get("/api/state").json()["diagnostics"]]
-        assert en_msgs and en_msgs != ru_msgs
-        assert UserConfig.load().language == "ru"
-
-        assert c.put("/api/language", json={"language": "de"}).status_code == 400
+        assert c.put("/api/language", json={"language": "ru"}).status_code in (404, 405)
 
 
-def test_new_map_in_ui_language(monkeypatch):
+def test_new_map_in_document_language():
     from mapcan.validate import validate_text
     from mapcan.web.newmap import TEMPLATES, new_map_text
 
     for lang in ("en", "ru"):
-        monkeypatch.setattr(i18n, "_lang", lang)
         for t in TEMPLATES:
-            text = new_map_text(t, "")
+            text = new_map_text(t, "", lang=lang)
             res, report = validate_text(text)
             assert res.map is not None and report.errors == 0, (lang, t, report.sorted())
             assert res.map.document.language == lang
-    monkeypatch.setattr(i18n, "_lang", "en")
     assert 'title: "New map"' in new_map_text("can", "")
+    assert 'title: "Новая карта"' in new_map_text("can", "", lang="ru")
 
 
-def test_cli_language_command():
-    from mapcan.cli import app
+def test_export_language_choice(tmp_path):
+    p = tmp_path / "mapcan.yaml"
+    shutil.copyfile(REFERENCE, p)
+    with TestClient(create_app(EditorSession(p))) as c:
+        ru = c.get("/api/export/md?lang=ru").text
+        en = c.get("/api/export/md?lang=en").text
+        assert ru != en
+        assert c.get("/api/export/md?lang=de").status_code == 400
+        tpls = {t["name"]: t["lang"] for t in c.get("/api/templates").json()["pdf"]}
+        assert tpls["mapcan"] is None
+        assert all(tpls[n] == "ru" for n in ("gost-2.105", "gost-19", "gost-7.32"))
 
-    r = CliRunner().invoke(app, ["language", "ru"])
-    assert r.exit_code == 0 and UserConfig.load().language == "ru"
-    r = CliRunner().invoke(app, ["language", "xx"])
-    assert r.exit_code != 0
 
+def test_gost_templates_always_russian():
+    from mapcan.export.pdf import template_lang
+
+    assert template_lang("gost-2.105") == "ru" and template_lang("gost-7.32") == "ru"
+    assert template_lang("mapcan") is None and template_lang(None) is None

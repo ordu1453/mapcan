@@ -1,6 +1,7 @@
 import { createApp } from "vue";
 import App from "./App.vue";
 import { installDeleteShortcut } from "./edit";
+import { t } from "./i18n";
 import { installShortcuts, startEvents } from "./store";
 import "./style.css";
 
@@ -18,6 +19,7 @@ try {
   /* хранилище недоступно */
 }
 
+document.title = t("mapcan — редактор карты");
 createApp(App).mount("#app");
 installShortcuts();
 installDeleteShortcut();

@@ -10,19 +10,20 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..model import Bus, Frame, MapCan, enum_entries, text
-from .common import frames_with_layout, is_byte_array, num, physical, selector_of
+from ..units import translate_unit
+from .common import code_text, frames_with_layout, is_byte_array, num, physical, selector_of
 
 RUNTIME = '''
 
 def _f2b(value, bits):
-    """float → сырые биты IEEE 754."""
+    """@F2B@"""
     if bits == 32:
         return struct.unpack("<I", struct.pack("<f", value))[0]
     return struct.unpack("<Q", struct.pack("<d", value))[0]
 
 
 def _b2f(raw, bits):
-    """Сырые биты IEEE 754 → float."""
+    """@B2F@"""
     if bits == 32:
         return struct.unpack("<f", struct.pack("<I", raw))[0]
     return struct.unpack("<d", struct.pack("<Q", raw))[0]
@@ -65,6 +66,7 @@ def _py_str(s: str) -> str:
 class PyGen:
     def __init__(self, cmap: MapCan, bus: Bus, lang: str | None = None):
         self.cmap, self.bus, self.lang = cmap, bus, lang or cmap.lang
+        self.T = code_text(self.lang)
 
     def t(self, v) -> str:
         return text(v, self.lang).replace("\n", " ")
@@ -72,9 +74,9 @@ class PyGen:
     def module(self) -> str:
         d = self.cmap.document
         out = [
-            f'"""{self.bus.name} — сгенерировано mapcan из «{self.t(d.title)}» версии {d.version}.',
+            '"""' + self.T["py_header"].format(bus=self.bus.name, title=self.t(d.title), version=d.version),
             "",
-            "Не редактируйте вручную: источник — YAML-карта.",
+            self.T["do_not_edit"],
             '"""',
             "",
             "from __future__ import annotations",
@@ -82,7 +84,7 @@ class PyGen:
             "import struct",
             "from dataclasses import dataclass, field",
             "from enum import IntEnum",
-            RUNTIME,
+            RUNTIME.replace("@F2B@", self.T["f2b"]).replace("@B2F@", self.T["b2f"]),
         ]
         frames = frames_with_layout(self.bus)
         for f in frames:
@@ -94,7 +96,7 @@ class PyGen:
         out.append("")
         out.append("")
         out.append("def decode(can_id: int, data: bytes):")
-        out.append('    """Распаковать кадр по ID; None для неизвестного ID."""')
+        out.append(f'    """{self.T["decode"]}"""')
         out.append("    cls = DECODERS.get(can_id)")
         out.append("    return cls.unpack(data) if cls else None")
         out.append("")
@@ -142,9 +144,10 @@ class PyGen:
         out.append("        return bytes(buf)")
 
         # unpack
+        bad_dlc = self.T["bad_dlc"].format(frame=f.name, dlc=f.dlc, got="{len(data)}")
         out += ["", "    @classmethod", f"    def unpack(cls, data: bytes) -> \"{C}\":",
                 f"        if len(data) < {f.dlc}:",
-                f"            raise ValueError(f\"{f.name}: ожидалось {f.dlc} байт, получено {{len(data)}}\")",
+                f"            raise ValueError(f\"{bad_dlc}\")",
                 "        msg = cls()"]
         for s in sorted(f.layout, key=lambda s: not s.multiplexer):
             out += self._guard(s, sel, self._unpack_stmt(s), "msg")
@@ -153,11 +156,12 @@ class PyGen:
         # физические значения
         for s in f.layout:
             if physical(s) and not is_byte_array(s):
+                unit = ", " + translate_unit(s.unit, self.lang) if s.unit else ""
                 out += [
                     "",
                     "    @property",
                     f"    def {s.name}_phys(self) -> float:",
-                    f'        """{self.t(s.description)}{", " + s.unit if s.unit else ""}"""',
+                    f'        """{self.t(s.description)}{unit}"""',
                     f"        return self.{s.name} * {num(s.factor)} + {num(s.offset)}",
                     "",
                     f"    @{s.name}_phys.setter",

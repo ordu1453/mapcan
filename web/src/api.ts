@@ -34,10 +34,9 @@ export const api = {
   meta: () => call<Meta>("GET", "/api/meta"),
   update: () => call<UpdateInfo>("GET", "/api/update"),
   setUser: (u: { name: string; github: string | null }) => call<UserProfile>("PUT", "/api/user", u),
-  setLanguage: (language: string) => call<Meta>("PUT", "/api/language", { language }),
   list: (dir = "") => call<FsList>("GET", `/api/fs/list?dir=${encodeURIComponent(dir)}`),
   open: (path: string, force = false) => call<SessionResult>("POST", "/api/file/open", { path, force }),
-  newFile: (b: { path: string; template: string; title: string; force?: boolean; overwrite?: boolean }) =>
+  newFile: (b: { path: string; template: string; title: string; language: string; force?: boolean; overwrite?: boolean }) =>
     call<SessionResult>("POST", "/api/file/new", b),
   fromExample: (b: { name: string; path: string; force?: boolean; overwrite?: boolean }) =>
     call<SessionResult>("POST", "/api/file/example", b),
@@ -73,15 +72,16 @@ export const api = {
     fd.append("file", file);
     return call<DiffResult>("POST", "/api/diff/upload", fd);
   },
-  exportUrl: (fmt: string, download = false, template?: string) => {
+  exportUrl: (fmt: string, download = false, template?: string, lang?: string) => {
     const q = new URLSearchParams();
     if (download) q.set("download", "true");
     if (template) q.set("template", template);
+    if (lang) q.set("lang", lang);
     const s = q.toString();
     return `/api/export/${fmt}${s ? "?" + s : ""}`;
   },
-  exportText: async (fmt: string) => {
-    const r = await fetch(`/api/export/${fmt}`);
+  exportText: async (fmt: string, lang?: string) => {
+    const r = await fetch(api.exportUrl(fmt, false, undefined, lang));
     if (!r.ok) {
       const j = await r.json().catch(() => ({ detail: r.statusText }));
       throw new ApiError(r.status, j.detail);

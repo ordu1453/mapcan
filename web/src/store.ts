@@ -2,7 +2,7 @@
 
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
-import { setLang, t } from "./i18n";
+import { t } from "./i18n";
 import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath } from "./model";
 import type { Meta, Op, Path, GitStatus, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
@@ -26,6 +26,7 @@ export const store = reactive({
   meta: null as Meta | null,
   pdfTemplates: [] as PdfTemplate[],
   pdfTemplate: savedTemplate(),                // выбранный шаблон PDF (запоминается в браузере)
+  docLang: "",                                 // язык экспортируемых документов; пусто — язык карты
   state: null as State | null,
   dialog: null as DialogKind,
   example: null as string | null,              // пример, копию которого сохраняет диалог "example"
@@ -122,7 +123,6 @@ export const actions = {
   load: async () => {
     try {
       store.meta = await api.meta();
-      setLang(store.meta.language);
       if (!store.pdfTemplates.length) {
         const t = await api.templates();
         store.pdfTemplates = t.pdf;
@@ -137,19 +137,9 @@ export const actions = {
   refreshMeta: async () => {
     store.meta = await api.meta();
   },
-  setLanguage: async (language: string): Promise<void> => {
-    try {
-      store.meta = await api.setLanguage(language);
-      setLang(store.meta.language);
-      store.pdfTemplates = (await api.templates()).pdf;     // названия шаблонов — на новом языке
-      if (store.meta.open) accept(await api.state());      // сообщения проверки — тоже
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
-    }
-  },
   openFile: (path: string) => switchFile((force) => api.open(path, force)),
-  newFile: (path: string, template: string, title: string, overwrite = false) =>
-    switchFile((force) => api.newFile({ path, template, title, force, overwrite }), t("Создана новая карта")),
+  newFile: (path: string, template: string, title: string, language: string, overwrite = false) =>
+    switchFile((force) => api.newFile({ path, template, title, language, force, overwrite }), t("Создана новая карта")),
   newFromExample: (name: string, path: string, overwrite = false) =>
     switchFile(async (force) => {
       try {
@@ -246,6 +236,12 @@ export const actions = {
 // ------------------------------------------------------------------ производные
 
 export const lang = computed(() => store.state?.resolved?.language ?? store.state?.data?.document?.language ?? "ru");
+
+/** Язык документа при экспорте: шаблон ГОСТ — всегда русский, иначе выбранный или язык карты. */
+export function exportLang(fmt: string): string {
+  const fixed = fmt === "pdf" ? store.pdfTemplates.find((x) => x.name === store.pdfTemplate)?.lang : null;
+  return fixed ?? (store.docLang || lang.value);
+}
 
 export const resolvedFrames = computed(() => {
   const m = new Map<string, ResolvedFrame>();

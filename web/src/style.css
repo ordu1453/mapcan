@@ -323,7 +323,6 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .y-punct { color: var(--muted); }
 .y-anchor, .y-tag { color: var(--y-tag); }
 
-.lang-pick { padding: 3px 4px; }
 
 /* ------------------------------------------------------------------ история изменений */
 .history-changes { display: flex; flex-direction: column; gap: 6px; }
@@ -397,6 +396,8 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .dropdown .dd-dl { flex: none; width: 30px; text-align: center; padding: 5px 0; color: var(--muted); }
 .dropdown .dd-dl:hover { color: var(--accent); }
 .export-menu { min-width: 220px; }
+.dd-lang { align-items: center; gap: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
+.dd-lang select { flex: 1; }
 .git-menu { min-width: 280px; }
 .git-head { padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .git-head .git-last { max-width: 260px; white-space: nowrap; }

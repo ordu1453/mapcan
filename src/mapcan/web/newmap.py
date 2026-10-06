@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+from collections.abc import Callable
 
-from ..i18n import N_, _, get_language
+from ..i18n import N_, _, normalize_language
 
 TEMPLATES = {
     "canopen": N_("CANopen: шина и одно устройство"),
@@ -25,11 +26,23 @@ def _q(s: str) -> str:
 
 
 def new_map_text(template: str, title: str, author: str = "", github: str | None = None,
-                 today: _dt.date | None = None) -> str:
+                 today: _dt.date | None = None, lang: str = "en") -> str:
     if template not in TEMPLATES:
         raise ValueError(_("неизвестный шаблон: {template}", template=template))
-    # Содержимое новой карты — на языке интерфейса; он же становится языком документов.
-    today = today or _dt.date.today()
+    doc_lang = normalize_language(lang)
+    if doc_lang is None:
+        raise ValueError(_("неизвестный язык: {language}", language=lang))
+    # Содержимое новой карты — на выбранном языке документов; ключи сообщений уже русские.
+    return _map_text(_ if doc_lang == "en" else _same, doc_lang, template, title, author, github,
+                     today or _dt.date.today())
+
+
+def _same(msg: str, /, **kw) -> str:
+    return msg.format(**kw) if kw else msg
+
+
+def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, author: str,
+              github: str | None, today: _dt.date) -> str:
     lines = [
         "# " + _("Карта сигналов mapcan (формат v1)."),
         "# " + _("Байты и биты нумеруются с 0; start_bit — позиция младшего бита; physical = raw * factor + offset."),
@@ -43,7 +56,7 @@ def new_map_text(template: str, title: str, author: str = "", github: str | None
     ]
     if author:
         lines.append(f"  author: {_q(author)}")
-    lines += [f"  language: {get_language()}", "  history:", "    - version: 0.1.0", f"      date: {today.isoformat()}"]
+    lines += [f"  language: {doc_lang}", "  history:", "    - version: 0.1.0", f"      date: {today.isoformat()}"]
     if author:
         lines.append(f"      author: {_q(author)}")
     if github:

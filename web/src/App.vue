@@ -14,7 +14,7 @@ import TopBar from "./components/TopBar.vue";
 import GitDialog from "./components/GitDialog.vue";
 import GhPublishDialog from "./components/GhPublishDialog.vue";
 import YamlEditor from "./components/YamlEditor.vue";
-import { LANGUAGES, t } from "./i18n";
+import { t } from "./i18n";
 
 const preview = ref<"html" | "pdf" | "md" | null>(null);
 const diffOpen = ref(false);
@@ -22,8 +22,7 @@ const diffOpen = ref(false);
 onMounted(async () => {
   await actions.load();
   if (store.state && !store.state.data) store.tab = "yaml";
-  // Первый запуск: язык — по языку браузера (сменить можно на верхней панели), затем — профиль автора.
-  if (store.meta && !store.meta.language_chosen) await actions.setLanguage(detectLanguage());
+  // Первый запуск: профиль автора.
   askProfile();
   void checkUpdate();
 });
@@ -37,15 +36,6 @@ function askProfile() {
   } catch {
     /* хранилище недоступно */
   }
-}
-
-function detectLanguage(): string {
-  const codes = LANGUAGES.map(([code]) => code);
-  for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
-    const code = (tag ?? "").slice(0, 2).toLowerCase();
-    if (codes.includes(code as (typeof codes)[number])) return code;
-  }
-  return "en";
 }
 
 const UPDATE_KEY = "mapcan-update-dismissed";

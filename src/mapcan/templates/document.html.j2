@@ -67,7 +67,7 @@ table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; co
 <body>
 <div class="layout">
 <nav>
-  <input id="q" type="search" placeholder="Поиск: имя, ID, описание">
+  <input id="q" type="search" placeholder="{{ L.search }}">
   <ul>
   {%- for bus in buses %}
     <li><a href="#{{ bus.name }}"><b>{{ bus.title }}</b></a>

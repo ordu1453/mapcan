@@ -120,9 +120,9 @@ mapcan app         [FILE|DIR] [--browser] [--readonly]
 mapcan serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
 mapcan validate    FILE [--strict] [--info] [--format json] [--disable CODE]
 mapcan export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
-mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR]
-mapcan export md   FILE [-o OUT] [--template my.md.j2]
-mapcan export html FILE [-o OUT] [--template my.html.j2]
+mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR] [--lang en]
+mapcan export md   FILE [-o OUT] [--template my.md.j2] [--lang en]
+mapcan export html FILE [-o OUT] [--template my.html.j2] [--lang en]
 mapcan export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
 mapcan gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
 mapcan gen py      FILE [-o DIR] [--bus NAME]
@@ -131,13 +131,13 @@ mapcan diff        OLD NEW [--format text|md|json]
 mapcan schema      [-o schema.json]
 mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
 mapcan rules
-mapcan language    [en|ru]
 ```
 
-The interface language (validation messages, CLI, editor) is English by default. On the editor's
-first launch it is taken from the browser language; change it with the switch on the editor's top
-bar or with `mapcan language ru`. The `MAPCAN_LANG=ru|en` environment variable overrides the saved
-choice. The document language is set separately, in the map's `document.language` field.
+The interface (validation messages, CLI, editor) is in English. Documents can be produced in
+Russian or English: the default comes from the map's `document.language` field (chosen when a map
+is created), and it can be overridden on export — `--lang` in the CLI, the language switch in the
+editor's export menu and preview. GOST templates (`gost-2.105`, `gost-19`, `gost-7.32`) are always
+produced in Russian.
 
 Export and generation validate the map first and stop on errors (`--force` generates anyway).
 `validate` exits with code 1 on errors, and with `--strict` on warnings too.
@@ -392,9 +392,9 @@ mapcan app         [FILE|DIR] [--browser] [--readonly]
 mapcan serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
 mapcan validate    FILE [--strict] [--info] [--format json] [--disable КОД]
 mapcan export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
-mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR]
-mapcan export md   FILE [-o OUT] [--template my.md.j2]
-mapcan export html FILE [-o OUT] [--template my.html.j2]
+mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR] [--lang en]
+mapcan export md   FILE [-o OUT] [--template my.md.j2] [--lang en]
+mapcan export html FILE [-o OUT] [--template my.html.j2] [--lang en]
 mapcan export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
 mapcan gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
 mapcan gen py      FILE [-o DIR] [--bus NAME]
@@ -403,14 +403,13 @@ mapcan diff        OLD NEW [--format text|md|json]
 mapcan schema      [-o schema.json]
 mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
 mapcan rules
-mapcan language    [en|ru]
 ```
 
-Язык интерфейса (сообщения проверки, CLI, редактор) — английский по умолчанию; при первом
-запуске редактора определяется по языку браузера, меняется переключателем на его верхней
-панели или `mapcan language ru`.
-Переменная окружения `MAPCAN_LANG=ru|en` важнее сохранённого выбора. Язык документов задаётся
-отдельно — полем `document.language` карты.
+Интерфейс (сообщения проверки, CLI, редактор) — на английском. Документы формируются на
+русском или английском: по умолчанию — на языке из поля `document.language` карты (выбирается
+при создании карты), при экспорте его можно сменить — `--lang` в CLI, переключатель языка в меню
+«Export» и в предпросмотре редактора. Шаблоны ГОСТ (`gost-2.105`, `gost-19`, `gost-7.32`) всегда
+формируются на русском.
 
 Экспорт и генерация сначала проверяют карту и прерываются при ошибках
 (`--force` — генерировать всё равно). `validate` возвращает код 1 при ошибках,
@@ -419,13 +418,13 @@ mapcan language    [en|ru]
 ### Пример вывода проверки
 
 ```text
-$ MAPCAN_LANG=ru mapcan validate tests/data/invalid_map.yaml
-tests/data/invalid_map.yaml:21:25: error[number-comma]: значение '0,1': дробная часть отделена запятой, нужно 0.1
-tests/data/invalid_map.yaml:24:17: error[number-cyrillic-x]: значение '0х196': в префиксе 0x используется кириллическая «х»
-tests/data/invalid_map.yaml:33:22: error[invalid-identifier]: имя значения 'NO DATA': допустимы латинские буквы, цифры и _
-tests/data/invalid_map.yaml:62:36: error[duplicate-signal-name]: флаг 'dc_status' уже есть в кадре 'pcu_state' (сигнал)
+$ mapcan validate tests/data/invalid_map.yaml
+tests/data/invalid_map.yaml:21:25: error[number-comma]: value '0,1': decimal comma used, should be 0.1
+tests/data/invalid_map.yaml:24:17: error[number-cyrillic-x]: value '0х196': the 0x prefix uses a Cyrillic «х»
+tests/data/invalid_map.yaml:33:22: error[invalid-identifier]: value name 'NO DATA': only Latin letters, digits and _ are allowed
+tests/data/invalid_map.yaml:62:36: error[duplicate-signal-name]: flag 'dc_status' already exists in frame 'pcu_state' (signal)
 ...
-FAIL: ошибок: 12, предупреждений: 2, замечаний: 0
+FAIL: errors: 12, warnings: 2, notes: 0
 ```
 
 ## Своё оформление

@@ -5,7 +5,7 @@ import { api } from "../api";
 import { actions, store, toast } from "../store";
 import type { FsEntry, FsList } from "../types";
 import Modal from "./Modal.vue";
-import { i18n, N_, t } from "../i18n";
+import { DOC_LANGUAGES, N_, t } from "../i18n";
 import { hasNativeDialog, nativePick } from "../native";
 
 const props = defineProps<{ mode: "open" | "new" | "saveas" | "example" }>();
@@ -20,6 +20,7 @@ const dirInput = ref("");
 const name = ref("");
 const title = ref("");
 const template = ref("canopen");
+const docLang = ref("en");
 const error = ref("");
 const loading = ref(false);
 const nameEl = ref<HTMLInputElement | null>(null);
@@ -86,7 +87,7 @@ async function submit() {
   }
   let ok = false;
   if (props.mode === "open") ok = await actions.openFile(p);
-  else if (props.mode === "new") ok = await actions.newFile(p, template.value, title.value.trim());
+  else if (props.mode === "new") ok = await actions.newFile(p, template.value, title.value.trim(), docLang.value);
   else if (props.mode === "example") ok = await actions.newFromExample(store.example ?? "", p);
   else ok = await actions.saveAs(p);
   if (ok) emit("close");
@@ -117,7 +118,7 @@ async function openRecent(path: string) {
 }
 
 const fmtSize = (n: number | null) => (n == null ? "" : n < 1024 ? t("{n} Б", { n }) : t("{n} КБ", { n: (n / 1024).toFixed(1) }));
-const fmtDate = (s: number) => new Date(s * 1000).toLocaleString(i18n.lang === "ru" ? "ru-RU" : "en-US", { dateStyle: "short", timeStyle: "short" });
+const fmtDate = (s: number) => new Date(s * 1000).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" });
 </script>
 
 <template>
@@ -171,10 +172,16 @@ const fmtDate = (s: number) => new Date(s * 1000).toLocaleString(i18n.lang === "
               <span class="field-label">{{ t("Название карты") }}</span>
               <input v-model="title" :placeholder="t('по имени файла')" @keydown.enter="submit" />
             </label>
-            <label class="field wide">
+            <label class="field">
               <span class="field-label">{{ t("Шаблон") }}</span>
               <select v-model="template">
                 <option v-for="(label, key) in store.meta?.templates" :key="key" :value="key">{{ label }}</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">{{ t("Язык документов") }}</span>
+              <select v-model="docLang">
+                <option v-for="[code, label] in DOC_LANGUAGES" :key="code" :value="code">{{ t(label) }}</option>
               </select>
             </label>
             <p v-if="!store.meta?.user.name" class="field wide muted">

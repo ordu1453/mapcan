@@ -9,14 +9,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..model import Bus, Frame, MapCan, Signal, enum_entries, text
-from .common import frames_with_layout, is_byte_array, num, physical, selector_of, storage_bits
+from ..units import translate_unit
+from .common import code_text, frames_with_layout, is_byte_array, num, physical, selector_of, storage_bits
 
 HELPERS = r"""
 #ifndef MAPCAN_BITS_HELPERS
 #define MAPCAN_BITS_HELPERS
-/* Нумерация бит lsb0: бит p — бит (p % 8) байта (p / 8); start — позиция LSB.
- * big-endian (Motorola): после старшего бита байта цепочка продолжается
- * с бита 0 предыдущего байта. */
+@BITS_NOTE@
 static inline uint64_t mapcan_get_bits(const uint8_t *data, uint16_t start, uint8_t length, bool big_endian)
 {
     uint64_t value = 0u;
@@ -62,7 +61,7 @@ static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
     return (int64_t)((value ^ sign) - sign);
 }
 
-/* IEEE 754: float/double <-> сырые биты (через union, без memcpy и libc). */
+@IEEE_NOTE@
 static inline uint32_t mapcan_f32_to_bits(float f)
 {
     union { float f; uint32_t u; } c;
@@ -118,6 +117,7 @@ class CGen:
     def __init__(self, cmap: MapCan, bus: Bus, prefix: str = "", lang: str | None = None):
         self.cmap, self.bus = cmap, bus
         self.lang = lang or cmap.lang
+        self.T = code_text(self.lang)
         self.prefix = prefix
         self.base = (prefix + bus.name).lower() if prefix else bus.name.lower()
 
@@ -143,8 +143,8 @@ class CGen:
         guard = f"{self.base.upper()}_MAPCAN_H"
         d = self.cmap.document
         out = [
-            f"/* {self.base}.h — сгенерировано mapcan из карты «{_c_comment(text(d.title, self.lang))}»",
-            f" * версии {d.version}. Не редактируйте вручную: источник — YAML-карта. */",
+            self.T["c_header"].format(base=self.base, title=_c_comment(text(d.title, self.lang)),
+                                      version=d.version),
             f"#ifndef {guard}",
             f"#define {guard}",
             "",
@@ -155,7 +155,7 @@ class CGen:
             "#ifdef __cplusplus",
             'extern "C" {',
             "#endif",
-            HELPERS,
+            HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"]),
         ]
         if self.bus.bitrate:
             out.append(f"#define {self.P(self.bus.name, 'BITRATE')} {self.bus.bitrate}u")
@@ -237,7 +237,7 @@ class CGen:
                     f"#define {self.P(F, S, 'OFFSET')} ({num(s.offset)}{sfx})",
                 ]
                 if s.unit:
-                    out.append(f"/* {S}: единица измерения — {_c_comment(s.unit)} */")
+                    out.append(f"/* {S}: {self.T['unit']} — {_c_comment(translate_unit(s.unit, self.lang))} */")
                 out += [
                     f"static inline {FT} {fn}_to_phys({T} raw)",
                     "{",
@@ -255,19 +255,19 @@ class CGen:
 
         out.append("typedef struct {")
         if not f.layout:
-            out.append("    uint8_t reserved_; /* сигналы не описаны */")
+            out.append(f"    uint8_t reserved_; /* {self.T['no_signals']} */")
         for s in f.layout:
             d = self.t(s.description)
             if is_byte_array(s):
                 out.append(f"    uint8_t {s.name}[{s.bit_length // 8}];{' /* ' + d + ' */' if d else ''}")
             else:
-                unit = f" [{_c_comment(s.unit)}]" if s.unit else ""
+                unit = f" [{_c_comment(translate_unit(s.unit, self.lang))}]" if s.unit else ""
                 out.append(f"    {self.ctype(s)} {s.name};{' /* ' + d + unit + ' */' if d or unit else ''}")
         out.append(f"}} {self.p(F)}_t;")
         out.append("")
-        out.append("/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */")
+        out.append(f"/* {self.T['pack']} */")
         out.append(f"int {self.p(F)}_pack(uint8_t *data, size_t size, const {self.p(F)}_t *msg);")
-        out.append("/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */")
+        out.append(f"/* {self.T['unpack']} */")
         out.append(f"int {self.p(F)}_unpack({self.p(F)}_t *msg, const uint8_t *data, size_t size);")
         out.append("")
         return out
@@ -294,7 +294,7 @@ class CGen:
 
     def source(self) -> str:
         out = [
-            f"/* {self.base}.c — сгенерировано mapcan. Не редактируйте вручную. */",
+            self.T["c_source"].format(base=self.base),
             f'#include "{self.base}.h"',
             "",
         ]

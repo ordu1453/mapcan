@@ -78,7 +78,7 @@
           "title": "Description"
         },
         "frames": {
-          "description": "Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME).",
+          "description": "Broadcast frames without an owning device (NMT, SYNC, TIME).",
           "items": {
             "$ref": "#/$defs/Frame"
           },
@@ -116,7 +116,7 @@
             }
           ],
           "default": null,
-          "description": "Короткое обозначение, напр. «BMS».",
+          "description": "Short designation, e.g. \"BMS\".",
           "title": "Short"
         },
         "title": {
@@ -146,7 +146,7 @@
             }
           ],
           "default": null,
-          "description": "CANopen: адрес узла 1..127.",
+          "description": "CANopen: node address 1..127.",
           "title": "Node Id"
         },
         "address": {
@@ -161,7 +161,7 @@
             }
           ],
           "default": null,
-          "description": "J1939: адрес источника 0..253.",
+          "description": "J1939: source address 0..253.",
           "title": "Address"
         },
         "description": {
@@ -276,7 +276,7 @@
         "bit_numbering": {
           "const": "lsb0",
           "default": "lsb0",
-          "description": "Нумерация бит: lsb0 — бит 0 это младший бит байта 0. Поле фиксирует соглашение явно и выводится во всех документах.",
+          "description": "Bit numbering: lsb0 — bit 0 is the least significant bit of byte 0. The field states the convention explicitly and is shown in every document.",
           "title": "Bit Numbering",
           "type": "string"
         },
@@ -290,7 +290,7 @@
             }
           ],
           "default": null,
-          "description": "Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты.",
+          "description": "Company logo: path to a PNG/JPG/SVG relative to the map file.",
           "title": "Logo"
         },
         "designation": {
@@ -303,7 +303,7 @@
             }
           ],
           "default": null,
-          "description": "Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД) или «RU.12345678.00001-01» (ЕСПД).",
+          "description": "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD) or \"RU.12345678.00001-01\" (ESPD).",
           "title": "Designation"
         },
         "litera": {
@@ -316,7 +316,7 @@
             }
           ],
           "default": null,
-          "description": "Литера документа (ЕСКД), напр. «О1».",
+          "description": "Document letter (ESKD), e.g. \"О1\".",
           "title": "Litera"
         },
         "city": {
@@ -329,7 +329,7 @@
             }
           ],
           "default": null,
-          "description": "Город для титульного листа.",
+          "description": "City for the title page.",
           "title": "City"
         },
         "signatures": {
@@ -353,10 +353,10 @@
             }
           ],
           "default": null,
-          "description": "Блок «УТВЕРЖДАЮ» титульного листа."
+          "description": "The \"APPROVED\" block of the title page."
         },
         "agree": {
-          "description": "Блоки «СОГЛАСОВАНО».",
+          "description": "The \"AGREED\" blocks.",
           "items": {
             "$ref": "#/$defs/Person"
           },
@@ -408,7 +408,7 @@
     },
     "Flag": {
       "additionalProperties": false,
-      "description": "Флаг внутри битового поля. ``bit`` — смещение от младшего бита поля.",
+      "description": "A flag inside a bit field. ``bit`` is the offset from the field's least significant bit.",
       "properties": {
         "name": {
           "title": "Name",
@@ -493,7 +493,7 @@
             }
           ],
           "default": null,
-          "description": "Короткий заголовок, напр. «СОСТОЯНИЯ».",
+          "description": "Short heading, e.g. \"STATES\".",
           "title": "Title"
         },
         "description": {
@@ -546,7 +546,7 @@
             }
           ],
           "default": null,
-          "description": "Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN.",
+          "description": "Explicit CAN ID. For CANopen it is computed from node_id, for J1939 from the PGN.",
           "title": "Id"
         },
         "extended": {
@@ -566,7 +566,7 @@
             }
           ],
           "default": null,
-          "description": "J1939: номер группы параметров (PGN).",
+          "description": "J1939: parameter group number (PGN).",
           "title": "Pgn"
         },
         "priority": {
@@ -581,7 +581,7 @@
             }
           ],
           "default": null,
-          "description": "J1939: приоритет 0..7 (по умолчанию 6).",
+          "description": "J1939: priority 0..7 (6 by default).",
           "title": "Priority"
         },
         "destination": {
@@ -596,11 +596,11 @@
             }
           ],
           "default": null,
-          "description": "J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем).",
+          "description": "J1939: destination address for PDU1 (0xFF, global, by default).",
           "title": "Destination"
         },
         "receivers": {
-          "description": "Устройства шины, принимающие кадр (имена).",
+          "description": "Bus devices that receive the frame (names).",
           "items": {
             "type": "string"
           },
@@ -652,7 +652,7 @@
             }
           ],
           "default": null,
-          "description": "Сокращение для transmission: cyclic.",
+          "description": "Shorthand for transmission: cyclic.",
           "title": "Cycle Ms"
         },
         "signals": {
@@ -742,7 +742,7 @@
             }
           ],
           "default": null,
-          "description": "Имя пользователя GitHub автора изменения.",
+          "description": "GitHub username of the change's author.",
           "title": "Github"
         },
         "changes": {
@@ -768,7 +768,7 @@
     },
     "LintRules": {
       "additionalProperties": false,
-      "description": "Настраиваемые правила стиля (проверяются как warning).",
+      "description": "Configurable style rules (checked as warnings).",
       "properties": {
         "signal_name": {
           "default": "snake_case",
@@ -819,7 +819,7 @@
           "type": "string"
         },
         "disable": {
-          "description": "Коды правил, которые нужно отключить.",
+          "description": "Codes of the rules to disable.",
           "items": {
             "type": "string"
           },
@@ -832,7 +832,7 @@
     },
     "LocalizedText": {
       "additionalProperties": true,
-      "description": "Текст с переводами. Строка вместо объекта трактуется как язык документа.",
+      "description": "Text with translations. A plain string instead of an object is taken as the document language.",
       "properties": {
         "ru": {
           "anyOf": [
@@ -864,7 +864,7 @@
     },
     "Person": {
       "additionalProperties": false,
-      "description": "Должностное лицо для блоков «УТВЕРЖДАЮ» / «СОГЛАСОВАНО».",
+      "description": "An official for the \"APPROVED\" / \"AGREED\" blocks.",
       "properties": {
         "position": {
           "anyOf": [
@@ -889,7 +889,7 @@
     },
     "SdoExchange": {
       "additionalProperties": false,
-      "description": "Один SDO-обмен (expedited): команда, индекс, субиндекс, значение.",
+      "description": "One SDO transfer (expedited): command, index, subindex, value.",
       "properties": {
         "name": {
           "title": "Name",
@@ -911,7 +911,7 @@
           "title": "Description"
         },
         "command": {
-          "description": "Байт команды (CCS/SCS), напр. 0x2B.",
+          "description": "Command byte (CCS/SCS), e.g. 0x2B.",
           "maximum": 255,
           "minimum": 0,
           "title": "Command",
@@ -1107,7 +1107,7 @@
             }
           ],
           "default": null,
-          "description": "Тип сигнала. Если не задан: values → enum, flags → bitfield, factor/unit → metric, иначе raw.",
+          "description": "Signal kind. If not set: values → enum, flags → bitfield, factor/unit → metric, otherwise raw.",
           "title": "Kind"
         },
         "start_bit": {
@@ -1121,7 +1121,7 @@
             }
           ],
           "default": null,
-          "description": "Позиция младшего бита (LSB) сигнала в нумерации lsb0.",
+          "description": "Position of the signal's least significant bit (LSB) in lsb0 numbering.",
           "title": "Start Bit"
         },
         "bit_length": {
@@ -1149,7 +1149,7 @@
             }
           ],
           "default": null,
-          "description": "Первый байт сигнала.",
+          "description": "First byte of the signal.",
           "title": "Byte"
         },
         "bit": {
@@ -1164,7 +1164,7 @@
             }
           ],
           "default": null,
-          "description": "Смещение бита в байте.",
+          "description": "Bit offset within the byte.",
           "title": "Bit"
         },
         "byte_length": {
@@ -1210,7 +1210,7 @@
             }
           ],
           "default": null,
-          "description": "Код знакового числа: twos_complement — дополнительный (по умолчанию), ones_complement — обратный, sign_magnitude — прямой. Пометка для документации: сгенерированный код и DBC работают в дополнительном коде.",
+          "description": "Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. A note for the documentation: generated code and DBC use two's complement.",
           "title": "Signed Code"
         },
         "values": {
@@ -1301,7 +1301,7 @@
         },
         "value_format": {
           "default": "dec",
-          "description": "Как показывать значения enum в документах.",
+          "description": "How enum values are shown in documents.",
           "enum": [
             "dec",
             "hex"
@@ -1311,7 +1311,7 @@
         },
         "multiplexer": {
           "default": false,
-          "description": "Сигнал-селектор мультиплексора.",
+          "description": "Multiplexer selector signal.",
           "title": "Multiplexer",
           "type": "boolean"
         },
@@ -1331,7 +1331,7 @@
             }
           ],
           "default": null,
-          "description": "Значение(я) селектора, при которых сигнал присутствует.",
+          "description": "Selector value(s) for which the signal is present.",
           "title": "Mux"
         },
         "initial": {
@@ -1344,7 +1344,7 @@
             }
           ],
           "default": null,
-          "description": "Значение по умолчанию (в физических единицах).",
+          "description": "Default value (in physical units).",
           "title": "Initial"
         },
         "invalid": {
@@ -1363,7 +1363,7 @@
             }
           ],
           "default": null,
-          "description": "Сырое значение (или значения), означающее «нет данных / недостоверно».",
+          "description": "Raw value (or values) meaning \"no data / invalid\".",
           "title": "Invalid"
         },
         "comment": {
@@ -1390,7 +1390,7 @@
     },
     "Signatures": {
       "additionalProperties": false,
-      "description": "Подписи основной надписи ЕСКД (ГОСТ 2.104) и листов утверждения.",
+      "description": "Signatures for the ESKD title block (GOST 2.104) and approval sheets.",
       "properties": {
         "developed": {
           "anyOf": [
@@ -1402,7 +1402,7 @@
             }
           ],
           "default": null,
-          "description": "Разраб.",
+          "description": "Developed by (Разраб.)",
           "title": "Developed"
         },
         "checked": {
@@ -1415,7 +1415,7 @@
             }
           ],
           "default": null,
-          "description": "Пров.",
+          "description": "Checked by (Пров.)",
           "title": "Checked"
         },
         "tech_control": {
@@ -1428,7 +1428,7 @@
             }
           ],
           "default": null,
-          "description": "Т. контр.",
+          "description": "Technical control (Т. контр.)",
           "title": "Tech Control"
         },
         "norm_control": {
@@ -1441,7 +1441,7 @@
             }
           ],
           "default": null,
-          "description": "Н. контр.",
+          "description": "Standards control (Н. контр.)",
           "title": "Norm Control"
         },
         "approved": {
@@ -1454,7 +1454,7 @@
             }
           ],
           "default": null,
-          "description": "Утв.",
+          "description": "Approved by (Утв.)",
           "title": "Approved"
         }
       },
@@ -1497,7 +1497,7 @@
     "mapcan": {
       "const": 1,
       "default": 1,
-      "description": "Версия формата файла.",
+      "description": "File format version.",
       "title": "mapcan",
       "type": "integer"
     },
@@ -1520,7 +1520,7 @@
     "document",
     "buses"
   ],
-  "title": "mapcan — карта сигналов CAN (формат v1)",
+  "title": "mapcan — CAN signal map (format v1)",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://mapcan.local/schema/mapcan-v1.json"

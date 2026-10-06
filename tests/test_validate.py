@@ -310,7 +310,7 @@ def test_bit_overlap():
             - {name: b, description: x, start_bit: 4, bit_length: 8}
     """))
     d = next(d for d in rep.diagnostics if d.code == "bit-overlap")
-    assert "биты 4..7" in d.message
+    assert "bits 4..7" in d.message
 
 
 def test_mux_signals_do_not_overlap():

@@ -55,7 +55,7 @@
     inset: (x: 0pt, y: 4pt),
     [*#L.version*], doc.version,
     [*#L.date*], doc.date,
-    ..if doc.designation != "" { ([*Обозначение*], doc.designation) },
+    ..if doc.designation != "" { ([*#L.designation*], doc.designation) },
     ..if doc.author != "" { ([*#L.author*], doc.author) },
   )
   #v(1fr)

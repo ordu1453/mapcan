@@ -18,7 +18,6 @@ EN: dict[str, str] = {
         "Web editor in the browser (for servers and development; on a workstation `mapcan app` is handier).",
     "Редактор в отдельном окне (pywebview); повторный запуск открывает файл в уже запущенном окне.":
         "Editor in its own window (pywebview); running it again opens the file in the window already open.",
-    "Показать или выбрать язык интерфейса утилиты (en, ru).": "Show or set the tool's interface language (en, ru).",
     "Сравнить две версии карты (кадры, сигналы, значения) и вывести changelog.":
         "Compare two versions of a map (frames, signals, values) and print a changelog.",
     "Список правил проверки.": "List validation rules.",
@@ -53,7 +52,6 @@ EN: dict[str, str] = {
         "Warning: the editor is reachable over the network ({host}) without authentication. "
         "Anyone who opens the address can open and change files.",
     "Открыть в браузере вместо окна приложения.": "Open in a browser instead of the app window.",
-    "Новый язык: en или ru.": "New language: en or ru.",
     "Старая версия карты.": "Old version of the map.",
     "Новая версия карты.": "New version of the map.",
     "Файл JSON Schema.": "JSON Schema file.",
@@ -287,6 +285,72 @@ EN: dict[str, str] = {
     "{key} = {value:g} вне представимого диапазона {lo:g}..{hi:g} {unit}":
         "{key} = {value:g} is outside the representable range {lo:g}..{hi:g} {unit}",
 
+    # ------------------------------------------------------------------ JSON Schema (подсказки в IDE)
+    "mapcan — карта сигналов CAN (формат v1)": "mapcan — CAN signal map (format v1)",
+    "Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME).":
+        "Broadcast frames without an owning device (NMT, SYNC, TIME).",
+    "Короткое обозначение, напр. «BMS».": "Short designation, e.g. \"BMS\".",
+    "CANopen: адрес узла 1..127.": "CANopen: node address 1..127.",
+    "J1939: адрес источника 0..253.": "J1939: source address 0..253.",
+    "Нумерация бит: lsb0 — бит 0 это младший бит байта 0. "
+    "Поле фиксирует соглашение явно и выводится во всех документах.":
+        "Bit numbering: lsb0 — bit 0 is the least significant bit of byte 0. "
+        "The field states the convention explicitly and is shown in every document.",
+    "Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты.":
+        "Company logo: path to a PNG/JPG/SVG relative to the map file.",
+    "Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД) или «RU.12345678.00001-01» (ЕСПД).":
+        "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD) or \"RU.12345678.00001-01\" (ESPD).",
+    "Литера документа (ЕСКД), напр. «О1».": "Document letter (ESKD), e.g. \"О1\".",
+    "Город для титульного листа.": "City for the title page.",
+    "Блок «УТВЕРЖДАЮ» титульного листа.": "The \"APPROVED\" block of the title page.",
+    "Блоки «СОГЛАСОВАНО».": "The \"AGREED\" blocks.",
+    "Флаг внутри битового поля. ``bit`` — смещение от младшего бита поля.":
+        "A flag inside a bit field. ``bit`` is the offset from the field's least significant bit.",
+    "Короткий заголовок, напр. «СОСТОЯНИЯ».": "Short heading, e.g. \"STATES\".",
+    "Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN.":
+        "Explicit CAN ID. For CANopen it is computed from node_id, for J1939 from the PGN.",
+    "J1939: номер группы параметров (PGN).": "J1939: parameter group number (PGN).",
+    "J1939: приоритет 0..7 (по умолчанию 6).": "J1939: priority 0..7 (6 by default).",
+    "J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем).":
+        "J1939: destination address for PDU1 (0xFF, global, by default).",
+    "Устройства шины, принимающие кадр (имена).": "Bus devices that receive the frame (names).",
+    "Сокращение для transmission: cyclic.": "Shorthand for transmission: cyclic.",
+    "Имя пользователя GitHub автора изменения.": "GitHub username of the change's author.",
+    "Настраиваемые правила стиля (проверяются как warning).": "Configurable style rules (checked as warnings).",
+    "Коды правил, которые нужно отключить.": "Codes of the rules to disable.",
+    "Текст с переводами. Строка вместо объекта трактуется как язык документа.":
+        "Text with translations. A plain string instead of an object is taken as the document language.",
+    "Должностное лицо для блоков «УТВЕРЖДАЮ» / «СОГЛАСОВАНО».":
+        "An official for the \"APPROVED\" / \"AGREED\" blocks.",
+    "Один SDO-обмен (expedited): команда, индекс, субиндекс, значение.":
+        "One SDO transfer (expedited): command, index, subindex, value.",
+    "Байт команды (CCS/SCS), напр. 0x2B.": "Command byte (CCS/SCS), e.g. 0x2B.",
+    "Тип сигнала. Если не задан: values → enum, flags → bitfield, factor/unit → metric, иначе raw.":
+        "Signal kind. If not set: values → enum, flags → bitfield, factor/unit → metric, otherwise raw.",
+    "Позиция младшего бита (LSB) сигнала в нумерации lsb0.":
+        "Position of the signal's least significant bit (LSB) in lsb0 numbering.",
+    "Первый байт сигнала.": "First byte of the signal.",
+    "Смещение бита в байте.": "Bit offset within the byte.",
+    "Код знакового числа: twos_complement — дополнительный (по умолчанию), "
+    "ones_complement — обратный, sign_magnitude — прямой. Пометка для документации: "
+    "сгенерированный код и DBC работают в дополнительном коде.":
+        "Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. "
+        "A note for the documentation: generated code and DBC use two's complement.",
+    "Как показывать значения enum в документах.": "How enum values are shown in documents.",
+    "Сигнал-селектор мультиплексора.": "Multiplexer selector signal.",
+    "Значение(я) селектора, при которых сигнал присутствует.":
+        "Selector value(s) for which the signal is present.",
+    "Значение по умолчанию (в физических единицах).": "Default value (in physical units).",
+    "Сырое значение (или значения), означающее «нет данных / недостоверно».":
+        "Raw value (or values) meaning \"no data / invalid\".",
+    "Подписи основной надписи ЕСКД (ГОСТ 2.104) и листов утверждения.":
+        "Signatures for the ESKD title block (GOST 2.104) and approval sheets.",
+    "Разраб.": "Developed by (Разраб.)",
+    "Пров.": "Checked by (Пров.)",
+    "Т. контр.": "Technical control (Т. контр.)",
+    "Н. контр.": "Standards control (Н. контр.)",
+    "Утв.": "Approved by (Утв.)",
+    "Версия формата файла.": "File format version.",
     # ------------------------------------------------------------------ веб-редактор
     "папка не найдена: {path}": "folder not found: {path}",
     "карта не открыта": "no map is open",

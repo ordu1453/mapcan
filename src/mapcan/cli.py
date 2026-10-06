@@ -13,7 +13,7 @@ import typer
 
 from . import __version__
 from .diagnostics import Report
-from .i18n import LANGUAGES, _, get_language, normalize_language
+from .i18n import _
 from .loader import LoadResult
 from .validate import RULES, validate_file
 
@@ -163,25 +163,6 @@ def app_cmd(
     from .launcher import run
 
     raise typer.Exit(run(path, window=not browser, readonly=readonly))
-
-
-@app.command(help=_("Показать или выбрать язык интерфейса утилиты (en, ru)."))
-def language(
-    lang: Optional[str] = typer.Argument(None, help=_("Новый язык: en или ru.")),
-) -> None:
-    from .userconfig import UserConfig
-
-    if lang is None:
-        typer.echo(get_language())
-        return
-    norm = normalize_language(lang)
-    if norm is None:
-        raise typer.BadParameter(_("неизвестный язык: {language}", language=lang)
-                                 + f" ({', '.join(LANGUAGES)})")
-    cfg = UserConfig.load()
-    cfg.language = norm
-    cfg.save()
-    typer.echo(norm)
 
 
 class DiffFormat(str, Enum):

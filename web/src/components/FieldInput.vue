@@ -4,8 +4,8 @@ import { computed, nextTick, ref, watch } from "vue";
 import { formatValue, parseInput, ParseError, type FieldDef } from "../fields";
 import { samePath, startsWith } from "../model";
 import type { Diagnostic, Path } from "../types";
-import { i18n, t } from "../i18n";
-import { store } from "../store";
+import { t } from "../i18n";
+import { lang as docLang, store } from "../store";
 import HelpTip from "./HelpTip.vue";
 
 const props = defineProps<{
@@ -82,11 +82,11 @@ function onBool(e: Event) {
   emit("commit", (e.target as HTMLInputElement).checked ? true : null);
 }
 
-// Подсказки единиц: обозначение на языке интерфейса, перевод — во всплывающей подписи.
+// Подсказки единиц: обозначение на языке документов карты, перевод — во всплывающей подписи.
 // Свой список вместо <datalist>: тот не стилизуется (слишком высокий) и при заполненном поле показывает только совпадения.
 const suggestions = computed<Array<[string, string]>>(() => {
   if (props.def.suggest !== "units") return [];
-  const en = i18n.lang === "en";
+  const en = docLang.value === "en";
   return (store.state?.units ?? []).map(([ru, e]) => (en ? [e, ru] : [ru, e]) as [string, string]);
 });
 const listOpen = ref(false);

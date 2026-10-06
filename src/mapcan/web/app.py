@@ -26,7 +26,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .. import __version__, updates
 from ..diff import changelog_lines, diff_maps
-from ..i18n import _, configured_language, get_language, normalize_language, set_language
+from ..i18n import _, normalize_language
 from ..loader import loads
 from ..model import MapCan
 from ..userconfig import UserConfig, normalize_github
@@ -90,6 +90,7 @@ class NewBody(BaseModel):
     path: str
     template: str = "canopen"
     title: str = ""
+    language: str = "en"          # язык документов новой карты
     force: bool = False
     overwrite: bool = False
 
@@ -113,10 +114,6 @@ class CloseBody(BaseModel):
 class UserBody(BaseModel):
     name: str = ""
     github: str | None = None
-
-
-class LanguageBody(BaseModel):
-    language: str
 
 
 class ActivateBody(BaseModel):
@@ -234,8 +231,6 @@ class Workspace:
             recent.append({"path": r, "name": p.name, "dir": str(p.parent), "exists": p.is_file()})
         return {
             "version": __version__,
-            "language": get_language(),
-            "language_chosen": configured_language() is not None,
             "user": self.config.user.to_dict(),
             "recent": recent,
             "cwd": str(self.cwd),
@@ -533,23 +528,6 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             raise AppError(500, "config", _("не удалось сохранить настройки: {error}", error=e)) from e
         return wsp.config.user.to_dict()
 
-    @app.put("/api/language")
-    async def put_language(body: LanguageBody) -> dict:
-        lang = normalize_language(body.language)
-        if lang is None:
-            raise AppError(400, "language", _("неизвестный язык: {language}", language=body.language))
-        wsp.config.language = lang
-        try:
-            wsp.config.save()
-        except OSError as e:
-            raise AppError(500, "config", _("не удалось сохранить настройки: {error}", error=e)) from e
-        set_language(lang)
-        async with lock:
-            if wsp.session is not None:
-                wsp.session.recheck()        # сообщения проверки — на новом языке
-                await changed()
-        return wsp.meta()
-
     # ---------------------------------------------------------------- файлы
 
     def yaml_path(raw: str) -> Path:
@@ -599,7 +577,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def file_new(body: NewBody) -> dict:
         user = wsp.config.user
         return await create_file(body.path, body.force, body.overwrite, lambda path: new_map_text(
-            body.template, body.title or path.stem, user.name, user.github))
+            body.template, body.title or path.stem, user.name, user.github, lang=body.language))
 
     @app.post("/api/file/example")
     async def file_example(body: ExampleBody) -> dict:
@@ -677,7 +655,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def get_templates() -> dict:
         from ..export.pdf import DEFAULT_TEMPLATE_NAME, PDF_TEMPLATES
 
-        return {"pdf": [{"name": t.name, "title": _(t.title), "description": _(t.description)}
+        return {"pdf": [{"name": t.name, "title": _(t.title), "description": _(t.description), "lang": t.lang}
                         for t in PDF_TEMPLATES.values()],
                 "default": DEFAULT_TEMPLATE_NAME}
 
@@ -692,6 +670,11 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             raise HTTPException(404, _("неизвестный формат: {fmt}", fmt=fmt))
         if template is not None and template not in PDF_TEMPLATES:
             raise HTTPException(400, _("неизвестный шаблон PDF: {template}", template=template))
+        if lang:
+            norm = normalize_language(lang)
+            if norm is None:
+                raise HTTPException(400, _("неизвестный язык: {language}", language=lang))
+            lang = norm
         s = wsp.require()
         cmap = s.map
         if cmap is None:

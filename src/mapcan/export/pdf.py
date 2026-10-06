@@ -26,6 +26,7 @@ class PdfTemplate:
     name: str
     title: str
     description: str
+    lang: str | None = None          # язык документа зафиксирован (шаблоны ГОСТ — только русский)
 
     @property
     def path(self) -> Path:
@@ -39,13 +40,13 @@ PDF_TEMPLATES: dict[str, PdfTemplate] = {
                     N_("Цветные битовые диаграммы, колонтитулы, титульный лист в свободной форме.")),
         PdfTemplate("gost-2.105", N_("ЕСКД — ГОСТ 2.105 / 2.104"),
                     N_("Текстовый конструкторский документ: рамка, основная надпись (формы 2 и 2а), "
-                       "дополнительные графы, титульный лист, лист регистрации изменений.")),
+                       "дополнительные графы, титульный лист, лист регистрации изменений."), "ru"),
         PdfTemplate("gost-19", N_("ЕСПД — ГОСТ 19.104 / 19.106"),
                     N_("Программный документ: лист утверждения, титульный лист, аннотация, "
-                       "обозначение на каждой странице, лист регистрации изменений.")),
+                       "обозначение на каждой странице, лист регистрации изменений."), "ru"),
         PdfTemplate("gost-7.32", N_("Отчёт — ГОСТ 7.32-2017"),
                     N_("Отчёт: титульный лист, список исполнителей, реферат, содержание, "
-                       "нумерованные таблицы, приложение.")),
+                       "нумерованные таблицы, приложение."), "ru"),
     ]
 }
 DEFAULT_TEMPLATE_NAME = "mapcan"
@@ -55,6 +56,13 @@ PDF_TEMPLATE_ALIASES = {"canmap": "mapcan"}
 
 class PdfError(RuntimeError):
     pass
+
+
+def template_lang(template: str | Path | None) -> str | None:
+    """Язык, зафиксированный встроенным шаблоном (ГОСТ — русский), или None."""
+    name = PDF_TEMPLATE_ALIASES.get(str(template or DEFAULT_TEMPLATE_NAME), str(template or DEFAULT_TEMPLATE_NAME))
+    t = PDF_TEMPLATES.get(name)
+    return t.lang if t else None
 
 
 def resolve_template(template: str | Path | None) -> Path:
@@ -85,10 +93,14 @@ def export_pdf(
     lang: str | None = None,
     fmt: str = "pdf",
 ) -> Path:
-    """Собрать PDF. ``template`` — имя встроенного шаблона или путь к своему ``.typ``."""
+    """Собрать PDF. ``template`` — имя встроенного шаблона или путь к своему ``.typ``.
+
+    Шаблоны ГОСТ всегда собираются на русском — ``lang`` для них не учитывается.
+    """
     import typst
 
     tpl = resolve_template(template)
+    lang = template_lang(template) or lang
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fonts = [str(FONTS_DIR)] + [str(p) for p in font_paths]

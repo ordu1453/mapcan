@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { api } from "../api";
-import { actions, store } from "../store";
-import { i18n, LANGUAGES, N_, t } from "../i18n";
+import { actions, exportLang, lang, store } from "../store";
+import { DOC_LANGUAGES, N_, t } from "../i18n";
 import BrandMark from "./BrandMark.vue";
 
 const emit = defineEmits<{ preview: [fmt: "html" | "pdf" | "md"]; diff: [] }>();
@@ -45,7 +45,8 @@ const DEV: ExportItem[] = [
   { fmt: "py", label: N_("Python-модуль"), hint: ".zip" },
 ];
 function downloadUrl(it: ExportItem) {
-  return api.exportUrl(it.fmt, true, it.fmt === "pdf" ? store.pdfTemplate : undefined);
+  const doc = DOCUMENTS.includes(it);
+  return api.exportUrl(it.fmt, true, it.fmt === "pdf" ? store.pdfTemplate : undefined, doc ? exportLang(it.fmt) : undefined);
 }
 
 // ---- git
@@ -185,6 +186,12 @@ onBeforeUnmount(() => {
         <div v-if="menu === 'export'" class="dropdown export-menu" @click="menu = null">
           <template v-for="[title, items] in ([[t('Документы'), DOCUMENTS], [t('Для разработки'), DEV]] as const)" :key="title">
             <div class="dd-title">{{ title }}</div>
+            <label v-if="items === DOCUMENTS" class="dd-row dd-lang" @click.stop>
+              {{ t("Язык") }}
+              <select :value="store.docLang || lang" @change="store.docLang = ($event.target as HTMLSelectElement).value">
+                <option v-for="[code, label] in DOC_LANGUAGES" :key="code" :value="code">{{ t(label) }}</option>
+              </select>
+            </label>
             <div v-for="it in items" :key="it.fmt" class="dd-row">
               <button v-if="it.preview" :title="t('Предпросмотр')" @click="emit('preview', it.preview)">
                 {{ t(it.label) }} <span class="muted dd-dir">{{ it.fmt === "pdf" ? pdfTitle : "" }}</span>
@@ -206,10 +213,6 @@ onBeforeUnmount(() => {
       <span class="avatar">{{ initials }}</span>
       <span class="uname">{{ store.meta?.user.name || t("Профиль") }}</span>
     </button>
-    <select class="lang-pick" :value="i18n.lang" :title="t('Язык интерфейса')"
-            @change="actions.setLanguage(($event.target as HTMLSelectElement).value)">
-      <option v-for="[code, label] in LANGUAGES" :key="code" :value="code">{{ label }}</option>
-    </select>
     <button class="icon" :title="t('Тема: {name}', { name: t(THEME_NAMES[theme]) })" @click="cycleTheme">{{ theme === "dark" ? "☾" : theme === "light" ? "☀" : "◐" }}</button>
   </header>
 </template>
