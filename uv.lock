@@ -89,7 +89,7 @@ wheels = [
 ]
 
 [[package]]
-name = "canmap"
+name = "mapcan"
 version = "0.8.1"
 source = { editable = "." }
 dependencies = [

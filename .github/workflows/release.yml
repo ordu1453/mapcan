@@ -1,10 +1,10 @@
 name: release
 
-# Выпуск версии: поднять версию (pyproject.toml, src/canmap/__init__.py, web/package.json),
+# Выпуск версии: поднять версию (pyproject.toml, src/mapcan/__init__.py, web/package.json),
 # закоммитить и запушить тег vX.Y.Z. Workflow проверит, соберёт и опубликует GitHub Release:
-#   canmap-X.Y.Z-setup.exe          — установщик для Windows
-#   canmap-X.Y.Z-windows-x64.zip    — та же сборка без установки
-#   canmap-X.Y.Z-py3-none-any.whl   — для uv tool install / pipx
+#   mapcan-X.Y.Z-setup.exe          — установщик для Windows
+#   mapcan-X.Y.Z-windows-x64.zip    — та же сборка без установки
+#   mapcan-X.Y.Z-py3-none-any.whl   — для uv tool install / pipx
 #   Docker-образ ghcr.io/<владелец>/mapcan:X.Y.Z и :latest
 # Ручной запуск (Actions → release → Run workflow) — пробная сборка без публикации.
 #
@@ -41,11 +41,11 @@ jobs:
         name: Tag matches package version
         run: |
           v=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          init=$(grep -m1 '^__version__' src/canmap/__init__.py | cut -d'"' -f2)
+          init=$(grep -m1 '^__version__' src/mapcan/__init__.py | cut -d'"' -f2)
           web=$(node -p "require('./web/package.json').version")
           echo "pyproject=$v __init__=$init web=$web ref=$GITHUB_REF_NAME"
           if [ "$v" != "$init" ] || [ "$v" != "$web" ]; then
-            echo "::error::версии в pyproject.toml, src/canmap/__init__.py и web/package.json различаются"; exit 1
+            echo "::error::версии в pyproject.toml, src/mapcan/__init__.py и web/package.json различаются"; exit 1
           fi
           if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then
             echo "::error::тег $GITHUB_REF_NAME не совпадает с версией пакета $v"; exit 1
@@ -93,16 +93,16 @@ jobs:
       - name: Install
         run: uv sync --locked --no-dev --extra desktop --group package
       - name: Build (PyInstaller)
-        run: uv run --no-sync pyinstaller packaging/canmap.spec --noconfirm
+        run: uv run --no-sync pyinstaller packaging/mapcan.spec --noconfirm
       - name: Smoke test
         run: |
           set -e
-          out=$(dist/canmap/canmap.exe --version | tr -d '\r')
+          out=$(dist/mapcan/mapcan.exe --version | tr -d '\r')
           echo "$out"
-          [ "$out" = "canmap $VERSION" ]
-          test -f dist/canmap/canmap-app.exe
-          dist/canmap/canmap.exe validate examples/minimal.yaml
-          dist/canmap/canmap.exe build examples/vehicle-can.yaml -o smoke
+          [ "$out" = "mapcan $VERSION" ]
+          test -f dist/mapcan/mapcan-app.exe
+          dist/mapcan/mapcan.exe validate examples/minimal.yaml
+          dist/mapcan/mapcan.exe build examples/vehicle-can.yaml -o smoke
           test -s smoke/vehicle-can.pdf && test -s smoke/vehicle-can.xlsx
       - name: Installer (Inno Setup)
         shell: powershell
@@ -119,17 +119,17 @@ jobs:
             Start-Process $setup -Wait -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR=`"$local`""
             if (-not (Test-Path $iscc)) { Write-Error "Inno Setup не установился в $local"; exit 1 }
           }
-          & $iscc /Qp "/DAppVersion=$env:VERSION" packaging\canmap.iss
+          & $iscc /Qp "/DAppVersion=$env:VERSION" packaging\mapcan.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Portable zip
         shell: powershell
-        run: Compress-Archive -Path dist\canmap\* -DestinationPath "dist\canmap-$env:VERSION-windows-x64.zip"
+        run: Compress-Archive -Path dist\mapcan\* -DestinationPath "dist\mapcan-$env:VERSION-windows-x64.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: dist-windows
           path: |
-            dist/canmap-*-setup.exe
-            dist/canmap-*-windows-x64.zip
+            dist/mapcan-*-setup.exe
+            dist/mapcan-*-windows-x64.zip
           if-no-files-found: error
 
   docker:
@@ -192,13 +192,13 @@ jobs:
             echo
             echo "## Установка"
             echo
-            echo "- **Windows:** скачайте \`canmap-$VERSION-setup.exe\` и запустите. Права администратора не нужны."
-            echo "  Без установки — \`canmap-$VERSION-windows-x64.zip\` (запуск: \`canmap-app.exe\`)."
-            echo "- **Python 3.12:** \`uv tool install \"canmap[desktop] @ https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/canmap-$VERSION-py3-none-any.whl\"\`"
-            echo "- **Docker:** \`docker run --rm -v \"\$PWD:/work\" ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION build canmap.yaml -o build\`"
+            echo "- **Windows:** скачайте \`mapcan-$VERSION-setup.exe\` и запустите. Права администратора не нужны."
+            echo "  Без установки — \`mapcan-$VERSION-windows-x64.zip\` (запуск: \`mapcan-app.exe\`)."
+            echo "- **Python 3.12:** \`uv tool install \"mapcan[desktop] @ https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/mapcan-$VERSION-py3-none-any.whl\"\`"
+            echo "- **Docker:** \`docker run --rm -v \"\$PWD:/work\" ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION build mapcan.yaml -o build\`"
           } > notes.md
           cat notes.md
       - name: Publish GitHub Release
         run: |
-          gh release create "$TAG" assets/* --verify-tag --title "canmap $VERSION" \
+          gh release create "$TAG" assets/* --verify-tag --title "mapcan $VERSION" \
             --notes-file notes.md --generate-notes

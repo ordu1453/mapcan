@@ -1,11 +1,11 @@
-# Формат карты сигналов (canmap, v1)
+# Формат карты сигналов (mapcan, v1)
 
 Карта — это YAML-файл. Из него генерируются все документы и код. JSON Schema формата
-лежит в [`schema/canmap.schema.json`](../schema/canmap.schema.json): если в первой строке
+лежит в [`schema/mapcan.schema.json`](../schema/mapcan.schema.json): если в первой строке
 файла указать
 
 ```yaml
-# yaml-language-server: $schema=./schema/canmap.schema.json
+# yaml-language-server: $schema=./schema/mapcan.schema.json
 ```
 
 VS Code с расширением *YAML* (Red Hat) будет подсказывать поля и подчёркивать ошибки.
@@ -26,7 +26,7 @@ VS Code с расширением *YAML* (Red Hat) будет подсказыв
 ## Структура файла
 
 ```yaml
-canmap: 1                 # версия формата
+mapcan: 1                 # версия формата (карты с прежним ключом canmap: 1 тоже читаются)
 document: {...}           # метаданные и история изменений
 lint: {...}               # правила стиля (необязательно)
 buses: [...]              # одна или несколько шин
@@ -239,7 +239,7 @@ buses:
       value: {name: alarm_resistance, bit_length: 16, unit: кОм}
 ```
 
-canmap построит раскладку кадра сам: байт 0 — команда, байты 1–2 — индекс (little-endian),
+mapcan построит раскладку кадра сам: байт 0 — команда, байты 1–2 — индекс (little-endian),
 байт 3 — субиндекс (селектор мультиплексора, если индекс один), байты 4–7 — значение.
 
 ## Ссылки YAML
@@ -256,7 +256,7 @@ values: *dc_states
 
 ## Правила проверки
 
-Полный список — `canmap rules`. Уровни: **error** (генерация прерывается, код возврата 1),
+Полный список — `mapcan rules`. Уровни: **error** (генерация прерывается, код возврата 1),
 **warning** (код 1 только с `--strict`), **info** (показывается с `--info`).
 
 | Код | Уровень | Что проверяется |

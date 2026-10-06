@@ -1,7 +1,7 @@
-/* bus1.h — сгенерировано canmap из карты «Эталонная карта CANopen»
+/* bus1.h — сгенерировано mapcan из карты «Эталонная карта CANopen»
  * версии 1.0.0. Не редактируйте вручную: источник — YAML-карта. */
-#ifndef BUS1_CANMAP_H
-#define BUS1_CANMAP_H
+#ifndef BUS1_MAPCAN_H
+#define BUS1_MAPCAN_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -11,12 +11,12 @@
 extern "C" {
 #endif
 
-#ifndef CANMAP_BITS_HELPERS
-#define CANMAP_BITS_HELPERS
+#ifndef MAPCAN_BITS_HELPERS
+#define MAPCAN_BITS_HELPERS
 /* Нумерация бит lsb0: бит p — бит (p % 8) байта (p / 8); start — позиция LSB.
  * big-endian (Motorola): после старшего бита байта цепочка продолжается
  * с бита 0 предыдущего байта. */
-static inline uint64_t canmap_get_bits(const uint8_t *data, uint16_t start, uint8_t length, bool big_endian)
+static inline uint64_t mapcan_get_bits(const uint8_t *data, uint16_t start, uint8_t length, bool big_endian)
 {
     uint64_t value = 0u;
     uint8_t done = 0u;
@@ -36,7 +36,7 @@ static inline uint64_t canmap_get_bits(const uint8_t *data, uint16_t start, uint
     return value;
 }
 
-static inline void canmap_set_bits(uint8_t *data, uint64_t value, uint16_t start, uint8_t length, bool big_endian)
+static inline void mapcan_set_bits(uint8_t *data, uint64_t value, uint16_t start, uint8_t length, bool big_endian)
 {
     uint8_t done = 0u;
     int16_t pos = (int16_t)start;
@@ -55,43 +55,43 @@ static inline void canmap_set_bits(uint8_t *data, uint64_t value, uint16_t start
     }
 }
 
-static inline int64_t canmap_sign_extend(uint64_t value, uint8_t length)
+static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
 {
     uint64_t sign = (uint64_t)1u << (length - 1u);
     return (int64_t)((value ^ sign) - sign);
 }
 
 /* IEEE 754: float/double <-> сырые биты (через union, без memcpy и libc). */
-static inline uint32_t canmap_f32_to_bits(float f)
+static inline uint32_t mapcan_f32_to_bits(float f)
 {
     union { float f; uint32_t u; } c;
     c.f = f;
     return c.u;
 }
-static inline float canmap_bits_to_f32(uint32_t u)
+static inline float mapcan_bits_to_f32(uint32_t u)
 {
     union { float f; uint32_t u; } c;
     c.u = u;
     return c.f;
 }
-static inline uint64_t canmap_f64_to_bits(double f)
+static inline uint64_t mapcan_f64_to_bits(double f)
 {
     union { double f; uint64_t u; } c;
     c.f = f;
     return c.u;
 }
-static inline double canmap_bits_to_f64(uint64_t u)
+static inline double mapcan_bits_to_f64(uint64_t u)
 {
     union { double f; uint64_t u; } c;
     c.u = u;
     return c.f;
 }
 
-static inline float canmap_round_f(float x)
+static inline float mapcan_round_f(float x)
 {
     return (x >= 0.0f) ? (x + 0.5f) : (x - 0.5f);
 }
-#endif /* CANMAP_BITS_HELPERS */
+#endif /* MAPCAN_BITS_HELPERS */
 
 #define BUS1_BITRATE 500000u
 #define IMD_NODE_ID 0x21u
@@ -128,7 +128,7 @@ static inline float time_stamp_ms_after_midnight_to_phys(uint32_t raw)
 }
 static inline uint32_t time_stamp_ms_after_midnight_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET) / TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR);
+    float r = mapcan_round_f((phys - TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET) / TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 268435455.0f) { r = 268435455.0f; }
     return (uint32_t)r;
@@ -143,7 +143,7 @@ static inline float time_stamp_days_since_1984_to_phys(uint16_t raw)
 }
 static inline uint16_t time_stamp_days_since_1984_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - TIME_STAMP_DAYS_SINCE_1984_OFFSET) / TIME_STAMP_DAYS_SINCE_1984_FACTOR);
+    float r = mapcan_round_f((phys - TIME_STAMP_DAYS_SINCE_1984_OFFSET) / TIME_STAMP_DAYS_SINCE_1984_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -221,7 +221,7 @@ static inline float imd_data_resistance_plus_to_phys(uint16_t raw)
 }
 static inline uint16_t imd_data_resistance_plus_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - IMD_DATA_RESISTANCE_PLUS_OFFSET) / IMD_DATA_RESISTANCE_PLUS_FACTOR);
+    float r = mapcan_round_f((phys - IMD_DATA_RESISTANCE_PLUS_OFFSET) / IMD_DATA_RESISTANCE_PLUS_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -236,7 +236,7 @@ static inline float imd_data_resistance_minus_to_phys(uint16_t raw)
 }
 static inline uint16_t imd_data_resistance_minus_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - IMD_DATA_RESISTANCE_MINUS_OFFSET) / IMD_DATA_RESISTANCE_MINUS_FACTOR);
+    float r = mapcan_round_f((phys - IMD_DATA_RESISTANCE_MINUS_OFFSET) / IMD_DATA_RESISTANCE_MINUS_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -257,7 +257,7 @@ static inline float imd_data_bus_voltage_to_phys(uint16_t raw)
 }
 static inline uint16_t imd_data_bus_voltage_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - IMD_DATA_BUS_VOLTAGE_OFFSET) / IMD_DATA_BUS_VOLTAGE_FACTOR);
+    float r = mapcan_round_f((phys - IMD_DATA_BUS_VOLTAGE_OFFSET) / IMD_DATA_BUS_VOLTAGE_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -334,7 +334,7 @@ static inline float imd_sdo_request_alarm_resistance_to_phys(uint16_t raw)
 }
 static inline uint16_t imd_sdo_request_alarm_resistance_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR);
+    float r = mapcan_round_f((phys - IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -349,7 +349,7 @@ static inline float imd_sdo_request_warning_resistance_to_phys(uint16_t raw)
 }
 static inline uint16_t imd_sdo_request_warning_resistance_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR);
+    float r = mapcan_round_f((phys - IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -571,7 +571,7 @@ static inline float pcu_data_dc_output_voltage_to_phys(uint16_t raw)
 }
 static inline uint16_t pcu_data_dc_output_voltage_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - PCU_DATA_DC_OUTPUT_VOLTAGE_OFFSET) / PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR);
+    float r = mapcan_round_f((phys - PCU_DATA_DC_OUTPUT_VOLTAGE_OFFSET) / PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -586,7 +586,7 @@ static inline float pcu_data_dc_input_voltage_to_phys(uint16_t raw)
 }
 static inline uint16_t pcu_data_dc_input_voltage_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - PCU_DATA_DC_INPUT_VOLTAGE_OFFSET) / PCU_DATA_DC_INPUT_VOLTAGE_FACTOR);
+    float r = mapcan_round_f((phys - PCU_DATA_DC_INPUT_VOLTAGE_OFFSET) / PCU_DATA_DC_INPUT_VOLTAGE_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -601,7 +601,7 @@ static inline float pcu_data_dc_output_current_to_phys(uint16_t raw)
 }
 static inline uint16_t pcu_data_dc_output_current_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - PCU_DATA_DC_OUTPUT_CURRENT_OFFSET) / PCU_DATA_DC_OUTPUT_CURRENT_FACTOR);
+    float r = mapcan_round_f((phys - PCU_DATA_DC_OUTPUT_CURRENT_OFFSET) / PCU_DATA_DC_OUTPUT_CURRENT_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -616,7 +616,7 @@ static inline float pcu_data_dc_input_current_to_phys(uint16_t raw)
 }
 static inline uint16_t pcu_data_dc_input_current_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - PCU_DATA_DC_INPUT_CURRENT_OFFSET) / PCU_DATA_DC_INPUT_CURRENT_FACTOR);
+    float r = mapcan_round_f((phys - PCU_DATA_DC_INPUT_CURRENT_OFFSET) / PCU_DATA_DC_INPUT_CURRENT_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 65535.0f) { r = 65535.0f; }
     return (uint16_t)r;
@@ -660,7 +660,7 @@ static inline float pcu_command_target_voltage_to_phys(uint8_t raw)
 }
 static inline uint8_t pcu_command_target_voltage_from_phys(float phys)
 {
-    float r = canmap_round_f((phys - PCU_COMMAND_TARGET_VOLTAGE_OFFSET) / PCU_COMMAND_TARGET_VOLTAGE_FACTOR);
+    float r = mapcan_round_f((phys - PCU_COMMAND_TARGET_VOLTAGE_OFFSET) / PCU_COMMAND_TARGET_VOLTAGE_FACTOR);
     if (r < 0.0f) { r = 0.0f; }
     if (r > 255.0f) { r = 255.0f; }
     return (uint8_t)r;
@@ -736,4 +736,4 @@ int cooling_state_unpack(cooling_state_t *msg, const uint8_t *data, size_t size)
 }
 #endif
 
-#endif /* BUS1_CANMAP_H */
+#endif /* BUS1_MAPCAN_H */

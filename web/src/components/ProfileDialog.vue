@@ -35,7 +35,7 @@ async function save() {
 <template>
   <Modal :title="t('Профиль автора')" @close="emit('close')">
     <p class="muted">
-      {{ t("Имя и GitHub подставляются в записи истории изменений карты («Сравнить версии» → «Добавить в историю») и попадают в Excel, PDF, Markdown и HTML. Профиль хранится на этом компьютере ({path}).", { path: "~/.canmap/config.json" }) }}
+      {{ t("Имя и GitHub подставляются в записи истории изменений карты («Сравнить версии» → «Добавить в историю») и попадают в Excel, PDF, Markdown и HTML. Профиль хранится на этом компьютере ({path}).", { path: "~/.mapcan/config.json" }) }}
     </p>
     <div class="form-grid">
       <label class="field wide">

@@ -11,15 +11,15 @@ import string
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from canmap import i18n
-from canmap.locale.en import EN
-from canmap.userconfig import UserConfig
-from canmap.web.app import create_app
-from canmap.web.session import EditorSession
+from mapcan import i18n
+from mapcan.locale.en import EN
+from mapcan.userconfig import UserConfig
+from mapcan.web.app import create_app
+from mapcan.web.session import EditorSession
 
 from .conftest import REFERENCE, ROOT, one_bus, run
 
-SRC = ROOT / "src" / "canmap"
+SRC = ROOT / "src" / "mapcan"
 WEB = ROOT / "web" / "src"
 
 
@@ -103,14 +103,14 @@ def test_language_resolution(monkeypatch):
     cfg.save()
     monkeypatch.setattr(i18n, "_lang", None)
     assert i18n.get_language() == "ru"                    # из настроек
-    monkeypatch.setenv("CANMAP_LANG", "en")
+    monkeypatch.setenv("MAPCAN_LANG", "en")
     monkeypatch.setattr(i18n, "_lang", None)
     assert i18n.get_language() == "en"                    # переменная окружения важнее
 
 
 def test_api_language_switch(tmp_path, monkeypatch):
     monkeypatch.setattr(i18n, "_lang", "en")
-    p = tmp_path / "canmap.yaml"
+    p = tmp_path / "mapcan.yaml"
     shutil.copyfile(REFERENCE, p)
     with TestClient(create_app(EditorSession(p))) as c:
         meta = c.get("/api/meta").json()
@@ -129,8 +129,8 @@ def test_api_language_switch(tmp_path, monkeypatch):
 
 
 def test_new_map_in_ui_language(monkeypatch):
-    from canmap.validate import validate_text
-    from canmap.web.newmap import TEMPLATES, new_map_text
+    from mapcan.validate import validate_text
+    from mapcan.web.newmap import TEMPLATES, new_map_text
 
     for lang in ("en", "ru"):
         monkeypatch.setattr(i18n, "_lang", lang)
@@ -144,7 +144,7 @@ def test_new_map_in_ui_language(monkeypatch):
 
 
 def test_cli_language_command():
-    from canmap.cli import app
+    from mapcan.cli import app
 
     r = CliRunner().invoke(app, ["language", "ru"])
     assert r.exit_code == 0 and UserConfig.load().language == "ru"

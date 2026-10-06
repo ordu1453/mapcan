@@ -3,11 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { api } from "../api";
 import { actions, store } from "../store";
 import { i18n, LANGUAGES, N_, t } from "../i18n";
+import BrandMark from "./BrandMark.vue";
 
 const emit = defineEmits<{ preview: [fmt: "html" | "pdf" | "md"]; diff: [] }>();
 
 const menu = ref<"file" | "export" | null>(null);
-const theme = ref<string>(localStorage.getItem("canmap-theme") ?? "auto");
+const theme = ref<string>(localStorage.getItem("mapcan-theme") ?? "auto");
 const hasMap = computed(() => !!store.state);
 const pdfTitle = computed(() => store.pdfTemplates.find((x) => x.name === store.pdfTemplate)?.title ?? "");
 
@@ -16,7 +17,7 @@ function applyTheme() {
   if (theme.value === "auto") root.removeAttribute("data-theme");
   else root.setAttribute("data-theme", theme.value);
   try {
-    localStorage.setItem("canmap-theme", theme.value);
+    localStorage.setItem("mapcan-theme", theme.value);
   } catch {
     /* хранилище недоступно */
   }
@@ -51,8 +52,8 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenu));
 
 <template>
   <header class="topbar">
-    <div class="brand" :title="`canmap ${store.meta?.version ?? ''}`">
-      canmap <span class="version mono">v{{ store.meta?.version }}</span>
+    <div class="brand" :title="`mapcan ${store.meta?.version ?? ''}`">
+      <BrandMark /> <span class="version mono">v{{ store.meta?.version }}</span>
     </div>
 
     <div class="menu">
@@ -78,7 +79,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenu));
       <span v-if="store.state?.dirty" class="dirty" :title="t('Есть несохранённые изменения')">●</span>
       <span v-if="store.state?.readonly" class="badge">{{ t("только просмотр") }}</span>
     </div>
-    <span v-if="!store.online" class="badge warning" :title="t('Нет связи с сервером canmap')">{{ t("нет связи") }}</span>
+    <span v-if="!store.online" class="badge warning" :title="t('Нет связи с сервером mapcan')">{{ t("нет связи") }}</span>
 
     <nav v-if="hasMap" class="tabs">
       <button :class="{ active: store.tab === 'editor' }" :disabled="!store.state?.data" @click="store.tab = 'editor'">{{ t("Редактор") }}</button>

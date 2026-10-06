@@ -1,4 +1,4 @@
-"""Иконка приложения (packaging/canmap.ico) — тот же рисунок, что favicon веб-редактора.
+"""Иконка приложения (packaging/mapcan.ico) — тот же рисунок, что favicon веб-редактора.
 
 Источник — web/public/favicon.svg; каждый размер растеризуется из него отдельно.
 
@@ -13,7 +13,7 @@ from PIL import Image
 
 HERE = Path(__file__).parent
 SVG = HERE.parent / "web" / "public" / "favicon.svg"
-OUT = HERE / "canmap.ico"
+OUT = HERE / "mapcan.ico"
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 
 

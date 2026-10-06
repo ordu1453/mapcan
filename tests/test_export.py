@@ -9,13 +9,13 @@ import openpyxl
 import pytest
 from typer.testing import CliRunner
 
-from canmap.cli import app
-from canmap.codegen.c import CGen
-from canmap.docmodel import build_view
-from canmap.export.pdf import export_pdf
-from canmap.export.text import render
-from canmap.export.xlsx import XlsxStyle, export_xlsx
-from canmap.schema import json_schema
+from mapcan.cli import app
+from mapcan.codegen.c import CGen
+from mapcan.docmodel import build_view
+from mapcan.export.pdf import export_pdf
+from mapcan.export.text import render
+from mapcan.export.xlsx import XlsxStyle, export_xlsx
+from mapcan.schema import json_schema
 
 from .conftest import DATA, GOLDEN, REFERENCE
 
@@ -144,8 +144,8 @@ def test_c_header_golden(ref_map):
 
 def test_schema_accepts_reference():
     jsonschema = pytest.importorskip("jsonschema")
-    from canmap.diagnostics import Report
-    from canmap.loader import SourceMap, _make_yaml, _plain
+    from mapcan.diagnostics import Report
+    from mapcan.loader import SourceMap, _make_yaml, _plain
 
     raw = _make_yaml().load(REFERENCE.read_text(encoding="utf-8"))
     data = _plain(raw, (), SourceMap(None), Report())
@@ -165,8 +165,8 @@ def test_schema_accepts_reference():
 def test_schema_file_up_to_date():
     from .conftest import ROOT
 
-    on_disk = json.loads((ROOT / "schema" / "canmap.schema.json").read_text(encoding="utf-8"))
-    assert on_disk == json_schema(), "обновите: canmap schema -o schema/canmap.schema.json"
+    on_disk = json.loads((ROOT / "schema" / "mapcan.schema.json").read_text(encoding="utf-8"))
+    assert on_disk == json_schema(), "обновите: mapcan schema -o schema/mapcan.schema.json"
 
 
 # --------------------------------------------------------------------------- CLI
@@ -206,7 +206,7 @@ def test_cli_build(tmp_path):
     assert r.exit_code == 0, r.output
     stem = REFERENCE.stem
     for p in (f"{stem}.md", f"{stem}.html", f"{stem}.xlsx", "dbc/bus1.dbc", "c/bus1.h", "c/bus1.c",
-              "py/bus1_canmap.py"):
+              "py/bus1_mapcan.py"):
         assert (tmp_path / p).exists(), p
 
 

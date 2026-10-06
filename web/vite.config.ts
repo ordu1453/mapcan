@@ -1,12 +1,12 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-// Сборка кладётся прямо в Python-пакет: src/canmap/web/static.
-// В режиме разработки (npm run dev) API проксируется на `canmap serve --no-browser`.
+// Сборка кладётся прямо в Python-пакет: src/mapcan/web/static.
+// В режиме разработки (npm run dev) API проксируется на `mapcan serve --no-browser`.
 export default defineConfig({
   plugins: [vue()],
   build: {
-    outDir: "../src/canmap/web/static",
+    outDir: "../src/mapcan/web/static",
     emptyOutDir: true,
     chunkSizeWarningLimit: 800,
   },

@@ -1,6 +1,6 @@
 import pytest
 
-from canmap.web.yamlops import OpError, apply_ops, dump, layout_keys, make_yaml, merge_text
+from mapcan.web.yamlops import OpError, apply_ops, dump, layout_keys, make_yaml, merge_text
 
 from .conftest import DATA, REFERENCE, ROOT
 

@@ -1,6 +1,6 @@
-"""Точка входа canmap.exe (командная строка)."""
+"""Точка входа mapcan.exe (командная строка)."""
 
-from canmap.cli import main
+from mapcan.cli import main
 
 if __name__ == "__main__":
     main()

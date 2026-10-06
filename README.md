@@ -1,4 +1,4 @@
-# canmap
+# <img src="web/public/favicon.svg" width="32" height="32" alt=""> mapcan
 
 Утилита для создания и редактирования **карт сигналов CAN** любых устройств и систем.
 Карта хранится в одном YAML-файле. Этот файл — единственный источник правды, из него
@@ -16,21 +16,21 @@
 
 | Результат | Команда |
 |---|---|
-| веб-редактор: создать или открыть карту, дерево, формы, битовая карта, проверка на лету | `canmap serve` |
-| проверка карты с указанием файла и строки | `canmap validate my-map.yaml` |
-| Excel: адресация, содержание, битовые карты, изменения | `canmap export xlsx my-map.yaml` |
-| PDF: титул, оглавление, битовые диаграммы, таблицы; шаблоны ЕСКД, ЕСПД, ГОСТ 7.32 | `canmap export pdf my-map.yaml --template gost-2.105` |
-| Markdown для README/вики, HTML-страница с поиском | `canmap export md my-map.yaml`, `canmap export html my-map.yaml` |
-| DBC для CANalyzer, SavvyCAN, PCAN-View, Wireshark | `canmap export dbc my-map.yaml -o dbc/` |
-| C: `#define` ID, `enum`, маски, структуры, `pack`/`unpack` | `canmap gen c my-map.yaml -o firmware/` |
-| Python-модуль для тестов и стендов | `canmap gen py my-map.yaml -o tools/` |
-| всё сразу (для CI) | `canmap build my-map.yaml -o build/` |
-| сравнение двух версий карты, changelog | `canmap diff old.yaml my-map.yaml` |
+| веб-редактор: создать или открыть карту, дерево, формы, битовая карта, проверка на лету | `mapcan serve` |
+| проверка карты с указанием файла и строки | `mapcan validate my-map.yaml` |
+| Excel: адресация, содержание, битовые карты, изменения | `mapcan export xlsx my-map.yaml` |
+| PDF: титул, оглавление, битовые диаграммы, таблицы; шаблоны ЕСКД, ЕСПД, ГОСТ 7.32 | `mapcan export pdf my-map.yaml --template gost-2.105` |
+| Markdown для README/вики, HTML-страница с поиском | `mapcan export md my-map.yaml`, `mapcan export html my-map.yaml` |
+| DBC для CANalyzer, SavvyCAN, PCAN-View, Wireshark | `mapcan export dbc my-map.yaml -o dbc/` |
+| C: `#define` ID, `enum`, маски, структуры, `pack`/`unpack` | `mapcan gen c my-map.yaml -o firmware/` |
+| Python-модуль для тестов и стендов | `mapcan gen py my-map.yaml -o tools/` |
+| всё сразу (для CI) | `mapcan build my-map.yaml -o build/` |
+| сравнение двух версий карты, changelog | `mapcan diff old.yaml my-map.yaml` |
 
 ## Быстрый старт
 
 ```sh
-canmap serve
+mapcan serve
 ```
 
 Откроется браузер. Выберите **«Новая карта…»** и шаблон: CANopen, J1939, CAN с явными ID или
@@ -50,13 +50,13 @@ YAML можно писать и вручную — с подсказками в 
 
 ## Установка
 
-**Windows, без Python.** Скачайте `canmap-X.Y.Z-setup.exe` со страницы
+**Windows, без Python.** Скачайте `mapcan-X.Y.Z-setup.exe` со страницы
 [Releases](https://github.com/ordu1453/MapCAN/releases/latest) и запустите — права администратора
-не нужны. Установщик добавит canmap в меню «Пуск» и на рабочий стол, в «Открыть с помощью» для
-`.yaml` и (по желанию) команду `canmap` в PATH. Редактор открывается в собственном окне; повторный
+не нужны. Установщик добавит mapcan в меню «Пуск» и на рабочий стол, в «Открыть с помощью» для
+`.yaml` и (по желанию) команду `mapcan` в PATH. Редактор открывается в собственном окне; повторный
 запуск или двойной щелчок по карте открывает её в уже запущенном окне. О новой версии редактор
-сообщит плашкой вверху — обновление ставится поверх. Без установки: `canmap-X.Y.Z-windows-x64.zip`,
-запуск — `canmap-app.exe`.
+сообщит плашкой вверху — обновление ставится поверх. Без установки: `mapcan-X.Y.Z-windows-x64.zip`,
+запуск — `mapcan-app.exe`.
 
 Windows может предупредить о неизвестном издателе (SmartScreen): установщик не подписан
 сертификатом. «Подробнее → Выполнить в любом случае».
@@ -65,16 +65,21 @@ Windows может предупредить о неизвестном издат
 встроенным компилятором Typst из pip-пакета `typst`, шрифты PT Sans и PT Serif (OFL) идут в комплекте.
 
 ```sh
-uv tool install "canmap[desktop] @ git+https://github.com/ordu1453/MapCAN"   # или: pipx install …
-uv tool upgrade canmap
-canmap app                     # редактор в отдельном окне (без [desktop] — в браузере)
+uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/MapCAN"   # или: pipx install …
+uv tool upgrade mapcan
+mapcan app                     # редактор в отдельном окне (без [desktop] — в браузере)
 ```
+
+**Переход с canmap.** Раньше утилита называлась canmap. Установщик для Windows ставится
+поверх старой версии сам; через uv/pipx — `uv tool uninstall canmap`, затем установка заново
+командой выше. Карты с ключом `canmap: 1` открываются без правки, настройки из `~/.canmap`
+переносятся в `~/.mapcan`, шаблон PDF `canmap` понимается как `mapcan`.
 
 **Для разработки** (с [uv](https://docs.astral.sh/uv/), окружение по `uv.lock`):
 
 ```sh
 uv sync
-uv run canmap --help
+uv run mapcan --help
 uv run pytest
 ```
 
@@ -91,33 +96,33 @@ pip install -e .
 
 ```sh
 pip wheel . -w wheelhouse
-pip install --no-index --find-links wheelhouse canmap
+pip install --no-index --find-links wheelhouse mapcan
 ```
 
 ## Команды
 
 ```text
-canmap app         [FILE|DIR] [--browser] [--readonly]
-canmap serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
-canmap validate    FILE [--strict] [--info] [--format json] [--disable КОД]
-canmap export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
-canmap export pdf  FILE [-o OUT] [--template canmap|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR]
-canmap export md   FILE [-o OUT] [--template my.md.j2]
-canmap export html FILE [-o OUT] [--template my.html.j2]
-canmap export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
-canmap gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
-canmap gen py      FILE [-o DIR] [--bus NAME]
-canmap build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py] [--pdf-template NAME]
-canmap diff        OLD NEW [--format text|md|json]
-canmap schema      [-o schema.json]
-canmap template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
-canmap rules
-canmap language    [en|ru]
+mapcan app         [FILE|DIR] [--browser] [--readonly]
+mapcan serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
+mapcan validate    FILE [--strict] [--info] [--format json] [--disable КОД]
+mapcan export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
+mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR]
+mapcan export md   FILE [-o OUT] [--template my.md.j2]
+mapcan export html FILE [-o OUT] [--template my.html.j2]
+mapcan export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
+mapcan gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
+mapcan gen py      FILE [-o DIR] [--bus NAME]
+mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py] [--pdf-template NAME]
+mapcan diff        OLD NEW [--format text|md|json]
+mapcan schema      [-o schema.json]
+mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
+mapcan rules
+mapcan language    [en|ru]
 ```
 
 Язык интерфейса (сообщения проверки, CLI, редактор) — английский по умолчанию; выбирается
-при первом запуске редактора, переключателем на его верхней панели или `canmap language ru`.
-Переменная окружения `CANMAP_LANG=ru|en` важнее сохранённого выбора. Язык документов задаётся
+при первом запуске редактора, переключателем на его верхней панели или `mapcan language ru`.
+Переменная окружения `MAPCAN_LANG=ru|en` важнее сохранённого выбора. Язык документов задаётся
 отдельно — полем `document.language` карты.
 
 Экспорт и генерация сначала проверяют карту и прерываются при ошибках
@@ -127,7 +132,7 @@ canmap language    [en|ru]
 ### Пример вывода проверки
 
 ```text
-$ canmap validate tests/data/invalid_map.yaml
+$ mapcan validate tests/data/invalid_map.yaml
 tests/data/invalid_map.yaml:21:25: error[number-comma]: значение '0,1': дробная часть отделена запятой, нужно 0.1
 tests/data/invalid_map.yaml:24:17: error[number-cyrillic-x]: значение '0х196': в префиксе 0x используется кириллическая «х»
 tests/data/invalid_map.yaml:33:22: error[invalid-identifier]: имя значения 'NO DATA': допустимы латинские буквы, цифры и _
@@ -138,12 +143,12 @@ FAIL: ошибок: 12, предупреждений: 2, замечаний: 0
 
 ## Своё оформление
 
-* **Excel** — `canmap template xlsx-style -o style.yaml`, правка шрифтов, цветов и набора
-  колонок, затем `canmap export xlsx map.yaml --style style.yaml`.
-* **PDF** — четыре встроенных шаблона: `canmap`, ЕСКД `gost-2.105` (рамка и основная
+* **Excel** — `mapcan template xlsx-style -o style.yaml`, правка шрифтов, цветов и набора
+  колонок, затем `mapcan export xlsx map.yaml --style style.yaml`.
+* **PDF** — четыре встроенных шаблона: `mapcan`, ЕСКД `gost-2.105` (рамка и основная
   надпись), ЕСПД `gost-19`, отчёт `gost-7.32`. Реквизиты (обозначение, литера, подписи,
   «Утверждаю», «Согласовано») и логотип предприятия задаются в `document`. Свой вариант:
-  `canmap template pdf --name gost-2.105 -o corp.typ`, затем `--template corp.typ`.
+  `mapcan template pdf --name gost-2.105 -o corp.typ`, затем `--template corp.typ`.
   Подробнее — [docs/templates.md](docs/templates.md).
 * **Markdown/HTML** — Jinja2-шаблоны, те же данные.
 
@@ -169,9 +174,9 @@ if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { 
 ## Веб-редактор
 
 ```sh
-canmap app                    # отдельное окно: стартовый экран — новая карта, открыть, недавние
-canmap app my-map.yaml        # сразу открыть карту
-canmap serve my-map.yaml      # то же в браузере (сервер, разработка)
+mapcan app                    # отдельное окно: стартовый экран — новая карта, открыть, недавние
+mapcan app my-map.yaml        # сразу открыть карту
+mapcan serve my-map.yaml      # то же в браузере (сервер, разработка)
 ```
 
 Файлы создаются, открываются и сохраняются из меню «Файл»; профиль автора (имя, GitHub)
@@ -196,9 +201,9 @@ YAML карта проверяется, а PDF, Excel, DBC и C-заголовк
 
 ### Выпуск версии
 
-1. Поднять версию в `pyproject.toml`, `src/canmap/__init__.py` и `web/package.json`
+1. Поднять версию в `pyproject.toml`, `src/mapcan/__init__.py` и `web/package.json`
    (`uv lock`, `npm run build` в `web/`), закоммитить.
-2. Поставить и запушить тег: `git tag -a vX.Y.Z -m "canmap X.Y.Z: …" && git push origin main vX.Y.Z`.
+2. Поставить и запушить тег: `git tag -a vX.Y.Z -m "mapcan X.Y.Z: …" && git push origin main vX.Y.Z`.
 
 [release.yml](.github/workflows/release.yml) прогонит тесты, проверит, что тег совпадает с версией,
 соберёт установщик и zip для Windows (PyInstaller + Inno Setup), wheel и Docker-образ и опубликует
@@ -209,17 +214,17 @@ GitHub Release; текст аннотации тега станет описан
 
 ```sh
 uv sync --extra desktop --group package
-uv run pyinstaller packaging/canmap.spec --noconfirm        # → dist/canmap/
-iscc /DAppVersion=X.Y.Z packaging/canmap.iss                # → dist/canmap-X.Y.Z-setup.exe
+uv run pyinstaller packaging/mapcan.spec --noconfirm        # → dist/mapcan/
+iscc /DAppVersion=X.Y.Z packaging/mapcan.iss                # → dist/mapcan-X.Y.Z-setup.exe
 ```
 
 ## Структура репозитория
 
 ```text
 examples/                   примеры карт (CANopen, J1939, CAN/CAN FD)
-schema/canmap.schema.json   JSON Schema (canmap schema -o …)
+schema/mapcan.schema.json   JSON Schema (mapcan schema -o …)
 docs/                       формат, шаблоны PDF, веб-редактор, CI
-src/canmap/
+src/mapcan/
   model.py                  модель данных (pydantic)
   loader.py                 загрузка YAML с позициями узлов
   protocols.py, canopen.py  вычисление CAN ID: CANopen, J1939, явные ID
@@ -230,13 +235,13 @@ src/canmap/
   export/                   xlsx, pdf (Typst), md/html (Jinja2), dbc
   codegen/                  C и Python
   diff.py                   сравнение версий карты, changelog
-  launcher.py               canmap app: окно, один экземпляр, выбор порта
+  launcher.py               mapcan app: окно, один экземпляр, выбор порта
   updates.py                проверка новой версии на GitHub Releases
   web/                      веб-редактор: FastAPI, операции над YAML, собранный UI (static/)
   templates/                шаблоны документов (pdf/ — Typst)
   fonts/                    PT Sans, PT Serif (OFL)
 web/                        исходники интерфейса (Vue 3 + TypeScript + Vite)
-packaging/                  сборка для Windows: PyInstaller (canmap.spec), установщик (canmap.iss), иконка
+packaging/                  сборка для Windows: PyInstaller (mapcan.spec), установщик (mapcan.iss), иконка
 tests/                      тесты; data/ — фикстуры, golden/ — эталонные файлы
 ```
 

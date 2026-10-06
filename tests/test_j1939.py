@@ -7,11 +7,11 @@ import textwrap
 import cantools
 import pytest
 
-from canmap.docmodel import build_view
-from canmap.export.dbc import bus_database
-from canmap.export.text import render
-from canmap.loader import load
-from canmap.protocols import j1939_decode, j1939_id, j1939_is_pdu1
+from mapcan.docmodel import build_view
+from mapcan.export.dbc import bus_database
+from mapcan.export.text import render
+from mapcan.loader import load
+from mapcan.protocols import j1939_decode, j1939_id, j1939_is_pdu1
 
 from .conftest import ROOT, codes
 
@@ -42,7 +42,7 @@ def test_example_ids():
 
 def _bus(frames: str, devices: str = "", protocol: str = "j1939") -> str:
     frames = textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10)
-    return ("canmap: 1\ndocument:\n  title: T\nbuses:\n"
+    return ("mapcan: 1\ndocument:\n  title: T\nbuses:\n"
             f"  - name: bus\n    protocol: {protocol}\n    devices:\n"
             "      - name: ecu\n        address: 0x10\n        frames:\n" + frames + "\n" + devices)
 

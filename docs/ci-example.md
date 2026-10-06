@@ -5,10 +5,10 @@
 
 ## GitHub Actions
 
-`.github/workflows/canmap.yml`:
+`.github/workflows/mapcan.yml`:
 
 ```yaml
-name: canmap
+name: mapcan
 on:
   push:
     paths: ["my-map.yaml"]
@@ -21,12 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - name: Install canmap
-        run: uv tool install git+<адрес репозитория canmap>@v0.1.0
+      - name: Install mapcan
+        run: uv tool install git+<адрес репозитория mapcan>@v0.1.0
       - name: Validate
-        run: canmap validate my-map.yaml --strict
+        run: mapcan validate my-map.yaml --strict
       - name: Build
-        run: canmap build my-map.yaml -o build
+        run: mapcan build my-map.yaml -o build
       - uses: actions/upload-artifact@v4
         with:
           name: signal-map
@@ -35,18 +35,18 @@ jobs:
 
 ## GitLab CI
 
-`.gitlab-ci.yml` (с Docker-образом canmap из внутреннего реестра):
+`.gitlab-ci.yml` (с Docker-образом mapcan из внутреннего реестра):
 
 ```yaml
-canmap:
+mapcan:
   image:
-    name: registry.example.local/tools/canmap:0.1.0
+    name: registry.example.local/tools/mapcan:0.1.0
     entrypoint: [""]
   rules:
     - changes: [my-map.yaml]
   script:
-    - canmap validate my-map.yaml --strict
-    - canmap build my-map.yaml -o build
+    - mapcan validate my-map.yaml --strict
+    - mapcan build my-map.yaml -o build
   artifacts:
     paths: [build/]
 ```
@@ -58,17 +58,17 @@ canmap:
 
 ```cmake
 add_custom_command(
-  OUTPUT  ${CMAKE_BINARY_DIR}/canmap/bus1.h ${CMAKE_BINARY_DIR}/canmap/bus1.c
-  COMMAND canmap gen c ${CMAKE_SOURCE_DIR}/my-map.yaml -o ${CMAKE_BINARY_DIR}/canmap --bus bus1
+  OUTPUT  ${CMAKE_BINARY_DIR}/mapcan/bus1.h ${CMAKE_BINARY_DIR}/mapcan/bus1.c
+  COMMAND mapcan gen c ${CMAKE_SOURCE_DIR}/my-map.yaml -o ${CMAKE_BINARY_DIR}/mapcan --bus bus1
   DEPENDS ${CMAKE_SOURCE_DIR}/my-map.yaml
 )
-target_sources(firmware PRIVATE ${CMAKE_BINARY_DIR}/canmap/bus1.c)
-target_include_directories(firmware PRIVATE ${CMAKE_BINARY_DIR}/canmap)
+target_sources(firmware PRIVATE ${CMAKE_BINARY_DIR}/mapcan/bus1.c)
+target_include_directories(firmware PRIVATE ${CMAKE_BINARY_DIR}/mapcan)
 ```
 
 Или проверять в CI, что закоммиченные файлы совпадают с картой:
 
 ```sh
-canmap gen c my-map.yaml -o firmware/canmap
-git diff --exit-code firmware/canmap
+mapcan gen c my-map.yaml -o firmware/mapcan
+git diff --exit-code firmware/mapcan
 ```

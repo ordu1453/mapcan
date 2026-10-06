@@ -1,7 +1,7 @@
-# yaml-language-server: $schema=../schema/canmap.schema.json
+# yaml-language-server: $schema=../schema/mapcan.schema.json
 # Минимальный пример: все виды сигналов в одном кадре.
 
-canmap: 1
+mapcan: 1
 
 document:
   title: Пример карты

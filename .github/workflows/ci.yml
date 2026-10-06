@@ -37,7 +37,7 @@ jobs:
       - name: Lint
         run: uv run ruff check src tests
       - name: Schema is up to date
-        run: uv run canmap schema -o schema/canmap.schema.json && git diff --exit-code schema/
+        run: uv run mapcan schema -o schema/mapcan.schema.json && git diff --exit-code schema/
       - name: Tests
         run: uv run pytest
 
@@ -69,7 +69,7 @@ jobs:
         working-directory: web
         run: npm ci && npm run build
       - name: Built bundle is committed and up to date
-        run: git diff --exit-code src/canmap/web/static
+        run: git diff --exit-code src/mapcan/web/static
 
   docs:
     needs: test
@@ -86,14 +86,14 @@ jobs:
       - run: uv sync --locked
       - name: Validate examples
         run: |
-          for f in $(find examples -name '*.yaml'); do uv run canmap validate "$f" --strict; done
+          for f in $(find examples -name '*.yaml'); do uv run mapcan validate "$f" --strict; done
       - name: Build documents and code for every example
         run: |
           for f in $(find examples -name '*.yaml'); do
-            uv run canmap build "$f" -o "build/$(basename "$(dirname "$f")")-$(basename "$f" .yaml)" \
-              --pdf-template canmap --pdf-template gost-2.105
+            uv run mapcan build "$f" -o "build/$(basename "$(dirname "$f")")-$(basename "$f" .yaml)" \
+              --pdf-template mapcan --pdf-template gost-2.105
           done
       - uses: actions/upload-artifact@v4
         with:
-          name: canmap-build
+          name: mapcan-build
           path: build/

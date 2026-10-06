@@ -9,16 +9,16 @@ import socket
 import pytest
 from fastapi.testclient import TestClient
 
-from canmap import launcher, updates
-from canmap.web.app import create_app
-from canmap.web.session import EditorSession
+from mapcan import launcher, updates
+from mapcan.web.app import create_app
+from mapcan.web.session import EditorSession
 
 from .conftest import REFERENCE
 
 
 @pytest.fixture
 def mapfile(tmp_path):
-    p = tmp_path / "canmap.yaml"
+    p = tmp_path / "mapcan.yaml"
     shutil.copyfile(REFERENCE, p)
     return p
 
@@ -58,7 +58,7 @@ def test_check_network_error_and_disable(monkeypatch):
 
     monkeypatch.setattr(updates, "_fetch", boom)
     assert updates.check()["newer"] is False
-    monkeypatch.setenv("CANMAP_NO_UPDATE_CHECK", "1")
+    monkeypatch.setenv("MAPCAN_NO_UPDATE_CHECK", "1")
     monkeypatch.setattr(updates, "_fetch", lambda t: pytest.fail("проверка отключена"))
     assert updates.check(use_cache=False)["latest"] is None
 

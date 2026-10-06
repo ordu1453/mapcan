@@ -1,4 +1,4 @@
-// Типы ответа /api/state (см. src/canmap/web/session.py).
+// Типы ответа /api/state (см. src/mapcan/web/session.py).
 
 export type PathEl = string | number;
 export type Path = PathEl[];

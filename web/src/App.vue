@@ -32,8 +32,8 @@ onMounted(async () => {
 
 function askProfile() {
   try {
-    if (store.meta && !store.meta.user.name && !localStorage.getItem("canmap-profile-asked")) {
-      localStorage.setItem("canmap-profile-asked", "1");
+    if (store.meta && !store.meta.user.name && !localStorage.getItem("mapcan-profile-asked")) {
+      localStorage.setItem("mapcan-profile-asked", "1");
       store.dialog = "profile";
     }
   } catch {
@@ -47,7 +47,7 @@ function languageChosen() {
   void checkUpdate();
 }
 
-const UPDATE_KEY = "canmap-update-dismissed";
+const UPDATE_KEY = "mapcan-update-dismissed";
 
 async function checkUpdate() {
   try {
@@ -83,7 +83,7 @@ function keepMine() {
     <TopBar @preview="preview = $event" @diff="diffOpen = true" />
 
     <div v-if="store.update" class="update-banner">
-      {{ t("Доступна новая версия canmap {latest} (у вас {current}).",
+      {{ t("Доступна новая версия mapcan {latest} (у вас {current}).",
             { latest: store.update.latest, current: store.update.current }) }}
       <a v-if="store.update.installer" class="button small primary-link" :href="store.update.installer"
          target="_blank" rel="noopener">{{ t("Скачать установщик") }}</a>

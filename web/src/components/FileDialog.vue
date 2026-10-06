@@ -50,7 +50,7 @@ onMounted(async () => {
     const f = store.meta.file;
     name.value = f.slice(Math.max(f.lastIndexOf("/"), f.lastIndexOf("\\")) + 1).replace(/(\.ya?ml)$/i, "_copy$1");
   }
-  if (props.mode === "new") name.value = "canmap.yaml";
+  if (props.mode === "new") name.value = "mapcan.yaml";
   await nextTick();
   nameEl.value?.focus();
   nameEl.value?.select();
@@ -114,7 +114,7 @@ const fmtDate = (t: number) => new Date(t * 1000).toLocaleString("ru-RU", { date
             <option v-for="d in listing.drives" :key="d" :value="d" :selected="listing.dir.toUpperCase().startsWith(d)">{{ d }}</option>
           </select>
           <input v-model="dirInput" class="mono fd-path" @keydown.enter="go(dirInput)" />
-          <button class="small" :title="t('Рабочая папка canmap serve')" @click="go(store.meta?.cwd ?? '')">{{ t("Рабочая папка") }}</button>
+          <button class="small" :title="t('Рабочая папка mapcan serve')" @click="go(store.meta?.cwd ?? '')">{{ t("Рабочая папка") }}</button>
           <button class="small" @click="go(store.meta?.home ?? '')">{{ t("Домашняя папка") }}</button>
         </div>
 
@@ -140,7 +140,7 @@ const fmtDate = (t: number) => new Date(t * 1000).toLocaleString("ru-RU", { date
         <div class="form-grid fd-form">
           <label class="field" :class="{ wide: mode !== 'new' }">
             <span class="field-label">{{ mode === "open" ? t("Файл") : t("Имя файла") }}</span>
-            <input ref="nameEl" v-model="name" class="mono" :placeholder="t('canmap.yaml или полный путь')" @keydown.enter="submit" />
+            <input ref="nameEl" v-model="name" class="mono" :placeholder="t('mapcan.yaml или полный путь')" @keydown.enter="submit" />
           </label>
           <template v-if="mode === 'new'">
             <label class="field">

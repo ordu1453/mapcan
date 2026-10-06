@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Предпросмотр документов из текущего (в т.ч. несохранённого) состояния карты.
-// Для PDF — выбор шаблона оформления (canmap, ЕСКД, ЕСПД, ГОСТ 7.32).
+// Для PDF — выбор шаблона оформления (mapcan, ЕСКД, ЕСПД, ГОСТ 7.32).
 import { computed, onMounted, ref } from "vue";
 import { api } from "../api";
 import { actions, store } from "../store";

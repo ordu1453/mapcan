@@ -1,3 +1,11 @@
+@font-face {
+  /* Sora ExtraBold, только буквы «mapcan» — шрифт иконки (OFL, см. OFL-Sora.txt) */
+  font-family: "Sora Wordmark";
+  src: url("./assets/sora-800-wordmark.woff2") format("woff2");
+  font-weight: 800;
+  font-display: block;
+}
+
 :root {
   --bg: #f6f7f9;
   --panel: #ffffff;
@@ -20,6 +28,8 @@
   --shadow: 0 6px 24px rgba(16, 24, 32, 0.14);
   --y-key: #1f4e79; --y-str: #2e7d32; --y-num: #a3420e; --y-tag: #7b3fa0;
   --mono: "Cascadia Mono", "DejaVu Sans Mono", Consolas, monospace;
+  /* цвета иконки: синий фон, белая «m», янтарная «c» (на светлом фоне — темнее, ради контраста) */
+  --brand-map: #1e40af; --brand-can: #d97706;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -29,6 +39,7 @@
     --error: #ff6b6b; --error-soft: #3a1f21; --warning: #f0a646; --warning-soft: #3a2d17; --info: #7bb4e8;
     --info-soft: #1d2c3b; --ok: #6cc070; --grid-empty: #262d34; --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
     --y-key: #7fb6e6; --y-str: #9ccc8a; --y-num: #e8a36b; --y-tag: #c79be0;
+    --brand-map: #ffffff; --brand-can: #fbbf24;
     color-scheme: dark;
   }
 }
@@ -38,6 +49,7 @@
   --error: #ff6b6b; --error-soft: #3a1f21; --warning: #f0a646; --warning-soft: #3a2d17; --info: #7bb4e8;
   --info-soft: #1d2c3b; --ok: #6cc070; --grid-empty: #262d34; --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
   --y-key: #7fb6e6; --y-str: #9ccc8a; --y-num: #e8a36b; --y-tag: #c79be0;
+  --brand-map: #ffffff; --brand-can: #fbbf24;
   color-scheme: dark;
 }
 
@@ -75,7 +87,7 @@ input[readonly], textarea[readonly] { background: var(--bg); }
   display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
-.brand { font-weight: 700; color: var(--accent); letter-spacing: 0.3px; }
+.brand { display: flex; align-items: center; gap: 6px; }
 .file { display: flex; align-items: center; gap: 6px; }
 .dirty { color: var(--warning); font-size: 16px; line-height: 1; }
 .badge { padding: 1px 6px; border-radius: 10px; background: var(--hover); color: var(--muted); font-size: 11px; }
@@ -324,7 +336,12 @@ table.list tr.clickable:hover { background: var(--hover); }
 }
 
 /* ------------------------------------------------------------------ меню файла, профиль, версия */
-.brand .version { font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 2px; }
+.brand .version { font-weight: 400; font-size: 11px; color: var(--muted); }
+.brandmark { display: inline-flex; align-items: center; gap: 0.4em; font-size: 15px; line-height: 1; }
+.brandmark-icon { width: 1.45em; height: 1.45em; flex: none; }
+.brandmark-word { font-family: "Sora Wordmark", "Segoe UI", system-ui, sans-serif; font-weight: 800; letter-spacing: -0.01em; }
+.brandmark-map { color: var(--brand-map); }
+.brandmark-can { color: var(--brand-can); }
 .menu { position: relative; }
 .dropdown kbd { margin-left: auto; padding-left: 16px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .dropdown button { display: flex; align-items: baseline; gap: 6px; width: 100%; }
@@ -343,7 +360,7 @@ a.gh { color: var(--accent); margin-left: 4px; }
 /* ------------------------------------------------------------------ стартовый экран */
 .start { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px; overflow: auto; }
 .start-card { width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
-.start-card h1 { margin: 0; color: var(--accent); font-size: 26px; }
+.start-card h1 { margin: 0; display: flex; align-items: center; gap: 10px; }
 .start-ver { font-size: 14px; font-weight: 400; }
 .start-actions { display: flex; gap: 10px; }
 .start-actions button { padding: 8px 18px; font-size: 14px; }

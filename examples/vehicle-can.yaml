@@ -1,10 +1,10 @@
-# yaml-language-server: $schema=../schema/canmap.schema.json
+# yaml-language-server: $schema=../schema/mapcan.schema.json
 #
 # Пример карты без CANopen: CAN 2.0A/B с явными ID и шина CAN FD.
 # Показаны float32/float64, big-endian, 29-битные ID, мультиплексор, получатели кадров,
 # значения по умолчанию (initial) и «нет данных» (invalid).
 
-canmap: 1
+mapcan: 1
 
 document:
   title: Пример карты электромобиля

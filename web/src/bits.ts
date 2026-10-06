@@ -1,4 +1,4 @@
-// Раскладка бит — порт src/canmap/bits.py (нумерация lsb0, start — позиция LSB).
+// Раскладка бит — порт src/mapcan/bits.py (нумерация lsb0, start — позиция LSB).
 
 export function occupiedBits(start: number, length: number, bigEndian: boolean): number[] {
   const out: number[] = [];

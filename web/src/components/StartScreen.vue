@@ -2,12 +2,13 @@
 // Экран, когда карта не открыта: создать, открыть, недавние, профиль.
 import { actions, store } from "../store";
 import { t } from "../i18n";
+import BrandMark from "./BrandMark.vue";
 </script>
 
 <template>
   <div class="start">
     <div class="start-card">
-      <h1>canmap <span class="muted start-ver">{{ store.meta?.version }}</span></h1>
+      <h1><BrandMark :size="28" /> <span class="muted start-ver">{{ store.meta?.version }}</span></h1>
       <p class="muted">{{ t("YAML-карта сигналов CAN: редактор, проверка, документы и код.") }}</p>
 
       <div class="start-actions">

@@ -1,6 +1,6 @@
-# yaml-language-server: $schema=../../schema/canmap.schema.json
+# yaml-language-server: $schema=../../schema/mapcan.schema.json
 #
-# Тестовые данные canmap (заморожены): по этой карте построены эталонные (golden) файлы.
+# Тестовые данные mapcan (заморожены): по этой карте построены эталонные (golden) файлы.
 # Вымышленная система питания стенда — покрывает все возможности формата:
 # две шины, SDO, EMCY, мультиплексирование, битовые поля, якоря YAML.
 #
@@ -9,7 +9,7 @@
 #   * start_bit — позиция младшего бита сигнала; byte/bit/byte_length — сокращения;
 #   * physical = raw * factor + offset.
 
-canmap: 1
+mapcan: 1
 
 document:
   title: Эталонная карта CANopen
@@ -22,7 +22,7 @@ document:
     - version: 1.0.0
       date: 2026-10-05
       changes:
-        - Карта описана в YAML (canmap, формат v1).
+        - Карта описана в YAML (mapcan, формат v1).
         - "0x1A3: байт 1 описан как битовое поле error_code."
         - "0x2A2: описано мультиплексирование данных парсинга (напряжения / температуры)."
         - "Нумерация бит в битовых полях приведена к счёту с 0."

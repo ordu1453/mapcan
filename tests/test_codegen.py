@@ -11,11 +11,11 @@ import sys
 import cantools
 import pytest
 
-from canmap.codegen.c import CGen, generate_c
-from canmap.codegen.common import frames_with_layout, is_byte_array, selector_of
-from canmap.codegen.py import _cls, generate_py
-from canmap.export.dbc import bus_database
-from canmap.loader import load
+from mapcan.codegen.c import CGen, generate_c
+from mapcan.codegen.common import frames_with_layout, is_byte_array, selector_of
+from mapcan.codegen.py import _cls, generate_py
+from mapcan.export.dbc import bus_database
+from mapcan.loader import load
 
 from .conftest import REFERENCE, ROOT
 
@@ -77,7 +77,7 @@ def cmap(request):
 @pytest.fixture(scope="module")
 def py_modules(cmap, tmp_path_factory):
     out = tmp_path_factory.mktemp("py")
-    return {p.stem.replace("_canmap", ""): _import(p) for p in generate_py(cmap, out)}
+    return {p.stem.replace("_mapcan", ""): _import(p) for p in generate_py(cmap, out)}
 
 
 def test_python_roundtrip(cmap, py_modules):
@@ -141,7 +141,7 @@ def test_dbc_matches_python(cmap, py_modules):
 
 
 def test_dbc_file_loads(ref_map, tmp_path):
-    from canmap.export.dbc import export_dbc
+    from mapcan.export.dbc import export_dbc
 
     paths = export_dbc(ref_map, tmp_path)
     db = cantools.database.load_file(paths[0], encoding="cp1251")
@@ -202,7 +202,7 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
                     # Сравнение по точным битам IEEE 754.
                     w = 64 if s.bit_length == 64 else 32
                     main.append(f'        printf("{f.name}.{s.name} %" PRIu64 "\\n", '
-                                f'(uint64_t)canmap_f{w}_to_bits(u.{s.name}));')
+                                f'(uint64_t)mapcan_f{w}_to_bits(u.{s.name}));')
                     fmt, ufmt = ("<d", "<Q") if w == 64 else ("<f", "<I")
                     bits = struct.unpack(ufmt, struct.pack(fmt, vals[s.name]))[0]
                     expected.append(f"{f.name}.{s.name} {bits}")

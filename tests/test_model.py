@@ -1,8 +1,8 @@
 import pytest
 
-from canmap import bits as B
-from canmap.canopen import compute_id
-from canmap.model import Signal
+from mapcan import bits as B
+from mapcan.canopen import compute_id
+from mapcan.model import Signal
 
 from .conftest import one_bus, run
 

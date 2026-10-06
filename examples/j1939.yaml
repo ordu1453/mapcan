@@ -1,10 +1,10 @@
-# yaml-language-server: $schema=../schema/canmap.schema.json
+# yaml-language-server: $schema=../schema/mapcan.schema.json
 #
 # Пример карты SAE J1939: двигатель, панель приборов и диагностический прибор.
 # CAN ID (29 бит) вычисляется: priority | PGN (для PDU1 — с адресом получателя) | адрес источника.
 # Значения «нет данных» по J1939: 0xFF (1 байт), 0xFFFF (2 байта).
 
-canmap: 1
+mapcan: 1
 
 document:
   title: Пример карты J1939

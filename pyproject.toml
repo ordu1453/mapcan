@@ -1,5 +1,5 @@
 [project]
-name = "canmap"
+name = "mapcan"
 version = "0.8.1"
 description = "YAML-карта сигналов CAN как единственный источник правды: проверка, Excel/PDF/Markdown/HTML, DBC, C/Python-код"
 readme = "README.md"
@@ -23,18 +23,18 @@ dependencies = [
 [project.optional-dependencies]
 # Этап 8 (работа с шиной) — зарезервировано.
 bus = ["python-can>=4.3"]
-# Отдельное окно приложения (`canmap app`); без него редактор открывается в браузере.
+# Отдельное окно приложения (`mapcan app`); без него редактор открывается в браузере.
 desktop = ["pywebview>=5"]
 
 [project.scripts]
-canmap = "canmap.cli:main"
+mapcan = "mapcan.cli:main"
 
 [project.gui-scripts]
-canmap-app = "canmap.launcher:main"
+mapcan-app = "mapcan.launcher:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.5", "jsonschema>=4", "httpx>=0.27"]
-# Сборка canmap.exe и установщика (packaging/, .github/workflows/release.yml).
+# Сборка mapcan.exe и установщика (packaging/, .github/workflows/release.yml).
 package = ["pyinstaller>=6.10"]
 
 [build-system]
@@ -42,12 +42,12 @@ requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-# Собранный фронтенд (src/canmap/web/static, из web/ → npm run build) входит в пакет:
+# Собранный фронтенд (src/mapcan/web/static, из web/ → npm run build) входит в пакет:
 # Node.js пользователям не нужен.
-packages = ["src/canmap"]
+packages = ["src/mapcan"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/canmap", "schema", "examples", "docs", "tests", "README.md"]
+include = ["src/mapcan", "schema", "examples", "docs", "tests", "README.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

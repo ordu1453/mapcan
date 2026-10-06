@@ -8,12 +8,12 @@ import shutil
 import pytest
 from fastapi.testclient import TestClient
 
-from canmap import __version__
-from canmap.loader import loads
-from canmap.userconfig import UserConfig, config_dir, normalize_github
-from canmap.web.app import create_app
-from canmap.web.newmap import TEMPLATES, new_map_text
-from canmap.web.session import EditorSession
+from mapcan import __version__
+from mapcan.loader import loads
+from mapcan.userconfig import UserConfig, config_dir, normalize_github
+from mapcan.web.app import create_app
+from mapcan.web.newmap import TEMPLATES, new_map_text
+from mapcan.web.session import EditorSession
 
 from .conftest import REFERENCE
 
@@ -134,10 +134,19 @@ def test_readonly_workspace(tmp_path):
 
 
 def test_history_author_in_documents(tmp_path):
-    from canmap.export.text import render
+    from mapcan.export.text import render
 
     text = new_map_text("canopen", "Карта", "Иван", "ivan")
     m = loads(text, "t.yaml").map
     md = render(m, "md")
     assert "Иван [@ivan](https://github.com/ivan)" in md
     assert '<a href="https://github.com/ivan">@ivan</a>' in render(m, "html")
+
+
+def test_legacy_config_dir_is_renamed(tmp_path, monkeypatch):
+    monkeypatch.delenv("MAPCAN_CONFIG_DIR")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    (tmp_path / ".canmap").mkdir()
+    (tmp_path / ".canmap" / "config.json").write_text('{"language": "ru"}', encoding="utf-8")
+    assert config_dir() == tmp_path / ".mapcan"
+    assert (tmp_path / ".mapcan" / "config.json").is_file() and not (tmp_path / ".canmap").exists()

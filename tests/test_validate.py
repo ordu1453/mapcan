@@ -2,7 +2,7 @@
 
 import pytest
 
-from canmap.validate import RULES, validate_file
+from mapcan.validate import RULES, validate_file
 
 from .conftest import DATA, REFERENCE, codes, one_bus, run
 
@@ -30,7 +30,7 @@ def test_minimal_ok():
 
 
 def test_yaml_syntax_error_has_line():
-    _, rep = run("canmap: 1\ndocument: [\n")
+    _, rep = run("mapcan: 1\ndocument: [\n")
     d = rep.diagnostics[0]
     assert d.code == "yaml" and d.line is not None
 
@@ -478,3 +478,9 @@ def test_every_rule_documented(code):
 def test_examples_are_clean(path):
     res, rep = validate_file(path)
     assert res.map is not None and rep.errors == 0 and rep.warnings == 0, [d.format() for d in rep.diagnostics]
+
+
+def test_legacy_format_key():
+    """Карты, созданные до переименования canmap → mapcan, открываются без правки."""
+    res, rep = run(REFERENCE.read_text(encoding="utf-8").replace("mapcan: 1", "canmap: 1"))
+    assert res.map is not None and not rep.errors, [d.format() for d in rep.diagnostics]

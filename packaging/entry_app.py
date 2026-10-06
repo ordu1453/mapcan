@@ -1,8 +1,8 @@
-"""Точка входа canmap-app.exe (окно редактора, без консоли)."""
+"""Точка входа mapcan-app.exe (окно редактора, без консоли)."""
 
 import sys
 
-from canmap.launcher import main
+from mapcan.launcher import main
 
 if __name__ == "__main__":
     sys.exit(main())

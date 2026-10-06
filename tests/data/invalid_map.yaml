@@ -1,4 +1,4 @@
-canmap: 1
+mapcan: 1
 document:
   title: Карта с ошибками
 lint:

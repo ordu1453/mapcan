@@ -11,8 +11,8 @@ import zipfile
 import pytest
 from fastapi.testclient import TestClient
 
-from canmap.web.app import create_app
-from canmap.web.session import EditorSession
+from mapcan.web.app import create_app
+from mapcan.web.session import EditorSession
 
 from .conftest import REFERENCE
 
@@ -21,7 +21,7 @@ SIG = ["buses", 0, "devices", 0, "frames", 1, "signals", 4]       # imd_data.bus
 
 @pytest.fixture
 def mapfile(tmp_path):
-    p = tmp_path / "canmap.yaml"
+    p = tmp_path / "mapcan.yaml"
     shutil.copyfile(REFERENCE, p)
     return p
 
@@ -48,7 +48,7 @@ def ops(client, *items):
 
 def test_state(client):
     st = client.get("/api/state").json()
-    assert st["file"] == "canmap.yaml" and not st["dirty"]
+    assert st["file"] == "mapcan.yaml" and not st["dirty"]
     assert not [d for d in st["diagnostics"] if d["level"] == "error"]
     assert st["data"]["buses"][0]["name"] == "bus1"
     f = next(f for f in st["resolved"]["frames"] if f["name"] == "imd_state")
@@ -164,10 +164,10 @@ def test_undo_redo(client):
 
 
 def test_text_with_errors(client):
-    st = client.post("/api/text", json={"text": "canmap: 1\ndocument: [\n"}).json()
+    st = client.post("/api/text", json={"text": "mapcan: 1\ndocument: [\n"}).json()
     assert st["data"] is None
     assert st["diagnostics"][0]["code"] == "yaml" and st["diagnostics"][0]["line"]
-    r = client.post("/api/ops", json={"ops": [{"op": "set", "path": ["canmap"], "value": 1}]})
+    r = client.post("/api/ops", json={"ops": [{"op": "set", "path": ["mapcan"], "value": 1}]})
     assert r.status_code == 400
     assert client.get("/api/export/md").status_code == 409
 
@@ -218,7 +218,7 @@ def test_export(client, fmt, prefix):
 @pytest.mark.parametrize("fmt, names", [
     ("dbc", {"bus1.dbc", "bus2.dbc"}),
     ("c", {"bus1.h", "bus1.c", "bus2.h", "bus2.c"}),
-    ("py", {"bus1_canmap.py", "bus2_canmap.py"}),
+    ("py", {"bus1_mapcan.py", "bus2_mapcan.py"}),
 ])
 def test_export_zip(client, fmt, names):
     r = client.get(f"/api/export/{fmt}")
@@ -283,9 +283,9 @@ def test_appended_item_goes_before_blank_separator(client):
 
 def test_appended_key_goes_before_blank_separator(tmp_path):
     p = tmp_path / "m.yaml"
-    p.write_text("canmap: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n\nbuses: []\n", encoding="utf-8")
+    p.write_text("mapcan: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n\nbuses: []\n", encoding="utf-8")
     s = EditorSession(p)
     s.apply([{"op": "insert", "path": ["document", "history"], "index": 0,
               "value": {"version": "0.1.0", "changes": ["first"]}}])
-    assert s.text == ("canmap: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n"
+    assert s.text == ("mapcan: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n"
                       "  history:\n    - version: 0.1.0\n      changes:\n        - first\n\nbuses: []\n")

@@ -16,9 +16,9 @@ export type DialogKind = "open" | "new" | "saveas" | "profile" | "language" | nu
 
 function savedTemplate(): string {
   try {
-    return localStorage.getItem("canmap-pdf-template") ?? "canmap";
+    return localStorage.getItem("mapcan-pdf-template") ?? "mapcan";
   } catch {
-    return "canmap";
+    return "mapcan";
   }
 }
 
@@ -199,7 +199,7 @@ export const actions = {
   setPdfTemplate: (name: string) => {
     store.pdfTemplate = name;
     try {
-      localStorage.setItem("canmap-pdf-template", name);
+      localStorage.setItem("mapcan-pdf-template", name);
     } catch {
       /* хранилище недоступно */
     }
@@ -232,7 +232,7 @@ export const selectedResolvedFrame = computed(() => {
 export function startEvents(): void {
   connectEvents(
     (m) => {
-      // Вкладка осталась от прошлой версии canmap, а сервер уже обновлён — подгружаем новый интерфейс
+      // Вкладка осталась от прошлой версии mapcan, а сервер уже обновлён — подгружаем новый интерфейс
       if (m.type === "hello" && m.app && store.meta && m.app !== store.meta.version) location.reload();
       else if (m.type === "file-changed") store.fileChangedBanner = true;
       else if (m.type === "open-request") void actions.openFile(m.path);

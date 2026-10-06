@@ -2,9 +2,9 @@ import json
 
 from typer.testing import CliRunner
 
-from canmap.cli import app
-from canmap.diff import changelog_lines, diff_maps
-from canmap.loader import loads
+from mapcan.cli import app
+from mapcan.diff import changelog_lines, diff_maps
+from mapcan.loader import loads
 
 from .conftest import REFERENCE
 
