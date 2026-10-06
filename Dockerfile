@@ -11,6 +11,8 @@ WORKDIR /src
 COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY src ./src
+# Примеры для стартового экрана редактора входят в пакет (force-include в pyproject.toml).
+COPY examples ./examples
 RUN uv sync --locked --no-dev
 
 ENV PATH="/opt/mapcan/bin:$PATH"
