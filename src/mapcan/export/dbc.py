@@ -19,6 +19,7 @@ from cantools.database.conversion import BaseConversion
 from .. import bits as B
 from ..i18n import _
 from ..model import Bus, MapCan, Signal, enum_entries, text
+from ..units import dbc_unit
 
 DBC_ENCODING = "cp1251"
 
@@ -53,7 +54,7 @@ def _signal(name: str, s: Signal, start: int, length: int, lang: str, comment: s
         raw_invalid=s.invalid_values[0] if s.invalid_values else None,
         minimum=s.min,
         maximum=s.max,
-        unit=s.unit,
+        unit=dbc_unit(s.unit),
         comment=comment or None,
         is_multiplexer=s.multiplexer and mux_signal is not None,
         multiplexer_ids=s.mux_values,
