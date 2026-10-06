@@ -62,7 +62,7 @@ The same examples are on the editor's start screen: pick one, choose where to sa
 ## Installation
 
 **Windows, no Python needed.** Download `mapcan-X.Y.Z-setup.exe` from
-[Releases](https://github.com/ordu1453/MapCAN/releases/latest) and run it — no administrator rights
+[Releases](https://github.com/ordu1453/mapcan/releases/latest) and run it — no administrator rights
 required. The installer adds mapcan to the Start menu and the desktop, to "Open with" for `.yaml`
 files and (optionally) the `mapcan` command to PATH. The editor opens in its own window; launching it
 again or double-clicking a map opens the map in the window that is already running. The editor
@@ -76,7 +76,7 @@ certificate. Click "More info → Run anyway".
 bundled Typst compiler from the `typst` pip package, and the PT Sans and PT Serif fonts (OFL) are included.
 
 ```sh
-uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/MapCAN"   # or: pipx install …
+uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/mapcan"   # or: pipx install …
 uv tool upgrade mapcan
 mapcan app                     # editor in its own window (without [desktop] — in the browser)
 ```
@@ -331,7 +331,7 @@ YAML можно писать и вручную — с подсказками в 
 ## Установка
 
 **Windows, без Python.** Скачайте `mapcan-X.Y.Z-setup.exe` со страницы
-[Releases](https://github.com/ordu1453/MapCAN/releases/latest) и запустите — права администратора
+[Releases](https://github.com/ordu1453/mapcan/releases/latest) и запустите — права администратора
 не нужны. Установщик добавит mapcan в меню «Пуск» и на рабочий стол, в «Открыть с помощью» для
 `.yaml` и (по желанию) команду `mapcan` в PATH. Редактор открывается в собственном окне; повторный
 запуск или двойной щелчок по карте открывает её в уже запущенном окне. О новой версии редактор
@@ -345,7 +345,7 @@ Windows может предупредить о неизвестном издат
 встроенным компилятором Typst из pip-пакета `typst`, шрифты PT Sans и PT Serif (OFL) идут в комплекте.
 
 ```sh
-uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/MapCAN"   # или: pipx install …
+uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/mapcan"   # или: pipx install …
 uv tool upgrade mapcan
 mapcan app                     # редактор в отдельном окне (без [desktop] — в браузере)
 ```

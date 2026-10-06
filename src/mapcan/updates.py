@@ -16,7 +16,7 @@ import urllib.request
 from . import __version__
 from .userconfig import config_dir
 
-REPO = "ordu1453/MapCAN"
+REPO = "ordu1453/mapcan"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_URL = f"https://github.com/{REPO}/releases/latest"
 CACHE_TTL = 24 * 3600
