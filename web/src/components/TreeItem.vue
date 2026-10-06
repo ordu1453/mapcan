@@ -49,6 +49,8 @@ const partValue = (p: Part) => (p === "title" ? busTitle.value : nodeData.value?
 function startRename(field: Part = "name") {
   if (canRename(props.node.path)) renaming.value = field;
 }
+// Идентификатор шины с названием виден справа — поле правки открывается там же, а не на месте названия
+const renamingSub = computed(() => renaming.value === "name" && props.node.kind === "bus" && !!busTitle.value);
 
 function click() {
   actions.select(props.node.path);
@@ -65,14 +67,16 @@ function click() {
       </span>
       <TreeIcon :kind="node.kind" :dir="node.dir"
                 :hint="node.kind === 'frame' ? (node.dir ? t(DIR_TITLE[node.dir]) : t('широковещательный')) : undefined" />
-      <InlineRename v-if="renaming" :path="node.path" :field="renaming" :value="partValue(renaming)"
+      <InlineRename v-if="renaming && !renamingSub" :path="node.path" :field="renaming" :value="partValue(renaming)"
                     @done="renaming = null" />
       <span v-else-if="node.kind === 'device' && nodeData?.short" class="tlabel">
         <span @dblclick.stop="startRename('short')">{{ nodeData.short }}</span> · <span
           @dblclick.stop="startRename('name')">{{ nodeData.name }}</span>
       </span>
       <span v-else class="tlabel" @dblclick.stop="startRename(busTitle ? 'title' : 'name')">{{ node.label }}</span>
-      <span v-if="node.sub && !(node.kind === 'bus' && !busTitle)" class="tsub mono"
+      <InlineRename v-if="renamingSub" :path="node.path" field="name" :value="partValue('name')"
+                    @done="renaming = null" />
+      <span v-else-if="node.sub && !(node.kind === 'bus' && !busTitle)" class="tsub mono"
             @dblclick.stop="node.kind === 'bus' && startRename('name')">{{ node.sub }}</span>
       <span v-if="own" class="dot" :class="own" :title="own" />
       <span v-else-if="nested" class="dot ring" :class="nested" />
