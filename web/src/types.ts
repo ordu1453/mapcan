@@ -114,6 +114,7 @@ export interface Meta {
   home: string;
   readonly: boolean;
   templates: Record<string, string>;
+  examples: { name: string; title: string }[];
   open: boolean;
   file: string | null;
   session_id: number;

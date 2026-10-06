@@ -27,6 +27,7 @@ from ..i18n import _, configured_language, get_language, normalize_language, set
 from ..loader import loads
 from ..model import MapCan
 from ..userconfig import UserConfig, normalize_github
+from .examples import example_text, list_examples
 from .newmap import new_map_text, template_labels
 from .session import ConflictError, EditorSession, ReadOnlyError
 from .yamlops import OpError
@@ -70,6 +71,13 @@ class NewBody(BaseModel):
     path: str
     template: str = "canopen"
     title: str = ""
+    force: bool = False
+    overwrite: bool = False
+
+
+class ExampleBody(BaseModel):
+    name: str
+    path: str
     force: bool = False
     overwrite: bool = False
 
@@ -172,6 +180,7 @@ class Workspace:
             "home": str(Path.home()),
             "readonly": self.readonly,
             "templates": template_labels(),
+            "examples": list_examples(),
             "open": s is not None,
             "file": str(s.path) if s else None,
             "session_id": self.generation,
@@ -429,17 +438,15 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                                _("не удалось прочитать {name}: {error}", name=path.name, error=e)) from e
             return await session_changed()
 
-    @app.post("/api/file/new")
-    async def file_new(body: NewBody) -> dict:
+    async def create_file(raw_path: str, force: bool, overwrite: bool, make_text: Callable[[Path], str]) -> dict:
         writable()
         async with lock:
-            path = yaml_path(body.path)
-            if path.exists() and not body.overwrite:
+            path = yaml_path(raw_path)
+            if path.exists() and not overwrite:
                 raise AppError(409, "exists", _("файл уже существует: {path}", path=path))
-            wsp.check_unsaved(body.force)
-            user = wsp.config.user
+            wsp.check_unsaved(force)
             try:
-                text = new_map_text(body.template, body.title or path.stem, user.name, user.github)
+                text = make_text(path)
             except ValueError as e:
                 raise AppError(400, "template", str(e)) from e
             try:
@@ -449,6 +456,16 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                 raise AppError(400, "write", _("не удалось создать {path}: {error}", path=path, error=e)) from e
             wsp.open(path)
             return await session_changed()
+
+    @app.post("/api/file/new")
+    async def file_new(body: NewBody) -> dict:
+        user = wsp.config.user
+        return await create_file(body.path, body.force, body.overwrite, lambda path: new_map_text(
+            body.template, body.title or path.stem, user.name, user.github))
+
+    @app.post("/api/file/example")
+    async def file_example(body: ExampleBody) -> dict:
+        return await create_file(body.path, body.force, body.overwrite, lambda _path: example_text(body.name))
 
     @app.post("/api/file/save_as")
     async def file_save_as(body: SaveAsBody) -> dict:

@@ -12,7 +12,7 @@ interface Toast {
   text: string;
 }
 
-export type DialogKind = "open" | "new" | "saveas" | "profile" | null;
+export type DialogKind = "open" | "new" | "saveas" | "example" | "profile" | null;
 
 function savedTemplate(): string {
   try {
@@ -28,6 +28,7 @@ export const store = reactive({
   pdfTemplate: savedTemplate(),                // выбранный шаблон PDF (запоминается в браузере)
   state: null as State | null,
   dialog: null as DialogKind,
+  example: null as string | null,              // пример, копию которого сохраняет диалог "example"
   selected: ["document"] as Path,
   tab: "editor" as "editor" | "yaml",
   busy: false,
@@ -147,6 +148,15 @@ export const actions = {
   openFile: (path: string) => switchFile((force) => api.open(path, force)),
   newFile: (path: string, template: string, title: string, overwrite = false) =>
     switchFile((force) => api.newFile({ path, template, title, force, overwrite }), t("Создана новая карта")),
+  newFromExample: (name: string, path: string, overwrite = false) =>
+    switchFile(async (force) => {
+      try {
+        return await api.fromExample({ name, path, force, overwrite });
+      } catch (e) {
+        if (!(e instanceof ApiError && e.code === "exists" && confirm(`${e.message}\n\n${t("Перезаписать?")}`))) throw e;
+        return api.fromExample({ name, path, force, overwrite: true });
+      }
+    }),
   saveAs: async (path: string, overwrite = false): Promise<boolean> => {
     try {
       acceptSession(await api.saveAs(path, overwrite));

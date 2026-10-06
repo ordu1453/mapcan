@@ -7,11 +7,12 @@ import type { FsEntry, FsList } from "../types";
 import Modal from "./Modal.vue";
 import { N_, t } from "../i18n";
 
-const props = defineProps<{ mode: "open" | "new" | "saveas" }>();
+const props = defineProps<{ mode: "open" | "new" | "saveas" | "example" }>();
 const emit = defineEmits<{ close: [] }>();
 
-const TITLES = { open: N_("Открыть карту"), new: N_("Новая карта"), saveas: N_("Сохранить как") };
-const ACTION = { open: N_("Открыть"), new: N_("Создать"), saveas: N_("Сохранить") };
+const TITLES = { open: N_("Открыть карту"), new: N_("Новая карта"), saveas: N_("Сохранить как"),
+                 example: N_("Сохранить копию примера") };
+const ACTION = { open: N_("Открыть"), new: N_("Создать"), saveas: N_("Сохранить"), example: N_("Создать") };
 
 const listing = ref<FsList | null>(null);
 const dirInput = ref("");
@@ -51,6 +52,7 @@ onMounted(async () => {
     name.value = f.slice(Math.max(f.lastIndexOf("/"), f.lastIndexOf("\\")) + 1).replace(/(\.ya?ml)$/i, "_copy$1");
   }
   if (props.mode === "new") name.value = "mapcan.yaml";
+  if (props.mode === "example") name.value = `${store.example}.yaml`;
   await nextTick();
   nameEl.value?.focus();
   nameEl.value?.select();
@@ -84,6 +86,7 @@ async function submit() {
   let ok = false;
   if (props.mode === "open") ok = await actions.openFile(p);
   else if (props.mode === "new") ok = await actions.newFile(p, template.value, title.value.trim());
+  else if (props.mode === "example") ok = await actions.newFromExample(store.example ?? "", p);
   else ok = await actions.saveAs(p);
   if (ok) emit("close");
 }

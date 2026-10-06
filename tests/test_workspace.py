@@ -81,6 +81,26 @@ def test_new_open_recent(empty, tmp_path):
     assert UserConfig.load().recent[0] == str(other.resolve())
 
 
+def test_copy_example(empty, tmp_path):
+    examples = empty.get("/api/meta").json()["examples"]
+    assert {e["name"] for e in examples} >= {"minimal", "j1939", "vehicle-can"}
+    assert all(e["title"] for e in examples)
+
+    r = empty.post("/api/file/example", json={"name": "minimal", "path": "copy"})
+    assert r.status_code == 200, r.text
+    path = tmp_path / "copy.yaml"
+    assert r.json()["meta"]["file"] == str(path.resolve())
+    text = path.read_text(encoding="utf-8")
+    assert "$schema" not in text and text.startswith("# ")
+    assert not [d for d in r.json()["state"]["diagnostics"] if d["level"] == "error"]
+
+    again = empty.post("/api/file/example", json={"name": "minimal", "path": "copy.yaml"})
+    assert again.status_code == 409 and again.json()["code"] == "exists"
+    for bad in ("nope", "../pyproject"):
+        r = empty.post("/api/file/example", json={"name": bad, "path": "x.yaml"})
+        assert r.status_code == 400 and r.json()["code"] == "template"
+
+
 def test_unsaved_guard(tmp_path):
     a, b = tmp_path / "a.yaml", tmp_path / "b.yaml"
     shutil.copyfile(REFERENCE, a)

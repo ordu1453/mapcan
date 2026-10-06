@@ -110,7 +110,7 @@ function keepMine() {
 
     <PreviewDialog v-if="preview" :fmt="preview" @close="preview = null" />
     <DiffDialog v-if="diffOpen" @close="diffOpen = false" />
-    <FileDialog v-if="store.dialog === 'open' || store.dialog === 'new' || store.dialog === 'saveas'"
+    <FileDialog v-if="store.dialog === 'open' || store.dialog === 'new' || store.dialog === 'saveas' || store.dialog === 'example'"
                 :key="store.dialog" :mode="store.dialog" @close="store.dialog = null" />
     <ProfileDialog v-if="store.dialog === 'profile'" @close="store.dialog = null" />
 

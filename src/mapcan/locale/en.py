@@ -315,6 +315,7 @@ EN: dict[str, str] = {
     "CAN с явными ID: шина и одно устройство": "CAN with explicit IDs: a bus and one device",
     "Пустая: только шина": "Empty: just a bus",
     "неизвестный шаблон: {template}": "unknown template: {template}",
+    "неизвестный пример: {name}": "unknown example: {name}",
     "Карта сигналов mapcan (формат v1).": "mapcan signal map (format v1).",
     "Байты и биты нумеруются с 0; start_bit — позиция младшего бита; physical = raw * factor + offset.":
         "Bytes and bits are numbered from 0; start_bit is the position of the least significant bit; "

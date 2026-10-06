@@ -46,6 +46,10 @@ build-backend = "hatchling.build"
 # Node.js пользователям не нужен.
 packages = ["src/mapcan"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# Примеры для стартового экрана («Примеры»).
+"examples" = "mapcan/examples"
+
 [tool.hatch.build.targets.sdist]
 include = ["src/mapcan", "schema", "examples", "docs", "tests", "README.md"]
 

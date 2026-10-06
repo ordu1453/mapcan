@@ -39,6 +39,8 @@ export const api = {
   open: (path: string, force = false) => call<SessionResult>("POST", "/api/file/open", { path, force }),
   newFile: (b: { path: string; template: string; title: string; force?: boolean; overwrite?: boolean }) =>
     call<SessionResult>("POST", "/api/file/new", b),
+  fromExample: (b: { name: string; path: string; force?: boolean; overwrite?: boolean }) =>
+    call<SessionResult>("POST", "/api/file/example", b),
   saveAs: (path: string, overwrite = false) => call<SessionResult>("POST", "/api/file/save_as", { path, overwrite }),
   close: (force = false) => call<SessionResult>("POST", "/api/file/close", { force }),
   state: () => call<State>("GET", "/api/state"),
