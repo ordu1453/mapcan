@@ -832,7 +832,7 @@
     },
     "LocalizedText": {
       "additionalProperties": true,
-      "description": "Text with translations. A plain string instead of an object is taken as the document language.",
+      "description": "Text with translations. A plain string instead of an object is treated as text in the document language.",
       "properties": {
         "ru": {
           "anyOf": [

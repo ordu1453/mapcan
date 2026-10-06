@@ -15,9 +15,9 @@ EN: dict[str, str] = {
         "Validate the map. Exit code 1 on errors (and on warnings with --strict).",
     "mapcan {version}: {path} → {url}  (Ctrl+C — остановить)": "mapcan {version}: {path} → {url}  (Ctrl+C to stop)",
     "Веб-редактор в браузере (для сервера и разработки; на рабочем месте удобнее `mapcan app`).":
-        "Web editor in the browser (for servers and development; on a workstation `mapcan app` is handier).",
+        "Browser-based editor (for servers and development; on a desktop, `mapcan app` is more convenient).",
     "Редактор в отдельном окне (pywebview); повторный запуск открывает файл в уже запущенном окне.":
-        "Editor in its own window (pywebview); running it again opens the file in the window already open.",
+        "Editor in its own window (pywebview); running it again opens the file in the existing window.",
     "Сравнить две версии карты (кадры, сигналы, значения) и вывести changelog.":
         "Compare two versions of a map (frames, signals, values) and print a changelog.",
     "Список правил проверки.": "List validation rules.",
@@ -42,9 +42,9 @@ EN: dict[str, str] = {
     "Показывать замечания уровня info.": "Show info-level notes.",
     "Отключить правило (можно несколько раз).": "Disable a rule (may be repeated).",
     "Карта для открытия или рабочая папка. Без аргумента — стартовый экран.":
-        "Map to open or a working folder. Without an argument, the start screen opens.",
+        "Map to open, or a working folder. Without an argument, the start screen is shown.",
     "Адрес для прослушивания.": "Address to listen on.",
-    "Порт; по умолчанию 8765 или свободный.": "Port; 8765 or a free one by default.",
+    "Порт; по умолчанию 8765 или свободный.": "Port; defaults to 8765 or any free port.",
     "Только просмотр, без сохранения.": "View only, no saving.",
     "Не открывать браузер.": "Do not open a browser.",
     "Внимание: редактор доступен по сети ({host}) без аутентификации. "
@@ -138,7 +138,7 @@ EN: dict[str, str] = {
     # ------------------------------------------------------------------ правила проверки
     "Синтаксическая ошибка YAML, повторяющийся ключ": "YAML syntax error, duplicate key",
     "Нарушение структуры: тип, обязательное поле, недопустимое значение":
-        "Structure violation: type, required field, invalid value",
+        "Schema violation: wrong type, missing required field or invalid value",
     "Число записано через запятую (0,1 вместо 0.1)": "Number written with a decimal comma (0,1 instead of 0.1)",
     "Кириллическая «х» в шестнадцатеричном числе": "Cyrillic “х” in a hexadecimal number",
     "Число записано строкой в кавычках": "Number written as a quoted string",
@@ -153,7 +153,7 @@ EN: dict[str, str] = {
     "Недопустимый DLC": "Invalid DLC",
     "Повтор имени сигнала/флага в кадре": "Duplicate signal/flag name in the frame",
     "Сигнал выходит за пределы DLC": "Signal extends beyond the DLC",
-    "Пересечение сигналов по битам (с учётом мультиплексирования)": "Signals overlap in bits (multiplexing considered)",
+    "Пересечение сигналов по битам (с учётом мультиплексирования)": "Overlapping signals (multiplexing-aware)",
     "Значение enum не помещается в разрядность поля": "Enum value does not fit in the field width",
     "Одинаковое имя у разных значений enum": "Same name for different enum values",
     "flags задан у сигнала не типа bitfield": "flags set on a signal that is not a bitfield",
@@ -170,7 +170,7 @@ EN: dict[str, str] = {
     "Селектор сам мультиплексирован": "Selector is itself multiplexed",
     "Режим cyclic без cycle_ms": "cyclic mode without cycle_ms",
     "cycle_ms задан для нециклического кадра": "cycle_ms set for a non-cyclic frame",
-    "Направление противоречит типу кадра CANopen": "Direction contradicts the CANopen frame type",
+    "Направление противоречит типу кадра CANopen": "Direction conflicts with the CANopen frame type",
     "Тип кадра CANopen на шине не CANopen": "CANopen frame type on a non-CANopen bus",
     "Описание sdo у кадра не типа sdo_tx/sdo_rx": "sdo description on a frame that is not sdo_tx/sdo_rx",
     "Повтор SDO-обмена (команда, индекс, субиндекс)": "Duplicate SDO exchange (command, index, subindex)",
@@ -181,7 +181,7 @@ EN: dict[str, str] = {
     "destination задан для PDU2-PGN (PF ≥ 240) и не используется":
         "destination set for a PDU2 PGN (PF ≥ 240) and unused",
     "pgn/priority/destination/address на шине не J1939": "pgn/priority/destination/address on a non-J1939 bus",
-    "Получатель кадра не описан на шине": "Frame receiver is not described on the bus",
+    "Получатель кадра не описан на шине": "Frame receiver is not defined on the bus",
     "Сигнал float должен быть 32 или 64 бита": "A float signal must be 32 or 64 bits",
     "Значение по умолчанию вне диапазона сигнала": "Default value outside the signal's range",
     "Значение invalid не помещается в разрядность сигнала": "invalid value does not fit in the signal width",
@@ -203,45 +203,45 @@ EN: dict[str, str] = {
     "{what} {name!r}: допустимы латинские буквы, цифры и _":
         "{what} {name!r}: only Latin letters, digits and _ are allowed",
     "{what} {name!r} не в стиле {style}": "{what} {name!r} is not in {style} style",
-    "{fields} у кадра на шине {protocol}": "{fields} on a frame on a {protocol} bus",
+    "{fields} у кадра на шине {protocol}": "{fields} set on a frame on a {protocol} bus",
     "тип {type} на шине с протоколом {protocol}": "type {type} on a bus with protocol {protocol}",
     "кадр {type} обычно {expected} для устройства, указано {actual}":
-        "a {type} frame is usually {expected} for the device, {actual} is set",
+        "a {type} frame is usually {expected} for the device, but {actual} is set",
     "второй селектор {name!r}": "second selector {name!r}",
     "логотип {logo!r}: поддерживаются {formats}": "logo {logo!r}: supported formats are {formats}",
-    "устройство {name!r} уже описано": "device {name!r} is already described",
-    "кадр {name!r} уже описан на шине": "frame {name!r} is already described on the bus",
+    "устройство {name!r} уже описано": "device {name!r} is already defined",
+    "кадр {name!r} уже описан на шине": "frame {name!r} is already defined on the bus",
     "CAN ID {can_id:#05x} кадра {name!r} совпадает с кадром {other!r}":
         "CAN ID {can_id:#05x} of frame {name!r} matches frame {other!r}",
     "CAN ID {can_id:#x} > 0x7FF": "CAN ID {can_id:#x} > 0x7FF",
     "DLC {dlc} недопустим для CAN FD": "DLC {dlc} is not valid for CAN FD",
     "DLC {dlc} > 8 (для CAN FD укажите fd: true у шины)": "DLC {dlc} > 8 (for CAN FD set fd: true on the bus)",
-    "получатель {name!r} не описан на шине {bus!r}": "receiver {name!r} is not described on bus {bus!r}",
+    "получатель {name!r} не описан на шине {bus!r}": "receiver {name!r} is not defined on bus {bus!r}",
     "PGN {pgn:#06x} — PDU1: младший байт должен быть 0 (адрес получателя задаётся destination)":
         "PGN {pgn:#06x} is PDU1: the low byte must be 0 (the destination address is set by destination)",
     "PGN {pgn:#06x} — PDU2 (широковещательный), destination не используется":
         "PGN {pgn:#06x} is PDU2 (broadcast), destination is not used",
     "для режима cyclic нужен cycle_ms": "cyclic mode needs cycle_ms",
     "cycle_ms задан для режима {mode}": "cycle_ms is set for mode {mode}",
-    "sdo у кадра типа {type}": "sdo on a frame of type {type}",
+    "sdo у кадра типа {type}": "sdo set on a frame of type {type}",
     "кадр {name!r} без сигналов": "frame {name!r} has no signals",
     "селектор {name!r} не может иметь mux": "selector {name!r} cannot have mux",
     "сигнал {name!r} занимает байты {first}..{last}, а DLC = {dlc}":
         "signal {name!r} occupies bytes {first}..{last}, but DLC = {dlc}",
-    "flags у сигнала типа {kind}": "flags on a signal of kind {kind}",
+    "flags у сигнала типа {kind}": "flags set on a signal of kind {kind}",
     "сигнал-флаг {name!r} длиной {bits} бит": "flag signal {name!r} is {bits} bits long",
     "сигнал {name!r}: float — 32 или 64 бита, задано {bits}":
-        "signal {name!r}: float must be 32 or 64 bits, {bits} set",
+        "signal {name!r}: float must be 32 or 64 bits, got {bits}",
     "сигнал {name!r} без описания": "signal {name!r} has no description",
     "signed_code у беззнакового сигнала {name!r} не используется":
-        "signed_code on unsigned signal {name!r} is not used",
+        "signed_code is ignored on unsigned signal {name!r}",
     "{name!r}: сгенерированный код и DBC читают значение в дополнительном коде":
         "{name!r}: generated code and DBC read the value as two's complement",
     "имя {name!r} у значений {a} и {b}": "name {name!r} is used for values {a} and {b}",
     "флаг {name!r} (биты {first}..{last}) вне поля длиной {bits} бит":
         "flag {name!r} (bits {first}..{last}) is outside the {bits}-bit field",
     "файл логотипа не найден: {path}": "logo file not found: {path}",
-    "address у устройства на шине {protocol}": "address on a device on a {protocol} bus",
+    "address у устройства на шине {protocol}": "address set on a device on a {protocol} bus",
     "адрес {address:#04x} уже занят устройством {other!r}":
         "address {address:#04x} is already used by device {other!r}",
     "адрес {address:#04x} вне 0..253 (254, 255 — служебные)":
@@ -256,7 +256,7 @@ EN: dict[str, str] = {
     "кадр {name!r}: нет node_id у устройства для вычисления ID {type}":
         "frame {name!r}: the device has no node_id to compute the {type} ID",
     "обмен {name!r} повторяет {other!r} (0x{command:02X}, 0x{index:04X}:{subindex})":
-        "exchange {name!r} repeats {other!r} (0x{command:02X}, 0x{index:04X}:{subindex})",
+        "exchange {name!r} duplicates {other!r} (0x{command:02X}, 0x{index:04X}:{subindex})",
     "флаг {name!r} уже есть в кадре {frame!r} ({other})": "flag {name!r} already exists in frame {frame!r} ({other})",
     "сигнал {name!r} уже есть в кадре {frame!r} ({other})":
         "signal {name!r} already exists in frame {frame!r} ({other})",
@@ -319,7 +319,7 @@ EN: dict[str, str] = {
     "Настраиваемые правила стиля (проверяются как warning).": "Configurable style rules (checked as warnings).",
     "Коды правил, которые нужно отключить.": "Codes of the rules to disable.",
     "Текст с переводами. Строка вместо объекта трактуется как язык документа.":
-        "Text with translations. A plain string instead of an object is taken as the document language.",
+        "Text with translations. A plain string instead of an object is treated as text in the document language.",
     "Должностное лицо для блоков «УТВЕРЖДАЮ» / «СОГЛАСОВАНО».":
         "An official for the \"APPROVED\" / \"AGREED\" blocks.",
     "Один SDO-обмен (expedited): команда, индекс, субиндекс, значение.":
@@ -355,11 +355,11 @@ EN: dict[str, str] = {
     "папка не найдена: {path}": "folder not found: {path}",
     "карта не открыта": "no map is open",
     "в «{name}» есть несохранённые изменения": "“{name}” has unsaved changes",
-    "нет доступа к папке: {path}": "access to the folder is denied: {path}",
+    "нет доступа к папке: {path}": "access denied to folder: {path}",
     "ошибка {tool}": "{tool} error",
     "{tool} не ответил за {seconds} с": "{tool} did not respond within {seconds} s",
     "папка карты не в репозитории git": "the map folder is not in a git repository",
-    "у репозитория нет удалённого репозитория (remote)": "the repository has no remote",
+    "у репозитория нет удалённого репозитория (remote)": "the repository has no remote configured",
     "недопустимое имя репозитория: {name}": "invalid repository name: {name}",
     "GitHub CLI (gh) не установлен": "GitHub CLI (gh) is not installed",
     "у репозитория уже есть remote «{remote}»": "the repository already has the remote “{remote}”",
@@ -378,17 +378,17 @@ EN: dict[str, str] = {
     "запрос с чужой страницы отклонён": "request from another site rejected",
     "неизвестный формат: {fmt}": "unknown format: {fmt}",
     "неизвестный шаблон PDF: {template}": "unknown PDF template: {template}",
-    "карта содержит ошибки структуры — экспорт невозможен": "the map has structural errors, export is not possible",
+    "карта содержит ошибки структуры — экспорт невозможен": "the map has structural errors and cannot be exported",
     "логотип не задан или файл не найден": "no logo is set or the file was not found",
     "поддерживаются {formats}": "supported formats: {formats}",
     "файл больше {mb} МБ": "the file is larger than {mb} MB",
-    "{label}: карта не загружается: {errors}": "{label}: the map does not load: {errors}",
+    "{label}: карта не загружается: {errors}": "{label}: the map failed to load: {errors}",
     "текущая карта содержит ошибки структуры": "the current map has structural errors",
     "не удалось сохранить настройки: {error}": "could not save settings: {error}",
     "файл не найден: {path}": "file not found: {path}",
     "файл уже существует: {path}": "file already exists: {path}",
     "ошибка экспорта {fmt}: {error}": "{fmt} export error: {error}",
-    "файл не в UTF-8": "the file is not UTF-8",
+    "файл не в UTF-8": "the file is not UTF-8 encoded",
     "не удалось прочитать {name}: {error}": "could not read {name}: {error}",
     "не удалось создать {path}: {error}": "could not create {path}: {error}",
     "не удалось сохранить {path}: {error}": "could not save {path}: {error}",
