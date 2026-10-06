@@ -257,6 +257,11 @@ jobs:
       - name: Upload to the release
         working-directory: assets
         run: |
+          # Если сборка Linux закончилась раньше publish, архив и его сумма уже в релизе
+          if gh release view "$TAG" --json assets --jq '.assets[].name' | grep -q -- '-linux-x64\.tar\.gz$'; then
+            echo "Linux archive is already in the release"
+            exit 0
+          fi
           gh release download "$TAG" -p SHA256SUMS.txt
           sha256sum mapcan-*-linux-x64.tar.gz >> SHA256SUMS.txt && cat SHA256SUMS.txt
           gh release upload "$TAG" mapcan-*-linux-x64.tar.gz
