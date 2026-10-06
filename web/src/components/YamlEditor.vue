@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // Правка YAML целиком. Применение — Ctrl+Enter или кнопка; проверка та же, что в CLI.
 import { computed, nextTick, ref, watch } from "vue";
-import { actions, store } from "../store";
-import { highlight, nodeLines } from "../yamltext";
+import { actions, store, tree } from "../store";
+import { samePath, type TreeNode } from "../model";
+import { highlight, nodeAtLine, nodeLines } from "../yamltext";
 import { t } from "../i18n";
 
 const text = ref(store.state?.text ?? "");
@@ -39,6 +40,26 @@ watch(() => store.selected, async () => {
     syncScroll();
   }
 }, { immediate: true });
+
+// Обратно: курсор в тексте выбирает в дереве узел, которому принадлежит строка.
+const treePaths = computed(() => {
+  const out: TreeNode["path"][] = [];
+  const walk = (ns: TreeNode[]) => ns.forEach((n) => { out.push(n.path); walk(n.children); });
+  walk(tree.value);
+  return out;
+});
+
+function selectAtCursor() {
+  const el = ta.value;
+  if (!el || !store.state?.data) return;
+  const line = text.value.slice(0, el.selectionStart).split("\n").length;
+  const p = nodeAtLine(text.value, line, treePaths.value);
+  if (p && !samePath(p, store.selected)) actions.select(p);
+}
+
+function onKeyUp(e: KeyboardEvent) {
+  if (/^(Arrow|Page|Home|End)/.test(e.key)) selectAtCursor();
+}
 
 const marks = computed(() => {
   const m = new Map<number, string>();
@@ -120,7 +141,8 @@ function onKey(e: KeyboardEvent) {
              height: (range.last - range.first + 1) * LINE + 'px' }" />
         <pre ref="code" class="yaml-hl mono" aria-hidden="true" :style="{ lineHeight: LINE + 'px' }"><code v-html="html" /></pre>
         <textarea ref="ta" v-model="text" class="mono" spellcheck="false" :readonly="store.state?.readonly"
-                  :style="{ lineHeight: LINE + 'px' }" @scroll="syncScroll" @keydown="onKey" />
+                  :style="{ lineHeight: LINE + 'px' }" @scroll="syncScroll" @keydown="onKey"
+                  @keyup="onKeyUp" @mouseup="selectAtCursor" />
       </div>
     </div>
   </div>

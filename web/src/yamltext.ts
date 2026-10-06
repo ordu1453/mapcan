@@ -177,3 +177,20 @@ export function nodeLines(text: string, path: Path): { first: number; last: numb
   }
   return found && { first: found[0] + 1, last: found[1] };
 }
+
+/** Самый вложенный из узлов `paths`, строки которого содержат строку `line` (с 1). */
+export function nodeAtLine(text: string, line: number, paths: Path[]): Path | null {
+  let best: Path | null = null;
+  let size = Infinity;
+  for (const p of paths) {
+    const r = nodeLines(text, p);
+    if (!r || line < r.first || line > r.last) continue;
+    const n = r.last - r.first;
+    // При равных диапазонах (flow-коллекция в одной строке) — более глубокий путь.
+    if (n < size || (n === size && best && p.length > best.length)) {
+      best = p;
+      size = n;
+    }
+  }
+  return best;
+}
