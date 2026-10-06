@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Одно поле формы. Значение фиксируется по Enter / потере фокуса — одна правка = один шаг undo.
+// Одно поле формы. Значение фиксируется по Enter / потере фокуса (событие change) — одна правка = один шаг undo.
 import { computed, ref, watch } from "vue";
 import { formatValue, parseInput, ParseError, type FieldDef } from "../fields";
 import type { Diagnostic } from "../types";
@@ -57,6 +57,8 @@ function commit() {
     const next = parseInput(props.def.type, draft.value);
     const old = props.value ?? null;
     if (JSON.stringify(next) !== JSON.stringify(old)) emit("commit", next);
+    // Нормализуем ввод сразу («1,5» → «1.5»): если значение не изменилось, обновления с сервера не будет
+    draft.value = formatValue(props.def.type, next);
     error.value = "";
   } catch (e) {
     error.value = e instanceof ParseError ? e.message : String(e);
@@ -98,15 +100,15 @@ const level = computed(() => {
     </span>
 
     <span v-else-if="def.type === 'loc'" class="loc">
-      <input v-model="draft" :readonly="readonly" :placeholder="placeholder" @change="commit" @keydown.enter="commit" />
+      <input v-model="draft" :readonly="readonly" :placeholder="placeholder" @change="commit" />
       <input v-if="showEn" v-model="draftEn" class="en" :readonly="readonly" placeholder="English"
-             @change="commit" @keydown.enter="commit" />
+             @change="commit" />
       <button v-else-if="!readonly" type="button" class="link" :title="t('Добавить перевод')" @click="showEn = true">en</button>
     </span>
 
     <input v-else :type="def.type === 'date' ? 'date' : 'text'" v-model="draft" :readonly="readonly"
            :placeholder="placeholder" :class="{ mono: ['hex', 'int', 'float', 'intlist', 'strlist'].includes(def.type) }"
-           @change="commit" @keydown.enter="commit" />
+           @change="commit" />
 
     <span v-if="error" class="field-msg error">{{ error }}</span>
     <span v-for="d in diags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>

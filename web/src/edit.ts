@@ -150,7 +150,7 @@ export function addFlag(signalPath: Path): Promise<boolean> {
   for (const f of flags) for (let b = f.bit; b < f.bit + (f.bit_length ?? 1); b++) used.add(b);
   let bit = 0;
   while (used.has(bit)) bit++;
-  const frameSigs = getAt(data(), signalPath.slice(0, -2)) as Data[];
+  const frameSigs = (getAt(data(), signalPath.slice(0, -1)) ?? []) as Data[];
   const names = new Set<string>(frameSigs.flatMap((s: Data) => [s.name, ...(s.flags ?? []).map((f: Data) => f.name)]));
   return insertAndSelect([...signalPath, "flags"], { bit, name: uniqueName("flag", names) });
 }
