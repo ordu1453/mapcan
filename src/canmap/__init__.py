@@ -1,6 +1,6 @@
 """canmap — YAML-карта сигналов как единственный источник правды."""
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 from .loader import load, loads  # noqa: E402
 from .model import CanMap  # noqa: E402
