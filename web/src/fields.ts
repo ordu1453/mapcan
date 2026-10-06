@@ -19,6 +19,8 @@ export interface FieldDef {
   label: string;
   type: FieldType;
   options?: Array<[string, string]>;
+  /** Варианты, зависящие от контекста (протокола шины); NodeEditor подставляет их в options. */
+  optionsFor?: (ctx: FieldCtx) => Array<[string, string]>;
   hint?: string;
   /** Справка «?» к полю (заполняется из HELP). */
   help?: string;
@@ -26,6 +28,12 @@ export interface FieldDef {
   /** Показывать поле только если условие истинно (node — данные узла). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   when?: (node: any, ctx: FieldCtx) => boolean;
+  /** Поле видно, но недоступно для правки; lockedHint заменяет hint. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  locked?: (node: any, ctx: FieldCtx) => boolean;
+  lockedHint?: string;
+  /** Подсказки при вводе (свой текст тоже допускается): units — справочник единиц с сервера. */
+  suggest?: "units";
 }
 
 // Поля сигнала, применимые к его типу (заполненные поля показываются всегда — см. NodeEditor)
@@ -38,6 +46,13 @@ const FRAME_TYPES: Array<[string, string]> = [
   ["pdo_tx3", "PDO TX 3"], ["pdo_rx3", "PDO RX 3"], ["pdo_tx4", "PDO TX 4"], ["pdo_rx4", "PDO RX 4"],
   ["sdo_tx", "SDO TX"], ["sdo_rx", "SDO RX"], ["heartbeat", "Heartbeat"],
 ];
+
+// Вне CANopen тип кадра не используется: ID задаётся явно (CAN) или из PGN + SA (J1939)
+const frameTypes = (c: FieldCtx) => (c.protocol === "canopen" ? FRAME_TYPES : FRAME_TYPES.slice(0, 1));
+
+// «По типу» — направление из типа кадра CANopen; в других протоколах просто не задано
+const directions = (c: FieldCtx): Array<[string, string]> =>
+  [["", c.protocol === "canopen" ? N_("по типу") : N_("не задано")], ["tx", "TX"], ["rx", "RX"]];
 
 const KINDS: Array<[string, string]> = [
   ["enum", N_("enum — перечисление")], ["flag", N_("flag — флаг")], ["bitfield", N_("bitfield — битовое поле")],
@@ -84,7 +99,10 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   frame: [
     { key: "name", label: N_("Имя"), type: "text" },
     { key: "title", label: N_("Заголовок"), type: "loc", hint: N_("напр. СОСТОЯНИЯ") },
-    { key: "type", label: N_("Тип"), type: "select", options: FRAME_TYPES, when: (_n, c) => c.protocol === "canopen" },
+    { key: "type", label: N_("Тип"), type: "select", optionsFor: frameTypes,
+      // Записанный в YAML тип CANopen на другой шине не блокируем — его нужно иметь возможность исправить на raw
+      locked: (n, c) => c.protocol !== "canopen" && (n?.type == null || n.type === "raw"),
+      lockedHint: N_("вне CANopen кадр задаётся явным ID (J1939 — PGN)") },
     { key: "id", label: "CAN ID", type: "hex", hint: N_("пусто — вычислить (CANopen: тип + node_id, J1939: PGN + SA)") },
     { key: "pgn", label: "PGN", type: "hex", hint: N_("J1939, напр. 0xF004"), when: (_n, c) => c.protocol === "j1939" },
     { key: "priority", label: N_("Приоритет"), type: "int", hint: N_("0..7, по умолчанию 6"), when: (_n, c) => c.protocol === "j1939" },
@@ -92,7 +110,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
       when: (n, c) => c.protocol === "j1939" && n?.pgn != null && ((n.pgn >> 8) & 0xff) < 240 },
     { key: "receivers", label: N_("Получатели"), type: "strlist", hint: N_("имена устройств через запятую"), wide: true },
     { key: "dlc", label: "DLC", type: "int" },
-    { key: "direction", label: N_("Направление"), type: "select", options: [["", N_("по типу")], ["tx", "TX"], ["rx", "RX"]] },
+    { key: "direction", label: N_("Направление"), type: "select", optionsFor: directions },
     { key: "extended", label: N_("29-битный ID"), type: "bool", when: (_n, c) => c.protocol !== "j1939" },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },
@@ -111,7 +129,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
       when: (n) => !!n?.signed || n?.signed_code != null },
     { key: "factor", label: N_("Масштаб (factor)"), type: "float", when: numeric },
     { key: "offset", label: N_("Смещение (offset)"), type: "float", when: numeric },
-    { key: "unit", label: N_("Единица"), type: "text", when: numeric },
+    { key: "unit", label: N_("Единица"), type: "text", suggest: "units", when: numeric },
     { key: "min", label: N_("Минимум (min)"), type: "float", when: numeric },
     { key: "max", label: N_("Максимум (max)"), type: "float", when: numeric },
     { key: "multiplexer", label: N_("Селектор mux"), type: "bool",
@@ -141,7 +159,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "value.name", label: N_("Значение: имя"), type: "text" },
     { key: "value.bit_length", label: N_("Значение: бит"), type: "select",
       options: [["8", "8"], ["16", "16"], ["24", "24"], ["32", "32"]] },
-    { key: "value.unit", label: N_("Значение: единица"), type: "text" },
+    { key: "value.unit", label: N_("Значение: единица"), type: "text", suggest: "units" },
     { key: "value.factor", label: N_("Значение: масштаб"), type: "float" },
   ],
   unknown: [],

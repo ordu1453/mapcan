@@ -251,6 +251,29 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .bg-cell.conflict { background-image: repeating-linear-gradient(45deg, rgba(198, 40, 40, 0.35) 0 6px, transparent 6px 12px); }
 .bg-cell.preview { box-shadow: inset 0 0 0 2px var(--accent); background-color: var(--accent-soft); }
 .bg-cell.preview-bad { box-shadow: inset 0 0 0 2px var(--error); }
+/* Битовое поле: само поле — бледная заливка цвета сигнала (контейнер), флаги — плотные плашки внутри с зазорами,
+   имя поля — мелко в левом верхнем углу */
+.bg-cell.field-bit { background: color-mix(in srgb, var(--sig) 45%, #fff); }
+.bg-cell.field-bit:not(.no-flag)::before {
+  content: ""; position: absolute; top: 11px; bottom: 3px; left: 0; right: 0; pointer-events: none;
+  box-sizing: border-box; background: var(--sig);
+  /* Обводка только по краям плашки: у внутренних стыков ячеек одного флага её нет */
+  border: 1px solid color-mix(in srgb, var(--sig) 70%, #000); border-left-width: 0; border-right-width: 0;
+}
+.bg-cell.field-bit.pill-l::before { left: 3px; border-left-width: 1px; border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+.bg-cell.field-bit.pill-r::before { right: 3px; border-right-width: 1px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+/* Внутри плашки линия сетки не видна: плашка заходит на левую границу ячейки */
+.bg-cell.field-bit:not(.pill-l)::before { left: -1px; }
+.bg-cell.field-bit.flag-selected { box-shadow: none; }
+.bg-cell.field-bit.flag-selected::before { border-color: var(--accent); border-top-width: 2px; border-bottom-width: 2px; }
+.bg-cell.field-bit.flag-selected.pill-l::before { border-left-width: 2px; }
+.bg-cell.field-bit.flag-selected.pill-r::before { border-right-width: 2px; }
+.bg-field-label {
+  position: relative; z-index: 1; pointer-events: none; display: flex; align-items: flex-start; padding: 0 10px;
+  font-size: 9.5px; line-height: 11px; font-weight: 600; color: rgba(29, 35, 41, 0.6); overflow: hidden; border-top: 1px solid var(--line);
+}
+.bg-field-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bg-label.on-pill { padding-top: 11px; padding-bottom: 3px; border-top: 0; }
 .grip { position: absolute; top: 4px; bottom: 4px; width: 5px; background: var(--accent); border-radius: 2px; cursor: ew-resize; }
 .grip.lo { right: 2px; }
 .grip.hi { left: 2px; }
@@ -434,3 +457,33 @@ a.gh { color: var(--accent); margin-left: 4px; }
 .preview-wrap { flex: 1; position: relative; display: flex; }
 .preview-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 a.primary-link { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+
+/* Переименование на месте: заголовок узла и дерево */
+.inline-rename { display: inline-flex; flex-direction: column; min-width: 0; flex: 1; }
+.inline-rename input { font: inherit; padding: 1px 4px; min-width: 8em; }
+.inline-rename input.invalid { border-color: var(--error); }
+.inline-rename .field-msg { font-size: 11px; font-weight: 400; }
+h2 .renamable { cursor: text; border-radius: 4px; }
+h2 .renamable:hover { background: var(--hover); }
+h2 .renamable.secondary { color: var(--muted); }
+
+/* Подсказки единиц: сетка по ширине поля, высота по содержимому, но не больше трети экрана */
+.suggest { position: relative; display: flex; }
+.suggest > input { flex: 1; padding-right: 22px; }
+.suggest-toggle {
+  position: absolute; right: 1px; top: 1px; bottom: 1px; width: 20px; padding: 0; border: 0;
+  background: transparent; color: var(--muted); cursor: pointer; font-size: 11px;
+}
+.suggest-toggle:hover { color: var(--fg); }
+.suggest-list {
+  position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin-top: 2px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 2px; padding: 4px;
+  max-height: min(180px, 33vh); overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 5px; box-shadow: var(--shadow);
+}
+.suggest-list button {
+  padding: 3px 4px; border: 0; border-radius: 3px; background: transparent; color: var(--fg);
+  font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.suggest-list button:hover { background: var(--hover); }
+.suggest-list button.current { background: var(--accent-soft); font-weight: 600; }

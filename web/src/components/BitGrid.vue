@@ -89,6 +89,10 @@ interface Cell {
   bit: number;
   owners: ResolvedSignal[];
   flag: string | null;
+  /** Номер флага в битовом поле (для чередования оттенков); null — не флаг или бит поля вне флагов. */
+  flagIndex: number | null;
+  /** Бит битового поля с флагами (единственный владелец). */
+  inField: boolean;
   conflict: boolean;
 }
 
@@ -100,11 +104,17 @@ const cells = computed<Cell[]>(() => {
       (s) => visible(s) && s.occupied.includes(bit) && !(dragged && samePath(s.path, dragged.path)),
     );
     let flag: string | null = null;
-    if (owners.length === 1) flag = owners[0].flags.find((f) => f.occupied.includes(bit))?.name ?? null;
+    let flagIndex: number | null = null;
+    const inField = owners.length === 1 && owners[0].flags.length > 0;
+    if (inField) {
+      flagIndex = owners[0].flags.findIndex((f) => f.occupied.includes(bit));
+      if (flagIndex < 0) flagIndex = null;
+      else flag = owners[0].flags[flagIndex].name;
+    }
     let conflict = false;
     for (let i = 0; i < owners.length && !conflict; i++)
       for (let j = 0; j < i; j++) if (coexist(owners[i].mux, owners[j].mux)) conflict = true;
-    out.push({ bit, owners, flag, conflict });
+    out.push({ bit, owners, flag, flagIndex, inField, conflict });
   }
   return out;
 });
@@ -119,9 +129,12 @@ interface Segment {
   col: number;
   span: number;
   label: string;
+  title: string;
   color: string;
   conflict: boolean;
   selected: boolean;
+  /** Подпись флага на плашке битового поля (сдвинута вниз под имя поля). */
+  onPill: boolean;
 }
 
 /** Подписи: подряд идущие биты строки с одинаковым владельцем объединяются. */
@@ -142,10 +155,13 @@ const segments = computed<Segment[]>(() => {
         const sel = selectedSignal.value;
         out.push({
           row, col, span,
-          label: c.flag ?? c.owners.map((s) => s.name).join(" | "),
+          // Биты поля вне флагов — без подписи: имя поля и так написано над плашками
+          label: c.flag ?? (c.inField ? "" : c.owners.map((s) => s.name).join(" | ")),
+          title: c.inField ? `${c.owners[0].name} · ${c.flag ?? "—"}` : c.owners.map((s) => s.name).join(" | "),
           color: colorOf(c.owners[0]),
           conflict: c.conflict,
           selected: !!sel && c.owners.some((s) => samePath(s.path, sel.path)),
+          onPill: c.inField,
         });
       }
       col += span;
@@ -153,6 +169,36 @@ const segments = computed<Segment[]>(() => {
   }
   return out;
 });
+
+/** Имя битового поля над плашками: подряд идущие биты строки одного поля. */
+const fieldSegments = computed<Array<{ row: number; col: number; span: number; label: string }>>(() => {
+  const out: Array<{ row: number; col: number; span: number; label: string }> = [];
+  for (let row = 0; row < props.frame.dlc; row++) {
+    let col = 0;
+    while (col < 8) {
+      const c = cells.value[row * 8 + (7 - col)];
+      let span = 1;
+      if (c.inField) {
+        while (col + span < 8 && samePlace(c, cells.value[row * 8 + (7 - col - span)])) span++;
+        out.push({ row, col, span, label: c.owners[0].name });
+      }
+      col += span;
+    }
+  }
+  return out;
+});
+
+const samePlace = (a: Cell, b: Cell | undefined) => !!b && b.inField && samePath(a.owners[0].path, b.owners[0].path);
+/** Тот же флаг (или тот же участок поля вне флагов) — ячейки сливаются в одну плашку. */
+const samePill = (a: Cell, b: Cell | undefined) => samePlace(a, b) && b!.flagIndex === a.flagIndex;
+
+/** Края плашки: слева в сетке — старший бит того же байта, на границе байта плашка всегда закрыта. */
+function pillEdges(c: Cell) {
+  if (!c.inField) return {};
+  const left = c.bit % 8 === 7 ? undefined : cells.value[c.bit + 1];
+  const right = c.bit % 8 === 0 ? undefined : cells.value[c.bit - 1];
+  return { "field-bit": true, "no-flag": c.flagIndex === null, "pill-l": !samePill(c, left), "pill-r": !samePill(c, right) };
+}
 
 function cellClass(c: Cell) {
   const sel = selectedSignal.value;
@@ -167,11 +213,14 @@ function cellClass(c: Cell) {
     preview: !!p && p.bits.has(c.bit),
     "preview-bad": !!p && p.bits.has(c.bit) && (c.owners.length > 0 || c.bit >= nbits.value),
     synthetic: c.owners.length > 0 && c.owners.every((s) => s.synthetic),
+    ...pillEdges(c),
   };
 }
 
+/** Обычный сигнал — заливка ячейки; битовое поле — плашки флагов (::before) цвета сигнала. */
 function cellStyle(c: Cell) {
-  return c.owners.length ? { background: colorOf(c.owners[0]) } : {};
+  if (!c.owners.length) return {};
+  return c.inField ? { "--sig": colorOf(c.owners[0]) } : { background: colorOf(c.owners[0]) };
 }
 
 /** Ручки изменения длины в ячейке; у однобитного сигнала обе в одной ячейке. */
@@ -280,8 +329,14 @@ const status = computed(() => {
         <span v-for="h in handles(c)" :key="h" class="grip" :class="h" :data-edge="h" />
       </div>
 
-      <div v-for="(s, i) in segments" :key="'s' + i" class="bg-label" :class="{ conflict: s.conflict, selected: s.selected }"
-           :style="{ gridRow: s.row + 2, gridColumn: `${s.col + 2} / span ${s.span}` }">
+      <div v-for="(f, i) in fieldSegments" :key="'f' + i" class="bg-field-label"
+           :style="{ gridRow: f.row + 2, gridColumn: `${f.col + 2} / span ${f.span}` }">
+        <span>{{ f.label }}</span>
+      </div>
+
+      <div v-for="(s, i) in segments" :key="'s' + i" class="bg-label"
+           :class="{ conflict: s.conflict, selected: s.selected && !s.onPill, 'on-pill': s.onPill }"
+           :title="s.title" :style="{ gridRow: s.row + 2, gridColumn: `${s.col + 2} / span ${s.span}` }">
         <span>{{ s.label }}</span>
       </div>
     </div>

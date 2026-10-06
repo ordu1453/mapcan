@@ -72,6 +72,8 @@ export interface State {
   resolved: { frames: ResolvedFrame[]; language: string } | null;
   diagnostics: Diagnostic[];
   palette: string[];
+  /** Справочник единиц: пары обозначений [ru, en]. */
+  units: Array<[string, string]>;
   session_id: number;
 }
 

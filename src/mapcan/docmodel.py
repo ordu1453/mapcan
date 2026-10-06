@@ -12,6 +12,7 @@ from . import bits as B
 from .canopen import ADDRESSING_ORDER, FUNCTION_CODES
 from .model import Frame, MapCan, Signal, enum_entries, text
 from .protocols import j1939_is_pdu1
+from .units import translate_unit
 
 # Пастельные цвета для сигналов в битовых диаграммах (тёмный текст читается на всех).
 PALETTE = [
@@ -108,6 +109,10 @@ class ViewBuilder:
 
     def t(self, value) -> str:
         return text(value, self.lang)
+
+    def unit(self, value: str | None) -> str:
+        """Единица на языке документа (из справочника units) или как записана; None → ""."""
+        return translate_unit(value, self.lang) or ""
 
     # ------------------------------------------------------------------ #
 
@@ -305,7 +310,7 @@ class ViewBuilder:
             "index": f"0x{e.index:04X}",
             "subindex": f"0x{e.subindex:02X}",
             "value": (f"{v.name}: {v.bit_length} {self.L['bits'].lower()}"
-                      + (f", {fmt_num(v.factor)} {v.unit or ''}{self.L['per_bit']}" if v.unit else "")
+                      + (f", {fmt_num(v.factor)} {self.unit(v.unit)}{self.L['per_bit']}" if v.unit else "")
                       ) if v else "—",
         }
 
@@ -335,12 +340,13 @@ class ViewBuilder:
             enc.append(L["bitfield"])
         elif s.kind == "bytes":
             enc.append(f"{s.bit_length // 8} {L['bytes']}" if whole_bytes else f"{s.bit_length} {L['bit']}")
+        unit = self.unit(s.unit)
         if s.kind == "metric" or s.factor != 1 or s.offset != 0:
-            enc.append(f"{fmt_num(s.factor)} {s.unit or ''}{L['per_bit']}".replace(" /", "/"))
+            enc.append(f"{fmt_num(s.factor)} {unit}{L['per_bit']}".replace(" /", "/"))
             if s.offset:
-                enc.append(f"{L['offset']} {fmt_num(s.offset)} {s.unit or ''}".strip())
-        elif s.unit:
-            enc.append(s.unit)
+                enc.append(f"{L['offset']} {fmt_num(s.offset)} {unit}".strip())
+        elif unit:
+            enc.append(unit)
         if b1 > b0 and s.kind != "bytes":
             enc.append(L[s.byte_order])
         if s.multiplexer:
@@ -361,9 +367,9 @@ class ViewBuilder:
         if s.min is not None or s.max is not None:
             mn = fmt_num(s.min) if s.min is not None else "…"
             mx = fmt_num(s.max) if s.max is not None else "…"
-            values.append(f"{L['range']}: {mn} … {mx} {s.unit or ''}".rstrip())
+            values.append(f"{L['range']}: {mn} … {mx} {unit}".rstrip())
         if s.initial is not None:
-            values.append(f"{L['initial']}: {fmt_num(s.initial)} {s.unit or ''}".rstrip())
+            values.append(f"{L['initial']}: {fmt_num(s.initial)} {unit}".rstrip())
         if s.invalid_values:
             values.append(f"{L['invalid']}: " + ", ".join(fmt_value(v, s) if s.value_format == "hex"
                                                          else f"0x{v:X}" if v >= 0 else str(v)

@@ -15,6 +15,7 @@ from ..docmodel import PALETTE
 from ..i18n import _
 from ..loader import LoadResult, loads
 from ..model import Frame, MapCan, enum_entries
+from ..units import UNITS
 from ..validate import check
 from .yamlops import OpError, apply_ops, dump, make_yaml, merge_text, plain
 
@@ -191,6 +192,7 @@ class EditorSession:
                 "resolved": resolved_view(self.map) if self.map else None,
                 "diagnostics": [asdict(d) for d in self._report.sorted()],
                 "palette": PALETTE,
+                "units": UNITS,
             }
 
 

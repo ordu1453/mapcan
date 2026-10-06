@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
-import { childActions, duplicateNode, moveNode, removeNode, addSignal } from "../edit";
+import { canRename, childActions, duplicateNode, moveNode, removeNode, addSignal, renameNode } from "../edit";
 import { HELP } from "../help";
 import { FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
 import { getAt, HISTORY_PATH, nodeKind, pathKey, samePath, startsWith, txt } from "../model";
-import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store } from "../store";
+import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast } from "../store";
 import type { Path } from "../types";
 import BitGrid from "./BitGrid.vue";
 import DocumentRequisites from "./DocumentRequisites.vue";
@@ -13,6 +13,7 @@ import FieldInput from "./FieldInput.vue";
 import FlagsTable from "./FlagsTable.vue";
 import HelpTip from "./HelpTip.vue";
 import HistoryEditor from "./HistoryEditor.vue";
+import InlineRename from "./InlineRename.vue";
 import ValueTable from "./ValueTable.vue";
 import { N_, t } from "../i18n";
 
@@ -36,8 +37,13 @@ const fieldCtx = computed<FieldCtx>(() => {
     hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
   };
 });
-const fields = computed(() => (FIELDS[kind.value] ?? []).filter(
-  (f) => !f.when || f.when(node.value, fieldCtx.value) || fieldValue(f) != null));
+const fields = computed(() => (FIELDS[kind.value] ?? [])
+  .filter((f) => !f.when || f.when(node.value, fieldCtx.value) || fieldValue(f) != null)
+  .map((f) => {
+    const locked = !!f.locked?.(node.value, fieldCtx.value);
+    return { ...f, locked: undefined, isLocked: locked,
+      options: f.optionsFor ? f.optionsFor(fieldCtx.value) : f.options, hint: locked ? f.lockedHint : f.hint };
+  }));
 
 function fieldValue(def: FieldDef) {
   return getAt(node.value, def.key.split("."));
@@ -46,7 +52,9 @@ function fieldValue(def: FieldDef) {
 /** Значение для формы: у сигнала без явного kind показываем вычисленный тип, а не пустое «авто». */
 function shownValue(def: FieldDef) {
   const v = fieldValue(def);
-  return v == null && kind.value === "signal" && def.key === "kind" ? rsignal.value?.kind : v;
+  if (v == null && kind.value === "signal" && def.key === "kind") return rsignal.value?.kind;
+  if (v == null && kind.value === "frame" && def.key === "type" && fieldCtx.value.protocol !== "canopen") return "raw";
+  return v;
 }
 
 function fieldDiags(def: FieldDef) {
@@ -71,8 +79,18 @@ function placeholderFor(def: FieldDef): string {
 }
 
 function commit(def: FieldDef, value: unknown) {
+  // Имя — через renameNode: проверка занятости и обновление получателей кадров при переименовании устройства
+  if (def.key === "name" && canRename(path.value)) {
+    void renameNode(path.value, String(value ?? "")).then((err) => { if (err) toast(err); });
+    return;
+  }
   void actions.apply([{ op: "set", path: [...path.value, ...def.key.split(".")], value }]);
 }
+
+// Имя (и у устройства — обозначение) правится двойным щелчком по заголовку
+const renaming = ref<"name" | "short" | "title" | null>(null);
+const busTitle = computed(() => (kind.value === "bus" ? txt(node.value?.title, lang.value) : ""));
+watch(() => pathKey(path.value), () => { renaming.value = null; });
 
 const ownDiags = computed(() =>
   diags.value.filter((d) => d.level !== "info" &&
@@ -240,8 +258,20 @@ function onLayout(p: Path, start: number, length: number) {
         </div>
         <h2>
           <span v-if="KIND_LABEL[kind]" class="kind-badge">{{ t(KIND_LABEL[kind]) }}</span>
-          {{ kind === "document" ? txt(node?.title, lang) : kind === "history" ? t("История изменений")
-            : kind === "revision" ? node?.version : node?.name }}
+          <InlineRename v-if="renaming" :path="path" :field="renaming"
+                        :value="renaming === 'title' ? busTitle : node?.[renaming] ?? ''" @done="renaming = null" />
+          <template v-else-if="canRename(path)">
+            <span v-if="kind === 'device' && node?.short" class="renamable secondary" :title="t('Двойной щелчок — изменить обозначение')"
+                  @dblclick="renaming = 'short'">{{ node.short }}</span>
+            <span v-if="busTitle" class="renamable" :title="t('Двойной щелчок — изменить название')"
+                  @dblclick="renaming = 'title'">{{ busTitle }}</span>
+            <span class="renamable" :class="{ secondary: !!busTitle }" :title="t('Двойной щелчок — переименовать')"
+                  @dblclick="renaming = 'name'">{{ node?.name }}</span>
+          </template>
+          <template v-else>
+            {{ kind === "document" ? txt(node?.title, lang) : kind === "history" ? t("История изменений")
+              : kind === "revision" ? node?.version : node?.name }}
+          </template>
           <span v-if="kind === 'frame' && rframe" class="mono id-badge">{{ hex(rframe.can_id, rframe.extended ? 8 : 3) }}</span>
         </h2>
       </div>
@@ -310,7 +340,7 @@ function onLayout(p: Path, start: number, length: number) {
         </template>
 
         <FieldInput v-for="def in fields" :key="path.join('/') + def.key" :def="def" :value="shownValue(def)"
-                    :diags="fieldDiags(def)" :readonly="readonly"
+                    :diags="fieldDiags(def)" :readonly="readonly || def.isLocked"
                     :placeholder="placeholderFor(def)"
                     @commit="commit(def, $event)" />
       </div>

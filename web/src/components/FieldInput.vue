@@ -3,7 +3,8 @@
 import { computed, ref, watch } from "vue";
 import { formatValue, parseInput, ParseError, type FieldDef } from "../fields";
 import type { Diagnostic } from "../types";
-import { t } from "../i18n";
+import { i18n, t } from "../i18n";
+import { store } from "../store";
 import HelpTip from "./HelpTip.vue";
 
 const props = defineProps<{
@@ -77,6 +78,42 @@ function onBool(e: Event) {
   emit("commit", (e.target as HTMLInputElement).checked ? true : null);
 }
 
+// Подсказки единиц: обозначение на языке интерфейса, перевод — во всплывающей подписи.
+// Свой список вместо <datalist>: тот не стилизуется (слишком высокий) и при заполненном поле показывает только совпадения.
+const suggestions = computed<Array<[string, string]>>(() => {
+  if (props.def.suggest !== "units") return [];
+  const en = i18n.lang === "en";
+  return (store.state?.units ?? []).map(([ru, e]) => (en ? [e, ru] : [ru, e]) as [string, string]);
+});
+const listOpen = ref(false);
+const filter = ref("");          // текст, набранный после открытия; пусто — показываем всё
+const shown = computed(() => {
+  const q = filter.value.trim().toLowerCase();
+  return q ? suggestions.value.filter(([v, o]) => v.toLowerCase().includes(q) || o.toLowerCase().includes(q))
+    : suggestions.value;
+});
+
+function toggleList() {
+  filter.value = "";
+  listOpen.value = !listOpen.value;
+}
+
+function onType() {
+  if (!suggestions.value.length) return;
+  filter.value = draft.value;
+  listOpen.value = true;
+}
+
+function pick(v: string) {
+  draft.value = v;
+  listOpen.value = false;
+  commit();
+}
+
+function onBlur() {
+  listOpen.value = false;
+}
+
 const level = computed(() => {
   const ds = props.diags ?? [];
   if (ds.some((d) => d.level === "error")) return "error";
@@ -105,6 +142,17 @@ const level = computed(() => {
       <input v-if="showEn" v-model="draftEn" class="en" :readonly="readonly" placeholder="English"
              @change="commit" />
       <button v-else-if="!readonly" type="button" class="link" :title="t('Добавить перевод')" @click="showEn = true">en</button>
+    </span>
+
+    <span v-else-if="suggestions.length" class="suggest">
+      <input v-model="draft" :readonly="readonly" :placeholder="placeholder"
+             @change="commit" @input="onType" @blur="onBlur" @keydown.esc="listOpen = false" />
+      <button v-if="!readonly" type="button" class="suggest-toggle" :title="t('Выбрать из списка')"
+              @mousedown.prevent @click.prevent="toggleList">▾</button>
+      <span v-if="listOpen && shown.length" class="suggest-list" @mousedown.prevent>
+        <button v-for="[v, other] in shown" :key="v" type="button" :class="{ current: v === draft }"
+                :title="v === other ? undefined : other" @click.prevent="pick(v)">{{ v }}</button>
+      </span>
     </span>
 
     <input v-else :type="def.type === 'date' ? 'date' : 'text'" v-model="draft" :readonly="readonly"

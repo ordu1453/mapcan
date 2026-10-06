@@ -204,7 +204,9 @@ export function childActions(path: Path): ChildAction[] {
     case "device":
       return [{ label: t("Кадр"), run: () => addFrame(path) }];
     case "frame":
-      return node?.sdo || ["sdo_tx", "sdo_rx"].includes(node?.type)
+      // SDO-обмены — только CANopen
+      return (busOf(path)?.protocol ?? "canopen") === "canopen" &&
+        (node?.sdo || ["sdo_tx", "sdo_rx"].includes(node?.type))
         ? [{ label: t("SDO-обмен"), run: () => addSdo(path) }, { label: t("Сигнал"), run: () => addSignal(path) }]
         : [{ label: t("Сигнал"), run: () => addSignal(path) }];
     case "signal":
@@ -212,6 +214,74 @@ export function childActions(path: Path): ChildAction[] {
     default:
       return [];
   }
+}
+
+const RENAMABLE: NodeKind[] = ["bus", "device", "frame", "signal", "flag", "sdo"];
+
+export function canRename(path: Path): boolean {
+  return RENAMABLE.includes(nodeKind(path)) && !store.state?.readonly;
+}
+
+/** Имена, с которыми новое имя не должно совпадать: соседи по списку, у кадров — все кадры шины. */
+function takenNames(path: Path): string[] {
+  const self = getAt(data(), path);
+  const names = nodeKind(path) === "frame"
+    ? allFrameNames(busOf(path))
+    : ((getAt(data(), path.slice(0, -1)) as Data[] | undefined) ?? []).map((x) => x?.name);
+  const i = names.indexOf(self?.name);
+  if (i >= 0) names.splice(i, 1);
+  return names;
+}
+
+/**
+ * Переименовать узел. Возвращает текст ошибки или null. У устройства заодно обновляются
+ * получатели (receivers) кадров шины — одной правкой, один шаг отмены.
+ */
+export async function renameNode(path: Path, raw: string): Promise<string | null> {
+  const name = raw.trim();
+  const old = getAt(data(), path)?.name;
+  if (!name) return t("Имя не может быть пустым");
+  if (name === old) return null;
+  if (takenNames(path).includes(name)) return t("Имя «{name}» уже занято", { name });
+  const ops: Op[] = [{ op: "set", path: [...path, "name"], value: name }];
+  if (nodeKind(path) === "device" && old) {
+    const bp = path.slice(0, 2);
+    const bus = busOf(path);
+    const frames: Array<[Path, Data]> = [
+      ...(bus.frames ?? []).map((f: Data, i: number) => [[...bp, "frames", i], f] as [Path, Data]),
+      ...(bus.devices ?? []).flatMap((d: Data, di: number) =>
+        (d.frames ?? []).map((f: Data, i: number) => [[...bp, "devices", di, "frames", i], f] as [Path, Data])),
+    ];
+    for (const [fp, f] of frames) {
+      if (Array.isArray(f.receivers) && f.receivers.includes(old)) {
+        ops.push({ op: "set", path: [...fp, "receivers"], value: f.receivers.map((r: string) => (r === old ? name : r)) });
+      }
+    }
+  }
+  return (await actions.apply(ops)) ? null : t("Не удалось переименовать");
+}
+
+/**
+ * Название (title) на языке документа: у двуязычного названия меняется только этот язык,
+ * у простой строки — сама строка; пустое значение удаляет название (или его перевод).
+ */
+export async function setTitle(path: Path, raw: string): Promise<string | null> {
+  const v = raw.trim();
+  const title = getAt(data(), path)?.title;
+  const lng: string = store.state?.resolved?.language ?? data()?.document?.language ?? "ru";
+  const op: Op = title && typeof title === "object"
+    ? { op: "set", path: [...path, "title", lng], value: v || null }
+    : { op: "set", path: [...path, "title"], value: v || null };
+  if ((title && typeof title === "object" ? title[lng] ?? "" : title ?? "") === v) return null;
+  return (await actions.apply([op])) ? null : t("Не удалось переименовать");
+}
+
+/** Обозначение устройства (short): необязательное, пустое значение удаляет ключ. */
+export async function setShort(path: Path, raw: string): Promise<string | null> {
+  const v = raw.trim();
+  if (v === (getAt(data(), path)?.short ?? "")) return null;
+  return (await actions.apply([{ op: "set", path: [...path, "short"], value: v || null }]))
+    ? null : t("Не удалось переименовать");
 }
 
 export function canRemove(path: Path): boolean {

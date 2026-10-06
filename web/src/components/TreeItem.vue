@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { pathKey, samePath, startsWith, worst, type TreeNode } from "../model";
-import { actions, diagsByNode, store } from "../store";
+import { computed, ref } from "vue";
+import { canRename } from "../edit";
+import { getAt, pathKey, samePath, startsWith, txt, worst, type TreeNode } from "../model";
+import { actions, diagsByNode, lang, store } from "../store";
+import InlineRename from "./InlineRename.vue";
 import TreeIcon from "./TreeIcon.vue";
 import { N_, t } from "../i18n";
 
@@ -37,6 +39,17 @@ const selected = computed(() => samePath(store.selected, props.node.path));
 const onPath = computed(() => !selected.value && startsWith(store.selected, props.node.path));
 const match = computed(() => props.query !== "" && props.node.search.includes(props.query));
 
+// Двойной щелчок по названию — переименование (у шины в дереве виден title, правится name)
+// У устройства подпись «short · name», у шины — название (title) и имя справа: каждая часть правится своим двойным щелчком
+type Part = "name" | "short" | "title";
+const renaming = ref<Part | null>(null);
+const nodeData = computed(() => (store.state?.data ? getAt(store.state.data, props.node.path) : null));
+const busTitle = computed(() => (props.node.kind === "bus" ? txt(nodeData.value?.title, lang.value) : ""));
+const partValue = (p: Part) => (p === "title" ? busTitle.value : nodeData.value?.[p] ?? "");
+function startRename(field: Part = "name") {
+  if (canRename(props.node.path)) renaming.value = field;
+}
+
 function click() {
   actions.select(props.node.path);
   if (!props.expanded.has(props.node.key) && props.node.children.length) emit("toggle", props.node.key);
@@ -52,8 +65,15 @@ function click() {
       </span>
       <TreeIcon :kind="node.kind" :dir="node.dir"
                 :hint="node.kind === 'frame' ? (node.dir ? t(DIR_TITLE[node.dir]) : t('широковещательный')) : undefined" />
-      <span class="tlabel">{{ node.label }}</span>
-      <span v-if="node.sub" class="tsub mono">{{ node.sub }}</span>
+      <InlineRename v-if="renaming" :path="node.path" :field="renaming" :value="partValue(renaming)"
+                    @done="renaming = null" />
+      <span v-else-if="node.kind === 'device' && nodeData?.short" class="tlabel">
+        <span @dblclick.stop="startRename('short')">{{ nodeData.short }}</span> · <span
+          @dblclick.stop="startRename('name')">{{ nodeData.name }}</span>
+      </span>
+      <span v-else class="tlabel" @dblclick.stop="startRename(busTitle ? 'title' : 'name')">{{ node.label }}</span>
+      <span v-if="node.sub && !(node.kind === 'bus' && !busTitle)" class="tsub mono"
+            @dblclick.stop="node.kind === 'bus' && startRename('name')">{{ node.sub }}</span>
       <span v-if="own" class="dot" :class="own" :title="own" />
       <span v-else-if="nested" class="dot ring" :class="nested" />
     </div>
