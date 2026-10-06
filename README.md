@@ -1,3 +1,5 @@
+<a id="en"></a>
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
@@ -273,7 +275,7 @@ simulator); plugins for non-CAN protocols (Modbus, UART packets).
 
 <a id="ru"></a>
 
-<p align="center"><a href="#readme">English</a> · <b>Русский</b></p>
+<p align="center"><a href="#en">English</a> · <b>Русский</b></p>
 
 Утилита для создания и редактирования **карт сигналов CAN** любых устройств и систем.
 Карта хранится в одном YAML-файле. Этот файл — единственный источник правды, из него
