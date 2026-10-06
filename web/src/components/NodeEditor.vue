@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
 import { childActions, duplicateNode, moveNode, removeNode, addSignal } from "../edit";
 import { HELP } from "../help";
-import { FIELDS, parseInteger, ParseError, type FieldDef } from "../fields";
+import { FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
 import { getAt, HISTORY_PATH, nodeKind, pathKey, samePath, startsWith, txt } from "../model";
 import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store } from "../store";
 import type { Path } from "../types";
@@ -28,14 +28,25 @@ const node = computed(() => getAt(data.value, kind.value === "document" ? ["docu
 const readonly = computed(() => !!store.state?.readonly);
 const diags = computed(() => store.state?.diagnostics ?? []);
 
-const fieldCtx = computed(() => ({
-  protocol: path.value[0] === "buses" ? getAt(data.value, path.value.slice(0, 2))?.protocol ?? "canopen" : "",
-}));
+const fieldCtx = computed<FieldCtx>(() => {
+  const s = kind.value === "signal" ? rsignal.value : null;
+  return {
+    protocol: path.value[0] === "buses" ? getAt(data.value, path.value.slice(0, 2))?.protocol ?? "canopen" : "",
+    kind: s?.kind, bitLength: s?.bit_length,
+    hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
+  };
+});
 const fields = computed(() => (FIELDS[kind.value] ?? []).filter(
   (f) => !f.when || f.when(node.value, fieldCtx.value) || fieldValue(f) != null));
 
 function fieldValue(def: FieldDef) {
   return getAt(node.value, def.key.split("."));
+}
+
+/** Значение для формы: у сигнала без явного kind показываем вычисленный тип, а не пустое «авто». */
+function shownValue(def: FieldDef) {
+  const v = fieldValue(def);
+  return v == null && kind.value === "signal" && def.key === "kind" ? rsignal.value?.kind : v;
 }
 
 function fieldDiags(def: FieldDef) {
@@ -181,7 +192,7 @@ const showValues = computed(() => {
   if (!n) return false;
   if (kind.value === "flag") return true;
   if (kind.value !== "signal") return false;
-  return n.values != null || n.kind === "enum" || n.kind === "flag" || (!n.kind && !n.flags && n.factor == null && n.unit == null);
+  return n.values != null || ["enum", "flag"].includes(rsignal.value?.kind ?? "");
 });
 const showFlags = computed(() => kind.value === "signal" && (node.value?.flags != null || node.value?.kind === "bitfield"));
 
@@ -298,7 +309,7 @@ function onLayout(p: Path, start: number, length: number) {
           </label>
         </template>
 
-        <FieldInput v-for="def in fields" :key="path.join('/') + def.key" :def="def" :value="fieldValue(def)"
+        <FieldInput v-for="def in fields" :key="path.join('/') + def.key" :def="def" :value="shownValue(def)"
                     :diags="fieldDiags(def)" :readonly="readonly"
                     :placeholder="placeholderFor(def)"
                     @commit="commit(def, $event)" />

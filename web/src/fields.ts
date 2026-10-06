@@ -6,9 +6,12 @@ import type { NodeKind } from "./model";
 
 export type FieldType = "text" | "loc" | "int" | "hex" | "float" | "bool" | "select" | "date" | "intlist" | "strlist";
 
-/** Контекст поля: протокол шины, к которой относится узел. */
+/** Контекст поля: протокол шины узла; для сигнала — его вычисленный тип, длина и наличие селектора mux в кадре. */
 export interface FieldCtx {
   protocol: string;
+  kind?: string;
+  bitLength?: number;
+  hasSelector?: boolean;
 }
 
 export interface FieldDef {
@@ -25,10 +28,9 @@ export interface FieldDef {
   when?: (node: any, ctx: FieldCtx) => boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const numeric = (n: any) =>
-  !n?.kind ? !n?.flags && !n?.values : ["metric", "raw"].includes(n.kind) ||
-  n.factor != null || n.offset != null || n.unit != null || n.min != null || n.max != null;
+// Поля сигнала, применимые к его типу (заполненные поля показываются всегда — см. NodeEditor)
+const kindIn = (...kinds: string[]) => (_n: unknown, c: FieldCtx) => kinds.includes(c.kind ?? "");
+const numeric = kindIn("metric", "raw", "float");
 
 const FRAME_TYPES: Array<[string, string]> = [
   ["raw", N_("raw — явный ID")], ["nmt", "NMT"], ["sync", "SYNC"], ["emcy", "EMCY"], ["time", "TIME"],
@@ -38,7 +40,7 @@ const FRAME_TYPES: Array<[string, string]> = [
 ];
 
 const KINDS: Array<[string, string]> = [
-  ["", N_("авто")], ["enum", N_("enum — перечисление")], ["flag", N_("flag — флаг")], ["bitfield", N_("bitfield — битовое поле")],
+  ["enum", N_("enum — перечисление")], ["flag", N_("flag — флаг")], ["bitfield", N_("bitfield — битовое поле")],
   ["metric", N_("metric — величина")], ["raw", N_("raw — целое")], ["float", N_("float — IEEE 754 (32/64 бит)")],
   ["bytes", N_("bytes — байты")],
 ];
@@ -99,9 +101,11 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "name", label: N_("Имя"), type: "text" },
     { key: "kind", label: N_("Тип"), type: "select", options: KINDS },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
+    // CANopen и J1939 — только little-endian
     { key: "byte_order", label: N_("Порядок байт"), type: "select",
-      options: [["", "little-endian"], ["big_endian", "big-endian"]] },
-    { key: "signed", label: N_("Знаковое"), type: "bool" },
+      options: [["", "little-endian"], ["big_endian", "big-endian"]],
+      when: (_n, c) => c.protocol === "can" && (c.bitLength ?? 0) > 8 && c.kind !== "bytes" },
+    { key: "signed", label: N_("Знаковое"), type: "bool", when: kindIn("raw", "metric") },
     { key: "signed_code", label: N_("Код знакового числа"), type: "select",
       options: [["", N_("дополнительный")], ["ones_complement", N_("обратный")], ["sign_magnitude", N_("прямой")]],
       when: (n) => !!n?.signed || n?.signed_code != null },
@@ -110,10 +114,14 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "unit", label: N_("Единица"), type: "text", when: numeric },
     { key: "min", label: N_("Минимум (min)"), type: "float", when: numeric },
     { key: "max", label: N_("Максимум (max)"), type: "float", when: numeric },
-    { key: "multiplexer", label: N_("Селектор mux"), type: "bool" },
-    { key: "mux", label: N_("mux (значения селектора)"), type: "intlist", hint: N_("напр. 0 или 1, 2") },
-    { key: "initial", label: N_("По умолчанию"), type: "float", hint: N_("физическое значение") },
-    { key: "invalid", label: N_("Нет данных (raw)"), type: "intlist", hint: N_("напр. 0xFF или 0xFE, 0xFF") },
+    { key: "multiplexer", label: N_("Селектор mux"), type: "bool",
+      when: (_n, c) => ["raw", "enum"].includes(c.kind ?? "") && !c.hasSelector },
+    { key: "mux", label: N_("mux (значения селектора)"), type: "intlist", hint: N_("напр. 0 или 1, 2"),
+      when: (_n, c) => !!c.hasSelector },
+    { key: "initial", label: N_("По умолчанию"), type: "float", hint: N_("физическое значение"),
+      when: (_n, c) => !["bitfield", "bytes"].includes(c.kind ?? "") },
+    { key: "invalid", label: N_("Нет данных (raw)"), type: "intlist", hint: N_("напр. 0xFF или 0xFE, 0xFF"),
+      when: kindIn("raw", "metric", "enum") },
     { key: "value_format", label: N_("Значения в документах"), type: "select", options: [["", N_("десятичные")], ["hex", "hex"]],
       when: (n) => n?.values != null },
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },
