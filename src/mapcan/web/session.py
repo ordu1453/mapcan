@@ -234,6 +234,8 @@ def _frame_view(f: Frame) -> dict:
         "type": f.type,
         "direction": f.direction,
         "device": f.device.name if f.device else None,
+        "sender": f.sender_name,
+        "receivers": f.receiver_names,
         "signals": sigs,
     }
 

@@ -30,7 +30,9 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
     frame._device = dev
     frame._can_id, frame.extended = frame_id(bus, dev, frame)
     if frame.direction is None and dev is not None:
-        frame.direction = default_direction(frame.type) or "tx"
+        # Кадр без типа CANopen с чужим отправителем устройство принимает
+        foreign = frame.sender is not None and frame.sender != dev.name
+        frame.direction = default_direction(frame.type) or ("rx" if foreign else "tx")
     for si, sig in enumerate(frame.signals):
         sig._path = path + ("signals", si)
         for fi, fl in enumerate(sig.flags or []):

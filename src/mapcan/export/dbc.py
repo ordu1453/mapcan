@@ -92,12 +92,8 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
             choices = {v: ev.name for v, ev in enum_entries(s.values)} or None
             sigs.append(_signal(s.name, s, s.start_bit, s.bit_length, lang, desc, choices,
                                 sel.name if sel else None))
-        senders, receivers = [], list(f.receivers)
-        if f.device is not None:
-            if f.direction == "tx":
-                senders.append(f.device.name)
-            elif f.device.name not in receivers:
-                receivers.append(f.device.name)
+        senders = [f.sender_name] if f.sender_name else []
+        receivers = [r for r in f.receiver_names if r not in senders]
         for sg in sigs:
             sg.receivers = list(receivers)
         cycle = f.transmission.cycle_ms if f.transmission else None

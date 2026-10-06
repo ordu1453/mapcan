@@ -78,6 +78,22 @@ function onSelect(e: Event) {
   emit("commit", next);
 }
 
+// Набор устройств: варианты в порядке options, неизвестные имена из карты — в конце (их можно снять)
+const chosen = computed<string[]>(() => (Array.isArray(props.value) ? props.value.map(String) : []));
+const chips = computed<Array<[string, string, boolean]>>(() => {
+  const opts = props.def.options ?? [];
+  const known = new Set(opts.map(([v]) => v));
+  return [...opts.map(([v, l]) => [v, l, true] as [string, string, boolean]),
+    ...chosen.value.filter((v) => !known.has(v)).map((v) => [v, v, false] as [string, string, boolean])];
+});
+
+function toggle(v: string) {
+  const set = new Set(chosen.value);
+  if (set.has(v)) set.delete(v); else set.add(v);
+  const next = chips.value.map(([x]) => x).filter((x) => set.has(x));
+  emit("commit", next.length ? next : null);
+}
+
 function onBool(e: Event) {
   emit("commit", (e.target as HTMLInputElement).checked ? true : null);
 }
@@ -150,7 +166,8 @@ watch(() => store.focusPath, async (fp) => {
 </script>
 
 <template>
-  <label ref="root" class="field" :class="[{ wide: def.wide, flash }, level]">
+  <!-- Переключатели — не внутри label: щелчок по подписи нажимал бы первую кнопку -->
+  <component :is="def.type === 'devices' ? 'div' : 'label'" ref="root" class="field" :class="[{ wide: def.wide, flash }, level]">
     <span class="field-label"><HelpTip v-if="def.help" :text="def.help" />{{ t(def.label) }}<span
       v-if="required" class="req" :title="t('Обязательное поле')">*</span></span>
 
@@ -160,6 +177,13 @@ watch(() => store.focusPath, async (fp) => {
         {{ value }}
       </option>
     </select>
+
+    <span v-else-if="def.type === 'devices'" class="chips">
+      <button v-for="[v, l, known] in chips" :key="v" type="button" class="dev-chip"
+              :class="{ on: chosen.includes(v), unknown: !known }" :disabled="readonly"
+              :title="known ? undefined : t('Устройство не описано на шине')" @click="toggle(v)">{{ l }}</button>
+      <span v-if="!chips.length" class="field-hint">{{ t("На шине нет других устройств") }}</span>
+    </span>
 
     <span v-else-if="def.type === 'bool'" class="checkbox">
       <input type="checkbox" :checked="!!value" :disabled="readonly" @change="onBool" />
@@ -191,5 +215,5 @@ watch(() => store.focusPath, async (fp) => {
     <span v-for="d in diags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
     <span v-if="missing && !error && !diags?.length" class="field-msg missing">{{ t("Обязательное поле") }}</span>
     <span v-else-if="def.hint && !error && !diags?.length" class="field-hint">{{ t(def.hint) }}</span>
-  </label>
+  </component>
 </template>

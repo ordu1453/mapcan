@@ -343,6 +343,9 @@ class Frame(_Base):
         None, ge=0, le=0xFF, description=N_("J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем)."))
     receivers: list[str] = Field(
         default_factory=list, description=N_("Устройства шины, принимающие кадр (имена)."))
+    sender: str | None = Field(
+        None, description=N_("Устройство шины, передающее кадр, если это не его владелец: "
+                             "для RX-кадров (напр. PDO RX узла от мастера) и кадров шины (NMT, SYNC)."))
     dlc: int = Field(8, ge=0, le=64)
     direction: Direction | None = None
     transmission: Transmission | None = None
@@ -386,6 +389,21 @@ class Frame(_Base):
     def mode(self) -> TxMode | None:
         return self.transmission.mode if self.transmission else None
 
+    @property
+    def sender_name(self) -> str | None:
+        """Передающее устройство: владелец TX-кадра, иначе явный sender (None — отправитель вне карты)."""
+        if self._device is not None and self.direction == "tx":
+            return self._device.name
+        return self.sender
+
+    @property
+    def receiver_names(self) -> list[str]:
+        """Принимающие устройства: явные receivers и владелец RX-кадра."""
+        out = list(self.receivers)
+        if self._device is not None and self.direction == "rx" and self._device.name not in out:
+            out.append(self._device.name)
+        return out
+
 
 class Device(_Base):
     name: str
@@ -416,6 +434,14 @@ class Bus(_Base):
         for d in self.devices:
             out.extend(d.frames)
         return out
+
+    def received_by(self, device: str) -> list[Frame]:
+        """Кадры шины, которые принимает устройство: свои RX и чужие, где оно среди receivers."""
+        return [f for f in self.all_frames() if device in f.receiver_names]
+
+    def sent_by(self, device: str) -> list[Frame]:
+        """Кадры шины, которые передаёт устройство: свои TX и чужие с sender = device."""
+        return [f for f in self.all_frames() if f.sender_name == device]
 
 
 class MapCan(_Base):

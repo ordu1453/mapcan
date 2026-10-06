@@ -31,10 +31,16 @@ const diags = computed(() => store.state?.diagnostics ?? []);
 
 const fieldCtx = computed<FieldCtx>(() => {
   const s = kind.value === "signal" ? rsignal.value : null;
+  const bus = path.value[0] === "buses" ? getAt(data.value, path.value.slice(0, 2)) : null;
+  const frame = kind.value === "frame" ? rframe.value : undefined;
   return {
-    protocol: path.value[0] === "buses" ? getAt(data.value, path.value.slice(0, 2))?.protocol ?? "canopen" : "",
+    protocol: bus ? bus.protocol ?? "canopen" : "",
     kind: s?.kind, bitLength: s?.bit_length,
     hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
+    devices: (bus?.devices ?? []).map((d: any) => d.name),
+    owner: frame?.device ?? null,
+    direction: frame?.direction ?? null,
+    sender: frame?.sender ?? null,
   };
 });
 // Поле с ошибкой или предупреждением показываем, даже если оно не относится к текущему типу/протоколу — иначе ошибку не найти
@@ -58,6 +64,8 @@ function shownValue(def: FieldDef) {
   const v = fieldValue(def);
   if (v == null && kind.value === "signal" && def.key === "kind") return rsignal.value?.kind;
   if (v == null && kind.value === "frame" && def.key === "type" && fieldCtx.value.protocol !== "canopen") return "raw";
+  // У TX-кадра отправитель — само устройство (поле заблокировано)
+  if (v == null && kind.value === "frame" && def.key === "sender" && fieldCtx.value.direction === "tx") return fieldCtx.value.owner;
   return v;
 }
 
@@ -77,10 +85,6 @@ const DEFAULTS: Record<string, string> = {
 function placeholderFor(def: FieldDef): string {
   if (kind.value === "frame" && def.key === "id" && rframe.value) {
     return hex(rframe.value.can_id, rframe.value.extended ? 8 : 3) + " " + t("(вычислен)");
-  }
-  if (def.key === "receivers") {
-    const bus = getAt(data.value, path.value.slice(0, 2));
-    return (bus?.devices ?? []).map((d: any) => d.name).filter((n: string) => n !== node.value?.name).join(", ");
   }
   if (def.key === "priority" && fieldCtx.value.protocol === "j1939") return "6";
   return t(DEFAULTS[def.key] ?? "");
@@ -274,6 +278,27 @@ const frameSignals = computed(() => {
 
 const devices = computed(() => (kind.value === "bus" ? (node.value?.devices ?? []) : []));
 
+/** Обмен устройства — вычисляется из отправителей и получателей всех кадров шины. */
+const exchange = computed(() => {
+  if (kind.value !== "device") return null;
+  const name = node.value?.name;
+  const bus = getAt(data.value, path.value.slice(0, 2));
+  const label = (n: string | null) => {
+    const d = n ? (bus?.devices ?? []).find((x: any) => x.name === n) : null;
+    return !n ? "—" : d?.short ? `${d.short} · ${n}` : n;
+  };
+  const onBus = (store.state?.resolved?.frames ?? []).filter((f) => f.path[1] === path.value[1]);
+  const row = (f: (typeof onBus)[number], peer: string) => ({
+    path: f.path, name: f.name, peer, id: hex(f.can_id, f.extended ? 8 : 3),
+    desc: txt(getAt(data.value, f.path)?.description, lang.value),
+  });
+  return {
+    receives: onBus.filter((f) => f.receivers.includes(name)).map((f) => row(f, label(f.sender))),
+    sends: onBus.filter((f) => f.sender === name && f.device !== name)
+      .map((f) => row(f, f.device ? label(f.device) : t("кадр шины"))),
+  };
+});
+
 const buses = computed(() => {
   if (kind.value !== "document") return [];
   return (data.value?.buses ?? []).map((b: any, i: number) => ({
@@ -449,6 +474,31 @@ function onLayout(p: Path, start: number, length: number) {
         </tbody>
       </table>
       <p v-else class="muted">{{ t("Кадров нет.") }}</p>
+    </section>
+
+    <!-- Обмен устройства: что оно принимает и какие чужие кадры передаёт -->
+    <section v-if="exchange" class="card">
+      <h3>{{ t("Принимает") }} <span class="muted">{{ exchange.receives.length }}</span></h3>
+      <table v-if="exchange.receives.length" class="list">
+        <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Отправитель") }}</th><th>{{ t("Описание") }}</th></tr></thead>
+        <tbody>
+          <tr v-for="f in exchange.receives" :key="f.name" class="clickable" @click="actions.select(f.path)">
+            <td class="mono">{{ f.id }}</td><td class="mono">{{ f.name }}</td><td class="mono">{{ f.peer }}</td><td>{{ f.desc }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">{{ t("Устройство не указано получателем ни одного кадра.") }}</p>
+      <template v-if="exchange.sends.length">
+        <h3 class="sub">{{ t("Передаёт кадры других устройств") }} <span class="muted">{{ exchange.sends.length }}</span></h3>
+        <table class="list">
+          <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Устройство") }}</th><th>{{ t("Описание") }}</th></tr></thead>
+          <tbody>
+            <tr v-for="f in exchange.sends" :key="f.name" class="clickable" @click="actions.select(f.path)">
+              <td class="mono">{{ f.id }}</td><td class="mono">{{ f.name }}</td><td class="mono">{{ f.peer }}</td><td>{{ f.desc }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </section>
 
     <section v-if="kind === 'bus'" class="card">

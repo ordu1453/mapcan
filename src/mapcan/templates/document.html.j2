@@ -41,6 +41,7 @@ h4 { margin: 24px 0 6px; }
 .meta { color: var(--muted); }
 .meta b { color: var(--fg); }
 .scroll { overflow-x: auto; }
+.exchange { margin: 8px 0 14px; }
 table { border-collapse: collapse; width: 100%; margin: 8px 0 12px; }
 th, td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: left; }
 thead th { background: var(--head); color: var(--head-fg); }
@@ -92,7 +93,7 @@ table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; co
 {%- macro frame_block(fr) %}
 <section class="frame" id="frame-{{ fr.name }}" data-search="{{ (fr.name ~ ' ' ~ fr.id ~ ' ' ~ fr.title ~ ' ' ~ fr.description ~ ' ' ~ (fr.signals | map(attribute='name') | join(' ')) ~ ' ' ~ (fr.signals | map(attribute='description') | join(' '))) | lower }}">
 <h4><code>{{ fr.id }}</code> {{ fr.title or fr.name }}{% if fr.description %} — <span style="font-weight:normal">{{ fr.description }}</span>{% endif %}</h4>
-<div class="meta"><b>{{ L.frame }}:</b> <code>{{ fr.name }}</code> · <b>{{ L.type }}:</b> {{ fr.type_label }}{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} · <b>{{ L.dlc }}:</b> {{ fr.dlc }}{% if fr.direction %} · <b>{{ L.direction }}:</b> {{ fr.direction }}{% endif %}{% if fr.period %} · <b>{{ L.period }}:</b> {{ fr.period }}{% endif %}{% if fr.pgn %} · <b>{{ L.pgn }}:</b> <code>{{ fr.pgn }}</code> · <b>{{ L.priority }}:</b> {{ fr.priority }}{% endif %}{% if fr.receivers %} · <b>{{ L.receivers }}:</b> {{ fr.receivers }}{% endif %}</div>
+<div class="meta"><b>{{ L.frame }}:</b> <code>{{ fr.name }}</code> · <b>{{ L.type }}:</b> {{ fr.type_label }}{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} · <b>{{ L.dlc }}:</b> {{ fr.dlc }}{% if fr.direction %} · <b>{{ L.direction }}:</b> {{ fr.direction }}{% endif %}{% if fr.period %} · <b>{{ L.period }}:</b> {{ fr.period }}{% endif %}{% if fr.pgn %} · <b>{{ L.pgn }}:</b> <code>{{ fr.pgn }}</code> · <b>{{ L.priority }}:</b> {{ fr.priority }}{% endif %}{% if fr.sender %} · <b>{{ L.sender }}:</b> {{ fr.sender }}{% endif %}{% if fr.receivers %} · <b>{{ L.receivers }}:</b> {{ fr.receivers }}{% endif %}</div>
 {% if fr.comment %}<p class="comment">{{ L.comment }}: {{ fr.comment }}</p>{% endif %}
 {% if not fr.signals %}<p class="empty">{{ L.no_signals }}</p>{% else %}
 {% if fr.grid %}
@@ -148,10 +149,10 @@ table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; co
 {% else %}
 <table>
 {% set A = bus.addressing %}
-<thead><tr><th>{{ L.device }}</th><th>{{ L.id }}</th>{% if A.has_pgn %}<th>{{ L.pgn }}</th>{% endif %}<th>{{ L.purpose }}</th><th>{{ L.direction }}</th><th>{{ L.period }}</th>{% if A.has_receivers %}<th>{{ L.receivers }}</th>{% endif %}</tr></thead>
+<thead><tr><th>{{ L.device }}</th><th>{{ L.id }}</th>{% if A.has_pgn %}<th>{{ L.pgn }}</th>{% endif %}<th>{{ L.purpose }}</th><th>{{ L.direction }}</th><th>{{ L.period }}</th>{% if A.has_sender %}<th>{{ L.sender }}</th>{% endif %}{% if A.has_receivers %}<th>{{ L.receivers }}</th>{% endif %}</tr></thead>
 <tbody>
 {%- for r in A.rows %}
-<tr><td>{{ r.device }}</td><td><a href="#frame-{{ r.name }}"><code>{{ r.id }}</code></a></td>{% if A.has_pgn %}<td><code>{{ r.pgn }}</code></td>{% endif %}<td>{{ r.description }}</td><td>{{ r.direction }}</td><td>{{ r.period }}</td>{% if A.has_receivers %}<td>{{ r.receivers }}</td>{% endif %}</tr>
+<tr><td>{{ r.device }}</td><td><a href="#frame-{{ r.name }}"><code>{{ r.id }}</code></a></td>{% if A.has_pgn %}<td><code>{{ r.pgn }}</code></td>{% endif %}<td>{{ r.description }}</td><td>{{ r.direction }}</td><td>{{ r.period }}</td>{% if A.has_sender %}<td>{{ r.sender }}</td>{% endif %}{% if A.has_receivers %}<td>{{ r.receivers }}</td>{% endif %}</tr>
 {%- endfor %}
 </tbody></table>
 {% endif %}
@@ -164,6 +165,16 @@ table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; co
 {% for dev in bus.devices %}
 <h3 id="{{ bus.name }}-{{ dev.name }}">{{ dev.label }}{% if dev.title %} — {{ dev.title }}{% endif %}</h3>
 {% if dev.description %}<p>{{ dev.description }}</p>{% endif %}
+{% for key, peer in (("receives", L.sender), ("sends_other", L.device)) if dev[key] %}
+<div class="exchange"><b>{{ L[key] }}</b>
+<div class="scroll"><table>
+<thead><tr><th>{{ L.id }}</th><th>{{ L.frame }}</th><th>{{ peer }}</th><th>{{ L.description }}</th></tr></thead>
+<tbody>
+{%- for c in dev[key] %}
+<tr><td><a href="#frame-{{ c.name }}"><code>{{ c.id }}</code></a></td><td><code>{{ c.name }}</code></td><td>{{ c.peer }}</td><td>{{ c.description }}</td></tr>
+{%- endfor %}
+</tbody></table></div></div>
+{% endfor %}
 {% for fr in dev.frames %}{{ frame_block(fr) }}{% endfor %}
 {% endfor %}
 {% endfor %}

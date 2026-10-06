@@ -55,8 +55,10 @@ def test_state(client):
     f = next(f for f in st["resolved"]["frames"] if f["name"] == "imd_state")
     assert f["can_id"] == 0x1A1
     assert f["signals"][1]["flags"][0]["occupied"] == [8]
+    assert f["sender"] == "imd" and f["receivers"] == []
     sdo = next(f for f in st["resolved"]["frames"] if f["name"] == "imd_sdo_request")
     assert sdo["signals"][0]["synthetic"]
+    assert sdo["sender"] is None and sdo["receivers"] == ["imd"]
 
 
 def test_set_preserves_everything_else(client, mapfile):

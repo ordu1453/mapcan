@@ -115,6 +115,9 @@
     [*#L.direction*], fr.direction,
     [*#L.period*], fr.period,
     ..if fr.at("pgn", default: "") != "" { ([*#L.pgn*], mono(fr.pgn, th: th), [*#L.priority*], fr.priority, [], []) },
+    ..if fr.at("sender", default: "") != "" {
+      ([*#L.sender*], table.cell(colspan: 5, fr.sender))
+    },
     ..if fr.at("receivers", default: "") != "" {
       ([*#L.receivers*], table.cell(colspan: 5, fr.receivers))
     },
@@ -167,9 +170,10 @@
     )
   } else {
     let pg = a.at("has_pgn", default: false)
+    let sd = a.at("has_sender", default: false)
     let rc = a.at("has_receivers", default: false)
-    let cols = (26mm, 22mm) + (if pg { (15mm,) } else { () }) + (1fr, 22mm, 22mm) + (if rc { (28mm,) } else { () })
-    let heads = (L.device, L.id) + (if pg { (L.pgn,) } else { () }) + (L.purpose, L.direction, L.period) + (if rc { (L.receivers,) } else { () })
+    let cols = (26mm, 22mm) + (if pg { (15mm,) } else { () }) + (1fr, 22mm, 22mm) + (if sd { (24mm,) } else { () }) + (if rc { (28mm,) } else { () })
+    let heads = (L.device, L.id) + (if pg { (L.pgn,) } else { () }) + (L.purpose, L.direction, L.period) + (if sd { (L.sender,) } else { () }) + (if rc { (L.receivers,) } else { () })
     table(
       columns: cols,
       stroke: 0.5pt + th.line,
@@ -177,7 +181,7 @@
       table.header(..heads.map(h => _head(th, h))),
       ..a.rows.map(r => (
         (r.device, mono(r.id, th: th)) + (if pg { (mono(r.pgn, th: th),) } else { () })
-        + (r.description, r.direction, r.period) + (if rc { (r.receivers,) } else { () })
+        + (r.description, r.direction, r.period) + (if sd { (r.sender,) } else { () }) + (if rc { (r.receivers,) } else { () })
       )).flatten(),
     )
   }
@@ -209,15 +213,31 @@
 /// Все кадры шины (широковещательные, затем по устройствам) — для обхода в шаблонах.
 #let bus-groups(bus, L) = {
   let groups = ()
-  if bus.broadcast.len() > 0 { groups.push((title: L.broadcast, description: "", frames: bus.broadcast)) }
+  if bus.broadcast.len() > 0 {
+    groups.push((title: L.broadcast, description: "", frames: bus.broadcast, receives: (), sends_other: ()))
+  }
   for dev in bus.devices {
     groups.push((
       title: dev.label + (if dev.title != "" { " — " + dev.title } else { "" }),
       description: dev.description,
       frames: dev.frames,
+      receives: dev.at("receives", default: ()),
+      sends_other: dev.at("sends_other", default: ()),
     ))
   }
   groups
+}
+
+/// Сводка обмена устройства: принимаемые кадры (`peer` — отправитель) или кадры других устройств,
+/// которые оно передаёт (`peer` — владелец кадра).
+#let exchange-table(rows, peer, L, th: theme-color) = {
+  table(
+    columns: (22mm, auto, auto, 1fr),
+    stroke: 0.5pt + th.line,
+    inset: (x: 4pt, y: 3pt),
+    table.header(_head(th, L.id), _head(th, L.frame), _head(th, peer), _head(th, L.description)),
+    ..rows.map(c => (mono(c.id, th: th), mono(ident(c.name), th: th), c.peer, c.description)).flatten(),
+  )
 }
 
 /// Заголовок кадра: «0x196 · СОСТОЯНИЯ».

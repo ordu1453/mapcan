@@ -54,6 +54,10 @@ export interface ResolvedFrame {
   type: string;
   direction: string | null;
   device: string | null;
+  /** Передающее устройство (владелец TX-кадра или sender); null — отправитель вне карты. */
+  sender: string | null;
+  /** Принимающие устройства: receivers и владелец RX-кадра. */
+  receivers: string[];
   signals: ResolvedSignal[];
 }
 

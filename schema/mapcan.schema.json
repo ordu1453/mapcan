@@ -607,6 +607,19 @@
           "title": "Receivers",
           "type": "array"
         },
+        "sender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bus device that transmits the frame when it is not the frame's owner: for RX frames (e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
+          "title": "Sender"
+        },
         "dlc": {
           "default": 8,
           "maximum": 64,

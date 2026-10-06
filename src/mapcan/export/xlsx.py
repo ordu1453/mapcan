@@ -94,6 +94,7 @@ class _Writer:
         self.summary_sheet()
         for bus in self.view["buses"]:
             self.addressing_sheet(bus)
+            self.exchange_sheet(bus)
             self.content_sheet(bus)
             self.bitmap_sheet(bus)
         self.history_sheet()
@@ -214,6 +215,8 @@ class _Writer:
                 cols.append(("pgn", L["pgn"], 10))
             cols += [("description", L["description"], 50), ("direction", L["direction"], 12),
                      ("period", L["period"], 16)]
+            if a.get("has_sender"):
+                cols.append(("sender", L["sender"], 20))
             if a.get("has_receivers"):
                 cols.append(("receivers", L["receivers"], 30))
             self.header(ws, 1, [c[1] for c in cols])
@@ -223,6 +226,27 @@ class _Writer:
             self.autowidth(ws, {i: c[2] for i, c in enumerate(cols, 1)})
             ws.freeze_panes = "A2"
             ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(a['rows']) + 1}"
+
+    def exchange_sheet(self, bus: dict) -> None:
+        """Матрица обмена: какое устройство передаёт (TX) и принимает (RX) каждый кадр."""
+        L, ex = self.L, bus["exchange"]
+        if not ex["columns"] or not ex["rows"]:
+            return
+        ws = self.sheet(f"{L['exchange']} {bus['title']}")
+        self.header(ws, 1, [L["id"], L["frame"], L["description"]] + ex["columns"])
+        for r, row in enumerate(ex["rows"], 2):
+            self.put(ws, r, 1, row["id"], self.mono)
+            self.put(ws, r, 2, row["name"], self.bold)
+            self.put(ws, r, 3, row["description"])
+            for i, v in enumerate(row["cells"]):
+                tx = v == L["tx"]
+                self.put(ws, r, 4 + i, v, self.bold if tx else None, self.st.device_fill if tx else None,
+                         self.center)
+        widths = {1: 13, 2: 24, 3: 50}
+        for i in range(len(ex["columns"])):
+            widths[4 + i] = 14
+        self.autowidth(ws, widths)
+        ws.freeze_panes = "D2"
 
     @staticmethod
     def _cells_text(cells: list[dict]) -> str:
@@ -286,6 +310,7 @@ class _Writer:
                     " · ".join(x for x in (fr["type_label"], fr["period"], fr["direction"]) if x),
                     f"DLC {fr['dlc']}",
                     f"{L['pgn']} {fr['pgn']} · {L['priority']} {fr['priority']}" if fr.get("pgn") else "",
+                    f"{L['sender']}: {fr['sender']}" if fr.get("sender") else "",
                     f"{L['receivers']}: {fr['receivers']}" if fr.get("receivers") else "",
                 ) if x)
                 idtext = fr["id"] + (f"\n({fr['id_formula']})" if fr["id_formula"] else "")

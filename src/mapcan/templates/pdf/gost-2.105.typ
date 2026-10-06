@@ -216,6 +216,13 @@
   for g in bus-groups(bus, L) {
     heading(level: 2, g.title)
     if g.description != "" { par(g.description) }
+    if g.receives.len() > 0 {
+      tbl([Кадры, принимаемые устройством #g.title], exchange-table(g.receives, L.sender, L, th: th))
+    }
+    if g.sends_other.len() > 0 {
+      tbl([Кадры других устройств, передаваемые устройством #g.title],
+        exchange-table(g.sends_other, L.device, L, th: th))
+    }
     for (n, fr) in g.frames.enumerate() { frame-section(fr, n) }
   }
 }

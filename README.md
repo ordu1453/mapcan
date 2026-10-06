@@ -46,7 +46,9 @@ analyzers are all generated from it, so they never drift apart.
 * **Signals** — signed and unsigned integers of any length and position, little- and big-endian;
   enumerations, flags and bit fields; physical quantities with `factor`, `offset`, unit and range;
   float32/float64; byte arrays; multiplexing; default and "not available" values.
-* **Frames** — cycle time, direction, receivers, CANopen SDO exchanges.
+* **Frames** — cycle time, direction, sender and receivers, CANopen SDO exchanges. Each frame is
+  described once, at its sender; what every device receives is derived for the editor, the
+  documents (including an Excel communication matrix) and DBC.
 * **Validation** — every error points to a file, line and column, before anything is generated.
 
 ```yaml

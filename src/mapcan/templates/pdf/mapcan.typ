@@ -103,6 +103,8 @@
   for g in bus-groups(bus, L) {
     heading(level: 2, g.title)
     if g.description != "" { par(g.description) }
+    if g.receives.len() > 0 { par(strong(L.receives)); exchange-table(g.receives, L.sender, L, th: th) }
+    if g.sends_other.len() > 0 { par(strong(L.sends_other)); exchange-table(g.sends_other, L.device, L, th: th) }
     for fr in g.frames { frame-section(fr) }
   }
 }

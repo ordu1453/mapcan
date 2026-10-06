@@ -73,6 +73,10 @@ RULES = {
     "j1939-destination": ("warning", N_("destination задан для PDU2-PGN (PF ≥ 240) и не используется")),
     "j1939-field-protocol": ("warning", N_("pgn/priority/destination/address на шине не J1939")),
     "unknown-receiver": ("error", N_("Получатель кадра не описан на шине")),
+    "unknown-sender": ("error", N_("Отправитель кадра не описан на шине")),
+    "sender-mismatch": ("warning", N_("sender противоречит направлению кадра или совпадает с получателем")),
+    "rx-duplicate": ("error", N_("RX-кадр повторяет кадр другого устройства (описывайте кадр у отправителя)")),
+    "rx-no-sender": ("info", N_("RX-кадр без отправителя")),
     "float-length": ("error", N_("Сигнал float должен быть 32 или 64 бита")),
     "initial-range": ("warning", N_("Значение по умолчанию вне диапазона сигнала")),
     "invalid-overflow": ("error", N_("Значение invalid не помещается в разрядность сигнала")),
@@ -205,14 +209,32 @@ def _check_bus(ctx: _Ctx, bus) -> None:
             continue
         if frame.can_id in ids:
             other = ids[frame.can_id]
-            ctx.emit("duplicate-can-id",
-                     _("CAN ID {can_id:#05x} кадра {name!r} совпадает с кадром {other!r}",
-                       can_id=frame.can_id, name=frame.name, other=other.name),
-                     p + (("id",) if frame.id is not None else ("type",)))
+            twin = _rx_twin(frame, other)
+            if twin is not None:
+                rx, tx = twin
+                ctx.emit("rx-duplicate",
+                         _("RX-кадр {name!r} устройства {device!r} повторяет кадр {other!r} отправителя {sender!r} "
+                           "(CAN ID {can_id:#05x}): опишите кадр один раз у отправителя и добавьте {device!r} "
+                           "в receivers", name=rx.name, device=rx.device.name, other=tx.name,
+                           sender=tx.sender_name, can_id=frame.can_id), rx._path)
+            else:
+                ctx.emit("duplicate-can-id",
+                         _("CAN ID {can_id:#05x} кадра {name!r} совпадает с кадром {other!r}",
+                           can_id=frame.can_id, name=frame.name, other=other.name),
+                         p + (("id",) if frame.id is not None else ("type",)))
         else:
             ids[frame.can_id] = frame
         if frame.can_id > 0x7FF and not frame.extended:
             ctx.emit("can-id-range", _("CAN ID {can_id:#x} > 0x7FF", can_id=frame.can_id), p + ("id",))
+
+
+def _rx_twin(a: Frame, b: Frame) -> tuple[Frame, Frame] | None:
+    """Пара (RX-кадр устройства, тот же кадр у его отправителя) — один кадр, описанный дважды."""
+    for rx, tx in ((a, b), (b, a)):
+        if (rx.device is not None and rx.direction == "rx"
+                and tx.sender_name is not None and tx.sender_name != rx.device.name):
+            return rx, tx
+    return None
 
 
 def _check_frame(ctx: _Ctx, frame: Frame) -> None:
@@ -232,6 +254,28 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
         if r not in devices:
             ctx.emit("unknown-receiver", _("получатель {name!r} не описан на шине {bus!r}", name=r, bus=bus.name),
                      p + ("receivers", i))
+    dev = frame.device
+    if frame.sender is not None:
+        if frame.sender not in devices:
+            ctx.emit("unknown-sender", _("отправитель {name!r} не описан на шине {bus!r}",
+                                         name=frame.sender, bus=bus.name), p + ("sender",))
+        elif dev is not None and frame.direction == "tx" and frame.sender != dev.name:
+            ctx.emit("sender-mismatch", _("кадр {name!r} передаёт само устройство {device!r} (TX), "
+                                          "sender {sender!r} противоречит направлению",
+                                          name=frame.name, device=dev.name, sender=frame.sender), p + ("sender",))
+        elif dev is not None and frame.direction == "rx" and frame.sender == dev.name:
+            ctx.emit("sender-mismatch", _("устройство {device!r} принимает кадр {name!r} (RX) "
+                                          "и не может быть его отправителем",
+                                          name=frame.name, device=dev.name), p + ("sender",))
+    snd = frame.sender_name
+    for i, r in enumerate(frame.receivers):
+        if r == snd:
+            ctx.emit("sender-mismatch", _("отправитель {name!r} указан среди получателей кадра", name=r),
+                     p + ("receivers", i))
+    if dev is not None and frame.direction == "rx" and frame.sender is None and fc is None and len(devices) > 1:
+        ctx.emit("rx-no-sender", _("RX-кадр {name!r} без отправителя: если он описан на шине, укажите sender "
+                                   "или перенесите кадр к отправителю и добавьте {device!r} в receivers",
+                                   name=frame.name, device=dev.name), p + ("sender",))
     j1939_fields = [k for k in ("pgn", "priority", "destination") if getattr(frame, k) is not None]
     if j1939_fields and bus.protocol != "j1939":
         ctx.emit("j1939-field-protocol", _("{fields} у кадра на шине {protocol}",

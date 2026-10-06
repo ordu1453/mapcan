@@ -182,6 +182,12 @@ EN: dict[str, str] = {
         "destination set for a PDU2 PGN (PF ≥ 240) and unused",
     "pgn/priority/destination/address на шине не J1939": "pgn/priority/destination/address on a non-J1939 bus",
     "Получатель кадра не описан на шине": "Frame receiver is not defined on the bus",
+    "Отправитель кадра не описан на шине": "Frame sender is not defined on the bus",
+    "sender противоречит направлению кадра или совпадает с получателем":
+        "sender conflicts with the frame direction or matches a receiver",
+    "RX-кадр повторяет кадр другого устройства (описывайте кадр у отправителя)":
+        "RX frame duplicates another device's frame (describe the frame at its sender)",
+    "RX-кадр без отправителя": "RX frame without a sender",
     "Сигнал float должен быть 32 или 64 бита": "A float signal must be 32 or 64 bits",
     "Значение по умолчанию вне диапазона сигнала": "Default value outside the signal's range",
     "Значение invalid не помещается в разрядность сигнала": "invalid value does not fit in the signal width",
@@ -217,6 +223,22 @@ EN: dict[str, str] = {
     "DLC {dlc} недопустим для CAN FD": "DLC {dlc} is not valid for CAN FD",
     "DLC {dlc} > 8 (для CAN FD укажите fd: true у шины)": "DLC {dlc} > 8 (for CAN FD set fd: true on the bus)",
     "получатель {name!r} не описан на шине {bus!r}": "receiver {name!r} is not defined on bus {bus!r}",
+    "отправитель {name!r} не описан на шине {bus!r}": "sender {name!r} is not defined on bus {bus!r}",
+    "кадр {name!r} передаёт само устройство {device!r} (TX), "
+    "sender {sender!r} противоречит направлению":
+        "frame {name!r} is transmitted by device {device!r} itself (TX); "
+        "sender {sender!r} conflicts with the direction",
+    "устройство {device!r} принимает кадр {name!r} (RX) и не может быть его отправителем":
+        "device {device!r} receives frame {name!r} (RX) and cannot be its sender",
+    "отправитель {name!r} указан среди получателей кадра": "sender {name!r} is listed among the frame receivers",
+    "RX-кадр {name!r} без отправителя: если он описан на шине, укажите sender "
+    "или перенесите кадр к отправителю и добавьте {device!r} в receivers":
+        "RX frame {name!r} has no sender: if the sender is on the bus, set sender or move the frame to the sender "
+        "and add {device!r} to receivers",
+    "RX-кадр {name!r} устройства {device!r} повторяет кадр {other!r} отправителя {sender!r} "
+    "(CAN ID {can_id:#05x}): опишите кадр один раз у отправителя и добавьте {device!r} в receivers":
+        "RX frame {name!r} of device {device!r} duplicates frame {other!r} of sender {sender!r} "
+        "(CAN ID {can_id:#05x}): describe the frame once at the sender and add {device!r} to receivers",
     "PGN {pgn:#06x} — PDU1: младший байт должен быть 0 (адрес получателя задаётся destination)":
         "PGN {pgn:#06x} is PDU1: the low byte must be 0 (the destination address is set by destination)",
     "PGN {pgn:#06x} — PDU2 (широковещательный), destination не используется":
@@ -314,6 +336,10 @@ EN: dict[str, str] = {
     "J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем).":
         "J1939: destination address for PDU1 (0xFF, global, by default).",
     "Устройства шины, принимающие кадр (имена).": "Bus devices that receive the frame (names).",
+    "Устройство шины, передающее кадр, если это не его владелец: "
+    "для RX-кадров (напр. PDO RX узла от мастера) и кадров шины (NMT, SYNC).":
+        "Bus device that transmits the frame when it is not the frame's owner: for RX frames "
+        "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
     "Сокращение для transmission: cyclic.": "Shorthand for transmission: cyclic.",
     "Имя пользователя GitHub автора изменения.": "GitHub username of the change's author.",
     "Настраиваемые правила стиля (проверяются как warning).": "Configurable style rules (checked as warnings).",

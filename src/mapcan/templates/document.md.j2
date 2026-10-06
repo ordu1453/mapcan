@@ -60,15 +60,15 @@
 {%- endfor %}
 {%- else -%}
 {%- set A = bus.addressing -%}
-| {{ L.device }} | {{ L.id }} |{% if A.has_pgn %} {{ L.pgn }} |{% endif %} {{ L.purpose }} | {{ L.direction }} | {{ L.period }} |{% if A.has_receivers %} {{ L.receivers }} |{% endif %}
-|---|---|{% if A.has_pgn %}---|{% endif %}---|---|---|{% if A.has_receivers %}---|{% endif %}
+| {{ L.device }} | {{ L.id }} |{% if A.has_pgn %} {{ L.pgn }} |{% endif %} {{ L.purpose }} | {{ L.direction }} | {{ L.period }} |{% if A.has_sender %} {{ L.sender }} |{% endif %}{% if A.has_receivers %} {{ L.receivers }} |{% endif %}
+|---|---|{% if A.has_pgn %}---|{% endif %}---|---|---|{% if A.has_sender %}---|{% endif %}{% if A.has_receivers %}---|{% endif %}
 {% for r in A.rows -%}
-| {{ r.device }} | `{{ r.id }}` |{% if A.has_pgn %} {% if r.pgn %}`{{ r.pgn }}`{% endif %} |{% endif %} {{ cell(r.description) }} | {{ r.direction }} | {{ r.period }} |{% if A.has_receivers %} {{ r.receivers }} |{% endif %}
+| {{ r.device }} | `{{ r.id }}` |{% if A.has_pgn %} {% if r.pgn %}`{{ r.pgn }}`{% endif %} |{% endif %} {{ cell(r.description) }} | {{ r.direction }} | {{ r.period }} |{% if A.has_sender %} {{ r.sender }} |{% endif %}{% if A.has_receivers %} {{ r.receivers }} |{% endif %}
 {% endfor -%}
 {%- endif %}
 
 {% set groups = [] %}
-{%- if bus.broadcast %}{% set _ = groups.append({"name": "broadcast", "label": L.broadcast, "title": "", "description": "", "frames": bus.broadcast}) %}{% endif %}
+{%- if bus.broadcast %}{% set _ = groups.append({"name": "broadcast", "label": L.broadcast, "title": "", "description": "", "frames": bus.broadcast, "receives": [], "sends_other": []}) %}{% endif %}
 {%- for dev in bus.devices %}{% set _ = groups.append(dev) %}{% endfor %}
 {%- for dev in groups %}
 <a id="{{ bus.name }}-{{ dev.name }}"></a>
@@ -77,6 +77,24 @@
 
 {% if dev.description %}{{ dev.description }}
 
+{% endif -%}
+{% if dev.receives -%}
+**{{ L.receives }}**
+
+| {{ L.id }} | {{ L.frame }} | {{ L.sender }} | {{ L.description }} |
+|---|---|---|---|
+{% for c in dev.receives -%}
+| `{{ c.id }}` | `{{ c.name }}` | {{ c.peer }} | {{ cell(c.description) }} |
+{% endfor %}
+{% endif -%}
+{% if dev.sends_other -%}
+**{{ L.sends_other }}**
+
+| {{ L.id }} | {{ L.frame }} | {{ L.device }} | {{ L.description }} |
+|---|---|---|---|
+{% for c in dev.sends_other -%}
+| `{{ c.id }}` | `{{ c.name }}` | {{ c.peer }} | {{ cell(c.description) }} |
+{% endfor %}
 {% endif -%}
 {% for fr in dev.frames %}
 #### `{{ fr.id }}` {{ fr.title or fr.name }}
@@ -87,8 +105,10 @@
 | {{ L.frame }} | {{ L.id }} | {{ L.type }} | {{ L.dlc }} | {{ L.direction }} | {{ L.period }} |
 |---|---|---|---|---|---|
 | `{{ fr.name }}` | `{{ fr.id }}`{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} | {{ fr.type_label }} | {{ fr.dlc }} | {{ fr.direction }} | {{ fr.period }} |
-{% if fr.pgn or fr.receivers %}
-{% if fr.pgn %}**{{ L.pgn }}:** `{{ fr.pgn }}` · **{{ L.priority }}:** {{ fr.priority }}{% endif %}{% if fr.pgn and fr.receivers %} · {% endif %}{% if fr.receivers %}**{{ L.receivers }}:** {{ fr.receivers }}{% endif %}
+{% if fr.pgn or fr.sender or fr.receivers %}
+{{ [("**" ~ L.pgn ~ ":** `" ~ fr.pgn ~ "` · **" ~ L.priority ~ ":** " ~ fr.priority) if fr.pgn else "",
+    ("**" ~ L.sender ~ ":** " ~ fr.sender) if fr.sender else "",
+    ("**" ~ L.receivers ~ ":** " ~ fr.receivers) if fr.receivers else ""] | select | join(" · ") }}
 {% endif %}
 {% if fr.comment %}> {{ L.comment }}: {{ fr.comment }}
 

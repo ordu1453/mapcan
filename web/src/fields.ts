@@ -4,14 +4,23 @@ import { HELP } from "./help";
 import { N_, t } from "./i18n";
 import type { NodeKind } from "./model";
 
-export type FieldType = "text" | "loc" | "int" | "hex" | "float" | "bool" | "select" | "date" | "intlist" | "strlist";
+export type FieldType = "text" | "loc" | "int" | "hex" | "float" | "bool" | "select" | "date" | "intlist" | "strlist"
+  /** Набор устройств шины: переключатели из options. */
+  | "devices";
 
-/** Контекст поля: протокол шины узла; для сигнала — его вычисленный тип, длина и наличие селектора mux в кадре. */
+/**
+ * Контекст поля: протокол шины узла; для сигнала — его вычисленный тип, длина и наличие селектора mux в кадре;
+ * для кадра — устройства шины, владелец кадра (null у кадров шины), вычисленные направление и отправитель.
+ */
 export interface FieldCtx {
   protocol: string;
   kind?: string;
   bitLength?: number;
   hasSelector?: boolean;
+  devices?: string[];
+  owner?: string | null;
+  direction?: string | null;
+  sender?: string | null;
 }
 
 export interface FieldDef {
@@ -63,6 +72,13 @@ const frameTypes = (c: FieldCtx) => (c.protocol === "canopen" ? FRAME_TYPES : FR
 const directions = (c: FieldCtx): Array<[string, string]> =>
   [["", c.protocol === "canopen" ? N_("по типу") : N_("не задано")], ["tx", "TX"], ["rx", "RX"]];
 
+// Отправитель и получатели — устройства шины, кроме владельца кадра (он отправитель TX-кадра и получатель RX-кадра);
+// получателем не предлагается и отправитель кадра
+const others = (c: FieldCtx): Array<[string, string]> =>
+  (c.devices ?? []).filter((d) => d !== c.owner).map((d) => [d, d]);
+const senders = (c: FieldCtx): Array<[string, string]> => [["", N_("вне карты")], ...others(c)];
+const receivers = (c: FieldCtx): Array<[string, string]> => others(c).filter(([d]) => d !== c.sender);
+
 const KINDS: Array<[string, string]> = [
   ["enum", N_("enum — перечисление")], ["flag", N_("flag — флаг")], ["bitfield", N_("bitfield — битовое поле")],
   ["metric", N_("metric — величина")], ["raw", N_("raw — целое")], ["float", N_("float — IEEE 754 (32/64 бит)")],
@@ -96,7 +112,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
   ],
   device: [
-    { key: "name", label: N_("Идентификатор"), type: "text", required: true, hint: N_("латиница, цифры, _; код C и получатели кадров") },
+    { key: "name", label: N_("Идентификатор"), type: "text", required: true, hint: N_("латиница, цифры, _; код C, отправители и получатели кадров") },
     { key: "title", label: N_("Полное название"), type: "loc", hint: N_("в заголовках документов") },
     { key: "short", label: N_("Сокращение в документах"), type: "text", hint: N_("напр. BMS; пусто — идентификатор прописными") },
     { key: "node_id", label: N_("Адрес узла (node_id)"), type: "hex", hint: N_("адрес CANopen 1..127"),
@@ -121,9 +137,15 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "priority", label: N_("Приоритет"), type: "int", hint: N_("0..7, по умолчанию 6"), when: (_n, c) => c.protocol === "j1939" },
     { key: "destination", label: N_("Получатель (DA)"), type: "hex", hint: N_("PDU1; пусто — 0xFF (всем)"),
       when: (n, c) => c.protocol === "j1939" && n?.pgn != null && ((n.pgn >> 8) & 0xff) < 240 },
-    { key: "receivers", label: N_("Получатели"), type: "strlist", hint: N_("имена устройств через запятую"), wide: true },
     { key: "dlc", label: "DLC", type: "int" },
     { key: "direction", label: N_("Направление"), type: "select", optionsFor: directions },
+    { key: "sender", label: N_("Отправитель"), type: "select", optionsFor: senders,
+      hint: N_("для RX-кадра и кадра шины; пусто — отправитель не описан в карте"),
+      // У TX-кадра отправитель — само устройство; записанный sender не блокируем, чтобы его можно было убрать
+      locked: (n, c) => !!c.owner && c.direction === "tx" && n?.sender == null,
+      lockedHint: N_("TX-кадр передаёт само устройство") },
+    { key: "receivers", label: N_("Получатели"), type: "devices", optionsFor: receivers, wide: true,
+      hint: N_("устройства шины, которые принимают кадр") },
     { key: "extended", label: N_("29-битный ID"), type: "bool", when: (_n, c) => c.protocol !== "j1939" },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },

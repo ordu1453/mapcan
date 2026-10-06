@@ -204,7 +204,7 @@ function takenNames(path: Path): string[] {
 
 /**
  * Переименовать узел. Возвращает текст ошибки или null. У устройства заодно обновляются
- * получатели (receivers) кадров шины — одной правкой, один шаг отмены.
+ * отправители (sender) и получатели (receivers) кадров шины — одной правкой, один шаг отмены.
  */
 export async function renameNode(path: Path, raw: string): Promise<string | null> {
   const name = raw.trim();
@@ -222,6 +222,7 @@ export async function renameNode(path: Path, raw: string): Promise<string | null
         (d.frames ?? []).map((f: Data, i: number) => [[...bp, "devices", di, "frames", i], f] as [Path, Data])),
     ];
     for (const [fp, f] of frames) {
+      if (f.sender === old) ops.push({ op: "set", path: [...fp, "sender"], value: name });
       if (Array.isArray(f.receivers) && f.receivers.includes(old)) {
         ops.push({ op: "set", path: [...fp, "receivers"], value: f.receivers.map((r: string) => (r === old ? name : r)) });
       }
