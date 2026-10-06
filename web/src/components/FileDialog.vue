@@ -6,6 +6,7 @@ import { actions, store, toast } from "../store";
 import type { FsEntry, FsList } from "../types";
 import Modal from "./Modal.vue";
 import { N_, t } from "../i18n";
+import { hasNativeDialog, nativePick } from "../native";
 
 const props = defineProps<{ mode: "open" | "new" | "saveas" | "example" }>();
 const emit = defineEmits<{ close: [] }>();
@@ -91,6 +92,26 @@ async function submit() {
   if (ok) emit("close");
 }
 
+const canBrowse = hasNativeDialog();
+
+// Проводник ОС. Выбор в нём — уже подтверждение (о перезаписи спрашивает сам проводник),
+// кроме новой карты: для неё ещё нужны шаблон и название.
+async function browse() {
+  const base = name.value.trim().split(/[\\/]/).pop() ?? "";
+  const p = await nativePick(props.mode === "open" ? "open" : "save", listing.value?.dir ?? "", base);
+  if (!p) return;
+  let ok = false;
+  if (props.mode === "open") ok = await actions.openFile(p);
+  else if (props.mode === "saveas") ok = await actions.saveAs(p, true);
+  else if (props.mode === "example") ok = await actions.newFromExample(store.example ?? "", p, true);
+  else {
+    await go(dirOf(p));
+    name.value = p.slice(Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\")) + 1);
+    nameEl.value?.focus();
+  }
+  if (ok) emit("close");
+}
+
 async function openRecent(path: string) {
   if (await actions.openFile(path)) emit("close");
 }
@@ -164,6 +185,7 @@ const fmtDate = (t: number) => new Date(t * 1000).toLocaleString("ru-RU", { date
         </div>
         <div class="fd-actions">
           <span class="muted mono fd-target">{{ fullPath }}</span>
+          <button v-if="canBrowse" :disabled="store.busy" :title="t('Выбрать в проводнике')" @click="browse">{{ t("Обзор…") }}</button>
           <button @click="emit('close')">{{ t("Отмена") }}</button>
           <button class="primary" :disabled="!name.trim() || store.busy" @click="submit">{{ ACTION[mode] }}</button>
         </div>

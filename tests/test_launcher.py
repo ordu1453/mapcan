@@ -113,6 +113,30 @@ def test_pick_port_falls_back_when_busy():
         assert port != busy and launcher.port_free("127.0.0.1", port)
 
 
+def test_native_file_dialog():
+    webview = pytest.importorskip("webview")
+    calls = []
+
+    class FakeWindow:
+        def __init__(self, result):
+            self.result = result
+
+        def create_file_dialog(self, kind, **kw):
+            calls.append((kind, kw))
+            return self.result
+
+    api = launcher.DialogApi(lambda: FakeWindow(("C:/maps/a.yaml",)))
+    assert api.pick_file("open", "C:/maps") == "C:/maps/a.yaml"
+    assert calls[-1][0] == webview.FileDialog.OPEN and calls[-1][1]["directory"] == "C:/maps"
+
+    api = launcher.DialogApi(lambda: FakeWindow("C:/maps/b.yaml"))
+    assert api.pick_file("save", "", "b.yaml") == "C:/maps/b.yaml"
+    assert calls[-1][0] == webview.FileDialog.SAVE and calls[-1][1]["save_filename"] == "b.yaml"
+
+    assert launcher.DialogApi(lambda: FakeWindow(None)).pick_file("open") is None
+    assert launcher.DialogApi(lambda: None).pick_file("open") is None
+
+
 def test_second_launch_activates_running_instance(mapfile):
     port = launcher.pick_port("127.0.0.1", 0)
     focused = []

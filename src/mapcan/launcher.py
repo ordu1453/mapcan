@@ -162,6 +162,29 @@ def _webview():
     return webview
 
 
+class DialogApi:
+    """Методы для JS окна (window.pywebview.api): системные диалоги открытия и сохранения файла."""
+
+    FILE_TYPES = ("YAML (*.yaml;*.yml)", "All files (*.*)")
+
+    def __init__(self, get_window):
+        self._get_window = get_window   # с «_» — pywebview не отдаёт атрибут в JS
+
+    def pick_file(self, mode: str, directory: str = "", filename: str = "") -> str | None:
+        """``mode``: "open" или "save". Возвращает выбранный путь или None (отмена)."""
+        import webview
+
+        win = self._get_window()
+        if win is None:
+            return None
+        kind = webview.FileDialog.SAVE if mode == "save" else webview.FileDialog.OPEN
+        result = win.create_file_dialog(kind, directory=directory or "", save_filename=filename or "",
+                                        file_types=self.FILE_TYPES)
+        if not result:
+            return None
+        return result if isinstance(result, str) else result[0]
+
+
 def _redirect_output() -> None:
     """В оконном .exe нет stdout/stderr — пишем их в лог, чтобы print/logging не падали."""
     if sys.stdout is not None and sys.stderr is not None:
@@ -237,7 +260,8 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
 
             webview.settings["ALLOW_DOWNLOADS"] = True
             win = webview.create_window("mapcan", url, width=1440, height=900, min_size=(960, 600),
-                                        maximized=True, text_select=True, zoomable=True)
+                                        maximized=True, text_select=True, zoomable=True,
+                                        js_api=DialogApi(lambda: win))
             def set_minimized(value: bool):
                 def handler() -> None:
                     nonlocal minimized
