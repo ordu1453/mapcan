@@ -190,8 +190,8 @@ def _check_bus(ctx: _Ctx, bus) -> None:
             if bus.protocol == "j1939":
                 # Сообщение — на поле, которое нужно заполнить (редактор подсвечивает его)
                 if frame.pgn is None:
-                    ctx.emit("frame-id-missing", _("кадр {name!r}: {why}", name=frame.name, why=_("нужен pgn (или id)")),
-                             p + ("pgn",))
+                    ctx.emit("frame-id-missing", _("кадр {name!r}: {why}", name=frame.name,
+                                                   why=_("нужен pgn (или id)")), p + ("pgn",))
                 else:
                     ctx.emit("frame-id-missing", _("кадр {name!r}: {why}", name=frame.name,
                                                    why=_("у устройства нет address")), p)
