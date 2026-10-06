@@ -35,7 +35,7 @@ async function save() {
 <template>
   <Modal :title="t('Профиль автора')" @close="emit('close')">
     <p class="muted">
-      {{ t("Имя и GitHub подставляются в записи истории изменений карты («Сравнить версии» → «Добавить в историю») и попадают в Excel, PDF, Markdown и HTML. Профиль хранится на этом компьютере ({path}).", { path: "~/.mapcan/config.json" }) }}
+      {{ t("Имя и GitHub будут указаны в записях истории изменений карты.") }}
     </p>
     <div class="form-grid">
       <label class="field wide">
@@ -44,8 +44,8 @@ async function save() {
       </label>
       <label class="field wide">
         <span class="field-label">GitHub</span>
-        <input v-model="github" class="mono" :placeholder="t('username или https://github.com/username')" @keydown.enter="save" />
-        <span class="field-hint">{{ t("Необязательно. Ссылка на профиль появится рядом с именем в истории.") }}</span>
+        <input v-model="github" class="mono" placeholder="username" @keydown.enter="save" />
+        <span class="field-hint">{{ t("Необязательно.") }}</span>
       </label>
     </div>
     <p v-if="error" class="banner error">{{ error }}</p>
