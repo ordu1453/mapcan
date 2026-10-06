@@ -36,11 +36,18 @@ class PdfTemplate:
 PDF_TEMPLATES: dict[str, PdfTemplate] = {
     t.name: t
     for t in [
-        PdfTemplate("mapcan", N_("mapcan — техническое оформление"),
+        PdfTemplate("mapcan", N_("mapcan — стандартное оформление"),
                     N_("Цветные битовые диаграммы, колонтитулы, титульный лист в свободной форме.")),
         PdfTemplate("gost-2.105", N_("ЕСКД — ГОСТ 2.105 / 2.104"),
                     N_("Текстовый конструкторский документ: рамка, основная надпись (формы 2 и 2а), "
                        "дополнительные графы, титульный лист, лист регистрации изменений."), "ru"),
+    ]
+}
+# Черновые шаблоны: файлы и код сохранены, но пользователю (CLI, редактор) не предлагаются,
+# пока не доведены до ума. Собрать их можно только по пути к .typ (см. тесты).
+DRAFT_PDF_TEMPLATES: dict[str, PdfTemplate] = {
+    t.name: t
+    for t in [
         PdfTemplate("gost-19", N_("ЕСПД — ГОСТ 19.104 / 19.106"),
                     N_("Программный документ: лист утверждения, титульный лист, аннотация, "
                        "обозначение на каждой странице, лист регистрации изменений."), "ru"),
@@ -61,7 +68,7 @@ class PdfError(RuntimeError):
 def template_lang(template: str | Path | None) -> str | None:
     """Язык, зафиксированный встроенным шаблоном (ГОСТ — русский), или None."""
     name = PDF_TEMPLATE_ALIASES.get(str(template or DEFAULT_TEMPLATE_NAME), str(template or DEFAULT_TEMPLATE_NAME))
-    t = PDF_TEMPLATES.get(name)
+    t = PDF_TEMPLATES.get(name) or DRAFT_PDF_TEMPLATES.get(name)
     return t.lang if t else None
 
 

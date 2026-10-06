@@ -270,13 +270,13 @@ def export_xlsx_cmd(
     _done(export_xlsx(res.map, _default_out(path, ".xlsx", out), XlsxStyle.load(style), lang))
 
 
-@export_app.command("pdf", help=_("PDF через Typst: титул, оглавление, битовые диаграммы, таблицы; шаблоны ГОСТ."))
+@export_app.command("pdf", help=_("PDF через Typst: титул, оглавление, битовые диаграммы, таблицы; шаблон ЕСКД."))
 def export_pdf_cmd(
     path: Path = MapArg,
     out: Optional[Path] = typer.Option(None, "-o", "--output"),
     template: Optional[str] = typer.Option(
         None, "--template",
-        help=_("Встроенный шаблон (mapcan, gost-2.105, gost-19, gost-7.32) или путь к своему .typ.")),
+        help=_("Встроенный шаблон (mapcan, gost-2.105) или путь к своему .typ.")),
     font_path: list[Path] = typer.Option([], "--font-path", help=_("Каталог с дополнительными шрифтами.")),
     lang: Optional[str] = LangOpt,
     force: bool = ForceOpt,

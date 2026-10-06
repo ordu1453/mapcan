@@ -123,8 +123,7 @@ class Document(_Base):
     logo: str | None = Field(
         None, description=N_("Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты."))
     designation: str | None = Field(
-        None, description=N_("Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД) "
-                             "или «RU.12345678.00001-01» (ЕСПД)."))
+        None, description=N_("Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД)."))
     litera: str | None = Field(None, description=N_("Литера документа (ЕСКД), напр. «О1»."))
     city: str | None = Field(None, description=N_("Город для титульного листа."))
     signatures: Signatures | None = None

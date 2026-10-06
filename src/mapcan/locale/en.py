@@ -25,8 +25,8 @@ EN: dict[str, str] = {
     "Список шаблонов PDF или копия встроенного шаблона для правки (своё оформление).":
         "List PDF templates or copy a built-in template to customize the layout.",
     "Excel: адресация, содержание, битовые карты, изменения.": "Excel: addressing, contents, bit maps, changes.",
-    "PDF через Typst: титул, оглавление, битовые диаграммы, таблицы; шаблоны ГОСТ.":
-        "PDF via Typst: title page, contents, bit diagrams, tables; GOST templates.",
+    "PDF через Typst: титул, оглавление, битовые диаграммы, таблицы; шаблон ЕСКД.":
+        "PDF via Typst: title page, contents, bit diagrams, tables; ESKD template.",
     "Markdown для README/вики.": "Markdown for a README or wiki.",
     "Самодостаточная HTML-страница с поиском.": "Self-contained HTML page with search.",
     "DBC (по файлу на шину).": "DBC (one file per bus).",
@@ -60,8 +60,8 @@ EN: dict[str, str] = {
     "Показать встроенные шаблоны PDF.": "Show built-in PDF templates.",
     "укажите -o/--output": "specify -o/--output",
     "YAML с оформлением.": "YAML file with styling.",
-    "Встроенный шаблон (mapcan, gost-2.105, gost-19, gost-7.32) или путь к своему .typ.":
-        "Built-in template (mapcan, gost-2.105, gost-19, gost-7.32) or a path to your own .typ.",
+    "Встроенный шаблон (mapcan, gost-2.105) или путь к своему .typ.":
+        "Built-in template (mapcan, gost-2.105) or a path to your own .typ.",
     "Каталог с дополнительными шрифтами.": "Folder with additional fonts.",
     "Свой Jinja2-шаблон.": "Custom Jinja2 template.",
     "Файл .dbc (одна шина) или каталог.": ".dbc file (single bus) or a folder.",
@@ -82,7 +82,7 @@ EN: dict[str, str] = {
     # ------------------------------------------------------------------ экспорт
     "шина {name!r} не найдена": "bus {name!r} not found",
     "шаблон не найден: {template} (встроенные: {known})": "template not found: {template} (built-in: {known})",
-    "mapcan — техническое оформление": "mapcan — technical style",
+    "mapcan — стандартное оформление": "mapcan — Standard layout",
     "Цветные битовые диаграммы, колонтитулы, титульный лист в свободной форме.":
         "Colored bit diagrams, headers and footers, free-form title page.",
     "ЕСКД — ГОСТ 2.105 / 2.104": "ESKD — GOST 2.105 / 2.104",
@@ -298,8 +298,8 @@ EN: dict[str, str] = {
         "The field states the convention explicitly and is shown in every document.",
     "Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты.":
         "Company logo: path to a PNG/JPG/SVG relative to the map file.",
-    "Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД) или «RU.12345678.00001-01» (ЕСПД).":
-        "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD) or \"RU.12345678.00001-01\" (ESPD).",
+    "Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД).":
+        "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD).",
     "Литера документа (ЕСКД), напр. «О1».": "Document letter (ESKD), e.g. \"О1\".",
     "Город для титульного листа.": "City for the title page.",
     "Блок «УТВЕРЖДАЮ» титульного листа.": "The \"APPROVED\" block of the title page.",

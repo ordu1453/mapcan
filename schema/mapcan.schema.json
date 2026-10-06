@@ -303,7 +303,7 @@
             }
           ],
           "default": null,
-          "description": "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD) or \"RU.12345678.00001-01\" (ESPD).",
+          "description": "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD).",
           "title": "Designation"
         },
         "litera": {

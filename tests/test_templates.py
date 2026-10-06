@@ -1,4 +1,4 @@
-"""Шаблоны PDF (mapcan, ЕСКД, ЕСПД, ГОСТ 7.32), логотип предприятия, реквизиты."""
+"""Шаблоны PDF (mapcan, ЕСКД; черновые ЕСПД и ГОСТ 7.32), логотип предприятия, реквизиты."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from mapcan.cli import app as cli
-from mapcan.export.pdf import PDF_TEMPLATES, PdfError, export_pdf, resolve_template
+from mapcan.export.pdf import DRAFT_PDF_TEMPLATES, PDF_TEMPLATES, PdfError, export_pdf, resolve_template
 from mapcan.export.text import render
 from mapcan.export.xlsx import export_xlsx
 from mapcan.loader import load, loads
@@ -45,20 +45,28 @@ def with_requisites(logo=LOGO_PNG):
     return m
 
 
-@pytest.mark.parametrize("name", sorted(PDF_TEMPLATES))
+def template_arg(name):
+    """Встроенный шаблон — по имени, черновой — только по пути к .typ."""
+    return DRAFT_PDF_TEMPLATES[name].path if name in DRAFT_PDF_TEMPLATES else name
+
+
+ALL_TEMPLATES = sorted([*PDF_TEMPLATES, *DRAFT_PDF_TEMPLATES])
+
+
+@pytest.mark.parametrize("name", ALL_TEMPLATES)
 def test_template_with_requisites_and_logo(name, tmp_path):
-    out = export_pdf(with_requisites(), tmp_path / f"{name}.pdf", template=name)
+    out = export_pdf(with_requisites(), tmp_path / f"{name}.pdf", template=template_arg(name))
     data = out.read_bytes()
     assert data.startswith(b"%PDF")
     assert pages(data) >= 10
     assert b"/Subtype /Image" in data or b"/Subtype/Image" in data, "логотип не попал в PDF"
 
 
-@pytest.mark.parametrize("name", sorted(PDF_TEMPLATES))
+@pytest.mark.parametrize("name", ALL_TEMPLATES)
 def test_template_without_requisites(name, tmp_path):
     """Шаблоны ГОСТ собираются и для карты без реквизитов и логотипа."""
     m = load(REFERENCE).map
-    assert export_pdf(m, tmp_path / "x.pdf", template=name).read_bytes().startswith(b"%PDF")
+    assert export_pdf(m, tmp_path / "x.pdf", template=template_arg(name)).read_bytes().startswith(b"%PDF")
 
 
 @pytest.mark.parametrize("name", ["mapcan", "gost-2.105"])
@@ -77,7 +85,9 @@ def test_eskd_svg_pages_match_pdf(tmp_path):
 
 def test_resolve_template(tmp_path):
     assert resolve_template(None).name == "mapcan.typ"
-    assert resolve_template("gost-7.32").name == "gost-7.32.typ"
+    assert resolve_template("gost-2.105").name == "gost-2.105.typ"
+    with pytest.raises(PdfError):            # черновые шаблоны по имени недоступны
+        resolve_template("gost-7.32")
     assert resolve_template("canmap").name == "mapcan.typ"   # имя до переименования
     custom = tmp_path / "my.typ"
     custom.write_text("x", encoding="utf-8")
@@ -144,18 +154,20 @@ def test_cli_template_list_and_copy(tmp_path):
 
 def test_cli_export_pdf_by_name(tmp_path):
     out = tmp_path / "x.pdf"
-    r = runner.invoke(cli, ["export", "pdf", str(REFERENCE), "-o", str(out), "--template", "gost-7.32"])
+    r = runner.invoke(cli, ["export", "pdf", str(REFERENCE), "-o", str(out), "--template", "gost-2.105"])
     assert r.exit_code == 0, r.output
+    r = runner.invoke(cli, ["export", "pdf", str(REFERENCE), "-o", str(out), "--template", "gost-19"])
+    assert r.exit_code == 2
     r = runner.invoke(cli, ["export", "pdf", str(REFERENCE), "-o", str(out), "--template", "nope"])
     assert r.exit_code == 2
 
 
 def test_cli_build_several_templates(tmp_path):
     r = runner.invoke(cli, ["build", str(REFERENCE), "-o", str(tmp_path), "--formats", "pdf",
-                            "--pdf-template", "mapcan", "--pdf-template", "gost-19"])
+                            "--pdf-template", "mapcan", "--pdf-template", "gost-2.105"])
     assert r.exit_code == 0, r.output
     stem = REFERENCE.stem
-    assert (tmp_path / f"{stem}-mapcan.pdf").is_file() and (tmp_path / f"{stem}-gost-19.pdf").is_file()
+    assert (tmp_path / f"{stem}-mapcan.pdf").is_file() and (tmp_path / f"{stem}-gost-2.105.pdf").is_file()
 
 
 # --------------------------------------------------------------------------- веб
@@ -175,6 +187,7 @@ def test_web_templates_and_export(client):
     assert r.status_code == 200 and r.content.startswith(b"%PDF")
     assert 'filename="mapcan-gost-2.105.pdf"' in r.headers["content-disposition"]
     assert client.get("/api/export/pdf", params={"template": "nope"}).status_code == 400
+    assert client.get("/api/export/pdf", params={"template": "gost-7.32"}).status_code == 400
 
 
 def test_web_logo_upload(client, tmp_path):
@@ -187,7 +200,7 @@ def test_web_logo_upload(client, tmp_path):
     assert "logo: mapcan-logo.png" in st["text"]
     img = client.get("/api/logo")
     assert img.status_code == 200 and img.content == LOGO_PNG.read_bytes()
-    pdf = client.get("/api/export/pdf", params={"template": "gost-7.32"}).content
+    pdf = client.get("/api/export/pdf", params={"template": "gost-2.105"}).content
     assert b"/Subtype /Image" in pdf or b"/Subtype/Image" in pdf
     bad = client.post("/api/logo", files={"file": ("x.bmp", io.BytesIO(b"BM").getvalue(), "image/bmp")})
     assert bad.status_code == 400 and bad.json()["code"] == "logo-format"
@@ -220,3 +233,12 @@ def test_build_every_example(path, tmp_path):
     for ext in ("xlsx", "md", "html"):
         assert (tmp_path / f"{path.stem}.{ext}").is_file()
     assert list((tmp_path / "c").glob("*.h")) and list((tmp_path / "dbc").glob("*.dbc"))
+
+
+def test_generator_version_in_view():
+    from mapcan import __version__
+    from mapcan.docmodel import build_view
+
+    m = load(REFERENCE).map
+    assert build_view(m, "en")["document"]["generated_by"] == f"Generated by mapcan {__version__}"
+    assert build_view(m, "ru")["document"]["generated_by"] == f"Сформировано mapcan {__version__}"

@@ -130,7 +130,7 @@ def test_export_language_choice(tmp_path):
         assert c.get("/api/export/md?lang=de").status_code == 400
         tpls = {t["name"]: t["lang"] for t in c.get("/api/templates").json()["pdf"]}
         assert tpls["mapcan"] is None
-        assert all(tpls[n] == "ru" for n in ("gost-2.105", "gost-19", "gost-7.32"))
+        assert tpls["gost-2.105"] == "ru" and set(tpls) == {"mapcan", "gost-2.105"}
 
 
 def test_gost_templates_always_russian():

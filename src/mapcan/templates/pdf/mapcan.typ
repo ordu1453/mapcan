@@ -36,7 +36,7 @@
   footer: context {
     set text(size: 8pt, fill: luma(90))
     grid(columns: (1fr, auto),
-      [#L.generated · #doc.date],
+      [#doc.generated_by · #doc.date],
       [#counter(page).display() / #counter(page).final().first()])
   },
 )
@@ -58,10 +58,6 @@
     ..if doc.designation != "" { ([*#L.designation*], doc.designation) },
     ..if doc.author != "" { ([*#L.author*], doc.author) },
   )
-  #v(1fr)
-  #block(fill: rgb("#F2F6FA"), inset: 8pt, radius: 3pt, width: 100%)[
-    #text(size: 9pt, doc.bit_note)
-  ]
 ]
 
 #outline(title: L.contents, depth: 3, indent: auto)
@@ -99,6 +95,10 @@
 
   heading(level: 2, L.addressing)
   addressing-table(bus, L, th: th)
+
+  // Как читать битовые диаграммы — перед первой из них в каждой шине.
+  v(3mm)
+  block(fill: rgb("#F2F6FA"), inset: 6pt, radius: 3pt, width: 100%, text(size: 8.5pt, doc.bit_note))
 
   for g in bus-groups(bus, L) {
     heading(level: 2, g.title)

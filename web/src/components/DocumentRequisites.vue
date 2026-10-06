@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Оформление и реквизиты документа: логотип, обозначение, подписи (основная надпись ЕСКД,
-// листы утверждения ЕСПД, титул ГОСТ 7.32), «УТВЕРЖДАЮ» / «СОГЛАСОВАНО».
+// Оформление и реквизиты документа: логотип, обозначение, подписи (основная надпись ЕСКД),
+// «УТВЕРЖДАЮ» / «СОГЛАСОВАНО».
 import { computed, ref } from "vue";
 import { api } from "../api";
 import type { FieldDef } from "../fields";
@@ -16,7 +16,7 @@ const readonly = computed(() => !!store.state?.readonly);
 const diags = computed(() => store.state?.diagnostics ?? []);
 
 const MAIN: FieldDef[] = [
-  { key: "designation", label: N_("Обозначение документа"), type: "text", hint: N_("напр. АБВГ.468332.001 Д1 или RU.12345678.00001-01") },
+  { key: "designation", label: N_("Обозначение документа"), type: "text", hint: N_("напр. АБВГ.468332.001 Д1") },
   { key: "litera", label: N_("Литера"), type: "text", hint: N_("ЕСКД: Э, Т, О, О1, А…") },
   { key: "organization", label: N_("Организация"), type: "text" },
   { key: "city", label: N_("Город"), type: "text", hint: N_("для титульного листа") },
@@ -97,7 +97,7 @@ function removeAgree(i: number) {
 
 <template>
   <section class="card">
-    <h3>{{ t("Оформление и реквизиты") }} <span class="muted">{{ t("шаблоны PDF: ЕСКД, ЕСПД, ГОСТ 7.32") }}</span></h3>
+    <h3>{{ t("Оформление и реквизиты") }} <span class="muted">{{ t("шаблон PDF ЕСКД") }}</span></h3>
 
     <div class="logo-row">
       <div class="logo-box" :class="{ empty: !doc.logo }">

@@ -27,7 +27,7 @@ Supported:
 | web editor: create or open a map, tree, forms, bit layout, live validation | `mapcan serve` |
 | map validation with file and line numbers | `mapcan validate my-map.yaml` |
 | Excel: addressing, contents, bit layouts, changes | `mapcan export xlsx my-map.yaml` |
-| PDF: title page, table of contents, bit diagrams, tables; ESKD, ESPD, GOST 7.32 templates | `mapcan export pdf my-map.yaml --template gost-2.105` |
+| PDF: title page, table of contents, bit diagrams, tables; ESKD template | `mapcan export pdf my-map.yaml --template gost-2.105` |
 | Markdown for a README or wiki, an HTML page with search | `mapcan export md my-map.yaml`, `mapcan export html my-map.yaml` |
 | DBC for CANalyzer, SavvyCAN, PCAN-View, Wireshark | `mapcan export dbc my-map.yaml -o dbc/` |
 | C: ID `#define`s, `enum`s, masks, structs, `pack`/`unpack` | `mapcan gen c my-map.yaml -o firmware/` |
@@ -120,7 +120,7 @@ mapcan app         [FILE|DIR] [--browser] [--readonly]
 mapcan serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
 mapcan validate    FILE [--strict] [--info] [--format json] [--disable CODE]
 mapcan export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
-mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR] [--lang en]
+mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|my.typ] [--font-path DIR] [--lang en]
 mapcan export md   FILE [-o OUT] [--template my.md.j2] [--lang en]
 mapcan export html FILE [-o OUT] [--template my.html.j2] [--lang en]
 mapcan export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
@@ -136,7 +136,7 @@ mapcan rules
 The interface (validation messages, CLI, editor) is in English. Documents can be produced in
 Russian or English: the default comes from the map's `document.language` field (chosen when a map
 is created), and it can be overridden on export — `--lang` in the CLI, the language switch in the
-editor's export menu and preview. GOST templates (`gost-2.105`, `gost-19`, `gost-7.32`) are always
+editor's export menu and preview. The ESKD template (`gost-2.105`) is always
 produced in Russian.
 
 Export and generation validate the map first and stop on errors (`--force` generates anyway).
@@ -158,8 +158,8 @@ FAIL: errors: 12, warnings: 2, notes: 0
 
 * **Excel** — `mapcan template xlsx-style -o style.yaml`, edit fonts, colors and the set of
   columns, then `mapcan export xlsx map.yaml --style style.yaml`.
-* **PDF** — four built-in templates: `mapcan`, ESKD `gost-2.105` (frame and title block),
-  ESPD `gost-19`, report `gost-7.32`. Document details (designation, letter, signatures,
+* **PDF** — two built-in templates: `mapcan` (standard layout) and ESKD `gost-2.105`
+  (frame and title block). Document details (designation, letter, signatures,
   approval blocks) and the company logo are set in `document`. Your own variant:
   `mapcan template pdf --name gost-2.105 -o corp.typ`, then `--template corp.typ`.
   More in [docs/templates.md](docs/templates.md).
@@ -299,7 +299,7 @@ simulator).
 | веб-редактор: создать или открыть карту, дерево, формы, битовая карта, проверка на лету | `mapcan serve` |
 | проверка карты с указанием файла и строки | `mapcan validate my-map.yaml` |
 | Excel: адресация, содержание, битовые карты, изменения | `mapcan export xlsx my-map.yaml` |
-| PDF: титул, оглавление, битовые диаграммы, таблицы; шаблоны ЕСКД, ЕСПД, ГОСТ 7.32 | `mapcan export pdf my-map.yaml --template gost-2.105` |
+| PDF: титул, оглавление, битовые диаграммы, таблицы; шаблон ЕСКД | `mapcan export pdf my-map.yaml --template gost-2.105` |
 | Markdown для README/вики, HTML-страница с поиском | `mapcan export md my-map.yaml`, `mapcan export html my-map.yaml` |
 | DBC для CANalyzer, SavvyCAN, PCAN-View, Wireshark | `mapcan export dbc my-map.yaml -o dbc/` |
 | C: `#define` ID, `enum`, маски, структуры, `pack`/`unpack` | `mapcan gen c my-map.yaml -o firmware/` |
@@ -392,7 +392,7 @@ mapcan app         [FILE|DIR] [--browser] [--readonly]
 mapcan serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
 mapcan validate    FILE [--strict] [--info] [--format json] [--disable КОД]
 mapcan export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
-mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|gost-19|gost-7.32|my.typ] [--font-path DIR] [--lang en]
+mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|my.typ] [--font-path DIR] [--lang en]
 mapcan export md   FILE [-o OUT] [--template my.md.j2] [--lang en]
 mapcan export html FILE [-o OUT] [--template my.html.j2] [--lang en]
 mapcan export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
@@ -408,8 +408,8 @@ mapcan rules
 Интерфейс (сообщения проверки, CLI, редактор) — на английском. Документы формируются на
 русском или английском: по умолчанию — на языке из поля `document.language` карты (выбирается
 при создании карты), при экспорте его можно сменить — `--lang` в CLI, переключатель языка в меню
-«Export» и в предпросмотре редактора. Шаблоны ГОСТ (`gost-2.105`, `gost-19`, `gost-7.32`) всегда
-формируются на русском.
+«Export» и в предпросмотре редактора. Шаблон ЕСКД (`gost-2.105`) всегда
+формируется на русском.
 
 Экспорт и генерация сначала проверяют карту и прерываются при ошибках
 (`--force` — генерировать всё равно). `validate` возвращает код 1 при ошибках,
@@ -431,8 +431,8 @@ FAIL: errors: 12, warnings: 2, notes: 0
 
 * **Excel** — `mapcan template xlsx-style -o style.yaml`, правка шрифтов, цветов и набора
   колонок, затем `mapcan export xlsx map.yaml --style style.yaml`.
-* **PDF** — четыре встроенных шаблона: `mapcan`, ЕСКД `gost-2.105` (рамка и основная
-  надпись), ЕСПД `gost-19`, отчёт `gost-7.32`. Реквизиты (обозначение, литера, подписи,
+* **PDF** — два встроенных шаблона: `mapcan` (стандартное оформление) и ЕСКД `gost-2.105`
+  (рамка и основная надпись). Реквизиты (обозначение, литера, подписи,
   «Утверждаю», «Согласовано») и логотип предприятия задаются в `document`. Свой вариант:
   `mapcan template pdf --name gost-2.105 -o corp.typ`, затем `--template corp.typ`.
   Подробнее — [docs/templates.md](docs/templates.md).
