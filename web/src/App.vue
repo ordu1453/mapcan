@@ -5,7 +5,6 @@ import { actions, store } from "./store";
 import DiagnosticsPanel from "./components/DiagnosticsPanel.vue";
 import DiffDialog from "./components/DiffDialog.vue";
 import FileDialog from "./components/FileDialog.vue";
-import LanguageDialog from "./components/LanguageDialog.vue";
 import MapTree from "./components/MapTree.vue";
 import NodeEditor from "./components/NodeEditor.vue";
 import PreviewDialog from "./components/PreviewDialog.vue";
@@ -13,7 +12,7 @@ import ProfileDialog from "./components/ProfileDialog.vue";
 import StartScreen from "./components/StartScreen.vue";
 import TopBar from "./components/TopBar.vue";
 import YamlEditor from "./components/YamlEditor.vue";
-import { t } from "./i18n";
+import { LANGUAGES, t } from "./i18n";
 
 const preview = ref<"html" | "pdf" | "md" | null>(null);
 const diffOpen = ref(false);
@@ -21,11 +20,8 @@ const diffOpen = ref(false);
 onMounted(async () => {
   await actions.load();
   if (store.state && !store.state.data) store.tab = "yaml";
-  // Первый запуск: выбрать язык, затем — заполнить профиль автора.
-  if (store.meta && !store.meta.language_chosen) {
-    store.dialog = "language";
-    return;
-  }
+  // Первый запуск: язык — по языку браузера (сменить можно на верхней панели), затем — профиль автора.
+  if (store.meta && !store.meta.language_chosen) await actions.setLanguage(detectLanguage());
   askProfile();
   void checkUpdate();
 });
@@ -41,10 +37,13 @@ function askProfile() {
   }
 }
 
-function languageChosen() {
-  store.dialog = null;
-  askProfile();
-  void checkUpdate();
+function detectLanguage(): string {
+  const codes = LANGUAGES.map(([code]) => code);
+  for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
+    const code = (tag ?? "").slice(0, 2).toLowerCase();
+    if (codes.includes(code as (typeof codes)[number])) return code;
+  }
+  return "en";
 }
 
 const UPDATE_KEY = "mapcan-update-dismissed";
@@ -114,7 +113,6 @@ function keepMine() {
     <FileDialog v-if="store.dialog === 'open' || store.dialog === 'new' || store.dialog === 'saveas'"
                 :key="store.dialog" :mode="store.dialog" @close="store.dialog = null" />
     <ProfileDialog v-if="store.dialog === 'profile'" @close="store.dialog = null" />
-    <LanguageDialog v-if="store.dialog === 'language'" @close="languageChosen" />
 
     <div class="toasts">
       <div v-for="t in store.toasts" :key="t.id" class="toast" :class="t.kind">{{ t.text }}</div>

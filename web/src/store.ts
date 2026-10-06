@@ -12,7 +12,7 @@ interface Toast {
   text: string;
 }
 
-export type DialogKind = "open" | "new" | "saveas" | "profile" | "language" | null;
+export type DialogKind = "open" | "new" | "saveas" | "profile" | null;
 
 function savedTemplate(): string {
   try {
