@@ -4,9 +4,9 @@ import { hex, rangeLabel } from "../bits";
 import { canRename, childActions, duplicateNode, moveNode, removeNode, addSignal, renameNode } from "../edit";
 import { HELP } from "../help";
 import { FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
-import { getAt, HISTORY_PATH, nodeKind, pathKey, samePath, startsWith, txt } from "../model";
+import { getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath, startsWith, txt } from "../model";
 import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast } from "../store";
-import type { Path } from "../types";
+import type { Diagnostic, Path } from "../types";
 import BitGrid from "./BitGrid.vue";
 import DocumentRequisites from "./DocumentRequisites.vue";
 import FieldInput from "./FieldInput.vue";
@@ -37,13 +37,17 @@ const fieldCtx = computed<FieldCtx>(() => {
     hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
   };
 });
+// Поле с ошибкой или предупреждением показываем, даже если оно не относится к текущему типу/протоколу — иначе ошибку не найти
 const fields = computed(() => (FIELDS[kind.value] ?? [])
-  .filter((f) => !f.when || f.when(node.value, fieldCtx.value) || fieldValue(f) != null)
+  .filter((f) => !f.when || f.when(node.value, fieldCtx.value) || fieldValue(f) != null
+    || fieldDiags(f).some((d) => d.level !== "info"))
   .map((f) => {
     const locked = !!f.locked?.(node.value, fieldCtx.value);
-    return { ...f, locked: undefined, isLocked: locked,
+    const required = typeof f.required === "function" ? f.required(node.value, fieldCtx.value) : !!f.required;
+    return { ...f, locked: undefined, required: undefined, isLocked: locked, isRequired: required,
       options: f.optionsFor ? f.optionsFor(fieldCtx.value) : f.options, hint: locked ? f.lockedHint : f.hint };
   }));
+const hasRequired = computed(() => fields.value.some((f) => f.isRequired));
 
 function fieldValue(def: FieldDef) {
   return getAt(node.value, def.key.split("."));
@@ -57,8 +61,12 @@ function shownValue(def: FieldDef) {
   return v;
 }
 
+function fieldPath(def: FieldDef): Path {
+  return [...path.value, ...def.key.split(".")];
+}
+
 function fieldDiags(def: FieldDef) {
-  const p = [...path.value, ...def.key.split(".")];
+  const p = fieldPath(def);
   return diags.value.filter((d) => startsWith(d.node, p));
 }
 
@@ -92,10 +100,21 @@ const renaming = ref<"name" | "short" | "title" | null>(null);
 const busTitle = computed(() => (kind.value === "bus" ? txt(node.value?.title, lang.value) : ""));
 watch(() => pathKey(path.value), () => { renaming.value = null; });
 
-const ownDiags = computed(() =>
-  diags.value.filter((d) => d.level !== "info" &&
-    (samePath(d.node, path.value) || (kind.value === "document" && d.node.length === 0))),
-);
+// Ключи, сообщения по которым показываются у полей формы и в таблицах (значения, флаги, позиция, передача)
+const SHOWN_ELSEWHERE = ["values", "flags", "start_bit", "bit_length", "byte", "bit", "byte_length",
+  "transmission", "cycle_ms", "signals", "frames", "devices", "sdo", "history"];
+
+/** Сообщения узла, которые не видны ни у одного поля: на сам узел или на поле, которого нет в форме. */
+const ownDiags = computed(() => {
+  const shown = new Set([...fields.value.map((f) => f.key.split(".")[0]), ...SHOWN_ELSEWHERE]);
+  const n = path.value.length;
+  return diags.value.filter((d) => {
+    if (d.level === "info") return false;
+    if (kind.value === "document" && d.node.length === 0) return true;
+    if (samePath(d.node, path.value)) return !layoutDiags.value.includes(d);
+    return samePath(ownerPath(d.node), path.value) && !shown.has(String(d.node[n]));
+  });
+});
 
 // ------------------------------------------------------------------ хлебные крошки
 
@@ -171,6 +190,13 @@ function readInt(e: Event, key: string, min: number, max: number, old: number | 
   return null;
 }
 
+// Сообщения о режиме передачи: на поле периода, если оно видно, иначе на выборе режима
+const txDiags = computed(() =>
+  kind.value === "frame"
+    ? diags.value.filter((d) => startsWith(d.node, [...path.value, "transmission"]) || startsWith(d.node, [...path.value, "cycle_ms"]))
+    : [],
+);
+
 function setCycle(e: Event) {
   const n = readInt(e, "cycle_ms", 1, 2 ** 31 - 1, txCycle.value);
   if (n === null) return;
@@ -201,9 +227,22 @@ function setLayout(field: "start_bit" | "bit_length", e: Event) {
   void actions.apply([{ op: "set_layout", path: s.path, start_bit: start, bit_length: length }]);
 }
 
-const layoutDiags = computed(() =>
-  diags.value.filter((d) => samePath(d.node, signalPath.value) && ["bit-overlap", "signal-out-of-frame"].includes(d.code)),
-);
+// Сообщения о позиции сигнала: пересечения и выход за DLC (на сигнал целиком) и сообщения полей начала/длины
+const LAYOUT_CODES = ["bit-overlap", "signal-out-of-frame"];
+const layoutDiags = computed(() => {
+  if (kind.value !== "signal") return [];
+  const sp = signalPath.value;
+  return diags.value.filter((d) => (samePath(d.node, sp) && LAYOUT_CODES.includes(d.code))
+    || ["start_bit", "bit_length", "byte", "byte_length", "bit"].some((k) => startsWith(d.node, [...sp, k])));
+});
+const wholeDiags = computed(() => layoutDiags.value.filter((d) => samePath(d.node, signalPath.value)));
+const lengthDiags = computed(() => layoutDiags.value.filter((d) =>
+  ["bit_length", "byte_length"].includes(String(d.node[signalPath.value.length]))));
+const startDiags = computed(() => layoutDiags.value.filter((d) => !wholeDiags.value.includes(d) && !lengthDiags.value.includes(d)));
+
+function worstLevel(ds: Diagnostic[]): string {
+  return ds.some((d) => d.level === "error") ? "error" : ds.some((d) => d.level === "warning") ? "warning" : "";
+}
 
 const showValues = computed(() => {
   const n = node.value;
@@ -261,11 +300,11 @@ function onLayout(p: Path, start: number, length: number) {
           <InlineRename v-if="renaming" :path="path" :field="renaming"
                         :value="renaming === 'title' ? busTitle : node?.[renaming] ?? ''" @done="renaming = null" />
           <template v-else-if="canRename(path)">
-            <span v-if="kind === 'device' && node?.short" class="renamable secondary" :title="t('Двойной щелчок — изменить обозначение')"
+            <span v-if="kind === 'device' && node?.short" class="renamable secondary" :title="t('Двойной щелчок — изменить сокращение')"
                   @dblclick="renaming = 'short'">{{ node.short }}</span>
             <span v-if="busTitle" class="renamable" :title="t('Двойной щелчок — изменить название')"
                   @dblclick="renaming = 'title'">{{ busTitle }}</span>
-            <span class="renamable" :class="{ secondary: !!busTitle }" :title="t('Двойной щелчок — переименовать')"
+            <span class="renamable" :class="{ secondary: !!busTitle }" :title="t('Двойной щелчок — изменить идентификатор')"
                   @dblclick="renaming = 'name'">{{ node?.name }}</span>
           </template>
           <template v-else>
@@ -299,16 +338,17 @@ function onLayout(p: Path, start: number, length: number) {
     </section>
 
     <section v-if="kind !== 'history'" class="card">
-      <h3>{{ t("Свойства") }}</h3>
+      <h3>{{ t("Свойства") }} <span v-if="hasRequired" class="muted req-note"><span class="req">*</span> {{ t("— обязательное поле") }}</span></h3>
       <div class="form-grid">
         <!-- позиция сигнала -->
         <template v-if="kind === 'signal' && rsignal">
-          <label class="field" :class="layoutDiags[0]?.level">
+          <label class="field" :class="worstLevel([...wholeDiags, ...startDiags])">
             <span class="field-label"><HelpTip :text="HELP['layout.start_bit']" />{{ t("Начальный бит (LSB)") }}</span>
             <input class="mono" :value="rsignal.start_bit" :readonly="readonly || rsignal.synthetic" @change="setLayout('start_bit', $event)" />
             <span v-if="inputErrors.start_bit" class="field-msg error">{{ inputErrors.start_bit }}</span>
+            <span v-for="d in startDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
           </label>
-          <label class="field" :class="layoutDiags[0]?.level">
+          <label class="field" :class="worstLevel([...wholeDiags, ...lengthDiags])">
             <span class="field-label"><HelpTip :text="HELP['layout.bit_length']" />{{ t("Длина, бит") }}</span>
             <input class="mono" :value="rsignal.bit_length" :readonly="readonly || rsignal.synthetic" @change="setLayout('bit_length', $event)" />
             <span v-if="inputErrors.bit_length" class="field-msg error">{{ inputErrors.bit_length }}</span>
@@ -317,13 +357,13 @@ function onLayout(p: Path, start: number, length: number) {
                 bytes: rangeLabel(Math.floor(Math.min(...rsignal.occupied) / 8), Math.floor(Math.max(...rsignal.occupied) / 8)),
                 bits: rangeLabel(Math.min(...rsignal.occupied), Math.max(...rsignal.occupied)) }) }}
             </span>
-            <span v-for="d in layoutDiags" :key="d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
+            <span v-for="d in [...wholeDiags, ...lengthDiags]" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
           </label>
         </template>
 
         <!-- режим передачи кадра -->
         <template v-if="kind === 'frame'">
-          <label class="field">
+          <label class="field" :class="txMode === 'cyclic' ? '' : worstLevel(txDiags)">
             <span class="field-label"><HelpTip :text="HELP['layout.mode']" />{{ t("Передача") }}</span>
             <select :value="txMode" :disabled="readonly" @change="setMode">
               <option value="">{{ t("не указано") }}</option>
@@ -331,15 +371,20 @@ function onLayout(p: Path, start: number, length: number) {
               <option value="event">{{ t("по событию") }}</option>
               <option value="on_request">{{ t("по запросу") }}</option>
             </select>
+            <template v-if="txMode !== 'cyclic'">
+              <span v-for="d in txDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
+            </template>
           </label>
-          <label v-if="txMode === 'cyclic'" class="field">
+          <label v-if="txMode === 'cyclic'" class="field" :class="worstLevel(txDiags)">
             <span class="field-label"><HelpTip :text="HELP['layout.cycle_ms']" />{{ t("Период, мс") }}</span>
             <input class="mono" :value="txCycle ?? ''" :readonly="readonly" @change="setCycle" />
             <span v-if="inputErrors.cycle_ms" class="field-msg error">{{ inputErrors.cycle_ms }}</span>
+            <span v-for="d in txDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
           </label>
         </template>
 
         <FieldInput v-for="def in fields" :key="path.join('/') + def.key" :def="def" :value="shownValue(def)"
+                    :path="fieldPath(def)" :required="def.isRequired"
                     :diags="fieldDiags(def)" :readonly="readonly || def.isLocked"
                     :placeholder="placeholderFor(def)"
                     @commit="commit(def, $event)" />
@@ -390,7 +435,7 @@ function onLayout(p: Path, start: number, length: number) {
     <section v-if="devices.length" class="card">
       <h3>{{ t("Устройства") }}</h3>
       <table class="list">
-        <thead><tr><th>{{ t("Устройство") }}</th><th>node_id</th><th>{{ t("Название") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
+        <thead><tr><th>{{ t("Устройство") }}</th><th>node_id</th><th>{{ t("Полное название") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
         <tbody>
           <tr v-for="(d, i) in devices" :key="d.name" class="clickable" @click="actions.select([...path, 'devices', i])">
             <td class="mono">{{ d.short ? d.short + " · " : "" }}{{ d.name }}</td>

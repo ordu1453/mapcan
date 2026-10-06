@@ -19,7 +19,12 @@ const items = computed(() => all.value.filter((d) => show.value[d.level]));
 function go(d: Diagnostic) {
   if (!store.state?.data || !d.node.length) store.tab = "yaml";
   if (store.tab === "yaml") store.revealLine = d.line;
-  if (d.node.length && store.state?.data) actions.select(ownerPath(d.node));
+  if (d.node.length && store.state?.data) {
+    actions.select(ownerPath(d.node));
+    store.focusPath = d.node;
+    // Сообщение не на поле формы (на узел или таблицу) — не держим цель, чтобы она не сработала позже
+    setTimeout(() => { if (store.focusPath === d.node) store.focusPath = null; }, 500);
+  }
 }
 </script>
 

@@ -37,6 +37,7 @@ export const store = reactive({
   toasts: [] as Toast[],
   muxView: {} as Record<string, number | null>, // выбранное значение селектора по кадру
   revealLine: null as number | null,           // строка для перехода во вкладке YAML
+  focusPath: null as Path | null,              // поле формы, к которому перейти (клик по сообщению проверки)
   update: null as UpdateInfo | null,           // доступная новая версия (плашка вверху)
   git: null as GitStatus | null,               // состояние git для файла карты (меню Git)
 });

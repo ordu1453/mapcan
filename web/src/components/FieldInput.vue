@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // Одно поле формы. Значение фиксируется по Enter / потере фокуса (событие change) — одна правка = один шаг undo.
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { formatValue, parseInput, ParseError, type FieldDef } from "../fields";
-import type { Diagnostic } from "../types";
+import { samePath, startsWith } from "../model";
+import type { Diagnostic, Path } from "../types";
 import { i18n, t } from "../i18n";
 import { store } from "../store";
 import HelpTip from "./HelpTip.vue";
@@ -14,6 +15,9 @@ const props = defineProps<{
   readonly?: boolean;
   placeholder?: string;
   lang?: string;
+  /** Полный путь поля в карте — для перехода к полю из панели «Проверка». */
+  path?: Path;
+  required?: boolean;
 }>();
 const emit = defineEmits<{ commit: [value: unknown] }>();
 
@@ -114,17 +118,41 @@ function onBlur() {
   listOpen.value = false;
 }
 
+const empty = computed(() => {
+  const v = props.value;
+  if (v == null || v === "") return true;
+  if (typeof v === "object" && !Array.isArray(v)) return !Object.values(v as Record<string, unknown>).some((x) => x);
+  return Array.isArray(v) && !v.length;
+});
+const missing = computed(() => !!props.required && empty.value && !props.readonly);
+
 const level = computed(() => {
   const ds = props.diags ?? [];
   if (ds.some((d) => d.level === "error")) return "error";
   if (ds.some((d) => d.level === "warning")) return "warning";
-  return "";
+  return missing.value ? "missing" : "";
 });
+
+// Переход из панели «Проверка»: прокрутить к полю, поставить фокус и коротко подсветить
+const root = ref<HTMLElement | null>(null);
+const flash = ref(false);
+watch(() => store.focusPath, async (fp) => {
+  if (!fp || !props.path || !(samePath(fp, props.path) || startsWith(fp, props.path))) return;
+  store.focusPath = null;
+  await nextTick();
+  root.value?.scrollIntoView({ block: "center", behavior: "smooth" });
+  root.value?.querySelector<HTMLElement>("input, select")?.focus({ preventScroll: true });
+  flash.value = false;
+  await nextTick();
+  flash.value = true;
+  setTimeout(() => { flash.value = false; }, 1600);
+}, { immediate: true });
 </script>
 
 <template>
-  <label class="field" :class="[{ wide: def.wide }, level]">
-    <span class="field-label"><HelpTip v-if="def.help" :text="def.help" />{{ t(def.label) }}</span>
+  <label ref="root" class="field" :class="[{ wide: def.wide, flash }, level]">
+    <span class="field-label"><HelpTip v-if="def.help" :text="def.help" />{{ t(def.label) }}<span
+      v-if="required" class="req" :title="t('Обязательное поле')">*</span></span>
 
     <select v-if="def.type === 'select'" :value="value ?? ''" :disabled="readonly" @change="onSelect">
       <option v-for="[v, l] in def.options" :key="v" :value="v">{{ t(l) }}</option>
@@ -161,6 +189,7 @@ const level = computed(() => {
 
     <span v-if="error" class="field-msg error">{{ error }}</span>
     <span v-for="d in diags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
-    <span v-if="def.hint && !error && !diags?.length" class="field-hint">{{ t(def.hint) }}</span>
+    <span v-if="missing && !error && !diags?.length" class="field-msg missing">{{ t("Обязательное поле") }}</span>
+    <span v-else-if="def.hint && !error && !diags?.length" class="field-hint">{{ t(def.hint) }}</span>
   </label>
 </template>

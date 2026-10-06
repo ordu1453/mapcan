@@ -32,6 +32,9 @@ export interface FieldDef {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   locked?: (node: any, ctx: FieldCtx) => boolean;
   lockedHint?: string;
+  /** Обязательное поле: без значения карта не проходит проверку (звёздочка и подсветка пустого поля). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  required?: boolean | ((node: any, ctx: FieldCtx) => boolean);
   /** Подсказки при вводе (свой текст тоже допускается): units — справочник единиц с сервера. */
   suggest?: "units";
 }
@@ -39,6 +42,12 @@ export interface FieldDef {
 // Поля сигнала, применимые к его типу (заполненные поля показываются всегда — см. NodeEditor)
 const kindIn = (...kinds: string[]) => (_n: unknown, c: FieldCtx) => kinds.includes(c.kind ?? "");
 const numeric = kindIn("metric", "raw", "float");
+
+/** Устройству нужен адрес, если ID какого-то его кадра вычисляется из адреса (кадр без явного id). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const needsAddress = (dev: any, computed: (f: any) => boolean): boolean =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (dev?.frames ?? []).some((f: any) => f?.id == null && computed(f));
 
 const FRAME_TYPES: Array<[string, string]> = [
   ["raw", N_("raw — явный ID")], ["nmt", "NMT"], ["sync", "SYNC"], ["emcy", "EMCY"], ["time", "TIME"],
@@ -62,7 +71,7 @@ const KINDS: Array<[string, string]> = [
 
 export const FIELDS: Record<NodeKind, FieldDef[]> = {
   document: [
-    { key: "title", label: N_("Название"), type: "loc", wide: true },
+    { key: "title", label: N_("Название"), type: "loc", wide: true, required: true },
     { key: "subtitle", label: N_("Подзаголовок"), type: "loc", wide: true },
     { key: "version", label: N_("Версия"), type: "text" },
     { key: "date", label: N_("Дата"), type: "date" },
@@ -71,14 +80,14 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   ],
   history: [],
   revision: [
-    { key: "version", label: N_("Версия"), type: "text" },
+    { key: "version", label: N_("Версия"), type: "text", required: true },
     { key: "date", label: N_("Дата"), type: "date" },
     { key: "author", label: N_("Автор"), type: "text" },
     { key: "github", label: "GitHub", type: "text", hint: N_("имя пользователя, без @") },
   ],
   bus: [
-    { key: "name", label: N_("Имя"), type: "text", hint: N_("идентификатор: имена файлов DBC/C") },
-    { key: "title", label: N_("Название"), type: "loc" },
+    { key: "name", label: N_("Идентификатор"), type: "text", required: true, hint: N_("латиница, цифры, _; имена файлов DBC/C") },
+    { key: "title", label: N_("Название в документах"), type: "loc", hint: N_("напр. Шина 1; пусто — идентификатор") },
     { key: "protocol", label: N_("Протокол"), type: "select",
       options: [["canopen", "CANopen"], ["j1939", "SAE J1939"], ["can", N_("CAN (явные ID)")]] },
     { key: "bitrate", label: N_("Скорость, бит/с"), type: "int" },
@@ -87,24 +96,28 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
   ],
   device: [
-    { key: "name", label: N_("Имя"), type: "text" },
-    { key: "short", label: N_("Обозначение"), type: "text", hint: N_("напр. BMS") },
-    { key: "title", label: N_("Название"), type: "loc" },
+    { key: "name", label: N_("Идентификатор"), type: "text", required: true, hint: N_("латиница, цифры, _; код C и получатели кадров") },
+    { key: "title", label: N_("Полное название"), type: "loc", hint: N_("в заголовках документов") },
+    { key: "short", label: N_("Сокращение в документах"), type: "text", hint: N_("напр. BMS; пусто — идентификатор прописными") },
     { key: "node_id", label: N_("Адрес узла (node_id)"), type: "hex", hint: N_("адрес CANopen 1..127"),
-      when: (_n, c) => c.protocol === "canopen" },
+      when: (_n, c) => c.protocol === "canopen",
+      required: (n, c) => c.protocol === "canopen" && needsAddress(n, (f) => (f.type ?? "raw") !== "raw") },
     { key: "address", label: N_("Адрес (SA)"), type: "hex", hint: N_("адрес J1939 0..253"),
-      when: (_n, c) => c.protocol === "j1939" },
+      when: (_n, c) => c.protocol === "j1939",
+      required: (n, c) => c.protocol === "j1939" && needsAddress(n, () => true) },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
   ],
   frame: [
-    { key: "name", label: N_("Имя"), type: "text" },
-    { key: "title", label: N_("Заголовок"), type: "loc", hint: N_("напр. СОСТОЯНИЯ") },
+    { key: "name", label: N_("Идентификатор"), type: "text", required: true },
+    { key: "title", label: N_("Заголовок в документах"), type: "loc", hint: N_("напр. СОСТОЯНИЯ") },
     { key: "type", label: N_("Тип"), type: "select", optionsFor: frameTypes,
       // Записанный в YAML тип CANopen на другой шине не блокируем — его нужно иметь возможность исправить на raw
       locked: (n, c) => c.protocol !== "canopen" && (n?.type == null || n.type === "raw"),
       lockedHint: N_("вне CANopen кадр задаётся явным ID (J1939 — PGN)") },
-    { key: "id", label: "CAN ID", type: "hex", hint: N_("пусто — вычислить (CANopen: тип + node_id, J1939: PGN + SA)") },
-    { key: "pgn", label: "PGN", type: "hex", hint: N_("J1939, напр. 0xF004"), when: (_n, c) => c.protocol === "j1939" },
+    { key: "id", label: "CAN ID", type: "hex", hint: N_("пусто — вычислить (CANopen: тип + node_id, J1939: PGN + SA)"),
+      required: (n, c) => c.protocol === "can" || (c.protocol === "canopen" && (n?.type ?? "raw") === "raw") },
+    { key: "pgn", label: "PGN", type: "hex", hint: N_("J1939, напр. 0xF004"), when: (_n, c) => c.protocol === "j1939",
+      required: (n, c) => c.protocol === "j1939" && n?.id == null },
     { key: "priority", label: N_("Приоритет"), type: "int", hint: N_("0..7, по умолчанию 6"), when: (_n, c) => c.protocol === "j1939" },
     { key: "destination", label: N_("Получатель (DA)"), type: "hex", hint: N_("PDU1; пусто — 0xFF (всем)"),
       when: (n, c) => c.protocol === "j1939" && n?.pgn != null && ((n.pgn >> 8) & 0xff) < 240 },
@@ -116,7 +129,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },
   ],
   signal: [
-    { key: "name", label: N_("Имя"), type: "text" },
+    { key: "name", label: N_("Идентификатор"), type: "text", required: true },
     { key: "kind", label: N_("Тип"), type: "select", options: KINDS },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
     // CANopen и J1939 — только little-endian
@@ -145,18 +158,18 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },
   ],
   flag: [
-    { key: "name", label: N_("Имя"), type: "text" },
-    { key: "bit", label: N_("Бит в поле"), type: "int" },
+    { key: "name", label: N_("Идентификатор"), type: "text", required: true },
+    { key: "bit", label: N_("Бит в поле"), type: "int", required: true },
     { key: "bit_length", label: N_("Длина, бит"), type: "int" },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
   ],
   sdo: [
-    { key: "name", label: N_("Имя"), type: "text" },
-    { key: "command", label: N_("Команда"), type: "hex", hint: N_("0x2B — запись 2 байт") },
-    { key: "index", label: N_("Индекс"), type: "hex" },
+    { key: "name", label: N_("Идентификатор"), type: "text", required: true },
+    { key: "command", label: N_("Команда"), type: "hex", hint: N_("0x2B — запись 2 байт"), required: true },
+    { key: "index", label: N_("Индекс"), type: "hex", required: true },
     { key: "subindex", label: N_("Субиндекс"), type: "hex" },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
-    { key: "value.name", label: N_("Значение: имя"), type: "text" },
+    { key: "value.name", label: N_("Значение: идентификатор"), type: "text", required: (n) => n?.value != null },
     { key: "value.bit_length", label: N_("Значение: бит"), type: "select",
       options: [["8", "8"], ["16", "16"], ["24", "24"], ["32", "32"]] },
     { key: "value.unit", label: N_("Значение: единица"), type: "text", suggest: "units" },

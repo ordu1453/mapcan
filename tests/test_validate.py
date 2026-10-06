@@ -225,6 +225,16 @@ def test_frame_id_missing():
     assert "frame-id-missing" in codes(text)
 
 
+def test_frame_id_missing_points_to_field():
+    """Редактор подсвечивает поле по пути сообщения: для raw-кадра — поле id."""
+    _, rep = run(one_bus("""
+        - name: f
+          type: raw
+    """))
+    d = next(d for d in rep.diagnostics if d.code == "frame-id-missing")
+    assert d.node[-1] == "id"
+
+
 def test_can_id_range():
     assert "can-id-range" in codes(one_bus("""
         - name: f

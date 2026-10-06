@@ -13,7 +13,7 @@ from mapcan.export.text import render
 from mapcan.loader import load
 from mapcan.protocols import j1939_decode, j1939_id, j1939_is_pdu1
 
-from .conftest import ROOT, codes
+from .conftest import ROOT, codes, run
 
 J1939 = ROOT / "examples" / "j1939.yaml"
 VEHICLE = ROOT / "examples" / "vehicle-can.yaml"
@@ -102,6 +102,22 @@ def test_float_initial_invalid_rules():
             - {name: d, description: x, byte: 4, min: 0, max: 10, initial: 20}
     """))
     assert {"float-length", "invalid-overflow", "initial-range"} <= c
+
+
+def test_diagnostics_point_to_fields():
+    """Сообщения привязаны к полю, которое нужно исправить (редактор подсвечивает его)."""
+    _, rep = run(_bus("""
+        - name: f
+          dlc: 1
+        - name: g
+          pgn: 0xFEEE
+          signals:
+            - {name: a, byte: 0, kind: float, bit_length: 16}
+    """))
+    node = {d.code: d.node for d in rep.diagnostics}
+    assert node["frame-id-missing"][-1] == "pgn"
+    assert node["float-length"][-1] == "bit_length"
+    assert node["missing-description"][-1] == "description"
 
 
 def test_dbc_j1939_and_receivers():

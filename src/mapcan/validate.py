@@ -188,11 +188,16 @@ def _check_bus(ctx: _Ctx, bus) -> None:
         frame_names[frame.name] = frame
         if frame.can_id is None:
             if bus.protocol == "j1939":
-                why = _("нужен pgn (или id)") if frame.pgn is None else _("у устройства нет address")
-                ctx.emit("frame-id-missing", _("кадр {name!r}: {why}", name=frame.name, why=why), p)
+                # Сообщение — на поле, которое нужно заполнить (редактор подсвечивает его)
+                if frame.pgn is None:
+                    ctx.emit("frame-id-missing", _("кадр {name!r}: {why}", name=frame.name, why=_("нужен pgn (или id)")),
+                             p + ("pgn",))
+                else:
+                    ctx.emit("frame-id-missing", _("кадр {name!r}: {why}", name=frame.name,
+                                                   why=_("у устройства нет address")), p)
             elif frame.type == "raw" or bus.protocol != "canopen":
                 ctx.emit("frame-id-missing", _("кадр {name!r}: для типа {type} нужен явный id",
-                                               name=frame.name, type=frame.type), p)
+                                               name=frame.name, type=frame.type), p + ("id",))
             else:
                 ctx.emit("frame-id-missing",
                          _("кадр {name!r}: нет node_id у устройства для вычисления ID {type}",
@@ -329,7 +334,8 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
         if s.flags and s.kind != "bitfield":
             ctx.emit("flags-kind", _("flags у сигнала типа {kind}", kind=s.kind), sp + ("flags",))
         if s.kind == "flag" and s.bit_length != 1:
-            ctx.emit("flag-length", _("сигнал-флаг {name!r} длиной {bits} бит", name=s.name, bits=s.bit_length), sp)
+            ctx.emit("flag-length", _("сигнал-флаг {name!r} длиной {bits} бит", name=s.name, bits=s.bit_length),
+                     sp + ("bit_length",))
         _check_flags(ctx, s)
 
         if s.factor == 0:
@@ -347,7 +353,7 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
 
         if s.kind == "float" and s.bit_length not in (32, 64):
             ctx.emit("float-length", _("сигнал {name!r}: float — 32 или 64 бита, задано {bits}",
-                                       name=s.name, bits=s.bit_length), sp)
+                                       name=s.name, bits=s.bit_length), sp + ("bit_length",))
         raw_lo, raw_hi = (lo, hi) if s.kind != "float" else (None, None)
         for v in s.invalid_values:
             if raw_lo is not None and not raw_lo <= v <= raw_hi:
@@ -363,7 +369,7 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                 ctx.emit("initial-range", _("initial = {value:g} вне min/max", value=s.initial), sp + ("initial",))
 
         if s.description is None and not s._path[-1:] == ("sdo",):
-            ctx.emit("missing-description", _("сигнал {name!r} без описания", name=s.name), sp)
+            ctx.emit("missing-description", _("сигнал {name!r} без описания", name=s.name), sp + ("description",))
 
         if s.signed_code is not None and not s.signed:
             ctx.emit("signed-code", _("signed_code у беззнакового сигнала {name!r} не используется", name=s.name),
