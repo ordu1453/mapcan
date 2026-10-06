@@ -16,11 +16,11 @@ function busOf(path: Path): Data {
   return getAt(data(), path.slice(0, 2));
 }
 
-async function insertAndSelect(listPath: Path, value: unknown, extra: Op[] = []): Promise<boolean> {
+async function insertAndSelect(listPath: Path, value: unknown, extra: Op[] = [], select = true): Promise<boolean> {
   const list = getAt(data(), listPath) as unknown[] | undefined;
   const index = list ? list.length : 0;
   const ok = await actions.apply([{ op: "insert", path: listPath, value }, ...extra.map((o) => fixIndex(o, index))]);
-  if (ok) actions.select([...listPath, index]);
+  if (ok && select) actions.select([...listPath, index]);
   return ok;
 }
 
@@ -53,6 +53,7 @@ export function addDevice(busPath: Path): Promise<boolean> {
   return insertAndSelect([...busPath, "devices"], value);
 }
 
+/** Новый кадр не выделяется: остаёмся на шине/устройстве, кадр появляется в списке «Кадры». */
 export function addFrame(ownerPath: Path): Promise<boolean> {
   const owner = getAt(data(), ownerPath);
   const bus = busOf(ownerPath);
@@ -71,7 +72,7 @@ export function addFrame(ownerPath: Path): Promise<boolean> {
     value.dlc = 8;
     value.cycle_ms = 100;
     value.signals = [];
-    return insertAndSelect([...ownerPath, "frames"], value);
+    return insertAndSelect([...ownerPath, "frames"], value, [], false);
   }
   if (bus.protocol === "canopen" && isDevice) {
     const usedTypes = new Set((owner.frames ?? []).map((f: Data) => f.type));
@@ -88,7 +89,7 @@ export function addFrame(ownerPath: Path): Promise<boolean> {
   value.dlc = 8;
   value.cycle_ms = 100;
   value.signals = [];
-  return insertAndSelect([...ownerPath, "frames"], value);
+  return insertAndSelect([...ownerPath, "frames"], value, [], false);
 }
 
 export function addSignal(framePath: Path, layout?: { start_bit: number; bit_length: number }, name?: string): Promise<boolean> {
@@ -216,11 +217,9 @@ export function canRemove(path: Path): boolean {
   return !["document", "history"].includes(nodeKind(path));
 }
 
+/** Удаление без подтверждения — отменяется через Ctrl+Z. */
 export async function removeNode(path: Path): Promise<boolean> {
-  const node = getAt(data(), path);
   const revision = nodeKind(path) === "revision";
-  const name = (revision ? node?.version : node?.name) ?? path.join(".");
-  if (!confirm(revision ? t("Удалить запись истории «{name}»?", { name }) : t("Удалить «{name}»?", { name }))) return false;
   const ok = await actions.apply([{ op: "remove", path }]);
   // Переходим к родителю (сигнал → кадр, кадр → устройство/шина…), а не к соседнему элементу
   if (ok) actions.select(revision ? HISTORY_PATH : path.length > 2 ? path.slice(0, -2) : ["document"]);

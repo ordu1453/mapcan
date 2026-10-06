@@ -198,6 +198,7 @@ th { text-align: left; font-weight: 600; font-size: 11px; color: var(--muted); p
 td { padding: 3px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.list tr.clickable { cursor: pointer; }
 table.list tr.clickable:hover { background: var(--hover); }
+table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line-strong); }
 
 .subtable header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }

@@ -306,11 +306,12 @@ function onLayout(p: Path, start: number, length: number) {
     <section v-if="childFrames.length" class="card">
       <h3>{{ t("Кадры") }}</h3>
       <table class="list">
-        <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Сигналов") }}</th><th>{{ t("Описание") }}</th></tr></thead>
+        <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Сигналов") }}</th><th>{{ t("Описание") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="f in childFrames" :key="f.name" class="clickable" @click="actions.select(f.path)">
             <td class="mono">{{ f.id }}</td><td class="mono">{{ f.name }}</td><td>{{ f.type }}</td>
             <td>{{ f.n }}</td><td>{{ f.desc }}</td>
+            <td v-if="!readonly" class="act"><button class="icon danger" :title="t('Удалить')" @click.stop="removeNode(f.path)">✕</button></td>
           </tr>
         </tbody>
       </table>
