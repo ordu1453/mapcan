@@ -1,5 +1,3 @@
-<a id="en"></a>
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
@@ -7,33 +5,74 @@
   </picture>
 </p>
 
-<p align="center"><b>English</b> · <a href="#ru">Русский</a></p>
+<p align="center">
+  <b>CAN signal maps as code.</b><br>
+  One YAML file → documentation, DBC, C firmware code and Python test helpers.
+</p>
 
-A tool for creating and editing **CAN signal maps** for any device or system.
-The map lives in a single YAML file. That file is the single source of truth: documentation,
-firmware code and files for bus analyzers are all generated from it.
+<p align="center">
+  <a href="https://github.com/ordu1453/mapcan/actions/workflows/ci.yml"><img src="https://github.com/ordu1453/mapcan/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/ordu1453/mapcan/releases/latest"><img src="https://img.shields.io/badge/release-v0.13.1-2f6fb3" alt="Release"></a>
+  <img src="https://img.shields.io/badge/python-3.12-3776ab?logo=python&logoColor=white" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-555" alt="Platforms">
+  <img src="https://img.shields.io/badge/license-proprietary-lightgrey" alt="License">
+</p>
 
-Supported:
+<p align="center">
+  <img src="https://img.shields.io/badge/CANopen-✓-1f883d" alt="CANopen">
+  <img src="https://img.shields.io/badge/SAE%20J1939-✓-1f883d" alt="SAE J1939">
+  <img src="https://img.shields.io/badge/CAN%202.0A%2FB-✓-1f883d" alt="CAN 2.0A/B">
+  <img src="https://img.shields.io/badge/CAN%20FD-✓-1f883d" alt="CAN FD">
+</p>
 
-* **protocols** — CANopen (IDs computed from the function code and `node_id`), SAE J1939
-  (IDs from PGN, priority and address), CAN 2.0A/B with explicit 11/29-bit IDs, CAN FD (DLC up to 64);
-* **signals** — integers (signed and unsigned, any length and position, little/big-endian),
-  enumerations, flags and bit fields, physical quantities (`factor`, `offset`, unit,
-  range), float32/float64, byte arrays, multiplexing, default and "not available" values;
-* **frames** — cycle time, direction, receivers, CANopen SDO exchanges.
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#outputs">Outputs</a> ·
+  <a href="#web-editor">Web editor</a> ·
+  <a href="#commands">Commands</a> ·
+  <a href="docs/format.md">Map format</a> ·
+  <a href="#development">Development</a>
+</p>
 
-| Output | Command |
-|---|---|
-| web editor: create or open a map, tree, forms, bit layout, live validation | `mapcan serve` |
-| map validation with file and line numbers | `mapcan validate my-map.yaml` |
-| Excel: addressing, contents, bit layouts, changes | `mapcan export xlsx my-map.yaml` |
-| PDF: title page, table of contents, bit diagrams, tables; ESKD template | `mapcan export pdf my-map.yaml --template gost-2.105` |
-| Markdown for a README or wiki, an HTML page with search | `mapcan export md my-map.yaml`, `mapcan export html my-map.yaml` |
-| DBC for CANalyzer, SavvyCAN, PCAN-View, Wireshark | `mapcan export dbc my-map.yaml -o dbc/` |
-| C: ID `#define`s, `enum`s, masks, structs, `pack`/`unpack` | `mapcan gen c my-map.yaml -o firmware/` |
-| Python module for tests and test benches | `mapcan gen py my-map.yaml -o tools/` |
-| everything at once (for CI) | `mapcan build my-map.yaml -o build/` |
-| comparing two map versions, changelog | `mapcan diff old.yaml my-map.yaml` |
+---
+
+**mapcan** creates and edits CAN signal maps for any device or system. The map lives in a single
+YAML file, which is the single source of truth: documents, firmware code and files for bus
+analyzers are all generated from it, so they never drift apart.
+
+* **Protocols** — CANopen (IDs from the function code and `node_id`), SAE J1939 (IDs from PGN,
+  priority and address), CAN 2.0A/B with explicit 11/29-bit IDs, CAN FD with DLC up to 64.
+* **Signals** — signed and unsigned integers of any length and position, little- and big-endian;
+  enumerations, flags and bit fields; physical quantities with `factor`, `offset`, unit and range;
+  float32/float64; byte arrays; multiplexing; default and "not available" values.
+* **Frames** — cycle time, direction, receivers, CANopen SDO exchanges.
+* **Validation** — every error points to a file, line and column, before anything is generated.
+
+```yaml
+mapcan: 1
+
+document:
+  title: Electric vehicle example map
+  version: 0.1.0
+  language: en
+
+buses:
+  - name: powertrain
+    bitrate: 500000
+    protocol: can
+    devices:
+      - name: bms
+        frames:
+          - name: bms_status
+            id: 0x100
+            cycle_ms: 100
+            receivers: [vcu]
+            signals:
+              - {name: pack_voltage, byte: 0, kind: float, unit: V, min: 0, max: 1000}
+              - {name: pack_current, byte: 4, kind: float, unit: A, initial: 0}
+      - name: vcu
+```
 
 ## Quick start
 
@@ -41,77 +80,143 @@ Supported:
 mapcan app
 ```
 
-The editor opens in its own window. Click **"New map…"** and pick a template: CANopen, J1939,
-CAN with explicit IDs or an empty map — or start from one of the **Examples** on the start screen.
-Then add devices, frames and signals in the tree. Signals are easy to draw with the mouse on the
-frame's bit layout. Errors show up right away, and Ctrl+S saves the file.
+The editor opens in its own window. Click **New map…** and pick a template — CANopen, J1939,
+CAN with explicit IDs or an empty map — or start from one of the examples on the start screen.
+Add devices, frames and signals in the tree, and draw signals with the mouse on the frame's bit
+layout. Errors show up as you type; <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file.
 
-You can also write the YAML by hand, with VS Code hints from the JSON Schema
-(see [docs/format.md](docs/format.md)).
-
-## Examples
-
-| File | What it shows |
-|---|---|
-| [examples/minimal.yaml](examples/minimal.yaml) | Every kind of signal in one CANopen frame: enum, bit field, quantities, big-endian |
-| [examples/j1939.yaml](examples/j1939.yaml) | SAE J1939: engine (EEC1, ET1), instrument cluster, addressed PDU1 request, "not available" 0xFF/0xFFFF |
-| [examples/vehicle-can.yaml](examples/vehicle-can.yaml) | CAN with explicit 11/29-bit IDs: float32, multiplexed cell voltages, receivers, CAN FD with DLC 64 and float64 |
-
-The same examples are on the editor's start screen: pick one, choose where to save a copy, and it opens.
+Prefer a text editor? Write the YAML by hand with completion and hints from the JSON Schema in
+VS Code — see [docs/format.md](docs/format.md).
 
 ## Installation
 
-**Windows, no Python needed.** Download `mapcan-X.Y.Z-setup.exe` from
-[Releases](https://github.com/ordu1453/mapcan/releases/latest) and run it — no administrator rights
-required. The installer adds mapcan to the Start menu and the desktop, to "Open with" for `.yaml`
-files and (optionally) the `mapcan` command to PATH. The editor opens in its own window; launching it
-again or double-clicking a map opens the map in the window that is already running. The editor
-announces a new version with a banner at the top — the update installs over the current one.
-Without installing: `mapcan-X.Y.Z-windows-x64.zip`, run `mapcan-app.exe`.
+| Platform | How |
+|---|---|
+| **Windows** | Download `mapcan-X.Y.Z-setup.exe` from [Releases](https://github.com/ordu1453/mapcan/releases/latest) and run it. No Python or administrator rights needed. |
+| **Linux x64** | Download `mapcan-X.Y.Z-linux-x64.tar.gz`, extract it and run `mapcan/mapcan-app` (editor in the browser) or `mapcan/mapcan` (CLI). |
+| **Any OS with Python 3.12** | `uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/mapcan"` (or `pipx install …`) |
+| **Docker** | `ghcr.io/ordu1453/mapcan:<version>` — everything needed for CI |
 
-Windows may warn about an unknown publisher (SmartScreen): the installer is not signed with a
-certificate. Click "More info → Run anyway".
+No external programs are required: PDFs are built by the bundled Typst compiler, and the PT Sans
+and PT Serif fonts (OFL) ship with the package.
 
-**Linux (x64), no Python needed.** Download `mapcan-X.Y.Z-linux-x64.tar.gz` from Releases, extract it
-and run `mapcan/mapcan-app` (the editor opens in the browser) or `mapcan/mapcan` (command line).
+<details>
+<summary><b>Windows installer details</b></summary>
 
-**With Python 3.12** (Windows, Linux, macOS). No external programs are needed: PDFs are built by the
-bundled Typst compiler from the `typst` pip package, and the PT Sans and PT Serif fonts (OFL) are included.
+The installer adds mapcan to the Start menu and the desktop, to "Open with" for `.yaml` files and,
+optionally, the `mapcan` command to `PATH`. Launching it again or double-clicking a map opens the
+map in the window that is already running. A banner at the top of the editor announces new
+versions; the update installs over the current one. A portable build is also available:
+`mapcan-X.Y.Z-windows-x64.zip`, run `mapcan-app.exe`.
 
-```sh
-uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/mapcan"   # or: pipx install …
-uv tool upgrade mapcan
-mapcan app                     # editor in its own window (without [desktop] — in the browser)
-```
+The installer is not code-signed, so SmartScreen may warn about an unknown publisher — click
+**More info → Run anyway**.
+</details>
 
-**Moving from canmap.** The tool used to be called canmap. The Windows installer upgrades the old
-version by itself; with uv/pipx run `uv tool uninstall canmap`, then install again with the command
-above. Maps with the `canmap: 1` key open unchanged, settings from `~/.canmap` move to `~/.mapcan`,
-and the `canmap` PDF template is read as `mapcan`.
+<details>
+<summary><b>Offline install</b> (corporate network without PyPI)</summary>
 
-**For development** (with [uv](https://docs.astral.sh/uv/), environment from `uv.lock`):
-
-```sh
-uv sync
-uv run mapcan --help
-uv run pytest
-```
-
-**Without uv**, with a plain venv:
-
-```sh
-python -m venv .venv
-.venv/Scripts/activate            # Linux: source .venv/bin/activate
-pip install -e .
-```
-
-**Offline** (a corporate network without PyPI): build a wheelhouse on a machine with access
-and copy the folder over:
+Build a wheelhouse on a machine with access and copy the folder over:
 
 ```sh
 pip wheel . -w wheelhouse
 pip install --no-index --find-links wheelhouse mapcan
 ```
+</details>
+
+<details>
+<summary><b>Moving from canmap</b></summary>
+
+The tool used to be called canmap. The Windows installer upgrades the old version by itself; with
+uv/pipx run `uv tool uninstall canmap`, then install again. Maps with the `canmap: 1` key open
+unchanged, settings move from `~/.canmap` to `~/.mapcan`, and the `canmap` PDF template is read
+as `mapcan`.
+</details>
+
+## Outputs
+
+| Output | Command |
+|---|---|
+| 🖥️ Web editor: tree, forms, bit layout, live validation | `mapcan app` / `mapcan serve` |
+| ✅ Validation with file and line numbers | `mapcan validate my-map.yaml` |
+| 📊 Excel: addressing, contents, bit layouts, changes | `mapcan export xlsx my-map.yaml` |
+| 📄 PDF: title page, contents, bit diagrams, tables | `mapcan export pdf my-map.yaml` |
+| 📝 Markdown for a README or wiki, HTML page with search | `mapcan export md` / `mapcan export html` |
+| 🔌 DBC for CANalyzer, SavvyCAN, PCAN-View, Wireshark | `mapcan export dbc my-map.yaml -o dbc/` |
+| ⚙️ C: ID `#define`s, `enum`s, masks, structs, `pack`/`unpack` | `mapcan gen c my-map.yaml -o firmware/` |
+| 🐍 Python module for tests and test benches | `mapcan gen py my-map.yaml -o tools/` |
+| 📦 Everything at once, for CI | `mapcan build my-map.yaml -o build/` |
+| 🔀 Comparison of two map versions, changelog | `mapcan diff old.yaml my-map.yaml` |
+
+Documents can be produced in English or Russian. The default comes from the map's
+`document.language`; override it with `--lang` or the language switch in the editor. The ESKD
+template (`gost-2.105`) is always produced in Russian.
+
+### Generated C code
+
+Each bus gets `<bus>.h` and `<bus>.c` with no dynamic memory and no libc beyond `stdint.h`,
+`stdbool.h` and `stddef.h`. The code compiles cleanly with `-Wall -Wextra -Wconversion` for x86
+and Cortex-M. For [examples/vehicle-can.yaml](examples/vehicle-can.yaml):
+
+```c
+#include "powertrain.h"
+
+vcu_command_t cmd = {0};
+cmd.contactor_request = VCU_COMMAND_CONTACTOR_REQUEST_CLOSE;
+cmd.torque_request = vcu_command_torque_request_from_phys(120.5f);   /* N·m → raw */
+uint8_t buf[8];
+int dlc = vcu_command_pack(buf, sizeof buf, &cmd);                   /* → VCU_COMMAND_ID */
+
+bms_status_t st;
+if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { ... }
+```
+
+### Validation
+
+Export and generation validate the map first and stop on errors (`--force` generates anyway).
+`validate` exits with code 1 on errors, and with `--strict` on warnings too.
+
+```text
+$ mapcan validate tests/data/invalid_map.yaml
+tests/data/invalid_map.yaml:21:25: error[number-comma]: value '0,1': decimal comma used, should be 0.1
+tests/data/invalid_map.yaml:24:17: error[number-cyrillic-x]: value '0х196': the 0x prefix uses a Cyrillic “х”
+tests/data/invalid_map.yaml:33:22: error[invalid-identifier]: value name 'NO DATA': only Latin letters, digits and _ are allowed
+tests/data/invalid_map.yaml:62:36: error[duplicate-signal-name]: flag 'dc_status' already exists in frame 'pcu_state' (signal)
+...
+FAIL: errors: 12, warnings: 2, notes: 0
+```
+
+`mapcan rules` lists every rule; any of them can be turned off with `--disable CODE`.
+
+## Web editor
+
+```sh
+mapcan app                    # own window; start screen: new map, open, recent files, examples
+mapcan app my-map.yaml        # open a map right away
+mapcan serve my-map.yaml      # the same in the browser
+```
+
+* Map tree with search by name, ID, PGN and description.
+* Property forms that adapt to the bus protocol.
+* Bit layout editor: drag across bits to add a signal, drag a signal to move it, drag its edge to
+  resize; overlaps are highlighted.
+* Value and flag tables, live validation and a YAML tab.
+* Preview and download of every format.
+* Comparison with any git revision, with the changelog written into the revision history.
+
+Files are saved with their comments and formatting intact, so `git diff` shows only the lines you
+changed. More in [docs/web.md](docs/web.md).
+
+## Examples
+
+| File | What it shows |
+|---|---|
+| [minimal.yaml](examples/minimal.yaml) | Every kind of signal in one CANopen frame: enum, bit field, quantities, big-endian |
+| [j1939.yaml](examples/j1939.yaml) | SAE J1939: engine (EEC1, ET1), instrument cluster, addressed PDU1 request, "not available" 0xFF/0xFFFF |
+| [vehicle-can.yaml](examples/vehicle-can.yaml) | Explicit 11/29-bit IDs: float32, multiplexed cell voltages, receivers, CAN FD with DLC 64 and float64 |
+
+The same examples are on the editor's start screen: pick one, choose where to save a copy, and it
+opens.
 
 ## Commands
 
@@ -133,95 +238,56 @@ mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style
 mapcan rules
 ```
 
-The interface (validation messages, CLI, editor) is in English. Documents can be produced in
-Russian or English: the default comes from the map's `document.language` field (chosen when a map
-is created), and it can be overridden on export — `--lang` in the CLI, the language switch in the
-editor's export menu and preview. The ESKD template (`gost-2.105`) is always
-produced in Russian.
-
-Export and generation validate the map first and stop on errors (`--force` generates anyway).
-`validate` exits with code 1 on errors, and with `--strict` on warnings too.
-
-### Sample validation output
-
-```text
-$ mapcan validate tests/data/invalid_map.yaml
-tests/data/invalid_map.yaml:21:25: error[number-comma]: value '0,1': decimal comma used, should be 0.1
-tests/data/invalid_map.yaml:24:17: error[number-cyrillic-x]: value '0х196': the 0x prefix uses a Cyrillic “х”
-tests/data/invalid_map.yaml:33:22: error[invalid-identifier]: value name 'NO DATA': only Latin letters, digits and _ are allowed
-tests/data/invalid_map.yaml:62:36: error[duplicate-signal-name]: flag 'dc_status' already exists in frame 'pcu_state' (signal)
-...
-FAIL: errors: 12, warnings: 2, notes: 0
-```
-
 ## Custom styling
 
-* **Excel** — `mapcan template xlsx-style -o style.yaml`, edit fonts, colors and the set of
-  columns, then `mapcan export xlsx map.yaml --style style.yaml`.
-* **PDF** — two built-in templates: `mapcan` (standard layout) and ESKD `gost-2.105`
-  (frame and title block). Document details (designation, letter, signatures,
-  approval blocks) and the company logo are set in `document`. Your own variant:
-  `mapcan template pdf --name gost-2.105 -o corp.typ`, then `--template corp.typ`.
-  More in [docs/templates.md](docs/templates.md).
-* **Markdown/HTML** — Jinja2 templates over the same data.
-
-## Generated C code
-
-Each bus gets `<bus>.h` and `<bus>.c`. No dynamic memory and no libc
-(only `stdint.h`, `stdbool.h`, `stddef.h`); compiles with `-Wall -Wextra -Wconversion`
-for x86 and Cortex-M. For `examples/vehicle-can.yaml`:
-
-```c
-#include "powertrain.h"
-
-vcu_command_t cmd = {0};
-cmd.contactor_request = VCU_COMMAND_CONTACTOR_REQUEST_CLOSE;
-cmd.torque_request = vcu_command_torque_request_from_phys(120.5f);   /* N·m → raw */
-uint8_t buf[8];
-int dlc = vcu_command_pack(buf, sizeof buf, &cmd);                   /* → VCU_COMMAND_ID */
-
-bms_status_t st;
-if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { ... }
-```
-
-## Web editor
-
-```sh
-mapcan app                    # own window; start screen: new map, open, recent files, examples
-mapcan app my-map.yaml        # open a map right away
-mapcan serve my-map.yaml      # the same in the browser (server, development)
-```
-
-Files are created, opened and saved from the "File" menu; in the app window, "Browse…" opens the
-system file dialog. The author profile (name, GitHub) signs revision history entries. In the editor:
-* the map tree with search by name, ID, PGN and description;
-* property forms that adapt to the bus protocol;
-* the frame bit layout: drag across bits for a new signal, drag a signal to move it, drag its edge
-  to resize; overlaps are highlighted;
-* value and flag tables, live validation, a YAML tab;
-* preview and download of every format;
-* comparison with a version from git and writing the changelog into the history.
-
-The file is saved with its comments and formatting, so `git diff` shows only the changed lines.
-More in [docs/web.md](docs/web.md).
+| Format | How to customize |
+|---|---|
+| **PDF** | Two built-in templates: `mapcan` (standard layout) and ESKD `gost-2.105` (frame and title block). Copy one with `mapcan template pdf --name gost-2.105 -o corp.typ`, edit it, then export with `--template corp.typ`. Document details (designation, letter, signatures, approval blocks) and the company logo are set in `document`. See [docs/templates.md](docs/templates.md). |
+| **Excel** | `mapcan template xlsx-style -o style.yaml`, adjust fonts, colors and columns, then `mapcan export xlsx map.yaml --style style.yaml`. |
+| **Markdown / HTML** | Jinja2 templates over the same data: `mapcan template md -o my.md.j2`. |
 
 ## CI
 
-An example for map users is in [docs/ci-example.md](docs/ci-example.md): when the YAML changes,
-the map is validated and the PDF, Excel, DBC and C headers are rebuilt and kept as artifacts.
-A Docker image with everything needed: [Dockerfile](Dockerfile), prebuilt as
-`ghcr.io/ordu1453/mapcan:<version>`.
+[docs/ci-example.md](docs/ci-example.md) shows a pipeline for map repositories: when the YAML
+changes, the map is validated and the PDF, Excel, DBC and C headers are rebuilt and kept as
+artifacts. The [Docker image](Dockerfile) `ghcr.io/ordu1453/mapcan:<version>` contains everything
+needed.
 
-### Releasing a version
+## Development
+
+```sh
+uv sync                           # environment from uv.lock
+uv run mapcan --help
+uv run pytest
+UPDATE_GOLDEN=1 uv run pytest     # refresh reference files after intentional changes
+```
+
+The tests compile the generated C code with `gcc` (and `arm-none-eabi-gcc` if installed) and
+compare `pack`/`unpack` byte for byte with the Python module and cantools for every example.
+The UI lives in [web/](web/) (Vue 3 + TypeScript + Vite); `npm run build` there writes the bundle
+to `src/mapcan/web/static/`.
+
+<details>
+<summary><b>Without uv</b></summary>
+
+```sh
+python -m venv .venv
+.venv/Scripts/activate            # Linux/macOS: source .venv/bin/activate
+pip install -e .
+```
+</details>
+
+<details>
+<summary><b>Releasing a version</b></summary>
 
 1. Bump the version in `pyproject.toml`, `src/mapcan/__init__.py` and `web/package.json`
    (`uv lock`, `npm run build` in `web/`), commit.
 2. Create and push a tag: `git tag -a vX.Y.Z -m "mapcan X.Y.Z: …" && git push origin main vX.Y.Z`.
 
-[release.yml](.github/workflows/release.yml) runs the tests, checks that the tag matches the version,
-builds the Windows installer and zip (PyInstaller + Inno Setup), the wheel and the Docker image, and
-publishes a GitHub Release; the tag annotation becomes the release notes. Running the workflow by hand
-(Actions → release → Run workflow) makes a trial build without publishing.
+[release.yml](.github/workflows/release.yml) runs the tests, checks that the tag matches the
+version, builds the Windows installer and zip (PyInstaller + Inno Setup), the wheel and the Docker
+image, and publishes a GitHub Release; the tag annotation becomes the release notes. Running the
+workflow by hand (Actions → release → Run workflow) makes a trial build without publishing.
 
 Building the Windows version locally:
 
@@ -230,8 +296,10 @@ uv sync --extra desktop --group package
 uv run pyinstaller packaging/mapcan.spec --noconfirm        # → dist/mapcan/
 iscc /DAppVersion=X.Y.Z packaging/mapcan.iss                # → dist/mapcan-X.Y.Z-setup.exe
 ```
+</details>
 
-## Repository layout
+<details>
+<summary><b>Repository layout</b></summary>
 
 ```text
 examples/                   example maps (CANopen, J1939, CAN/CAN FD)
@@ -253,297 +321,13 @@ src/mapcan/
   web/                      web editor: FastAPI, YAML operations, built UI (static/)
   templates/                document templates (pdf/ — Typst)
   fonts/                    PT Sans, PT Serif (OFL)
-web/                        interface sources (Vue 3 + TypeScript + Vite)
-packaging/                  Windows build: PyInstaller (mapcan.spec), installer (mapcan.iss), icon and logo
+web/                        UI sources (Vue 3 + TypeScript + Vite)
+packaging/                  Windows build: PyInstaller, Inno Setup installer, icon and logo
 tests/                      tests; data/ — fixtures, golden/ — reference files
 ```
-
-## Tests
-
-```sh
-uv run pytest                     # or: .venv/Scripts/python -m pytest
-UPDATE_GOLDEN=1 uv run pytest     # update the reference files after intentional changes
-```
-
-The tests use their own fixtures from `tests/data/`. The C code tests compile the generated files
-with `gcc` (and `arm-none-eabi-gcc` if installed) and compare `pack`/`unpack` byte for byte with the
-Python module and cantools for every example.
+</details>
 
 ## Roadmap
 
-Importing existing maps from DBC and Excel; working with a live bus (log decoding, monitor,
-simulator).
-
----
-
-<a id="ru"></a>
-
-<p align="center"><a href="#en">English</a> · <b>Русский</b></p>
-
-Утилита для создания и редактирования **карт сигналов CAN** любых устройств и систем.
-Карта хранится в одном YAML-файле. Этот файл — единственный источник правды, из него
-получаются документация, код для прошивок и файлы для анализаторов шины.
-
-Поддерживаются:
-
-* **протоколы** — CANopen (ID вычисляются из функционального кода и `node_id`), SAE J1939
-  (ID из PGN, приоритета и адреса), CAN 2.0A/B с явными 11/29-битными ID, CAN FD (DLC до 64);
-* **сигналы** — целые (знаковые и беззнаковые, любой длины и позиции, little/big-endian),
-  перечисления, флаги и битовые поля, физические величины (`factor`, `offset`, единица,
-  диапазон), float32/float64, массивы байт, мультиплексирование, значения по умолчанию и
-  «нет данных»;
-* **кадры** — периодичность, направление, получатели, описание SDO-обменов CANopen.
-
-| Результат | Команда |
-|---|---|
-| веб-редактор: создать или открыть карту, дерево, формы, битовая карта, проверка на лету | `mapcan serve` |
-| проверка карты с указанием файла и строки | `mapcan validate my-map.yaml` |
-| Excel: адресация, содержание, битовые карты, изменения | `mapcan export xlsx my-map.yaml` |
-| PDF: титул, оглавление, битовые диаграммы, таблицы; шаблон ЕСКД | `mapcan export pdf my-map.yaml --template gost-2.105` |
-| Markdown для README/вики, HTML-страница с поиском | `mapcan export md my-map.yaml`, `mapcan export html my-map.yaml` |
-| DBC для CANalyzer, SavvyCAN, PCAN-View, Wireshark | `mapcan export dbc my-map.yaml -o dbc/` |
-| C: `#define` ID, `enum`, маски, структуры, `pack`/`unpack` | `mapcan gen c my-map.yaml -o firmware/` |
-| Python-модуль для тестов и стендов | `mapcan gen py my-map.yaml -o tools/` |
-| всё сразу (для CI) | `mapcan build my-map.yaml -o build/` |
-| сравнение двух версий карты, changelog | `mapcan diff old.yaml my-map.yaml` |
-
-## Быстрый старт
-
-```sh
-mapcan app
-```
-
-Редактор откроется в отдельном окне. Выберите **«Новая карта…»** и шаблон: CANopen, J1939, CAN с
-явными ID или пустая карта — или начните с одного из **примеров** на стартовом экране. Дальше
-устройства, кадры и сигналы добавляются в дереве. Сигналы удобно рисовать мышью на битовой карте
-кадра. Ошибки видны сразу, файл сохраняется по Ctrl+S.
-
-YAML можно писать и вручную — с подсказками в VS Code по JSON Schema
-(см. [docs/format.md](docs/format.md)).
-
-## Примеры
-
-| Файл | Что показывает |
-|---|---|
-| [examples/minimal.yaml](examples/minimal.yaml) | Все виды сигналов в одном кадре CANopen: enum, битовое поле, величины, big-endian |
-| [examples/j1939.yaml](examples/j1939.yaml) | SAE J1939: двигатель (EEC1, ET1), панель приборов, адресный запрос PDU1, «нет данных» 0xFF/0xFFFF |
-| [examples/vehicle-can.yaml](examples/vehicle-can.yaml) | CAN с явными 11/29-битными ID: float32, мультиплексированные напряжения ячеек, получатели, CAN FD с DLC 64 и float64 |
-
-Те же примеры есть на стартовом экране редактора: выберите пример, укажите, куда сохранить копию, — и она откроется.
-
-## Установка
-
-**Windows, без Python.** Скачайте `mapcan-X.Y.Z-setup.exe` со страницы
-[Releases](https://github.com/ordu1453/mapcan/releases/latest) и запустите — права администратора
-не нужны. Установщик добавит mapcan в меню «Пуск» и на рабочий стол, в «Открыть с помощью» для
-`.yaml` и (по желанию) команду `mapcan` в PATH. Редактор открывается в собственном окне; повторный
-запуск или двойной щелчок по карте открывает её в уже запущенном окне. О новой версии редактор
-сообщит плашкой вверху — обновление ставится поверх. Без установки: `mapcan-X.Y.Z-windows-x64.zip`,
-запуск — `mapcan-app.exe`.
-
-Windows может предупредить о неизвестном издателе (SmartScreen): установщик не подписан
-сертификатом. «Подробнее → Выполнить в любом случае».
-
-**Linux (x64), без Python.** Скачайте `mapcan-X.Y.Z-linux-x64.tar.gz` со страницы Releases, распакуйте
-и запустите `mapcan/mapcan-app` (редактор откроется в браузере) или `mapcan/mapcan` (командная строка).
-
-**С Python 3.12** (Windows, Linux, macOS). Внешние программы не нужны: PDF собирается
-встроенным компилятором Typst из pip-пакета `typst`, шрифты PT Sans и PT Serif (OFL) идут в комплекте.
-
-```sh
-uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/mapcan"   # или: pipx install …
-uv tool upgrade mapcan
-mapcan app                     # редактор в отдельном окне (без [desktop] — в браузере)
-```
-
-**Переход с canmap.** Раньше утилита называлась canmap. Установщик для Windows ставится
-поверх старой версии сам; через uv/pipx — `uv tool uninstall canmap`, затем установка заново
-командой выше. Карты с ключом `canmap: 1` открываются без правки, настройки из `~/.canmap`
-переносятся в `~/.mapcan`, шаблон PDF `canmap` понимается как `mapcan`.
-
-**Для разработки** (с [uv](https://docs.astral.sh/uv/), окружение по `uv.lock`):
-
-```sh
-uv sync
-uv run mapcan --help
-uv run pytest
-```
-
-**Без uv**, обычным venv:
-
-```sh
-python -m venv .venv
-.venv/Scripts/activate            # Linux: source .venv/bin/activate
-pip install -e .
-```
-
-**Офлайн** (корпоративная сеть без PyPI): на машине с доступом собрать wheelhouse
-и перенести каталог:
-
-```sh
-pip wheel . -w wheelhouse
-pip install --no-index --find-links wheelhouse mapcan
-```
-
-## Команды
-
-```text
-mapcan app         [FILE|DIR] [--browser] [--readonly]
-mapcan serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
-mapcan validate    FILE [--strict] [--info] [--format json] [--disable КОД]
-mapcan export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
-mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|my.typ] [--font-path DIR] [--lang en]
-mapcan export md   FILE [-o OUT] [--template my.md.j2] [--lang en]
-mapcan export html FILE [-o OUT] [--template my.html.j2] [--lang en]
-mapcan export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
-mapcan gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
-mapcan gen py      FILE [-o DIR] [--bus NAME]
-mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py] [--pdf-template NAME]
-mapcan diff        OLD NEW [--format text|md|json]
-mapcan schema      [-o schema.json]
-mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
-mapcan rules
-```
-
-Интерфейс (сообщения проверки, CLI, редактор) — на английском. Документы формируются на
-русском или английском: по умолчанию — на языке из поля `document.language` карты (выбирается
-при создании карты), при экспорте его можно сменить — `--lang` в CLI, переключатель языка в меню
-«Export» и в предпросмотре редактора. Шаблон ЕСКД (`gost-2.105`) всегда
-формируется на русском.
-
-Экспорт и генерация сначала проверяют карту и прерываются при ошибках
-(`--force` — генерировать всё равно). `validate` возвращает код 1 при ошибках,
-а с `--strict` — и при предупреждениях.
-
-### Пример вывода проверки
-
-```text
-$ mapcan validate tests/data/invalid_map.yaml
-tests/data/invalid_map.yaml:21:25: error[number-comma]: value '0,1': decimal comma used, should be 0.1
-tests/data/invalid_map.yaml:24:17: error[number-cyrillic-x]: value '0х196': the 0x prefix uses a Cyrillic «х»
-tests/data/invalid_map.yaml:33:22: error[invalid-identifier]: value name 'NO DATA': only Latin letters, digits and _ are allowed
-tests/data/invalid_map.yaml:62:36: error[duplicate-signal-name]: flag 'dc_status' already exists in frame 'pcu_state' (signal)
-...
-FAIL: errors: 12, warnings: 2, notes: 0
-```
-
-## Своё оформление
-
-* **Excel** — `mapcan template xlsx-style -o style.yaml`, правка шрифтов, цветов и набора
-  колонок, затем `mapcan export xlsx map.yaml --style style.yaml`.
-* **PDF** — два встроенных шаблона: `mapcan` (стандартное оформление) и ЕСКД `gost-2.105`
-  (рамка и основная надпись). Реквизиты (обозначение, литера, подписи,
-  «Утверждаю», «Согласовано») и логотип предприятия задаются в `document`. Свой вариант:
-  `mapcan template pdf --name gost-2.105 -o corp.typ`, затем `--template corp.typ`.
-  Подробнее — [docs/templates.md](docs/templates.md).
-* **Markdown/HTML** — Jinja2-шаблоны, те же данные.
-
-## Сгенерированный C-код
-
-Для каждой шины создаются `<bus>.h` и `<bus>.c`. Без динамической памяти и libc
-(только `stdint.h`, `stdbool.h`, `stddef.h`), компилируется с `-Wall -Wextra -Wconversion`
-для x86 и Cortex-M. Для `examples/vehicle-can.yaml`:
-
-```c
-#include "powertrain.h"
-
-vcu_command_t cmd = {0};
-cmd.contactor_request = VCU_COMMAND_CONTACTOR_REQUEST_CLOSE;
-cmd.torque_request = vcu_command_torque_request_from_phys(120.5f);   /* Н·м → raw */
-uint8_t buf[8];
-int dlc = vcu_command_pack(buf, sizeof buf, &cmd);                   /* → VCU_COMMAND_ID */
-
-bms_status_t st;
-if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { ... }
-```
-
-## Веб-редактор
-
-```sh
-mapcan app                    # отдельное окно: стартовый экран — новая карта, открыть, недавние, примеры
-mapcan app my-map.yaml        # сразу открыть карту
-mapcan serve my-map.yaml      # то же в браузере (сервер, разработка)
-```
-
-Файлы создаются, открываются и сохраняются из меню «Файл»; в окне приложения кнопка «Обзор…»
-открывает системный проводник. Профиль автора (имя, GitHub) подписывает записи истории изменений.
-В редакторе:
-* дерево карты с поиском по имени, ID, PGN и описанию;
-* формы свойств, которые подстраиваются под протокол шины;
-* битовая карта кадра: протянуть мышью — новый сигнал, перетащить — сдвиг, за край — длина;
-  пересечения подсвечиваются;
-* таблицы значений и флагов, проверка на лету, вкладка YAML;
-* предпросмотр и скачивание всех форматов;
-* сравнение с версией из git и запись changelog в историю.
-
-Файл сохраняется с комментариями и форматированием — в `git diff` только изменённые строки.
-Подробнее — [docs/web.md](docs/web.md).
-
-## CI
-
-Пример для пользователей карты — [docs/ci-example.md](docs/ci-example.md): при изменении
-YAML карта проверяется, а PDF, Excel, DBC и C-заголовки пересобираются и сохраняются
-как артефакты. Docker-образ со всем необходимым: [Dockerfile](Dockerfile),
-готовый — `ghcr.io/ordu1453/mapcan:<версия>`.
-
-### Выпуск версии
-
-1. Поднять версию в `pyproject.toml`, `src/mapcan/__init__.py` и `web/package.json`
-   (`uv lock`, `npm run build` в `web/`), закоммитить.
-2. Поставить и запушить тег: `git tag -a vX.Y.Z -m "mapcan X.Y.Z: …" && git push origin main vX.Y.Z`.
-
-[release.yml](.github/workflows/release.yml) прогонит тесты, проверит, что тег совпадает с версией,
-соберёт установщик и zip для Windows (PyInstaller + Inno Setup), wheel и Docker-образ и опубликует
-GitHub Release; текст аннотации тега станет описанием релиза. Ручной запуск workflow
-(Actions → release → Run workflow) — пробная сборка без публикации.
-
-Локальная сборка Windows-версии:
-
-```sh
-uv sync --extra desktop --group package
-uv run pyinstaller packaging/mapcan.spec --noconfirm        # → dist/mapcan/
-iscc /DAppVersion=X.Y.Z packaging/mapcan.iss                # → dist/mapcan-X.Y.Z-setup.exe
-```
-
-## Структура репозитория
-
-```text
-examples/                   примеры карт (CANopen, J1939, CAN/CAN FD)
-schema/mapcan.schema.json   JSON Schema (mapcan schema -o …)
-docs/                       формат, шаблоны PDF, веб-редактор, CI, логотип
-src/mapcan/
-  model.py                  модель данных (pydantic)
-  loader.py                 загрузка YAML с позициями узлов
-  protocols.py, canopen.py  вычисление CAN ID: CANopen, J1939, явные ID
-  resolve.py                ссылки, раскладка SDO
-  validate.py               правила проверки
-  bits.py                   раскладка бит, pack/unpack
-  docmodel.py               общее представление для документов
-  export/                   xlsx, pdf (Typst), md/html (Jinja2), dbc
-  codegen/                  C и Python
-  diff.py                   сравнение версий карты, changelog
-  launcher.py               mapcan app: окно, один экземпляр, выбор порта
-  updates.py                проверка новой версии на GitHub Releases
-  web/                      веб-редактор: FastAPI, операции над YAML, собранный UI (static/)
-  templates/                шаблоны документов (pdf/ — Typst)
-  fonts/                    PT Sans, PT Serif (OFL)
-web/                        исходники интерфейса (Vue 3 + TypeScript + Vite)
-packaging/                  сборка для Windows: PyInstaller (mapcan.spec), установщик (mapcan.iss), иконка и логотип
-tests/                      тесты; data/ — фикстуры, golden/ — эталонные файлы
-```
-
-## Тесты
-
-```sh
-uv run pytest                     # или: .venv/Scripts/python -m pytest
-UPDATE_GOLDEN=1 uv run pytest     # обновить эталонные файлы после намеренных изменений
-```
-
-Тесты используют собственные фикстуры из `tests/data/`. Тесты C-кода компилируют сгенерированные
-файлы `gcc` (и `arm-none-eabi-gcc`, если установлен) и сравнивают `pack`/`unpack` побайтно
-с Python-модулем и cantools для всех примеров.
-
-## Планы
-
-Импорт существующих карт из DBC и Excel; работа с живой шиной (декодирование логов,
-монитор, симулятор).
+- [ ] Import existing maps from DBC and Excel
+- [ ] Live bus: log decoding, monitor, simulator
