@@ -132,15 +132,17 @@ onBeforeUnmount(() => {
     <template v-if="hasMap">
       <button class="icon" :title="t('Отменить (Ctrl+Z)')" :disabled="!store.state?.can_undo || store.busy" @click="actions.undo">↶</button>
       <button class="icon" :title="t('Повторить (Ctrl+Y)')" :disabled="!store.state?.can_redo || store.busy" @click="actions.redo">↷</button>
-      <button @click="emit('diff')">{{ t("Сравнить версии") }}</button>
-
-      <div v-if="git && (git.available || git.reason === 'no-repo')" class="menu">
-        <button :title="git.available ? t(FILE_STATE[git.file ?? 'clean']) : t('Папка карты не в репозитории git')"
+      <!-- Git: сравнение версий карты и работа с репозиторием -->
+      <div class="menu">
+        <button :title="git?.available ? t(FILE_STATE[git.file ?? 'clean'])
+                  : git?.reason === 'no-repo' ? t('Папка карты не в репозитории git') : ''"
                 @click.stop="toggle('git')">
-          Git<span v-if="gitPending" class="git-dot">●</span><span v-if="git.ahead" class="git-count">↑{{ git.ahead }}</span> ▾
+          Git<span v-if="gitPending" class="git-dot">●</span><span v-if="git?.ahead" class="git-count">↑{{ git.ahead }}</span> ▾
         </button>
         <div v-if="menu === 'git'" class="dropdown git-menu">
-          <template v-if="git.available">
+          <button @click="menu = null; emit('diff')">{{ t("Сравнить версии…") }}</button>
+          <div class="dd-sep" />
+          <template v-if="git?.available">
             <div class="git-head">
               <div><span class="muted">{{ t("Ветка") }}</span> <b class="mono">{{ git.branch ?? t("(не на ветке)") }}</b>
                 <span v-if="git.upstream" class="muted mono">→ {{ git.upstream }}</span></div>
@@ -169,10 +171,12 @@ onBeforeUnmount(() => {
                     :title="git.last ? '' : t('Сначала закоммитьте карту')"
                     @click="menu = null; store.dialog = 'gh-publish'">{{ t("Опубликовать на GitHub…") }}</button>
           </template>
-          <template v-else>
+          <template v-else-if="git?.reason === 'no-repo'">
             <div class="dd-note">{{ t("Папка карты не в репозитории git. Создайте репозиторий, чтобы хранить версии карты.") }}</div>
             <button :disabled="store.busy" @click="gitInit">{{ t("Создать репозиторий здесь") }}</button>
           </template>
+          <div v-else-if="git?.reason === 'error'" class="dd-note">{{ git.error }}</div>
+          <div v-else-if="git" class="dd-note">{{ t("git не найден. Установите git, чтобы коммитить и отправлять версии карты.") }}</div>
         </div>
       </div>
 
