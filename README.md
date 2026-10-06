@@ -269,7 +269,7 @@ Python module and cantools for every example.
 ## Roadmap
 
 Importing existing maps from DBC and Excel; working with a live bus (log decoding, monitor,
-simulator); plugins for non-CAN protocols (Modbus, UART packets).
+simulator).
 
 ---
 
@@ -541,4 +541,4 @@ UPDATE_GOLDEN=1 uv run pytest     # обновить эталонные файл
 ## Планы
 
 Импорт существующих карт из DBC и Excel; работа с живой шиной (декодирование логов,
-монитор, симулятор); плагины для не-CAN протоколов (Modbus, UART-пакеты).
+монитор, симулятор).

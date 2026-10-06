@@ -190,10 +190,10 @@ jobs:
           {
             git tag -l --format='%(contents)' "$TAG" | sed '/-----BEGIN PGP SIGNATURE-----/,$d'
             echo
-            echo "## Установка"
+            echo "## Installation"
             echo
-            echo "- **Windows:** скачайте \`mapcan-$VERSION-setup.exe\` и запустите. Права администратора не нужны."
-            echo "  Без установки — \`mapcan-$VERSION-windows-x64.zip\` (запуск: \`mapcan-app.exe\`)."
+            echo "- **Windows:** download \`mapcan-$VERSION-setup.exe\` and run it. No administrator rights required."
+            echo "  Without installing: \`mapcan-$VERSION-windows-x64.zip\` (run \`mapcan-app.exe\`)."
             echo "- **Python 3.12:** \`uv tool install \"mapcan[desktop] @ https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/mapcan-$VERSION-py3-none-any.whl\"\`"
             echo "- **Docker:** \`docker run --rm -v \"\$PWD:/work\" ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION build mapcan.yaml -o build\`"
           } > notes.md
