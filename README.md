@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/ordu1453/mapcan/actions/workflows/ci.yml"><img src="https://github.com/ordu1453/mapcan/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/ordu1453/mapcan/releases/latest"><img src="https://img.shields.io/badge/release-v0.13.1-2f6fb3" alt="Release"></a>
+  <a href="https://github.com/ordu1453/mapcan/releases/latest"><img src="https://img.shields.io/badge/release-latest-2f6fb3" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/python-3.12-3776ab?logo=python&logoColor=white" alt="Python 3.12">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-555" alt="Platforms">
   <img src="https://img.shields.io/badge/license-proprietary-lightgrey" alt="License">
