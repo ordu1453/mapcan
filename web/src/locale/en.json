@@ -39,6 +39,7 @@
   "{verb}: биты {bits} ({n} бит)": "{verb}: bits {bits} ({n} bits)",
   "«repo» или «организация/repo».": "“repo” or “organization/repo”.",
   "«{raw}» — не целое число": "“{raw}” is not an integer",
+  "«{raw}» — допустимо от {min} до {max}": "“{raw}” must be between {min} and {max}",
   "«{raw}» — не число": "“{raw}” is not a number",
   "«{raw}» — ожидается число (0x1A или 26)": "“{raw}”: a number is expected (0x1A or 26)",
   "«{raw}» — список целых чисел": "“{raw}”: a list of integers is expected",

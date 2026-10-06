@@ -2,6 +2,7 @@
 // Таблица значений enum: значение, имя, описание. Пишет values[ключ] операциями set/rename_key.
 import { computed } from "vue";
 import { actions } from "../store";
+import { parseInteger } from "../fields";
 import { nextFreeKey, startsWith, txt } from "../model";
 import type { Diagnostic, Op, Path } from "../types";
 import { t } from "../i18n";
@@ -48,7 +49,8 @@ function apply(ops: Op[]) {
 
 function setValue(r: Row, e: Event) {
   const s = (e.target as HTMLInputElement).value.trim();
-  const n = /^-?0x/i.test(s) ? parseInt(s, 16) : Number(s);
+  let n = NaN;
+  try { n = parseInteger(s); } catch { /* ниже вернём прежнее значение */ }
   if (!Number.isInteger(n)) {
     (e.target as HTMLInputElement).value = fmt(r.num);
     return;

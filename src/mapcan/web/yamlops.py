@@ -24,6 +24,7 @@ from ..model import Signal
 # Ключи, числа в которых принято писать в hex.
 HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
 LAYOUT_KEYS = ("start_bit", "bit_length", "byte", "bit", "byte_length")
+MAX_FRAME_BITS = 64 * 8     # кадр CAN FD — до 64 байт
 
 
 class OpError(ValueError):
@@ -374,7 +375,8 @@ def op_set_layout(doc, path: list, start_bit: int, bit_length: int) -> None:
     sig = _get(doc, path)
     if not isinstance(sig, CommentedMap):
         raise OpError(_("не сигнал: {path}", path=path))
-    if start_bit < 0 or not 1 <= bit_length <= 64:
+    if (not all(isinstance(v, int) and not isinstance(v, bool) for v in (start_bit, bit_length))
+            or not 0 <= start_bit < MAX_FRAME_BITS or not 1 <= bit_length <= 64):
         raise OpError(_("недопустимая позиция"))
     big = sig.get("byte_order") == "big_endian"
     used_canonical = "start_bit" in sig and not any(k in sig for k in ("byte", "bit", "byte_length"))
@@ -399,7 +401,7 @@ OPS = {
     "insert": lambda d, o: op_insert(d, o["path"], o.get("value"), o.get("index")),
     "move": lambda d, o: op_move(d, o["path"], o["to"]),
     "rename_key": lambda d, o: op_rename_key(d, o["path"], o["new_key"]),
-    "set_layout": lambda d, o: op_set_layout(d, o["path"], int(o["start_bit"]), int(o["bit_length"])),
+    "set_layout": lambda d, o: op_set_layout(d, o["path"], o["start_bit"], o["bit_length"]),
 }
 
 

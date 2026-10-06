@@ -136,14 +136,24 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
 export class ParseError extends Error {}
 
 /** Строка из поля ввода → значение для YAML (null — удалить ключ). */
+// Целое: десятичное или 0x…; «1.5», «1e3» и числа за пределами точности JS не принимаются
+const INT_RE = /^[-+]?(0x[0-9a-f]+|[0-9]+)$/i;
+
+/** Разобрать целое число; ParseError, если строка — не целое или слишком большое число. */
+export function parseInteger(raw: string): number {
+  const s = raw.trim();
+  const m = INT_RE.exec(s);
+  const v = m ? (/0x/i.test(s) ? (s.startsWith("-") ? -1 : 1) * parseInt(m[1].slice(2), 16) : Number(s.replace(/^\+/, ""))) : NaN;
+  if (!Number.isSafeInteger(v)) throw new ParseError(t("«{raw}» — не целое число", { raw }));
+  return v;
+}
+
 export function parseInput(type: FieldType, raw: string): unknown {
   const s = raw.trim();
   if (s === "") return null;
   switch (type) {
     case "int": {
-      const v = /^[-+]?0x/i.test(s) ? parseInt(s, 16) : Number(s);
-      if (!Number.isInteger(v)) throw new ParseError(t("«{raw}» — не целое число", { raw }));
-      return v;
+      return parseInteger(s);
     }
     case "hex": {
       const v = /^0x/i.test(s) ? parseInt(s.slice(2), 16) : /^[0-9]+$/.test(s) ? Number(s) : NaN;
@@ -160,8 +170,8 @@ export function parseInput(type: FieldType, raw: string): unknown {
       return parts.length ? parts : null;
     }
     case "intlist": {
-      const parts = s.split(/[\s,;]+/).filter(Boolean).map((x) => (/^0x/i.test(x) ? parseInt(x, 16) : Number(x)));
-      if (parts.some((x) => !Number.isInteger(x))) throw new ParseError(t("«{raw}» — список целых чисел", { raw }));
+      const parts = s.split(/[\s,;]+/).filter(Boolean).map((x) => (INT_RE.test(x) ? Number(x.replace(/^\+/, "")) : NaN));
+      if (parts.some((x) => !Number.isSafeInteger(x))) throw new ParseError(t("«{raw}» — список целых чисел", { raw }));
       return parts.length === 1 ? parts[0] : parts;
     }
     default:

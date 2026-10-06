@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Флаги битового поля: бит, длина, имя, описание.
 import { actions } from "../store";
+import { parseInteger } from "../fields";
 import { addFlag } from "../edit";
 import { startsWith, txt } from "../model";
 import type { Diagnostic, Path } from "../types";
@@ -21,8 +22,11 @@ function rowDiags(i: number) {
 function setInt(i: number, key: string, e: Event) {
   const el = e.target as HTMLInputElement;
   const s = el.value.trim();
-  const n = s === "" ? null : Number(s);
-  if (n !== null && !Number.isInteger(n)) {
+  let n: number | null = null;
+  try {
+    n = s === "" ? null : parseInteger(s);
+    if (n !== null && (key === "bit_length" ? n < 1 || n > 64 : n < 0 || n > 63)) throw new Error();
+  } catch {
     el.value = String(props.flags?.[i]?.[key] ?? "");
     return;
   }

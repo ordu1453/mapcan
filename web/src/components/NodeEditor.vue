@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
 import { childActions, duplicateNode, moveNode, removeNode, addSignal } from "../edit";
-import { FIELDS, type FieldDef } from "../fields";
+import { FIELDS, parseInteger, ParseError, type FieldDef } from "../fields";
 import { getAt, HISTORY_PATH, nodeKind, pathKey, samePath, startsWith, txt } from "../model";
 import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store } from "../store";
 import type { Path } from "../types";
@@ -118,9 +118,31 @@ function setMode(e: Event) {
   void actions.apply(ops);
 }
 
+// Ошибки ввода чисел в полях позиции и периода; сбрасываются при переходе к другому узлу
+const MAX_FRAME_BITS = 64 * 8;
+const inputErrors = ref<Record<string, string>>({});
+watch(() => pathKey(path.value), () => { inputErrors.value = {}; });
+
+/** Целое из поля ввода в диапазоне [min, max]; при ошибке показывает сообщение, возвращает в поле прежнее значение и даёт null. */
+function readInt(e: Event, key: string, min: number, max: number, old: number | null | undefined): number | null {
+  const el = e.target as HTMLInputElement;
+  let msg = "";
+  let n: number | null = null;
+  try {
+    n = parseInteger(el.value);
+    if (n < min || n > max) msg = t("«{raw}» — допустимо от {min} до {max}", { raw: el.value.trim(), min, max });
+  } catch (err) {
+    msg = err instanceof ParseError ? err.message : String(err);
+  }
+  inputErrors.value = { ...inputErrors.value, [key]: msg };
+  if (!msg) return n;
+  el.value = old == null ? "" : String(old);
+  return null;
+}
+
 function setCycle(e: Event) {
-  const n = Number((e.target as HTMLInputElement).value);
-  if (!Number.isInteger(n) || n <= 0) return;
+  const n = readInt(e, "cycle_ms", 1, 2 ** 31 - 1, txCycle.value);
+  if (n === null) return;
   const p = path.value;
   if (node.value?.transmission != null) void actions.apply([{ op: "set", path: [...p, "transmission", "cycle_ms"], value: n }]);
   else void actions.apply([{ op: "set", path: [...p, "cycle_ms"], value: n }]);
@@ -139,8 +161,10 @@ const signalPath = computed(() => (kind.value === "flag" ? path.value.slice(0, -
 function setLayout(field: "start_bit" | "bit_length", e: Event) {
   const s = rsignal.value;
   if (!s) return;
-  const n = Number((e.target as HTMLInputElement).value);
-  if (!Number.isInteger(n) || n < 0) return;
+  const n = field === "start_bit"
+    ? readInt(e, field, 0, MAX_FRAME_BITS - 1, s.start_bit)
+    : readInt(e, field, 1, 64, s.bit_length);
+  if (n === null) return;
   const start = field === "start_bit" ? n : s.start_bit;
   const length = field === "bit_length" ? n : s.bit_length;
   void actions.apply([{ op: "set_layout", path: s.path, start_bit: start, bit_length: length }]);
@@ -239,10 +263,12 @@ function onLayout(p: Path, start: number, length: number) {
           <label class="field" :class="layoutDiags[0]?.level">
             <span class="field-label">{{ t("Начальный бит (LSB)") }}</span>
             <input class="mono" :value="rsignal.start_bit" :readonly="readonly || rsignal.synthetic" @change="setLayout('start_bit', $event)" />
+            <span v-if="inputErrors.start_bit" class="field-msg error">{{ inputErrors.start_bit }}</span>
           </label>
           <label class="field" :class="layoutDiags[0]?.level">
             <span class="field-label">{{ t("Длина, бит") }}</span>
             <input class="mono" :value="rsignal.bit_length" :readonly="readonly || rsignal.synthetic" @change="setLayout('bit_length', $event)" />
+            <span v-if="inputErrors.bit_length" class="field-msg error">{{ inputErrors.bit_length }}</span>
             <span class="field-hint">
               {{ t("байты {bytes}, биты {bits}", {
                 bytes: rangeLabel(Math.floor(Math.min(...rsignal.occupied) / 8), Math.floor(Math.max(...rsignal.occupied) / 8)),
@@ -266,6 +292,7 @@ function onLayout(p: Path, start: number, length: number) {
           <label v-if="txMode === 'cyclic'" class="field">
             <span class="field-label">{{ t("Период, мс") }}</span>
             <input class="mono" :value="txCycle ?? ''" :readonly="readonly" @change="setCycle" />
+            <span v-if="inputErrors.cycle_ms" class="field-msg error">{{ inputErrors.cycle_ms }}</span>
           </label>
         </template>
 

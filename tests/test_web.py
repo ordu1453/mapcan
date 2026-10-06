@@ -97,6 +97,17 @@ def test_set_layout_canonical(client):
     assert "                start_bit: 50\n                bit_length: 12\n" in st["text"]
 
 
+@pytest.mark.parametrize("start, length", [
+    (1.5, 8), (10**20, 8), (512, 8), (-1, 8), (0, 65), (0, 0), ("8", 8), (True, 8),
+])
+def test_set_layout_rejects_bad_position(client, start, length):
+    before = client.get("/api/state").json()["text"]
+    op = {"op": "set_layout", "path": SIG, "start_bit": start, "bit_length": length}
+    r = client.post("/api/ops", json={"ops": [op]})
+    assert r.status_code == 400
+    assert client.get("/api/state").json()["text"] == before
+
+
 def test_insert_signal_and_remove(client):
     path = ["buses", 0, "devices", 1, "frames", 0, "signals"]
     st = ops(client,
