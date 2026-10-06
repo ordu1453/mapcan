@@ -1195,6 +1195,24 @@
           "title": "Signed",
           "type": "boolean"
         },
+        "signed_code": {
+          "anyOf": [
+            {
+              "enum": [
+                "twos_complement",
+                "ones_complement",
+                "sign_magnitude"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Код знакового числа: twos_complement — дополнительный (по умолчанию), ones_complement — обратный, sign_magnitude — прямой. Пометка для документации: сгенерированный код и DBC работают в дополнительном коде.",
+          "title": "Signed Code"
+        },
         "values": {
           "anyOf": [
             {

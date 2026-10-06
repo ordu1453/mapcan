@@ -190,6 +190,8 @@ EN: dict[str, str] = {
     "Файл логотипа не найден": "Logo file not found",
     "Неподдерживаемый формат логотипа": "Unsupported logo format",
     "Нет описания сигнала": "Signal has no description",
+    "Код знакового числа не поддерживается кодогенерацией или задан у беззнакового сигнала":
+        "Signed number code is not supported by code generation or is set on an unsigned signal",
     "В кадре не описаны сигналы": "Frame has no signals",
 
     # ------------------------------------------------------------------ сообщения проверки
@@ -233,6 +235,10 @@ EN: dict[str, str] = {
     "сигнал {name!r}: float — 32 или 64 бита, задано {bits}":
         "signal {name!r}: float must be 32 or 64 bits, {bits} set",
     "сигнал {name!r} без описания": "signal {name!r} has no description",
+    "signed_code у беззнакового сигнала {name!r} не используется":
+        "signed_code on unsigned signal {name!r} is not used",
+    "{name!r}: сгенерированный код и DBC читают значение в дополнительном коде":
+        "{name!r}: generated code and DBC read the value as two's complement",
     "имя {name!r} у значений {a} и {b}": "name {name!r} is used for values {a} and {b}",
     "флаг {name!r} (биты {first}..{last}) вне поля длиной {bits} бит":
         "flag {name!r} (bits {first}..{last}) is outside the {bits}-bit field",

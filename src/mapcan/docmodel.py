@@ -38,6 +38,7 @@ LABELS = {
         "unused": "не используется", "little_endian": "little-endian", "big_endian": "big-endian",
         "enum": "перечисление", "flag": "флаг", "bitfield": "битовое поле", "metric": "величина",
         "raw": "целое", "bytes": "байт", "signed": "знаковое", "per_bit": "/бит",
+        "ones_complement": "обратный код", "sign_magnitude": "прямой код",
         "range": "диапазон", "offset": "смещение", "phys": "физ. = raw × {f}{o}",
         "bit": "бит", "when": "при {sel} = {vals}", "selector": "селектор mux",
         "sdo": "SDO-обмены", "command": "Команда", "index": "Индекс", "subindex": "Субиндекс",
@@ -64,6 +65,7 @@ LABELS = {
         "unused": "unused", "little_endian": "little-endian", "big_endian": "big-endian",
         "enum": "enum", "flag": "flag", "bitfield": "bit field", "metric": "value",
         "raw": "integer", "bytes": "bytes", "signed": "signed", "per_bit": "/bit",
+        "ones_complement": "ones' complement", "sign_magnitude": "sign-magnitude",
         "range": "range", "offset": "offset", "phys": "phys = raw × {f}{o}",
         "bit": "bit", "when": "when {sel} = {vals}", "selector": "multiplexer selector",
         "sdo": "SDO exchanges", "command": "Command", "index": "Index", "subindex": "Subindex",
@@ -325,6 +327,8 @@ class ViewBuilder:
                 enc.append(f"{s.bit_length} {L['bit']}")
                 if s.signed:
                     enc[-1] += f", {L['signed']}"
+            if s.signed and s.signed_code in ("ones_complement", "sign_magnitude"):
+                enc[-1] += f", {L[s.signed_code]}"
         elif s.kind == "float":
             enc.append(f"float{s.bit_length}" if s.bit_length in (32, 64) else f"{s.bit_length} {L['bit']}")
         elif s.kind == "bitfield":

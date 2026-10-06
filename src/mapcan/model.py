@@ -23,6 +23,7 @@ from .i18n import N_
 FORMAT_VERSION = 1
 
 ByteOrder = Literal["little_endian", "big_endian"]
+SignedCode = Literal["twos_complement", "ones_complement", "sign_magnitude"]
 SignalKind = Literal["enum", "flag", "bitfield", "metric", "raw", "bytes", "float"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
@@ -198,6 +199,10 @@ class Signal(_Base):
 
     byte_order: ByteOrder = "little_endian"
     signed: bool = False
+    signed_code: SignedCode | None = Field(
+        None, description="Код знакового числа: twos_complement — дополнительный (по умолчанию), "
+        "ones_complement — обратный, sign_magnitude — прямой. Пометка для документации: "
+        "сгенерированный код и DBC работают в дополнительном коде.")
 
     values: ValueTable | None = None
     flags: list[Flag] | None = None

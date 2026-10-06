@@ -2,6 +2,7 @@
 
 import pytest
 
+from mapcan.docmodel import build_view
 from mapcan.validate import RULES, validate_file
 
 from .conftest import DATA, REFERENCE, codes, one_bus, run
@@ -465,6 +466,18 @@ def test_legacy_map_rejected():
     """Старый формат не проходит схему, а не молча принимается."""
     _, rep = validate_file(DATA / "legacy.yaml")
     assert rep.errors > 0
+
+
+def test_signed_code():
+    def sig(extra: str) -> str:
+        return one_bus(OK_SIGNAL.replace("byte: 0}", "byte: 0, " + extra + "}"))
+
+    assert "signed-code" not in codes(sig("signed: true, signed_code: twos_complement"))
+    assert "signed-code" in codes(sig("signed: true, signed_code: sign_magnitude"))
+    assert "signed-code" in codes(sig("signed_code: ones_complement"))
+    res, _ = run(sig("signed: true, signed_code: ones_complement"))
+    enc = build_view(res.map)["buses"][0]["devices"][0]["frames"][0]["signals"][0]["encoding"]
+    assert enc[-1].endswith("обратный код")
 
 
 @pytest.mark.parametrize("code", sorted(RULES))

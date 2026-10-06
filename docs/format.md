@@ -132,7 +132,8 @@ lint:
 | `start_bit` + `bit_length` | Каноническая позиция |
 | `byte` [+ `bit`] [+ `byte_length` \| `bit_length`] | Сокращённая запись (см. ниже) |
 | `byte_order` | `little_endian` (по умолчанию) или `big_endian` |
-| `signed` | Знаковое значение (дополнительный код) |
+| `signed` | Знаковое значение |
+| `signed_code` | Код знакового числа: `twos_complement` — дополнительный (по умолчанию), `ones_complement` — обратный, `sign_magnitude` — прямой. Пометка для документов: сгенерированный код и DBC работают в дополнительном коде |
 | `values` | Таблица значений: `{0: NO_DATA, 1: {name: OK, description: "в норме"}}` |
 | `value_format` | `dec` \| `hex` — как показывать значения в документах |
 | `flags` | Флаги битового поля: `{bit, bit_length: 1, name, description, values}`; `bit` — смещение от младшего бита поля |

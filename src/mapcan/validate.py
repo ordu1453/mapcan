@@ -78,6 +78,8 @@ RULES = {
     "invalid-overflow": ("error", N_("Значение invalid не помещается в разрядность сигнала")),
     "logo-missing": ("warning", N_("Файл логотипа не найден")),
     "logo-format": ("error", N_("Неподдерживаемый формат логотипа")),
+    "signed-code": ("info", N_("Код знакового числа не поддерживается кодогенерацией "
+                               "или задан у беззнакового сигнала")),
     "missing-description": ("info", N_("Нет описания сигнала")),
     "empty-frame": ("info", N_("В кадре не описаны сигналы")),
 }
@@ -362,6 +364,13 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
 
         if s.description is None and not s._path[-1:] == ("sdo",):
             ctx.emit("missing-description", _("сигнал {name!r} без описания", name=s.name), sp)
+
+        if s.signed_code is not None and not s.signed:
+            ctx.emit("signed-code", _("signed_code у беззнакового сигнала {name!r} не используется", name=s.name),
+                     sp + ("signed_code",))
+        elif s.signed and s.signed_code in ("ones_complement", "sign_magnitude"):
+            ctx.emit("signed-code", _("{name!r}: сгенерированный код и DBC читают значение в дополнительном коде",
+                                      name=s.name), sp + ("signed_code",))
 
         if s.mux is not None:
             if selector is None:
