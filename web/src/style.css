@@ -169,6 +169,7 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
 .card > h3 { font-size: 13px; margin-bottom: 10px; display: flex; gap: 8px; align-items: baseline; }
+.card > h3 .card-actions { margin-left: auto; display: flex; gap: 6px; align-self: center; font-weight: normal; }
 
 .banner { padding: 6px 10px; border-radius: 6px; border: 1px solid; }
 .banner.error { background: var(--error-soft); border-color: var(--error); }

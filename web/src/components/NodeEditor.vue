@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
-import { canRename, childActions, duplicateNode, moveNode, removeNode, addSignal, renameNode } from "../edit";
+import { addBus, addDevice, addFrame, addSdo, addSignal, canRename, duplicateNode, removeNode, renameNode } from "../edit";
 import { HELP } from "../help";
 import { FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
 import { getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath, startsWith, txt } from "../model";
@@ -274,7 +274,17 @@ const frameSignals = computed(() => {
 
 const devices = computed(() => (kind.value === "bus" ? (node.value?.devices ?? []) : []));
 
-const add = computed(() => (readonly.value ? [] : childActions(path.value)));
+const buses = computed(() => {
+  if (kind.value !== "document") return [];
+  return (data.value?.buses ?? []).map((b: any, i: number) => ({
+    path: ["buses", i], name: b.name, title: txt(b.title, lang.value), protocol: b.protocol ?? "can",
+    devices: b.devices?.length ?? 0,
+    frames: (b.frames?.length ?? 0) + (b.devices ?? []).reduce((n: number, d: any) => n + (d.frames?.length ?? 0), 0),
+  }));
+});
+// SDO-обмены — только у кадров CANopen
+const canAddSdo = computed(() => kind.value === "frame" && (data.value?.buses?.[Number(path.value[1])]?.protocol ?? "canopen") === "canopen"
+  && (node.value?.sdo != null || ["sdo_tx", "sdo_rx"].includes(node.value?.type)));
 const isListItem = computed(() => typeof path.value[path.value.length - 1] === "number" && path.value.length > 1);
 
 function onCreate(start: number, length: number) {
@@ -315,10 +325,7 @@ function onLayout(p: Path, start: number, length: number) {
         </h2>
       </div>
       <div class="ne-actions">
-        <button v-for="a in add" :key="a.label" class="small" @click="a.run()">+ {{ a.label }}</button>
         <template v-if="isListItem && !readonly">
-          <button class="icon" :title="t('Выше')" @click="moveNode(path, -1)">↑</button>
-          <button class="icon" :title="t('Ниже')" @click="moveNode(path, 1)">↓</button>
           <button class="icon" :title="t('Дублировать')" @click="duplicateNode(path)">⧉</button>
           <button class="icon danger" :title="t('Удалить (Delete)')" @click="removeNode(path)">✕</button>
         </template>
@@ -400,7 +407,13 @@ function onLayout(p: Path, start: number, length: number) {
 
     <!-- Сигналы кадра -->
     <section v-if="kind === 'frame'" class="card">
-      <h3>{{ t("Сигналы") }} <span class="muted">{{ frameSignals.length }}</span></h3>
+      <h3>
+        {{ t("Сигналы") }} <span class="muted">{{ frameSignals.length }}</span>
+        <span v-if="!readonly" class="card-actions">
+          <button v-if="canAddSdo" class="small" @click="addSdo(path)">+ {{ t("SDO-обмен") }}</button>
+          <button class="small" @click="addSignal(path)">+ {{ t("Сигнал") }}</button>
+        </span>
+      </h3>
       <table v-if="frameSignals.length" class="list">
         <thead><tr><th></th><th>{{ t("Сигнал") }}</th><th>{{ t("Биты") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Описание") }}</th></tr></thead>
         <tbody>
@@ -418,9 +431,14 @@ function onLayout(p: Path, start: number, length: number) {
     </section>
 
     <!-- Кадры устройства / шины -->
-    <section v-if="childFrames.length" class="card">
-      <h3>{{ t("Кадры") }}</h3>
-      <table class="list">
+    <section v-if="kind === 'bus' || kind === 'device'" class="card">
+      <h3>
+        {{ t("Кадры") }} <span class="muted">{{ childFrames.length }}</span>
+        <span v-if="!readonly" class="card-actions">
+          <button class="small" @click="addFrame(path)">+ {{ t("Кадр") }}</button>
+        </span>
+      </h3>
+      <table v-if="childFrames.length" class="list">
         <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Сигналов") }}</th><th>{{ t("Описание") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="f in childFrames" :key="f.name" class="clickable" @click="actions.select(f.path)">
@@ -430,11 +448,17 @@ function onLayout(p: Path, start: number, length: number) {
           </tr>
         </tbody>
       </table>
+      <p v-else class="muted">{{ t("Кадров нет.") }}</p>
     </section>
 
-    <section v-if="devices.length" class="card">
-      <h3>{{ t("Устройства") }}</h3>
-      <table class="list">
+    <section v-if="kind === 'bus'" class="card">
+      <h3>
+        {{ t("Устройства") }} <span class="muted">{{ devices.length }}</span>
+        <span v-if="!readonly" class="card-actions">
+          <button class="small" @click="addDevice(path)">+ {{ t("Устройство") }}</button>
+        </span>
+      </h3>
+      <table v-if="devices.length" class="list">
         <thead><tr><th>{{ t("Устройство") }}</th><th>node_id</th><th>{{ t("Полное название") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
         <tbody>
           <tr v-for="(d, i) in devices" :key="d.name" class="clickable" @click="actions.select([...path, 'devices', i])">
@@ -444,6 +468,26 @@ function onLayout(p: Path, start: number, length: number) {
           </tr>
         </tbody>
       </table>
+      <p v-else class="muted">{{ t("Устройств нет.") }}</p>
+    </section>
+
+    <section v-if="kind === 'document'" class="card">
+      <h3>
+        {{ t("Шины") }} <span class="muted">{{ buses.length }}</span>
+        <span v-if="!readonly" class="card-actions">
+          <button class="small" @click="addBus()">+ {{ t("Шина") }}</button>
+        </span>
+      </h3>
+      <table v-if="buses.length" class="list">
+        <thead><tr><th>{{ t("Шина") }}</th><th>{{ t("Название") }}</th><th>{{ t("Протокол") }}</th><th>{{ t("Устройства") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
+        <tbody>
+          <tr v-for="b in buses" :key="b.name" class="clickable" @click="actions.select(b.path)">
+            <td class="mono">{{ b.name }}</td><td>{{ b.title }}</td><td>{{ b.protocol }}</td>
+            <td>{{ b.devices }}</td><td>{{ b.frames }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">{{ t("Шин нет.") }}</p>
     </section>
 
     <!-- История изменений — отдельный узел дерева -->

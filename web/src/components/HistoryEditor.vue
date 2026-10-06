@@ -72,7 +72,12 @@ async function addChange() {
 
   <!-- Вся история -->
   <section v-else class="card">
-    <h3>{{ t("Записи") }} <span class="muted">{{ history.length }}</span></h3>
+    <h3>
+      {{ t("Записи") }} <span class="muted">{{ history.length }}</span>
+      <span v-if="!readonly && history.length" class="card-actions">
+        <button class="small" @click="addRevision">+ {{ t("Запись") }}</button>
+      </span>
+    </h3>
     <table v-if="history.length" class="list">
       <thead><tr><th>{{ t("Версия") }}</th><th>{{ t("Дата") }}</th><th>{{ t("Автор") }}</th><th>{{ t("Изменения") }}</th></tr></thead>
       <tbody>

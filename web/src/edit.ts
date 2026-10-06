@@ -1,4 +1,4 @@
-// Структурные правки: добавить / удалить / дублировать / переместить узел.
+// Структурные правки: добавить / удалить / дублировать узел.
 
 import { actions, resolvedFrames, store, toast } from "./store";
 import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, uniqueName, type Data, type NodeKind } from "./model";
@@ -6,11 +6,6 @@ import type { Op, Path } from "./types";
 import { t } from "./i18n";
 
 const data = (): Data => store.state?.data;
-
-export interface ChildAction {
-  label: string;
-  run: () => Promise<boolean>;
-}
 
 function busOf(path: Path): Data {
   return getAt(data(), path.slice(0, 2));
@@ -190,32 +185,6 @@ export async function addRevision(): Promise<boolean> {
   return ok;
 }
 
-/** Действия «добавить» для узла дерева. */
-export function childActions(path: Path): ChildAction[] {
-  const kind: NodeKind = nodeKind(path);
-  const node = getAt(data(), path);
-  switch (kind) {
-    case "document":
-      return [{ label: t("Шина"), run: addBus }];
-    case "history":
-      return [{ label: t("Запись"), run: addRevision }];
-    case "bus":
-      return [{ label: t("Устройство"), run: () => addDevice(path) }, { label: t("Кадр"), run: () => addFrame(path) }];
-    case "device":
-      return [{ label: t("Кадр"), run: () => addFrame(path) }];
-    case "frame":
-      // SDO-обмены — только CANopen
-      return (busOf(path)?.protocol ?? "canopen") === "canopen" &&
-        (node?.sdo || ["sdo_tx", "sdo_rx"].includes(node?.type))
-        ? [{ label: t("SDO-обмен"), run: () => addSdo(path) }, { label: t("Сигнал"), run: () => addSignal(path) }]
-        : [{ label: t("Сигнал"), run: () => addSignal(path) }];
-    case "signal":
-      return node?.flags || node?.kind === "bitfield" ? [{ label: t("Флаг"), run: () => addFlag(path) }] : [];
-    default:
-      return [];
-  }
-}
-
 const RENAMABLE: NodeKind[] = ["bus", "device", "frame", "signal", "flag", "sdo"];
 
 export function canRename(path: Path): boolean {
@@ -330,15 +299,5 @@ export async function duplicateNode(path: Path): Promise<boolean> {
   if (nodeKind(path) === "frame" && copy.id != null) delete copy.id;
   const ok = await actions.apply([{ op: "insert", path: listPath, value: copy, index }]);
   if (ok) actions.select([...listPath, index]);
-  return ok;
-}
-
-export async function moveNode(path: Path, delta: number): Promise<boolean> {
-  const list = getAt(data(), path.slice(0, -1)) as unknown[];
-  const i = Number(path[path.length - 1]);
-  const to = i + delta;
-  if (!Array.isArray(list) || to < 0 || to >= list.length) return false;
-  const ok = await actions.apply([{ op: "move", path, to }]);
-  if (ok) actions.select([...path.slice(0, -1), to]);
   return ok;
 }

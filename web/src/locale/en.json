@@ -417,5 +417,9 @@
   "Обязательное поле": "Required field",
   "Двойной щелчок — изменить сокращение": "Double-click to edit the abbreviation",
   "Двойной щелчок — изменить идентификатор": "Double-click to edit the identifier",
-  "— обязательное поле": "— required field"
+  "— обязательное поле": "— required field",
+  "Кадров нет.": "No frames.",
+  "Устройств нет.": "No devices.",
+  "Шины": "Buses",
+  "Шин нет.": "No buses."
 }
