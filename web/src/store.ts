@@ -4,7 +4,7 @@ import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
 import { setLang, t } from "./i18n";
 import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath } from "./model";
-import type { Meta, Op, Path, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
+import type { Meta, Op, Path, GitStatus, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
 interface Toast {
   id: number;
@@ -12,7 +12,7 @@ interface Toast {
   text: string;
 }
 
-export type DialogKind = "open" | "new" | "saveas" | "example" | "profile" | null;
+export type DialogKind = "open" | "new" | "saveas" | "example" | "profile" | "git-commit" | "git-tag" | "gh-publish" | null;
 
 function savedTemplate(): string {
   try {
@@ -38,6 +38,7 @@ export const store = reactive({
   muxView: {} as Record<string, number | null>, // выбранное значение селектора по кадру
   revealLine: null as number | null,           // строка для перехода во вкладке YAML
   update: null as UpdateInfo | null,           // доступная новая версия (плашка вверху)
+  git: null as GitStatus | null,               // состояние git для файла карты (меню Git)
 });
 
 let toastId = 0;
@@ -205,6 +206,31 @@ export const actions = {
   },
   select: (p: Path) => {
     store.selected = p;
+  },
+  refreshGit: async () => {
+    if (!store.state || store.meta?.readonly) {
+      store.git = null;
+      return;
+    }
+    try {
+      store.git = await api.gitStatus();
+    } catch {
+      store.git = null;
+    }
+  },
+  /** Операция git (коммит, тег, push, pull): обновляет состояние git, ошибки — во всплывающем сообщении. */
+  git: async (fn: () => Promise<GitStatus>, okText: string): Promise<boolean> => {
+    store.busy = true;
+    try {
+      store.git = await fn();
+      toast(okText, "info");
+      return true;
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e));
+      return false;
+    } finally {
+      store.busy = false;
+    }
   },
   setPdfTemplate: (name: string) => {
     store.pdfTemplate = name;

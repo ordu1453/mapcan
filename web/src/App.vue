@@ -11,6 +11,8 @@ import PreviewDialog from "./components/PreviewDialog.vue";
 import ProfileDialog from "./components/ProfileDialog.vue";
 import StartScreen from "./components/StartScreen.vue";
 import TopBar from "./components/TopBar.vue";
+import GitDialog from "./components/GitDialog.vue";
+import GhPublishDialog from "./components/GhPublishDialog.vue";
 import YamlEditor from "./components/YamlEditor.vue";
 import { LANGUAGES, t } from "./i18n";
 
@@ -113,6 +115,9 @@ function keepMine() {
     <FileDialog v-if="store.dialog === 'open' || store.dialog === 'new' || store.dialog === 'saveas' || store.dialog === 'example'"
                 :key="store.dialog" :mode="store.dialog" @close="store.dialog = null" />
     <ProfileDialog v-if="store.dialog === 'profile'" @close="store.dialog = null" />
+    <GitDialog v-if="store.dialog === 'git-commit' || store.dialog === 'git-tag'"
+               :mode="store.dialog === 'git-commit' ? 'commit' : 'tag'" @close="store.dialog = null" />
+    <GhPublishDialog v-if="store.dialog === 'gh-publish'" @close="store.dialog = null" />
 
     <div class="toasts">
       <div v-for="t in store.toasts" :key="t.id" class="toast" :class="t.kind">{{ t.text }}</div>

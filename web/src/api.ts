@@ -1,4 +1,4 @@
-import type { DiffResult, FsList, GitRevs, Meta, Op, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
+import type { DiffResult, FsList, GitRevs, GitStatus, Meta, Op, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code = "") {
@@ -51,6 +51,15 @@ export const api = {
   save: (force = false) => call<State>("POST", "/api/save", { force }),
   reload: () => call<State>("POST", "/api/reload"),
   gitRevs: () => call<GitRevs>("GET", "/api/git/revs"),
+  gitStatus: () => call<GitStatus>("GET", "/api/git/status"),
+  gitInit: () => call<GitStatus>("POST", "/api/git/init"),
+  gitCommit: (message: string, tag = "") => call<GitStatus>("POST", "/api/git/commit", { message, tag }),
+  gitTag: (name: string, message = "") => call<GitStatus>("POST", "/api/git/tag", { name, message }),
+  gitPush: () => call<GitStatus>("POST", "/api/git/push"),
+  gitPull: () => call<GitStatus>("POST", "/api/git/pull"),
+  ghStatus: () => call<{ installed: boolean; user: string | null }>("GET", "/api/gh/status"),
+  ghCreate: (b: { name: string; private: boolean; description: string }) =>
+    call<GitStatus & { url: string | null }>("POST", "/api/gh/create", b),
   templates: () => call<{ pdf: PdfTemplate[]; default: string }>("GET", "/api/templates"),
   uploadLogo: (file: File) => {
     const fd = new FormData();

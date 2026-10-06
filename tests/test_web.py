@@ -254,6 +254,67 @@ def test_git_revs_reason(client, mapfile):
     r = client.get("/api/git/revs").json()
     assert r["available"] and [c["subject"] for c in r["commits"]] == ["init"]
     assert client.post("/api/diff/git", json={"rev": "HEAD"}).json()["lines"] == []
+    # Ревизия, похожая на ключ git (--output=…), отклоняется
+    assert client.post("/api/diff/git", json={"rev": "--output=x"}).status_code == 400
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
+def test_git_commit_tag_pull(client, mapfile, tmp_path):
+    def git(*args, cwd=mapfile.parent):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                              cwd=cwd, check=True, capture_output=True, text=True).stdout
+
+    assert client.get("/api/git/status").json() == {"available": False, "reason": "no-repo"}
+    assert client.post("/api/git/init").json()["available"]
+    assert client.post("/api/git/init").json()["code"] == "git-exists"
+    git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
+    (mapfile.parent / "other.txt").write_text("x")
+    st = client.get("/api/git/status").json()
+    assert st["available"] and st["file"] == "untracked" and st["last"] is None
+
+    # Несохранённые правки не коммитятся
+    ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.01})
+    assert client.post("/api/git/commit", json={"message": "m"}).json()["code"] == "unsaved"
+    assert client.post("/api/save", json={}).status_code == 200
+    assert client.post("/api/git/commit", json={"message": "  "}).json()["code"] == "git-message"
+    assert client.post("/api/git/commit", json={"message": "m", "tag": "-x"}).json()["code"] == "git-tag"
+
+    st = client.post("/api/git/commit", json={"message": "первая версия", "tag": "v1.0"}).json()
+    assert st["file"] == "clean" and st["last"]["subject"] == "первая версия"
+    assert git("tag").split() == ["v1.0"]
+    # Коммитится только карта: посторонний файл остаётся неотслеживаемым
+    assert "?? other.txt" in git("status", "--porcelain")
+    assert client.post("/api/git/commit", json={"message": "m"}).json()["code"] == "git-nothing"
+
+    assert client.post("/api/git/tag", json={"name": "bad tag"}).json()["code"] == "git-tag"
+    client.post("/api/git/tag", json={"name": "v1.1", "message": "релиз"})
+    assert git("tag").split() == ["v1.0", "v1.1"]
+
+    # pull из клона: изменения с удалённой стороны подхватываются редактором
+    remote = tmp_path / "remote.git"
+    git("clone", "-q", "--bare", ".", str(remote))
+    assert client.post("/api/git/push").json()["code"] == "no-remote"
+    git("remote", "add", "origin", str(remote))
+    # Первый push ветки задаёт upstream
+    st = client.post("/api/git/push").json()
+    assert st["remote"] == "origin" and st["upstream"] == "origin/" + st["branch"]
+    assert client.post("/api/gh/create", json={"name": "-bad"}).json()["code"] == "gh-name"
+    assert client.post("/api/gh/create", json={"name": "maps"}).json()["code"] in ("gh-remote", "no-gh")
+    other = tmp_path / "other"
+    git("clone", "-q", str(remote), str(other), cwd=tmp_path)
+    p = other / mapfile.name
+    p.write_text(p.read_text(encoding="utf-8").replace("factor: 0.01", "factor: 0.02"), encoding="utf-8")
+    git("commit", "-q", "-am", "remote", cwd=other)
+    git("push", "-q", cwd=other)
+    assert client.post("/api/git/pull").status_code == 200
+    assert "factor: 0.02" in client.get("/api/state").json()["text"]
+
+    ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.03})
+    assert client.post("/api/save", json={}).status_code == 200
+    st = client.post("/api/git/commit", json={"message": "локально"}).json()
+    assert st["ahead"] == 1
+    assert client.post("/api/git/push").json()["ahead"] == 0
 
 
 def test_websocket_notifications(client, mapfile):

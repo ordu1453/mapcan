@@ -346,6 +346,19 @@ table.list tr.clickable:hover { background: var(--hover); }
 .dropdown button:disabled { opacity: 0.45; }
 .dd-dir { font-size: 11px; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
 .dd-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.dd-note { font-size: 12px; color: var(--muted); padding: 4px 10px; max-width: 280px; }
+.dd-row { display: flex; align-items: stretch; }
+.dd-row > :first-child { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; }
+.dropdown .dd-dl { flex: none; width: 30px; text-align: center; padding: 5px 0; color: var(--muted); }
+.dropdown .dd-dl:hover { color: var(--accent); }
+.export-menu { min-width: 220px; }
+.git-menu { min-width: 280px; }
+.git-head { padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.git-head .git-last { max-width: 260px; white-space: nowrap; }
+.git-warn { color: var(--warning); }
+.git-dot { color: var(--warning); margin-left: 4px; font-size: 10px; }
+.git-count { margin-left: 4px; font-size: 11px; color: var(--muted); }
+.checkbox.wide { grid-column: 1 / -1; gap: 6px; }
 .user-chip { gap: 6px; padding: 2px 8px 2px 3px; border-radius: 16px; }
 .user-chip .avatar {
   width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;

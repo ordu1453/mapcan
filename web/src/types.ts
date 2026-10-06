@@ -162,3 +162,18 @@ export interface GitRevs {
   tags: string[];
   commits: Array<{ rev: string; subject: string; date: string }>;
 }
+
+/** Состояние git для файла карты (меню Git) */
+export interface GitStatus {
+  available: boolean;
+  reason?: "no-git" | "no-repo" | "error";
+  error?: string;
+  branch?: string | null;
+  upstream?: string | null;
+  ahead?: number;
+  behind?: number;
+  file?: "clean" | "modified" | "untracked";
+  last?: { rev: string; subject: string; date: string } | null;
+  /** Удалённый репозиторий (origin или первый из списка) */
+  remote?: string | null;
+}
