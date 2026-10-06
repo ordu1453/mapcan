@@ -359,17 +359,12 @@ a.gh { color: var(--accent); margin-left: 4px; }
 
 /* ------------------------------------------------------------------ стартовый экран */
 .start { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px; overflow: auto; }
-.start-card { width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
+.start-card { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
 .start-card h1 { margin: 0; display: flex; align-items: center; gap: 10px; }
-.start-ver { font-size: 14px; font-weight: 400; }
 .start-actions { display: flex; gap: 10px; }
 .start-actions button { padding: 8px 18px; font-size: 14px; }
 .start-card h3 { font-size: 13px; margin-bottom: 6px; }
 .start-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.start-recent li { display: flex; gap: 10px; align-items: baseline; }
-.start-recent .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.start-user { padding-top: 12px; border-top: 1px solid var(--line); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.start-hint { font-size: 12px; margin: 0; }
 
 /* ------------------------------------------------------------------ диалог файлов */
 .fd { display: flex; gap: 14px; height: 100%; min-height: 0; }
