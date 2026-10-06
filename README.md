@@ -1,9 +1,11 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
-  <img src="docs/logo-light.svg" alt="mapcan" height="56">
-</picture>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <img src="docs/logo-light.svg" alt="mapcan" height="110">
+  </picture>
+</p>
 
-**English** · [Русский](#ru)
+<p align="center"><b>English</b> · <a href="#ru">Русский</a></p>
 
 A tool for creating and editing **CAN signal maps** for any device or system.
 The map lives in a single YAML file. That file is the single source of truth: documentation,
@@ -271,7 +273,7 @@ simulator); plugins for non-CAN protocols (Modbus, UART packets).
 
 <a id="ru"></a>
 
-[English](#readme) · **Русский**
+<p align="center"><a href="#readme">English</a> · <b>Русский</b></p>
 
 Утилита для создания и редактирования **карт сигналов CAN** любых устройств и систем.
 Карта хранится в одном YAML-файле. Этот файл — единственный источник правды, из него
