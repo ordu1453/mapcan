@@ -113,8 +113,9 @@ EN: dict[str, str] = {
     "mapcan {version}: {url}  (Ctrl+C — остановить)": "mapcan {version}: {url}  (Ctrl+C to stop)",
     "сервер mapcan не запустился (порт занят?)": "the mapcan server did not start (is the port in use?)",
     "сервер mapcan не ответил за отведённое время": "the mapcan server did not respond in time",
-    "В «{name}» есть несохранённые изменения.\n\nЗакрыть без сохранения?":
-        "“{name}” has unsaved changes.\n\nClose without saving?",
+    "В «{name}» есть несохранённые изменения.\n\nСохранить перед закрытием?":
+        "“{name}” has unsaved changes.\n\nSave before closing?",
+    "Не удалось сохранить {path}:\n{error}": "Could not save {path}:\n{error}",
     "mapcan: окно приложения недоступно ({error}), открываю браузер":
         "mapcan: the app window is unavailable ({error}), opening the browser",
 

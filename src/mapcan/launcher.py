@@ -139,6 +139,20 @@ def _message_box(text: str, title: str = "mapcan", yes_no: bool = False) -> bool
     return True
 
 
+def _ask_save(text: str, title: str = "mapcan") -> bool | None:
+    """Да / Нет / Отмена: True — сохранить, False — не сохранять, None — отменить действие.
+
+    Вне Windows вопрос задать нечем — закрываем без сохранения, как раньше.
+    """
+    if os.name == "nt":
+        flags = 0x40000 | 0x03 | 0x30      # MB_TOPMOST | MB_YESNOCANCEL | MB_ICONWARNING
+        r = ctypes.windll.user32.MessageBoxW(None, text, title, flags)
+        return {6: True, 7: False}.get(r)  # IDYES, IDNO; IDCANCEL и закрытие окна — отмена
+    if sys.stderr:
+        print(f"{title}: {text}", file=sys.stderr)
+    return False
+
+
 def _unblock_bundle() -> None:
     """Снять с DLL сборки отметку «скачано из интернета» (Zone.Identifier).
 
@@ -254,9 +268,18 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
 
             def on_closing() -> bool:
                 s = wsp.session
-                if s is not None and s.text != s.saved_text:
-                    return _message_box(_("В «{name}» есть несохранённые изменения.\n\n"
-                                          "Закрыть без сохранения?", name=s.path.name), yes_no=True)
+                if s is None or s.text == s.saved_text:
+                    return True
+                answer = _ask_save(_("В «{name}» есть несохранённые изменения.\n\n"
+                                     "Сохранить перед закрытием?", name=s.path.name))
+                if answer is None:
+                    return False
+                if answer:
+                    try:
+                        s.save()
+                    except Exception as e:  # noqa: BLE001 — файл только для чтения, изменён извне и т.п.
+                        _message_box(_("Не удалось сохранить {path}:\n{error}", path=s.path, error=e))
+                        return False
                 return True
 
             webview.settings["ALLOW_DOWNLOADS"] = True
