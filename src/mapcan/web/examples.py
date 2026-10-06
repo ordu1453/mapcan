@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ruamel.yaml import YAML
-
-from ..i18n import _
+from ..i18n import N_, _
 
 _PACKAGE_DIR = Path(__file__).resolve().parent.parent
+
+# Подписи на стартовом экране (на языке интерфейса); пример без подписи показывается по имени файла.
+EXAMPLES = {
+    "minimal": N_("Минимальный"),
+    "j1939": N_("SAE J1939"),
+    "vehicle-can": N_("Электромобиль"),
+}
 
 
 def examples_dir() -> Path:
@@ -17,22 +22,13 @@ def examples_dir() -> Path:
     return bundled if bundled.is_dir() else _PACKAGE_DIR.parent.parent / "examples"
 
 
-def _title(path: Path) -> str:
-    try:
-        data = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
-        title = data["document"]["title"]
-    except Exception:  # noqa: BLE001 — битый пример не должен ломать стартовый экран
-        return path.stem
-    if isinstance(title, dict):         # локализованный текст {ru: …, en: …}
-        title = next(iter(title.values()), path.stem)
-    return str(title)
-
-
 def list_examples() -> list[dict[str, str]]:
     d = examples_dir()
     if not d.is_dir():
         return []
-    return [{"name": p.stem, "title": _title(p)} for p in sorted(d.glob("*.yaml"))]
+    order = list(EXAMPLES)
+    names = sorted((p.stem for p in d.glob("*.yaml")), key=lambda n: (order.index(n) if n in order else len(order), n))
+    return [{"name": n, "title": _(EXAMPLES[n]) if n in EXAMPLES else n} for n in names]
 
 
 def example_text(name: str) -> str:

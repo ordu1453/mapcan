@@ -361,7 +361,7 @@ a.gh { color: var(--accent); margin-left: 4px; }
 .start-card h1 { margin: 0; display: flex; align-items: center; gap: 10px; }
 .start-actions { display: flex; gap: 10px; }
 .start-actions button { padding: 8px 18px; font-size: 14px; }
-.start-card h3 { font-size: 13px; margin-bottom: 6px; }
+.start-card h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
 .start-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 
 /* ------------------------------------------------------------------ диалог файлов */

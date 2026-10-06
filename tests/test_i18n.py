@@ -116,6 +116,7 @@ def test_api_language_switch(tmp_path, monkeypatch):
         meta = c.get("/api/meta").json()
         assert meta["language"] == "en" and meta["language_chosen"] is False
         assert meta["templates"]["empty"] == "Empty: just a bus"
+        assert [e["title"] for e in meta["examples"]][:3] == ["Minimal", "SAE J1939", "Electric vehicle"]
         en_msgs = [d["message"] for d in c.get("/api/state").json()["diagnostics"]]
 
         meta = c.put("/api/language", json={"language": "ru"}).json()
