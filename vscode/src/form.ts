@@ -25,6 +25,8 @@ interface NodeFields {
   hasSelector: boolean;
   /** Fields; a nested one (the SDO exchange's value) is under "value.<field>". */
   values: Record<string, unknown>;
+  /** CANopen frame types for the frame's Type field; `taken` names the frame with the same CAN ID. */
+  frameTypes: { type: string; label: string; taken: string | null }[];
 }
 
 interface SetResult {

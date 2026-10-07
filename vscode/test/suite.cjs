@@ -104,6 +104,19 @@ const tests = {
     assert.equal(ctx.doc.getText(), before);
   },
 
+  async "a frame added to a CANopen device gets the first free PDO type"(ctx) {
+    const tree = ctx.api.tree;
+    const device = () => tree.getChildren(tree.getChildren()[0])[0];
+    const before = ctx.doc.getText();
+    await vscode.commands.executeCommand("mapcan.addFrame", device());
+    assert.match(ctx.doc.getText(), /\n {10}- name: pump_frame\n {12}type: pdo_tx2\n {12}dlc: 8\n {12}cycle_ms: 100\n {12}signals: \[\]\n/);
+    const added = await until("new frame", () => device().children.find((f) => f.raw.ident === "pump_frame"));
+    await vscode.commands.executeCommand("mapcan.closeForm");
+    await vscode.commands.executeCommand("mapcan.deleteNode", added);
+    await until("tree without the frame", () => !device().children.some((f) => f.raw.ident === "pump_frame"));
+    assert.equal(ctx.doc.getText(), before);
+  },
+
   async "a node added with + opens in the form, which writes fields to the YAML"(ctx) {
     const tree = ctx.api.tree;
     const form = ctx.api.form;

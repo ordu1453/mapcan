@@ -586,6 +586,7 @@ EN: dict[str, str] = {
     "Переименовать в {value!r}": "Rename to {value!r}",
     "Переместить на свободные биты: {bits}": "Move to free bits: {bits}",
     "Вставить пробел после «-»": "Insert a space after '-'",
+    "Заменить тип на {value}": "Change type to {value}",
     "Карта не разобрана: исправьте ошибки, чтобы увидеть документ.":
         "The map cannot be read: fix the errors to see the document.",
     "Карта не разобрана: исправьте ошибки, чтобы сравнить версии.":

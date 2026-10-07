@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from .. import model as M
 from ..bits import occupied_bits
+from ..canopen import CANOPEN_DLC, FUNCTION_CODES, compute_id
 from ..i18n import _
 from ..units import UNITS
 from ..validate import STYLE_RE
@@ -241,6 +242,17 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
     if code in ("bit-overlap", "signal-out-of-frame"):
         act = move_to_free_bits(a, path)
         return [act] if act else []
+
+    if code == "duplicate-can-id" and path and path[-1] == "type":
+        # Другой тип того же назначения (PDO TX → свободный PDO TX), чей ID не занят
+        current = raw_at(a, path)
+        prefix = re.sub(r"\d+$", "", current) if isinstance(current, str) else ""
+        free = [t["type"] for t in frame_types(a, path[:-1])
+                if t["taken"] is None and t["type"] != current and prefix.startswith("pdo_")
+                and t["type"].startswith(prefix)]
+        vr = value_range(a, path)
+        return [Action(_("Заменить тип на {value}", value=t), [Edit(*vr, t)], preferred=k == 0)
+                for k, t in enumerate(free)] if vr else []
     return []
 
 
@@ -558,6 +570,30 @@ def add_history(a: Analysis, entry: dict, changes: list[str]) -> TextChange | No
     return TextChange(text, n.start if n else (at, dash + 2))
 
 
+#: Типы PDO в порядке, в котором их получают новые кадры устройства CANopen.
+PDO_TYPES = [f"pdo_{d}{n}" for d in ("tx", "rx") for n in range(1, 5)]
+
+
+def _new_frame(a: Analysis, owner: Path_) -> list[tuple[str, str]]:
+    """Поля нового кадра, как в веб-редакторе: у кадра устройства CANopen — первый свободный тип PDO
+    (ID вычисляется из типа и node_id), у J1939 — свободный PGN, иначе — свободный явный ID."""
+    bus = raw_at(a, owner[:2]) or {}
+    protocol = bus.get("protocol") or "canopen"
+    device = len(owner) == 4
+    taken = [raw_at(a, fp + ("name",)) for fp in _frame_paths(a, owner[:2])]
+    base = f"{raw_at(a, owner + ('name',))}_frame" if device else "frame"
+    fields = [("name", _unique(base, taken))]
+    if protocol == "j1939":
+        used = {raw_at(a, fp + ("pgn",)) for fp in _frame_paths(a, owner[:2])}
+        pgn = next((p for p in range(0xFF00, 0x10000) if p not in used), 0xFF00)
+        fields += [("pgn", f"0x{pgn:04X}"), ("priority", "6")]
+    else:
+        types = {f.get("type") for f in raw_at(a, owner + ("frames",)) or [] if isinstance(f, dict)}
+        free = next((t for t in PDO_TYPES if t not in types), None) if protocol == "canopen" and device else None
+        fields.append(("type", free) if free else ("id", f"0x{_free_id(a, owner[:2]):03X}"))
+    return fields + [("dlc", "8"), ("cycle_ms", "100"), ("signals", "[]")]
+
+
 def _free_id(a: Analysis, bus_path: Path_) -> int:
     used = set()
     if a.map is not None:
@@ -611,9 +647,7 @@ def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
             fields.append(("address", f"0x{sa:02X}"))
         return append_item(a, path, "devices", fields)
     if kind == "frame" and path and path[0] == "buses" and len(path) in (2, 4):
-        frames = raw_at(a, path + ("frames",)) or []
-        fields = [("name", _unique("frame", _names(frames))), ("id", f"0x{_free_id(a, path[:2]):03X}")]
-        return append_item(a, path, "frames", fields)
+        return append_item(a, path, "frames", _new_frame(a, path))
     if kind == "signal" and len(path) >= 2 and path[-2] == "frames":
         signals = raw_at(a, path + ("signals",)) or []
         frame = _find(a.map, path) if a.map else None
@@ -768,6 +802,26 @@ def format_value(key: str, value) -> str:
     return yaml_text(str(value)) if key in TEXT_KEYS or key == "unit" else yaml_scalar(str(value))
 
 
+def frame_types(a: Analysis, path: Path_) -> list[dict]:
+    """Типы кадра CANopen для формы: {type, label, taken}. У кадра шины (без node_id устройства) —
+    только типы с ID, не зависящим от узла; ``taken`` — имя другого кадра шины с тем же CAN ID."""
+    owner = raw_at(a, path[:4]) if len(path) >= 6 and path[2] == "devices" else None
+    node_id = owner.get("node_id") if isinstance(owner, dict) else None
+    used: dict[int, str] = {}
+    if a.map is not None:
+        bus, me = _find(a.map, path[:2]), _find(a.map, path)
+        for f in bus.all_frames() if isinstance(bus, M.Bus) else []:
+            if f is not me and f.can_id is not None:
+                used.setdefault(f.can_id, f.name)
+    out = [{"type": "raw", "label": "Raw (explicit ID)", "taken": None}]
+    for fc in FUNCTION_CODES.values():
+        if fc.per_node and owner is None:
+            continue
+        can_id = compute_id(fc.type, node_id if isinstance(node_id, int) else None)
+        out.append({"type": fc.type, "label": fc.label_en, "taken": used.get(can_id) if can_id is not None else None})
+    return out
+
+
 def node_fields(a: Analysis, path: Path_) -> dict | None:
     """Данные узла для формы: тип, язык документа, протокол шины, владелец кадра, устройства шины
     и скалярные поля (тексты {ru, en} — на языке документа)."""
@@ -809,6 +863,7 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             "bitLength": signal.bit_length if isinstance(signal, M.Signal) else None,
             "hasSelector": has_selector,
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
+            "frameTypes": frame_types(a, path) if kind == "frame" else [],
             # Справочник единиц (ru, en) для подсказок в поле «Единица»; свой текст тоже допустим
             "units": [list(u) for u in UNITS] if kind == "signal" else []}
 
@@ -822,6 +877,8 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
     if not path or not isinstance(path[-1], str):
         return []
     key = path[-1]
+    if key == "type" and node_kind(path[:-1]) == "frame":
+        return _set_frame_type(a, path, value)
     if not isinstance(raw_at(a, path[:-1]), dict):
         # Поле ещё не созданного вложенного словаря (value.name у SDO): словарь добавляется вместе с ним
         parent = path[:-1]
@@ -866,6 +923,28 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
     if path not in a.nodes:
         return _insert_field(a, path[:-1], key, format_value(key, value))
     return set_value(a, path, format_value(key, value))
+
+
+def _set_frame_type(a: Analysis, path: Path_, value) -> list[Edit]:
+    """Тип кадра CANopen; записанный DLC, недопустимый для нового типа, убирается — берётся длина типа."""
+    edits = _set_plain(a, path, value)
+    allowed = CANOPEN_DLC.get(str(value or "raw"))
+    dlc = raw_at(a, path[:-1] + ("dlc",))
+    if edits and allowed and isinstance(dlc, int) and dlc not in allowed:
+        edits += delete_key(a, path[:-1] + ("dlc",))
+    return edits
+
+
+def _set_plain(a: Analysis, path: Path_, value) -> list[Edit]:
+    """Скалярное поле без особых правил: новое значение, ``None`` или "" — удалить ключ."""
+    current = raw_at(a, path)
+    if value is None or value == "":
+        return delete_key(a, path) if current is not None and path in a.nodes else []
+    if current == value:
+        return []
+    if path not in a.nodes:
+        return _insert_field(a, path[:-1], path[-1], format_value(path[-1], value))
+    return set_value(a, path, format_value(path[-1], value))
 
 
 def minimal_edit(old: str, new: str) -> Edit:

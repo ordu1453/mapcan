@@ -7,12 +7,6 @@
   const vscode = acquireVsCodeApi();
   const app = /** @type {HTMLElement} */ (document.getElementById("app"));
 
-  const FRAME_TYPES = [
-    ["raw", "Raw (explicit ID)"], ["nmt", "NMT"], ["sync", "SYNC"], ["emcy", "EMCY"], ["time", "TIME"],
-    ["pdo_tx1", "PDO TX 1"], ["pdo_rx1", "PDO RX 1"], ["pdo_tx2", "PDO TX 2"], ["pdo_rx2", "PDO RX 2"],
-    ["pdo_tx3", "PDO TX 3"], ["pdo_rx3", "PDO RX 3"], ["pdo_tx4", "PDO TX 4"], ["pdo_rx4", "PDO RX 4"],
-    ["sdo_tx", "SDO TX"], ["sdo_rx", "SDO RX"], ["heartbeat", "Heartbeat"],
-  ];
   // Direction of CANopen frame types (as in canopen.py); SYNC and TIME have none
   // Service frames of CANopen whose length the type fixes (CiA 301, as in canopen.py)
   const FIXED_DLC = ["nmt", "time", "heartbeat", "sdo_tx", "sdo_rx"];
@@ -29,7 +23,7 @@
   /**
    * @typedef {{protocol: string, owner: string|null, devices: {name: string, label: string}[],
    *   signalKind: string|null, bitLength: number|null, hasSelector: boolean, values: Record<string, any>,
-   *   units: string[][], lang: string}} Ctx
+   *   units: string[][], lang: string, frameTypes: {type: string, label: string, taken: string|null}[]}} Ctx
    * @typedef {{key: string, label: string, type: string, half?: boolean, mono?: boolean, required?: boolean,
    *   numeric?: boolean,
    *   tip?: string, placeholder?: string | ((c: Ctx) => string), options?: (c: Ctx) => string[][],
@@ -103,7 +97,10 @@
         NAME,
       ] },
       { title: "Identification", fields: [
-        { key: "type", label: "Type", type: "select", options: () => FRAME_TYPES, when: (c) => c.protocol === "canopen" },
+        // Types from the server: a frame of the bus has no node-specific types; a type whose CAN ID
+        // another frame already has is disabled and names that frame
+        { key: "type", label: "Type", type: "select", when: (c) => c.protocol === "canopen",
+          options: (c) => c.frameTypes.map((t) => [t.type, t.taken ? `${t.label} — ${t.taken}` : t.label, !!t.taken]) },
         { key: "id", label: "CAN ID", type: "hex", half: true,
           placeholder: (c) => (c.protocol === "can" ? "0x123" : "Auto"),
           tip: "Empty: computed from the type and node ID (CANopen) or from PGN and SA (J1939)",
@@ -264,7 +261,7 @@
   const ctx = () => /** @type {Ctx} */ ({
     protocol: node.protocol, owner: node.owner, devices: node.devices, signalKind: node.signalKind,
     bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector,
-    values: node.values, units: node.units ?? [], lang: node.lang,
+    values: node.values, units: node.units ?? [], lang: node.lang, frameTypes: node.frameTypes ?? [],
   });
 
   function el(/** @type {string} */ tag, /** @type {Record<string, any>} */ props = {}, ...children) {
@@ -480,7 +477,9 @@
         const value = v == null ? "" : String(v);
         // A value from YAML that is not among the options stays visible, so it can be changed
         if (value && !opts.some(([o]) => o === value)) opts.push([value, value]);
-        r.input.replaceChildren(...opts.map(([o, label]) => el("option", { value: o }, label)));
+        // The third element disables an option; the current value stays selectable
+        r.input.replaceChildren(...opts.map(([o, label, disabled]) =>
+          el("option", { value: o, disabled: !!disabled && o !== value }, label)));
         r.input.value = value;
       } else if (f.type === "devices") {
         const picked = new Set(Array.isArray(v) ? v : v ? [v] : []);

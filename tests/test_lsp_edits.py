@@ -136,7 +136,7 @@ def _change(text: str, change: E.TextChange | None) -> str:
 
 @pytest.mark.parametrize(("path", "kind", "line"), [
     (("buses", 0), "device", "      - name: device"),
-    (DEV, "frame", "          - name: frame"),
+    (DEV, "frame", "          - name: pump_frame"),
     (FRAME, "signal", "              - name: signal"),
 ])
 def test_add_node(path, kind, line):
@@ -145,7 +145,7 @@ def test_add_node(path, kind, line):
     out = _change(MINIMAL, change)
     lines = out.splitlines()
     assert lines[change.cursor[0]].startswith(line)
-    assert lines[change.cursor[0]][change.cursor[1]:] == kind
+    assert lines[change.cursor[0]][change.cursor[1]:] == line.split(": ")[1]
     assert [c for c in errors(out) if c not in errors(MINIMAL)] == []
 
 
@@ -306,3 +306,56 @@ def test_add_history_entry():
     # Запись «[…]» в одну строку не дополняется
     flow = MINIMAL.replace("  version: 0.1.0\n", "  version: 0.1.0\n  history: [{version: 0.1.0}]\n")
     assert E.add_history(A.analyze(flow, "m.yaml"), entry, changes) is None
+
+
+def test_new_frame_like_web_editor():
+    # Кадр устройства CANopen — первый свободный тип PDO (pdo_tx1 уже занят), ID вычисляется
+    a = A.analyze(MINIMAL, "m.yaml")
+    out = _change(MINIMAL, E.add_node(a, DEV, "frame"))
+    frame = A.analyze(out, "r.yaml").result.raw["buses"][0]["devices"][0]["frames"][-1]
+    assert frame == {"name": "pump_frame", "type": "pdo_tx2", "dlc": 8, "cycle_ms": 100, "signals": []}
+    # Кадр шины — с явным ID
+    bus_frame = _change(MINIMAL, E.add_node(a, ("buses", 0), "frame"))
+    raw = A.analyze(bus_frame, "r.yaml").result.raw["buses"][0]["frames"][-1]
+    assert raw["name"] == "frame" and isinstance(raw["id"], int) and "type" not in raw
+    # J1939 — свободный PGN и приоритет
+    j1939 = (ROOT / "examples" / "j1939.yaml").read_text(encoding="utf-8")
+    b = A.analyze(j1939, "j.yaml")
+    dev = next(p for p in b.nodes if len(p) == 4 and p[2] == "devices")
+    out = _change(j1939, E.add_node(b, dev, "frame"))
+    raw = A.analyze(out, "r.yaml").result.raw
+    frame = raw["buses"][dev[1]]["devices"][dev[3]]["frames"][-1]
+    assert frame["pgn"] >= 0xFF00 and frame["priority"] == 6 and "id" not in frame
+
+
+def test_frame_type_change_drops_invalid_dlc():
+    text = MINIMAL.replace("            type: pdo_tx1\n", "            type: pdo_tx1\n            dlc: 7\n")
+    a = A.analyze(text, "m.yaml")
+    out = apply(text, E.set_field(a, FRAME + ("type",), "sdo_tx"))
+    assert "type: sdo_tx\n" in out and "dlc: 7" not in out
+    # Допустимый DLC остаётся
+    out = apply(text, E.set_field(a, FRAME + ("type",), "pdo_tx2"))
+    assert "type: pdo_tx2\n" in out and "dlc: 7\n" in out
+
+
+def test_frame_types_mark_taken_ids():
+    a = A.analyze(MINIMAL, "m.yaml")
+    types = {t["type"]: t["taken"] for t in E.frame_types(a, FRAME)}
+    assert types["pdo_tx1"] is None             # тип самого кадра не занят им же
+    second = MINIMAL.replace("          - name: pump_state", (
+        "          - name: other\n            type: pdo_tx2\n            signals: []\n          - name: pump_state"))
+    b = A.analyze(second, "m.yaml")
+    types = {t["type"]: t["taken"] for t in E.frame_types(b, DEV + ("frames", 1))}
+    assert types["pdo_tx2"] == "other" and types["pdo_rx1"] is None
+    # У кадра шины нет node_id: только типы, ID которых не зависит от узла
+    bus_frame = E.frame_types(a, ("buses", 0, "frames", 0))
+    assert [t["type"] for t in bus_frame] == ["raw", "nmt", "sync", "time"]
+
+
+def test_duplicate_pdo_type_quick_fix():
+    text = MINIMAL + ("          - name: pump_frame\n            type: pdo_tx1\n            dlc: 8\n"
+                      "            signals: []\n")
+    # Первое (предпочтительное) — свободный PDO того же направления; PDO RX не предлагается
+    assert "            type: pdo_tx2\n            dlc: 8\n" in fixed(text, "duplicate-can-id")
+    titles = [t for c, t, _ in fixes(text) if c == "duplicate-can-id"]
+    assert titles and all("pdo_tx" in t for t in titles)

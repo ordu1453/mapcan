@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+* New frames are made as in the web editor: a frame of a CANopen device gets the first free PDO
+  type (`pdo_tx1`…`pdo_rx4`, its ID computed from the node ID), a J1939 frame a free PGN with
+  priority 6, other frames a free explicit ID; all with DLC 8 and a 100 ms cycle. The **Type**
+  field of the Node panel (CANopen buses only) drops a DLC that the new type does not allow.
+* The **Type** field disables types whose CAN ID another frame already has and names that frame; a
+  frame of the bus itself offers only the types that do not depend on a node ID. A duplicate
+  CAN ID from a PDO type has a quick fix: a free PDO of the same direction.
 * **History** panel in the side bar: the map's Git commits and uncommitted changes. Commit or
   discard the changes of the map, compare any two versions, open or restore a version, and add the
   changes to the revision history in the YAML (`document.history`). Comparisons open in one
