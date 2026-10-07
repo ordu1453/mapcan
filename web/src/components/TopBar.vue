@@ -111,7 +111,6 @@ onBeforeUnmount(() => {
         <div class="dd-sep" />
         <button :disabled="!hasMap || !store.state?.dirty || store.state?.readonly" @click="actions.save()">{{ t("Сохранить") }} <kbd>Ctrl+S</kbd></button>
         <button :disabled="!hasMap || store.meta?.readonly" @click="store.dialog = 'saveas'">{{ t("Сохранить как…") }} <kbd>Ctrl+Shift+S</kbd></button>
-        <button :disabled="!hasMap" @click="actions.reload()">{{ t("Перечитать с диска") }}</button>
         <button :disabled="!hasMap" @click="actions.closeFile()">{{ t("Закрыть карту") }}</button>
       </div>
     </div>
@@ -120,6 +119,8 @@ onBeforeUnmount(() => {
       <span class="mono">{{ store.state?.file }}</span>
       <span v-if="store.state?.dirty" class="dirty" :title="t('Есть несохранённые изменения')">●</span>
       <span v-if="store.state?.readonly" class="badge">{{ t("только просмотр") }}</span>
+      <button class="icon" :class="{ attention: store.fileChangedBanner }" :disabled="store.busy"
+              :title="t('Обновить: перечитать файл с диска')" @click="actions.reload()">⟳</button>
     </div>
     <span v-if="!store.online" class="badge warning" :title="t('Нет связи с сервером mapcan')">{{ t("нет связи") }}</span>
 

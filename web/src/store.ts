@@ -215,8 +215,12 @@ export const actions = {
   },
   undo: () => run(api.undo),
   redo: () => run(api.redo),
-  reload: async () => {
+  /** Перечитать файл с диска; `ask` — спросить, если есть несохранённые правки (они и история отмены теряются). */
+  reload: async (ask = true) => {
+    const unsaved = !!store.state?.dirty || yamlLocal.value;
+    if (ask && unsaved && !confirm(t("Перечитать файл с диска? Несохранённые изменения будут потеряны."))) return false;
     store.fileChangedBanner = false;
+    store.yaml = { draft: null, applied: null, diags: null };
     return run(api.reload, t("Файл перечитан с диска"));
   },
   save: async (force = false): Promise<void> => {

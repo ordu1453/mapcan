@@ -84,7 +84,7 @@ function keepMine() {
 
     <div v-if="store.fileChangedBanner && store.state" class="disk-banner">
       {{ t("Файл {file} изменён на диске другой программой.", { file: store.state.file }) }}
-      <button @click="actions.reload()">{{ t("Перечитать с диска") }}</button>
+      <button @click="actions.reload(false)">{{ t("Перечитать с диска") }}</button>
       <button @click="keepMine">{{ t("Оставить мою версию") }}</button>
       <span v-if="store.state.dirty" class="muted">{{ t("Несохранённые правки при перечитывании будут потеряны.") }}</span>
     </div>

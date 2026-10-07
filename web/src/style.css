@@ -74,6 +74,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.1); background: var(-
 button.small, .button.small { padding: 2px 8px; font-size: 12px; }
 button.icon { padding: 2px 7px; min-width: 26px; justify-content: center; }
 button.icon.danger:hover { color: var(--error); border-color: var(--error); }
+button.icon.attention { color: var(--warning); border-color: var(--warning); }
 button.link { border: none; background: none; color: var(--accent); padding: 0 4px; }
 input, select, textarea {
   border: 1px solid var(--line-strong); border-radius: 4px; background: var(--panel); padding: 4px 6px; min-width: 0;
