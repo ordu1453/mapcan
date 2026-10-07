@@ -72,7 +72,7 @@ lint:
 | Field | Description |
 |---|---|
 | `name` | Bus identifier (used for DBC and C file names) |
-| `title` | Display name in documents ("Powertrain CAN") |
+| `title` | Display name in documents and the editor tree ("Powertrain CAN"); without it, `missing-title` is reported |
 | `description` | Description |
 | `interface` | Interface (`can0`, `PCAN_USBBUS1`, …) |
 | `bitrate` | Bit rate, bit/s |
@@ -87,7 +87,7 @@ lint:
 |---|---|
 | `name` | Identifier (`imd`) |
 | `short` | Short label for tables (`BMS`) |
-| `title` | Full name |
+| `title` | Full name, shown in documents and the editor tree; without it, `missing-title` is reported |
 | `node_id` | CANopen node address (1..127) |
 | `address` | J1939 source address (0..253) |
 | `description` | Description |
@@ -98,7 +98,7 @@ lint:
 | Field | Description |
 |---|---|
 | `name` | Frame identifier (unique on the bus) |
-| `title` | Short heading ("STATES") |
+| `title` | Name: the heading in documents and the label in the editor tree ("STATES") |
 | `description` | Purpose of the frame |
 | `type` | `nmt`, `sync`, `emcy`, `time`, `pdo_tx1..4`, `pdo_rx1..4`, `sdo_tx`, `sdo_rx`, `heartbeat`, `raw` (default) |
 | `id` | Explicit CAN ID (required on `can` buses; on CANopen and J1939 it overrides the computed ID) |
@@ -134,6 +134,7 @@ CANopen ID computation:
 | Field | Description |
 |---|---|
 | `name` | Identifier (unique within the frame, together with flag names) |
+| `title` | Human-readable name ("Battery voltage"); the editor tree shows it instead of the identifier |
 | `description` | Description |
 | `kind` | `enum`, `flag`, `bitfield`, `metric`, `raw`, `float`, `bytes`. If omitted: `flags` present → `bitfield`, `values` present → `enum`, `factor`/`offset`/`unit` present → `metric`, otherwise `raw` |
 | `start_bit` + `bit_length` | Canonical position |
@@ -442,4 +443,5 @@ turned off with `--disable CODE` or `lint.disable`.
 | `logo-format` | error | Unsupported logo format |
 | `history-version` | warning | Document version differs from the latest revision history entry |
 | `missing-description` | info | Signal has no description |
+| `missing-title` | info | Bus or device has no full name (`title`) |
 | `empty-frame` | info | Frame has no signals |

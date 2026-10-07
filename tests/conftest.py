@@ -29,8 +29,8 @@ def one_bus(frames: str, protocol: str = "canopen", devices_extra: str = "", lin
         "document:\n  title: Тест\n"
         + (lint or "")
         + "buses:\n"
-        f"  - name: bus\n    protocol: {protocol}\n    devices:\n"
-        "      - name: dev\n        node_id: 0x10\n        frames:\n"
+        f"  - name: bus\n    title: Шина\n    protocol: {protocol}\n    devices:\n"
+        "      - name: dev\n        title: Устройство\n        node_id: 0x10\n        frames:\n"
         + frames + "\n"
         + (devices_extra or "")
     )

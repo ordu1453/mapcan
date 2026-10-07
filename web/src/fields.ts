@@ -110,7 +110,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   ],
   bus: [
     { key: "name", label: N_("Идентификатор"), type: "text", required: true, hint: N_("латиница, цифры, _; имена файлов DBC/C") },
-    { key: "title", label: N_("Название в документах"), type: "loc", hint: N_("напр. Шина 1; пусто — идентификатор") },
+    { key: "title", label: N_("Название"), type: "loc", required: true, hint: N_("напр. Шина 1") },
     { key: "protocol", label: N_("Протокол"), type: "select",
       options: [["canopen", "CANopen"], ["j1939", "SAE J1939"], ["can", N_("CAN (явные ID)")]] },
     { key: "bitrate", label: N_("Скорость, бит/с"), type: "int" },
@@ -120,8 +120,8 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   ],
   device: [
     { key: "name", label: N_("Идентификатор"), type: "text", required: true, hint: N_("латиница, цифры, _; код C, отправители и получатели кадров") },
-    { key: "title", label: N_("Полное название"), type: "loc", hint: N_("в заголовках документов") },
-    { key: "short", label: N_("Сокращение в документах"), type: "text", hint: N_("напр. BMS; пусто — идентификатор прописными") },
+    { key: "title", label: N_("Полное название"), type: "loc", required: true, hint: N_("в дереве карты и заголовках документов") },
+    { key: "short", label: N_("Сокращение"), type: "text", hint: N_("напр. BMS; в дереве — перед полным названием") },
     { key: "node_id", label: N_("Адрес узла (node_id)"), type: "hex", hint: N_("адрес CANopen 1..127"),
       when: (_n, c) => c.protocol === "canopen",
       required: (n, c) => c.protocol === "canopen" && needsAddress(n, (f) => (f.type ?? "raw") !== "raw") },
@@ -132,7 +132,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   ],
   frame: [
     { key: "name", label: N_("Идентификатор"), type: "text", required: true },
-    { key: "title", label: N_("Заголовок в документах"), type: "loc", hint: N_("напр. СОСТОЯНИЯ") },
+    { key: "title", label: N_("Название"), type: "loc", hint: N_("напр. Состояния; пусто — в дереве идентификатор") },
     // Вне CANopen тип не используется (ID явный или из PGN); записанный в YAML тип виден, чтобы его исправить
     { key: "type", label: N_("Тип"), type: "select", optionsFor: frameTypes, when: (_n, c) => c.protocol === "canopen" },
     { key: "id", label: "CAN ID", type: "hex", hint: N_("пусто — вычислить (CANopen: тип + node_id, J1939: PGN + SA)"),
@@ -162,6 +162,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   ],
   signal: [
     { key: "name", label: N_("Идентификатор"), type: "text", required: true },
+    { key: "title", label: N_("Название"), type: "loc", hint: N_("напр. Напряжение батареи; пусто — в дереве идентификатор") },
     { key: "kind", label: N_("Тип"), type: "select", options: KINDS },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
     // CANopen и J1939 — только little-endian

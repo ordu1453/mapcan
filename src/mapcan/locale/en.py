@@ -194,6 +194,7 @@ EN: dict[str, str] = {
     "Файл логотипа не найден": "Logo file not found",
     "Неподдерживаемый формат логотипа": "Unsupported logo format",
     "Нет описания сигнала": "Signal has no description",
+    "Нет полного названия шины или устройства": "Bus or device has no full name",
     "Код знакового числа не поддерживается кодогенерацией или задан у беззнакового сигнала":
         "Signed number code is not supported by code generation or is set on an unsigned signal",
     "В кадре не описаны сигналы": "Frame has no signals",
@@ -323,6 +324,8 @@ EN: dict[str, str] = {
     "сигнал {name!r}: float — 32 или 64 бита, задано {bits}":
         "signal {name!r}: float must be 32 or 64 bits, got {bits}",
     "сигнал {name!r} без описания": "signal {name!r} has no description",
+    "у шины {name!r} нет названия (title)": "bus {name!r} has no name (title)",
+    "у устройства {name!r} нет полного названия (title)": "device {name!r} has no full name (title)",
     "signed_code у беззнакового сигнала {name!r} не используется":
         "signed_code is ignored on unsigned signal {name!r}",
     "{name!r}: сгенерированный код и DBC читают значение в дополнительном коде":
@@ -397,6 +400,7 @@ EN: dict[str, str] = {
     "Флаг внутри битового поля. ``bit`` — смещение от младшего бита поля.":
         "A flag inside a bit field. ``bit`` is the offset from the field's least significant bit.",
     "Короткий заголовок, напр. «СОСТОЯНИЯ».": "Short heading, e.g. \"STATES\".",
+    "Название сигнала для людей, напр. «Напряжение батареи».": "Human-readable signal name, e.g. \"Battery voltage\".",
     "Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN.":
         "Explicit CAN ID. For CANopen it is computed from node_id, for J1939 from the PGN.",
     "J1939: номер группы параметров (PGN).": "J1939: parameter group number (PGN).",

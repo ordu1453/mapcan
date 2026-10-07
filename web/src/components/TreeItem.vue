@@ -39,18 +39,18 @@ const selected = computed(() => samePath(store.selected, props.node.path));
 const onPath = computed(() => !selected.value && startsWith(store.selected, props.node.path));
 const match = computed(() => props.query !== "" && props.node.search.includes(props.query));
 
-// Двойной щелчок по названию — переименование (у шины в дереве виден title, правится name)
-// У устройства подпись «short · name», у шины — название (title) и имя справа: каждая часть правится своим двойным щелчком
+// В дереве видны названия для людей (title), а не идентификаторы: двойной щелчок правит то, что видно.
+// У устройства подпись «short · title» — каждая часть правится своим двойным щелчком; у флагов и SDO названия нет — правится имя.
 type Part = "name" | "short" | "title";
 const renaming = ref<Part | null>(null);
 const nodeData = computed(() => (store.state?.data ? getAt(store.state.data, props.node.path) : null));
-const busTitle = computed(() => (props.node.kind === "bus" ? txt(nodeData.value?.title, lang.value) : ""));
-const partValue = (p: Part) => (p === "title" ? busTitle.value : nodeData.value?.[p] ?? "");
-function startRename(field: Part = "name") {
+const titled = computed(() => ["bus", "device", "frame", "signal"].includes(props.node.kind));
+const title = computed(() => txt(nodeData.value?.title, lang.value));
+// Названия ещё нет — поле правки открывается с идентификатором, который сейчас виден в дереве
+const partValue = (p: Part) => (p === "title" ? title.value || nodeData.value?.name || "" : nodeData.value?.[p] ?? "");
+function startRename(field: Part) {
   if (props.node.from === undefined && canRename(props.node.path)) renaming.value = field;
 }
-// Идентификатор шины с названием виден справа — поле правки открывается там же, а не на месте названия
-const renamingSub = computed(() => renaming.value === "name" && props.node.kind === "bus" && !!busTitle.value);
 
 function click() {
   actions.select(props.node.path);
@@ -70,17 +70,14 @@ function click() {
       </span>
       <TreeIcon :kind="node.kind" :dir="node.dir"
                 :hint="node.kind === 'frame' ? (node.dir ? t(DIR_TITLE[node.dir]) : t('широковещательный')) : undefined" />
-      <InlineRename v-if="renaming && !renamingSub" :path="node.path" :field="renaming" :value="partValue(renaming)"
+      <InlineRename v-if="renaming" :path="node.path" :field="renaming" :value="partValue(renaming)"
                     @done="renaming = null" />
       <span v-else-if="node.kind === 'device' && nodeData?.short" class="tlabel">
         <span @dblclick.stop="startRename('short')">{{ nodeData.short }}</span> · <span
-          @dblclick.stop="startRename('name')">{{ nodeData.name }}</span>
+          @dblclick.stop="startRename('title')">{{ title || nodeData.name }}</span>
       </span>
-      <span v-else class="tlabel" @dblclick.stop="startRename(busTitle ? 'title' : 'name')">{{ node.label }}</span>
-      <InlineRename v-if="renamingSub" :path="node.path" field="name" :value="partValue('name')"
-                    @done="renaming = null" />
-      <span v-else-if="node.sub && !(node.kind === 'bus' && !busTitle)" class="tsub mono"
-            @dblclick.stop="node.kind === 'bus' && startRename('name')">{{ node.sub }}</span>
+      <span v-else class="tlabel" @dblclick.stop="startRename(titled ? 'title' : 'name')">{{ node.label }}</span>
+      <span v-if="node.sub" class="tsub mono">{{ node.sub }}</span>
       <span v-if="node.from !== undefined" class="tsub link-mark">↪</span>
       <span v-if="own" class="dot" :class="own" :title="own" />
       <span v-else-if="nested" class="dot ring" :class="nested" />

@@ -6,7 +6,7 @@ import { renameNode, setShort, setTitle } from "../edit";
 import { toast } from "../store";
 import type { Path } from "../types";
 
-// field: name — имя узла (с проверкой занятости), short — обозначение устройства, title — название шины
+// field: name — имя узла (с проверкой занятости), short — обозначение устройства, title — название узла
 const props = defineProps<{ path: Path; value: string; field?: "name" | "short" | "title" }>();
 const emit = defineEmits<{ done: [] }>();
 
@@ -24,6 +24,11 @@ onMounted(async () => {
 async function save(fromBlur = false) {
   if (busy) return;
   busy = true;
+  // Без изменений ничего не пишем: поле названия может открыться с идентификатором, пока названия нет
+  if (draft.value.trim() === props.value.trim()) {
+    emit("done");
+    return;
+  }
   const err = props.field === "short" ? await setShort(props.path, draft.value)
     : props.field === "title" ? await setTitle(props.path, draft.value)
     : await renameNode(props.path, draft.value);

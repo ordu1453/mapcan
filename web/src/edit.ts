@@ -1,7 +1,7 @@
 // Структурные правки: добавить / удалить / дублировать узел.
 
-import { actions, resolvedFrames, store, toast } from "./store";
-import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, uniqueName, type Data, type NodeKind } from "./model";
+import { actions, lang, resolvedFrames, store, toast } from "./store";
+import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, txt, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
 import { t } from "./i18n";
 
@@ -23,16 +23,30 @@ function fixIndex(o: Op, index: number): Op {
   return { ...o, path: o.path.map((x) => (x === "$new" ? index : x)) } as Op;
 }
 
+/**
+ * Полное название нового узла на языке документа: «Шина 2», «Device 3» — первое свободное среди соседей.
+ * Название обязательно; пользователь меняет его в форме или двойным щелчком в дереве.
+ */
+function defaultTitle(ru: string, en: string, siblings: Data[]): string {
+  const base = lang.value === "en" ? en : ru;
+  const taken = new Set(siblings.map((x) => txt(x?.title, lang.value)));
+  let n = siblings.length + 1;
+  while (taken.has(`${base} ${n}`)) n++;
+  return `${base} ${n}`;
+}
+
 export function addBus(): Promise<boolean> {
-  const names = (data()?.buses ?? []).map((b: Data) => b.name);
-  const name = uniqueName("bus", names);
-  return insertAndSelect(["buses"], { name, title: name, protocol: "can", devices: [] });
+  const buses: Data[] = data()?.buses ?? [];
+  const name = uniqueName("bus", buses.map((b) => b.name));
+  return insertAndSelect(["buses"], { name, title: defaultTitle("Шина", "Bus", buses), protocol: "can", devices: [] });
 }
 
 export function addDevice(busPath: Path): Promise<boolean> {
   const bus = getAt(data(), busPath);
   const devices: Data[] = bus.devices ?? [];
-  const value: Record<string, unknown> = { name: uniqueName("device", devices.map((d) => d.name)) };
+  const value: Record<string, unknown> = {
+    name: uniqueName("device", devices.map((d) => d.name)), title: defaultTitle("Устройство", "Device", devices),
+  };
   if (bus.protocol === "j1939") {
     const used = new Set(devices.map((d) => d.address));
     let a = 0x10;
@@ -237,6 +251,8 @@ export async function renameNode(path: Path, raw: string): Promise<string | null
  */
 export async function setTitle(path: Path, raw: string): Promise<string | null> {
   const v = raw.trim();
+  // У шины и устройства название обязательно
+  if (!v && ["bus", "device"].includes(nodeKind(path))) return t("Название не может быть пустым");
   const title = getAt(data(), path)?.title;
   const lng: string = store.state?.resolved?.language ?? data()?.document?.language ?? "ru";
   const op: Op = title && typeof title === "object"

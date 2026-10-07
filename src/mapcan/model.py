@@ -179,6 +179,7 @@ class Flag(_Base):
 
 class Signal(_Base):
     name: str
+    title: Text | None = Field(None, description=N_("Название сигнала для людей, напр. «Напряжение батареи»."))
     description: Text | None = None
     kind: SignalKind | None = Field(
         None,

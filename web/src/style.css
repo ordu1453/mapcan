@@ -220,9 +220,6 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .help-tip:hover .help-pop, .help-tip.open .help-pop { display: block; }
 .checkbox { height: 27px; display: flex; align-items: center; }
 .checkbox input { width: auto; }
-.loc { display: flex; gap: 4px; }
-.loc input { flex: 1; }
-.loc input.en { font-style: italic; }
 
 table { border-collapse: collapse; width: 100%; }
 th { text-align: left; font-weight: 600; font-size: 11px; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--line); }

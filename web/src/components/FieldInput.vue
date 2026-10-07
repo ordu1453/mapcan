@@ -23,40 +23,31 @@ const emit = defineEmits<{ commit: [value: unknown] }>();
 
 const error = ref("");
 const draft = ref("");
-const draftEn = ref("");
+
+// Текст на нескольких языках правится на языке документа; переводы на другие языки сохраняются как есть
+const locMap = computed(() => (props.value && typeof props.value === "object" && !Array.isArray(props.value)
+  ? props.value as Record<string, string> : null));
+/** Текст на другом языке — подсказка в пустом поле, если на языке документа его ещё нет. */
+const locFallback = computed(() => (locMap.value ? Object.values(locMap.value).find((x) => x) ?? "" : ""));
 
 function syncFromValue() {
   error.value = "";
   const v = props.value;
-  if (props.def.type === "loc") {
-    if (v && typeof v === "object") {
-      const o = v as Record<string, string>;
-      draft.value = o.ru ?? "";
-      draftEn.value = o.en ?? "";
-    } else {
-      draft.value = (v as string) ?? "";
-      draftEn.value = "";
-    }
-  } else {
-    draft.value = formatValue(props.def.type, v);
-  }
+  if (props.def.type === "loc") draft.value = locMap.value ? locMap.value[docLang.value] ?? "" : (v as string) ?? "";
+  else draft.value = formatValue(props.def.type, v);
 }
-watch(() => props.value, syncFromValue, { immediate: true, deep: true });
-
-const showEn = ref(false);
-watch(() => draftEn.value, (v) => { if (v) showEn.value = true; }, { immediate: true });
+watch([() => props.value, docLang], syncFromValue, { immediate: true, deep: true });
 
 function commit() {
   try {
     if (props.def.type === "loc") {
-      const ru = draft.value.trim();
-      const en = draftEn.value.trim();
+      const text = draft.value.trim();
       const old = props.value;
-      const extra = old && typeof old === "object" ? { ...(old as Record<string, string>) } : {};
-      let next: unknown;
-      if (en) next = { ...extra, ru, en };
-      else if (Object.keys(extra).some((k) => k !== "ru" && k !== "en")) next = { ...extra, ru, en: undefined };
-      else next = ru || null;
+      let next: unknown = text || null;
+      if (locMap.value) {
+        const rest = Object.fromEntries(Object.entries(locMap.value).filter(([k, x]) => k !== docLang.value && x));
+        next = Object.keys(rest).length ? (text ? { ...locMap.value, [docLang.value]: text } : rest) : next;
+      }
       if (JSON.stringify(next ?? null) !== JSON.stringify(old ?? null)) emit("commit", next);
       return;
     }
@@ -189,12 +180,8 @@ watch(() => store.focusPath, async (fp) => {
       <input type="checkbox" :checked="!!value" :disabled="readonly" @change="onBool" />
     </span>
 
-    <span v-else-if="def.type === 'loc'" class="loc">
-      <input v-model="draft" :readonly="readonly" :placeholder="placeholder" @change="commit" />
-      <input v-if="showEn" v-model="draftEn" class="en" :readonly="readonly" placeholder="English"
-             @change="commit" />
-      <button v-else-if="!readonly" type="button" class="link" :title="t('Добавить перевод')" @click="showEn = true">en</button>
-    </span>
+    <input v-else-if="def.type === 'loc'" v-model="draft" :readonly="readonly"
+           :placeholder="draft ? placeholder : locFallback || placeholder" @change="commit" />
 
     <span v-else-if="suggestions.length" class="suggest">
       <input v-model="draft" :readonly="readonly" :placeholder="placeholder"

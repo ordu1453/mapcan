@@ -111,6 +111,15 @@ const list = (v: unknown): Data[] => (Array.isArray(v) ? v.map(obj) : []);
 const obj = (v: unknown): Data => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
 const nameOf = (v: Data): string => (v.name == null ? "—" : String(v.name));
 
+/**
+ * Подпись узла в дереве — название для людей, идентификатор только если названия нет.
+ * У устройства перед полным названием — сокращение, если оно задано.
+ */
+export function displayName(v: Data, lang: string): string {
+  const title = txt(v?.title, lang) || nameOf(obj(v));
+  return v?.short ? `${v.short} · ${title}` : title;
+}
+
 export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string): TreeNode[] {
   const doc: TreeNode = {
     key: "document", path: ["document"], kind: "document", label: txt(data?.document?.title, lang) || t("Документ"),
@@ -131,13 +140,13 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
   list(data?.buses).forEach((bus: Data, bi: number) => {
     const bp: Path = ["buses", bi];
     const bnode: TreeNode = {
-      key: pathKey(bp), path: bp, kind: "bus", label: txt(bus.title, lang) || nameOf(bus), sub: nameOf(bus),
+      key: pathKey(bp), path: bp, kind: "bus", label: displayName(bus, lang), sub: "",
       children: [], search: `${bus.name} ${txt(bus.title, lang)}`.toLowerCase(),
     };
     const frameNode = (f: Data, fp: Path): TreeNode => {
       const rf = frames.get(pathKey(fp));
       const fnode: TreeNode = {
-        key: pathKey(fp), path: fp, kind: "frame", label: nameOf(f),
+        key: pathKey(fp), path: fp, kind: "frame", label: displayName(f, lang),
         sub: f.pgn != null ? `PGN ${hex(f.pgn, 4)}` : frameSub(rf), children: [],
         dir: rf?.device ? rf.direction : null,
         search: [f.name, txt(f.title, lang), txt(f.description, lang), rf?.can_id != null ? hex(rf.can_id) : "",
@@ -147,8 +156,8 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
         const sp = [...fp, "signals", si];
         const rs = rf?.signals.find((x) => x.index === si);
         const snode: TreeNode = {
-          key: pathKey(sp), path: sp, kind: "signal", label: nameOf(s), sub: signalSub(rs), children: [],
-          search: [s.name, txt(s.description, lang)].join(" ").toLowerCase(),
+          key: pathKey(sp), path: sp, kind: "signal", label: displayName(s, lang), sub: signalSub(rs), children: [],
+          search: [s.name, txt(s.title, lang), txt(s.description, lang)].join(" ").toLowerCase(),
         };
         list(s.flags).forEach((fl: Data, fi: number) => {
           const flp = [...sp, "flags", fi];
@@ -173,7 +182,7 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
     list(bus.devices).forEach((d: Data, di: number) => {
       const dp: Path = [...bp, "devices", di];
       const dnode: TreeNode = {
-        key: pathKey(dp), path: dp, kind: "device", label: d.short ? `${d.short} · ${nameOf(d)}` : nameOf(d),
+        key: pathKey(dp), path: dp, kind: "device", label: displayName(d, lang),
         sub: d.node_id != null ? hex(d.node_id, 2) : d.address != null ? `SA ${hex(d.address, 2)}` : "", children: [],
         search: [d.name, d.short ?? "", txt(d.title, lang)].join(" ").toLowerCase(),
       };
@@ -181,14 +190,16 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
       // Чужие кадры, в получателях которых указано устройство, — ссылками после своих кадров
       for (const rf of frames.values()) {
         if (rf.path[1] !== bi || rf.device === d.name || !rf.receivers.includes(d.name)) continue;
-        // Имя кадра может не содержать имени устройства — в подписи ссылки указываем отправителя
+        // Название кадра может не говорить, чей он, — в подписи ссылки указываем отправителя
         const sender = list(bus.devices).find((x: Data) => x.name === rf.sender);
-        const senderLabel = sender ? String(sender.short ?? sender.name) : "";
+        const senderLabel = sender ? String(sender.short ?? (txt(sender.title, lang) || sender.name)) : "";
+        const frame = obj(getAt(data, rf.path));
         dnode.children.push({
           key: `${pathKey(dp)}/received:${pathKey(rf.path)}`, path: rf.path, kind: "frame",
-          label: senderLabel ? `${senderLabel} · ${rf.name}` : rf.name,
-          sub: frameSub(rf), children: [], dir: "rx", from: rf.sender ?? "",
-          search: [rf.name, rf.sender ?? "", sender?.short ?? "", rf.can_id != null ? hex(rf.can_id) : ""].join(" ").toLowerCase(),
+          label: senderLabel ? `${senderLabel} · ${displayName(frame, lang)}` : displayName(frame, lang),
+          sub: frameSub(rf), children: [], dir: "rx", from: senderLabel || rf.sender || "",
+          search: [rf.name, txt(frame.title, lang), rf.sender ?? "", sender?.short ?? "", txt(sender?.title, lang),
+            rf.can_id != null ? hex(rf.can_id) : ""].join(" ").toLowerCase(),
         });
       }
       bnode.children.push(dnode);

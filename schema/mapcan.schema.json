@@ -1086,6 +1086,22 @@
           "title": "Name",
           "type": "string"
         },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable signal name, e.g. \"Battery voltage\".",
+          "title": "Title"
+        },
         "description": {
           "anyOf": [
             {

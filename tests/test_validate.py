@@ -66,7 +66,7 @@ def test_yaml_dash_without_space_points_to_culprit():
             - {name: a, byte: 0}
     """))
     assert d.code == "yaml" and "space after '-'" in d.message and "- ndsj:" in d.message
-    assert d.line == 14
+    assert d.line == 16
 
 
 @pytest.mark.parametrize("text, words", [
@@ -641,3 +641,10 @@ def test_legacy_format_key():
     """Карты, созданные до переименования canmap → mapcan, открываются без правки."""
     res, rep = run(REFERENCE.read_text(encoding="utf-8").replace("mapcan: 1", "canmap: 1"))
     assert res.map is not None and not rep.errors, [d.format() for d in rep.diagnostics]
+
+
+def test_missing_title():
+    text = one_bus(OK_SIGNAL).replace("    title: Шина\n", "").replace("        title: Устройство\n", "")
+    _, report = run(text)
+    found = [(d.level, tuple(d.node)) for d in report.diagnostics if d.code == "missing-title"]
+    assert found == [("info", ("buses", 0, "title")), ("info", ("buses", 0, "devices", 0, "title"))]

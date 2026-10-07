@@ -119,6 +119,7 @@ RULES = {
     "signed-code": ("info", N_("Код знакового числа не поддерживается кодогенерацией "
                                "или задан у беззнакового сигнала")),
     "missing-description": ("info", N_("Нет описания сигнала")),
+    "missing-title": ("info", N_("Нет полного названия шины или устройства")),
     "empty-frame": ("info", N_("В кадре не описаны сигналы")),
 }
 
@@ -196,8 +197,13 @@ def _check_bus(ctx: _Ctx, bus) -> None:
         ctx.emit("bitrate-nonstandard", _("скорость {bitrate} бит/с не входит в стандартный ряд "
                                           "(125000, 250000, 500000, 1000000…)", bitrate=bus.bitrate),
                  bus._path + ("bitrate",))
+    if bus.title is None:
+        ctx.emit("missing-title", _("у шины {name!r} нет названия (title)", name=bus.name), bus._path + ("title",))
     names, nodes, addrs, shorts = {}, {}, {}, {}
     for dev in bus.devices:
+        if dev.title is None:
+            ctx.emit("missing-title", _("у устройства {name!r} нет полного названия (title)", name=dev.name),
+                     dev._path + ("title",))
         if dev.short:
             if dev.short in shorts:
                 ctx.emit("duplicate-short", _("обозначение {short!r} уже у устройства {other!r}",
