@@ -184,6 +184,49 @@ def test_node_fields():
     assert E.node_fields(b, FRAME + ("signals", 1))["hasSelector"] is True
 
 
+def test_layout_and_tables():
+    a = A.analyze(MINIMAL, "m.yaml")
+    # Кадр и его сигнал — одна раскладка (как в веб-редакторе): биты сигналов и флагов
+    frame = E.node_fields(a, FRAME)["frame"]
+    assert (frame["name"], frame["dlc"], frame["path"]) == ("pump_state", 8, list(FRAME))
+    assert [s["name"] for s in frame["signals"]][:3] == ["mode", "alarms", "pressure"]
+    assert frame["signals"][1]["flags"][2]["occupied"] == [12, 13]
+    f = E.node_fields(a, FRAME + ("signals", 0))
+    assert f["frame"] == frame and f["palette"] and f["flags"] is None
+    assert f["valueTable"][1] == {"key": "1", "value": 1, "name": "RUN", "description": "running",
+                                  "raw": {"name": "RUN", "description": "running"}}
+    f = E.node_fields(a, FRAME + ("signals", 1))
+    assert f["valueTable"] is None
+    assert [(x["bit"], x["bit_length"], x["name"]) for x in f["flags"]] == \
+        [(0, None, "overheat"), (1, None, "dry_run"), (4, 2, "sensor_state")]
+    # Таблица значений флага
+    flag = E.node_fields(a, FRAME + ("signals", 1, "flags", 2))
+    assert [(r["value"], r["name"], r["raw"]) for r in flag["valueTable"]] == [(0, "OK", "OK"), (1, "OPEN", "OPEN"),
+                                                                              (2, "SHORT", "SHORT")]
+    assert E.node_fields(a, ("buses", 0))["frame"] is None
+
+
+def test_apply_ops():
+    a = A.analyze(MINIMAL, "m.yaml")
+    sig = list(FRAME + ("signals", 0))
+    out = E.apply_ops(a, [{"op": "set", "path": [*sig, "values", "3"], "value": "SERVICE"},
+                          {"op": "rename_key", "path": [*sig, "values", "2"], "new_key": "5"}])
+    assert "                  5: {name: FAULT, description: fault}\n                  3: SERVICE\n" in out
+    # Новый сигнал перетаскиванием по сетке: вставка и позиция в одной правке, остальное — как было
+    n = len(E.raw_at(a, FRAME + ("signals",)))
+    out = E.apply_ops(a, [{"op": "insert", "path": [*FRAME, "signals"], "value": {"name": "extra"}},
+                          {"op": "set_layout", "path": [*FRAME, "signals", n], "start_bit": 60, "bit_length": 4}])
+    assert out.startswith(MINIMAL) and "              - name: extra\n" in out
+    b = A.analyze(out, "m.yaml")
+    assert errors(out) == errors(MINIMAL)
+    extra = next(s for s in b.map.buses[0].devices[0].frames[0].signals if s.name == "extra")
+    assert (extra.start_bit, extra.bit_length) == (60, 4)
+    from mapcan.web.yamlops import OpError
+
+    with pytest.raises(OpError):
+        E.apply_ops(a, [{"op": "remove", "path": ["nope"]}])
+
+
 def test_sdo_value_fields():
     text = (ROOT / "tests" / "data" / "reference.yaml").read_text(encoding="utf-8")
     a = A.analyze(text, "r.yaml")

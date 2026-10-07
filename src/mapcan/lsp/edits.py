@@ -865,7 +865,55 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
             "frameTypes": frame_types(a, path) if kind == "frame" else [],
             # Справочник единиц (ru, en) для подсказок в поле «Единица»; свой текст тоже допустим
-            "units": [list(u) for u in UNITS] if kind == "signal" else []}
+            "units": [list(u) for u in UNITS] if kind == "signal" else [],
+            **_layout_fields(a, path, kind, raw, lang)}
+
+
+def _layout_fields(a: Analysis, path: Path_, kind: str, raw: dict, lang: str) -> dict:
+    """Раскладка кадра узла (кадр, сигнал, флаг, SDO-обмен) — как в веб-редакторе, — таблица значений
+    и флаги сигнала. Значение записи таблицы — как в YAML (``raw``), чтобы форма могла его дополнить."""
+    from ..docmodel import PALETTE
+    from ..web.session import frame_view
+
+    out: dict = {"frame": None, "palette": PALETTE, "valueTable": None, "flags": None}
+    frame_path = next((path[:i + 1] for i in range(len(path) - 1, 0, -1)
+                       if path[i - 1] == "frames" and isinstance(path[i], int)), None)
+    frame = _find(a.map, frame_path) if a.map is not None and frame_path else None
+    if isinstance(frame, M.Frame):
+        out["frame"] = frame_view(frame)
+    if kind not in ("signal", "flag"):
+        return out
+    values = raw.get("values")
+    if isinstance(values, dict):
+        rows = []
+        for k, v in values.items():
+            entry = v if isinstance(v, dict) else {}
+            rows.append({"key": str(k), "value": k if isinstance(k, int) else None,
+                         "name": str(entry.get("name") or "") if entry else ("" if v is None else str(v)),
+                         "description": _txt(entry.get("description"), lang), "raw": v})
+        out["valueTable"] = sorted(rows, key=lambda r: (r["value"] is None, r["value"] or 0, r["key"]))
+    if kind == "signal" and isinstance(raw.get("flags"), list):
+        out["flags"] = [{"bit": f.get("bit"), "bit_length": f.get("bit_length"), "name": f.get("name"),
+                         "description": _txt(f.get("description"), lang), "raw": f}
+                        if isinstance(f, dict) else {"bit": None, "bit_length": None, "name": None,
+                                                     "description": "", "raw": f}
+                        for f in raw["flags"]]
+    return out
+
+
+def apply_ops(a: Analysis, ops: list[dict]) -> str:
+    """Текст карты после операций веб-редактора (:mod:`mapcan.web.yamlops`): set, remove, insert,
+    move, rename_key, set_layout. Нетронутые строки остаются как были. Ошибка операции —
+    :class:`mapcan.web.yamlops.OpError`."""
+    from ..web import yamlops as Y
+
+    y = Y.make_yaml(a.text)
+    doc = y.load(a.text)
+    if doc is None:
+        raise Y.OpError(_("в YAML синтаксическая ошибка"))
+    canon_old = Y.dump(y, doc)
+    Y.apply_ops(doc, ops)
+    return Y.merge_text(a.text, canon_old, Y.dump(y, doc))
 
 
 def set_field(a: Analysis, path: Path_, value) -> list[Edit]:

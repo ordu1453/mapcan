@@ -436,6 +436,43 @@ def test_git_commit_tag_pull(client, mapfile, tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
+def test_git_release(client, mapfile):
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=mapfile.parent, check=True, capture_output=True,
+                              text=True, encoding="utf-8").stdout
+
+    assert client.get("/api/git/release").json()["code"] == "git-unavailable"
+    git("init", "-q")
+    git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
+    # Карты ещё нет в git; версия 1.0.0 уже записана в истории — выпускается она, без новой записи
+    d = client.get("/api/git/release").json()
+    assert (d["version"], d["recorded"], d["base"]) == ("1.0.0", True, None)
+    r = client.post("/api/git/release", json={"version": "1.0.0", "changes": d["changes"]}).json()
+    assert r["tag"] == "v1.0.0" and r["git"]["file"] == "clean"
+    assert git("tag").split() == ["v1.0.0"]
+    assert client.get("/api/state").json()["text"].count("- version: 1.0.0") == 1
+
+    # Несохранённая правка: следующая версия, изменения — с тега прошлого выпуска
+    ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.01})
+    d = client.get("/api/git/release").json()
+    assert (d["version"], d["recorded"], d["base"]) == ("1.0.1", False, "v1.0.0")
+    assert d["changes"] == ["0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01"]
+    r = client.post("/api/git/release", json={"version": "1.0.1", "changes": d["changes"]}).json()
+    assert r["tag"] == "v1.0.1" and r["git"]["file"] == "clean"
+    assert git("log", "-1", "--format=%s") == "1.0.1: 0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01\n"
+    assert git("tag", "--points-at", "HEAD").split() == ["v1.0.1"]
+    st = client.get("/api/state").json()
+    assert not st["dirty"]
+    doc = st["data"]["document"]
+    assert doc["version"] == "1.0.1" and doc["history"][0]["version"] == "1.0.1"
+    assert doc["history"][0]["changes"] == d["changes"]
+    # Повторно ту же версию выпустить нельзя
+    assert client.post("/api/git/release", json={"version": "1.0.1"}).json()["code"] == "git-tag-exists"
+    assert client.post("/api/git/release", json={"version": " "}).json()["code"] == "version"
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
 def test_git_logo_tag_identity(client, mapfile, monkeypatch):
     def git(*args):
         # git пишет UTF-8; без encoding Windows читает вывод в кодировке ANSI (cp1252)

@@ -15,9 +15,16 @@ file with a top-level `mapcan: 1` key. Other YAML files are left alone.
     YAML as you type, so the editor shows each change. The unit field offers the standard units
     and accepts any other text. **Done** closes the panel, **Discard** deletes the new node. **Edit…** (the pencil) opens any node in the same panel; while it is open,
     it follows the selection in the tree.
+  * The panel of a frame, signal, flag or SDO exchange shows the frame's bit layout, as in the web
+    editor: dragging over free bits adds a signal, clicking a signal shows it, dragging the shown
+    signal moves it and dragging its edge changes its length. A signal's value table and the flags
+    of a bit field are edited in tables below the fields.
   * The context menu also renames (F2), duplicates and deletes (Delete) nodes. Every change is a
     normal edit, so Undo reverts it.
   * Nodes with errors or warnings are colored, and a badge shows how many problems they have.
+  * Nodes added or modified since the last commit, unsaved edits included, are marked as Source
+    Control marks files: green with **A**, yellow with **M**; nodes with changes inside are yellow.
+    The comparison is the same as in the **Changes** tab. **mapcan.tree.showChanges** turns it off.
 * **Quick fixes** (the light bulb, Ctrl+.):
   * decimal commas, a Cyrillic «х» in hex numbers and hex numbers in quotes;
   * a missing space after `-`;
@@ -41,6 +48,11 @@ file with a top-level `mapcan: 1` key. Other YAML files are left alone.
     one) as the first `document.history` entry and sets the document's version and date. The last
     step asks for the author, prefilled with the name entered last time (at first, the name from
     the mapcan profile or from Git); Enter keeps it, and a new name is remembered.
+  * **Release Version…** (the tag button) does the whole release: the revision history entry with
+    the changes since the last release (the latest tag) or commit, the document's version and
+    date, a commit of the map and the annotated tag `v<version>`. If the history already has an
+    entry for the document's version that is not tagged yet, that version is released as it is.
+    Tags are shown next to their commits.
 * **Export.** The **Export** panel in the mapcan side bar builds DBC, C and Python code, Excel, PDF,
   Markdown and HTML from the current text of the map, unsaved edits included, into `build/` next
   to the map or the folder chosen in the panel, and lists the files it wrote. It refuses while the
@@ -82,6 +94,7 @@ If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable.
 | `mapcan.server.path` | `""` | Path to the `mapcan` executable; empty uses `PATH` |
 | `mapcan.server.args` | `["lsp"]` | Arguments for the executable |
 | `mapcan.export.outputDir` | `"build"` | Export folder, relative to the map's folder; a folder chosen in the Export panel takes precedence for that map |
+| `mapcan.tree.showChanges` | `true` | Mark nodes of the Map view added or modified since the last commit |
 
 ## Commands
 
@@ -89,6 +102,7 @@ If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable.
 * **mapcan: Add Bus**
 * **mapcan: Open Document Preview**
 * **mapcan: Compare with Revision…**
+* **mapcan: Release Version…**
 * **mapcan: Restart Language Server**
 * **mapcan: Show Language Server Output**
 

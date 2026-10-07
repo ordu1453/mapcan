@@ -3,7 +3,7 @@ import json
 from typer.testing import CliRunner
 
 from mapcan.cli import app
-from mapcan.diff import changelog_lines, diff_maps
+from mapcan.diff import bump_version, changed_paths, changelog_lines, diff_maps, release_draft, release_message
 from mapcan.loader import loads
 
 from .conftest import REFERENCE
@@ -74,3 +74,74 @@ def test_cli_diff(tmp_path):
     assert "- 0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01" in r.output
     r = CliRunner().invoke(app, ["diff", str(REFERENCE), str(new), "--format", "json"])
     assert json.loads(r.output)["changes"][0]["field"] == "factor"
+
+
+def _paths(new_text: str) -> dict:
+    new = _map(new_text)
+    return changed_paths(diff_maps(_map(BASE), new), new)
+
+
+def _path_of(cmap, frame: str, signal: str | None = None) -> tuple:
+    f = next(f for b in cmap.buses for f in b.all_frames() if f.name == frame)
+    return f._path if signal is None else next(s for s in f.signals if s.name == signal)._path
+
+
+def test_changed_paths():
+    assert _paths(BASE) == {}
+    # Изменённое поле — сигнал, новое значение enum — тоже сигнал (не его кадр)
+    new = BASE.replace("factor: 0.1\n", "factor: 0.01\n", 1)
+    new = new.replace("                  3: ALARM\n", "                  3: ALARM\n                  4: SERVICE\n", 1)
+    m = _map(new)
+    assert _paths(new) == {_path_of(m, "imd_data", "bus_voltage"): "modified",
+                           _path_of(m, "cmu_state", "cmu_status"): "modified"}
+    # Удалённый сигнал помечает свой кадр
+    new = BASE.replace("              - name: frame_request\n"
+                       "                description: Номер повторно запрашиваемого кадра\n"
+                       "                byte: 1\n", "")
+    m = _map(new)
+    assert _paths(new) == {_path_of(m, "cmu_request"): "modified"}
+    # Изменённый node_id — устройство и кадры с вычисленным из него ID
+    new = BASE.replace("node_id: 0x23\n", "node_id: 0x26\n", 1)
+    m = _map(new)
+    pcu = _path_of(m, "pcu_state")
+    paths = _paths(new)
+    assert paths[pcu[:4]] == "modified" and paths[pcu] == "modified"
+
+
+def test_changed_paths_added():
+    new = BASE.replace("{bit: 4, name: err_igbt_driver,", "{bit: 4, name: err_igbt_driver2,", 1)
+    m = _map(new)
+    sig = next(s for b in m.buses for f in b.all_frames() for s in f.signals
+               if any(x.name == "err_igbt_driver2" for x in s.flags or []))
+    flag = next(x for x in sig.flags if x.name == "err_igbt_driver2")
+    # Переименованный флаг: новый добавлен, старый удалён — сигнал изменён
+    assert _paths(new) == {flag._path: "added", sig._path: "modified"}
+
+
+def test_bump_and_message():
+    assert bump_version("1.2.3") == "1.2.4"
+    assert bump_version("1.2.3-rc1") == "1.2.4"
+    assert bump_version("") == "0.1.0"
+    assert bump_version("draft") == "draft"
+    assert release_message("1.0.1", ["a"]) == "1.0.1: a"
+    # Заголовок — на языке интерфейса («Версия 1.0.1» или «Version 1.0.1»)
+    head, *rest = release_message("1.0.1", ["a", "b"]).split("\n")
+    assert head.endswith(" 1.0.1") and rest == ["", "- a", "- b"]
+    assert release_message("1.0.1", []) == head
+
+
+def test_release_draft():
+    base = _map(BASE)
+    new = _map(BASE.replace("factor: 0.1\n", "factor: 0.01\n", 1))
+    # Версия 1.0.0 записана первой в истории, но тега нет — выпускается она с записанными изменениями
+    d = release_draft(new, base, lambda v: False)
+    assert d["version"] == "1.0.0" and d["recorded"] and d["changes"][0].startswith("Карта описана в YAML")
+    # Есть тег v1.0.0 — следующая версия, изменения — с прошлого выпуска
+    d = release_draft(new, base, lambda v: v == "1.0.0")
+    assert d == {"version": "1.0.1", "recorded": False,
+                 "changes": ["0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01"]}
+    # Первый выпуск без истории: текущая версия, если её тега нет, иначе следующая без тега
+    start = BASE.index("  history:\n")
+    plain = _map(BASE[:start] + BASE[BASE.index("\n\n", start) + 1:])
+    assert release_draft(plain, None, lambda v: False)["version"] == "1.0.0"
+    assert release_draft(plain, None, lambda v: v in ("1.0.0", "1.0.1"))["version"] == "1.0.2"

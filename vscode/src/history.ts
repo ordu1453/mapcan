@@ -2,6 +2,7 @@
 // version shows what changed since it in the Changes tab; its menu compares versions, opens or
 // restores one, and records the changes in the map's own revision history (`document.history`).
 // Uncommitted changes, unsaved edits included, are the first entry: commit or discard them there.
+// Release Version records a revision, commits the map and tags the commit v<version> in one go.
 
 import { execFile } from "child_process";
 import * as path from "path";
@@ -23,6 +24,8 @@ export interface Commit {
   date: string;
   author: string;
   subject: string;
+  /** Tags of the commit, e.g. v1.2.0. */
+  tags: string[];
   /** Path of the map in this commit, relative to the repository root. */
   path: string;
   /** Path in the parent commit; undefined if the commit added the map. */
@@ -65,13 +68,14 @@ export async function mapLog(map: vscode.Uri): Promise<Commit[]> {
   const prefix = (await git(cwd, ["rev-parse", "--show-prefix"])).trim();
   const out = await git(cwd, [
     "log", "--follow", `-n${LIMIT}`, "--date=short", "--name-status",
-    "--format=%x1e%H%x1f%h%x1f%ad%x1f%an%x1f%s", "--", file,
+    "--format=%x1e%H%x1f%h%x1f%ad%x1f%an%x1f%D%x1f%s", "--", file,
   ]);
   const commits: Commit[] = [];
   let current = prefix + file;
   for (const record of out.split("\x1e").slice(1)) {
     const [header, ...rest] = record.split("\n");
-    const [hash, short, date, author, subject] = header.split("\x1f");
+    const [hash, short, date, author, refs, subject] = header.split("\x1f");
+    const tags = refs.split(", ").filter((r) => r.startsWith("tag: ")).map((r) => r.slice(5));
     const status = rest.find((l) => /^[A-Z]\d*\t/.test(l))?.split("\t");
     let filePath = current;
     let parentPath: string | undefined = current;
@@ -81,7 +85,7 @@ export async function mapLog(map: vscode.Uri): Promise<Commit[]> {
       filePath = parentPath = status[1];
       if (status[0] === "A") parentPath = undefined;
     }
-    commits.push({ hash, short, date, author, subject, path: filePath, parentPath });
+    commits.push({ hash, short, date, author, subject, tags, path: filePath, parentPath });
     current = parentPath ?? filePath;
   }
   return commits;
@@ -175,13 +179,14 @@ export class HistoryTree implements vscode.TreeDataProvider<Entry>, vscode.Dispo
     }
     const item = new vscode.TreeItem(entry.subject || "(no message)");
     item.id = entry.hash;
-    item.description = `${entry.date} · ${entry.author}`;
-    item.iconPath = new vscode.ThemeIcon("git-commit");
+    item.description = [...entry.tags, entry.date, entry.author].join(" · ");
+    item.iconPath = new vscode.ThemeIcon(entry.tags.length ? "tag" : "git-commit");
     item.contextValue = entry.parentPath === undefined ? "commit.added" : "commit";
     if (entry.hash === this.selectedCommit?.hash) item.description += " · selected";
     const tooltip = new vscode.MarkdownString();
     tooltip.appendMarkdown(`**${entry.subject.replace(/[\\`*_[\]<>]/g, "\\$&")}**\n\n`);
     tooltip.appendMarkdown(`${entry.author} · ${entry.date} · \`${entry.short}\``);
+    if (entry.tags.length) tooltip.appendMarkdown(` · ${entry.tags.map((t) => `\`${t}\``).join(", ")}`);
     item.tooltip = tooltip;
     item.command = { command: "mapcan.history.showChangesSince", title: "Show Changes", arguments: [entry] };
     return item;
@@ -493,6 +498,90 @@ export function registerHistory(
         github: author === draft.author ? draft.github : null,
         changes: picked.map((p) => p.label),
       });
+    })),
+
+    vscode.commands.registerCommand("mapcan.history.release", guarded(async () => {
+      const uri = map() ?? currentMap();
+      if (!uri || uri.scheme !== "file") {
+        void vscode.window.showInformationMessage("mapcan: save the map to release a version.");
+        return;
+      }
+      const cwd = path.dirname(uri.fsPath);
+      const file = fileName(uri);
+      const prefix = (await git(cwd, ["rev-parse", "--show-prefix"])).trim();
+      const tags = new Set((await git(cwd, ["tag", "--list"])).split("\n").map((t) => t.trim()).filter(Boolean));
+      // Changes since the last release (the latest tag with the map), else since the last commit
+      const latestTag = (await git(cwd, ["describe", "--tags", "--abbrev=0", "HEAD"]).catch(() => "")).trim();
+      let base: string | undefined;
+      let oldText: string | null = null;
+      for (const ref of [latestTag, "HEAD"].filter(Boolean)) {
+        try {
+          oldText = await show(uri, `${ref}:${prefix}${file}`);
+          base = ref;
+          break;
+        } catch {
+          // Not in this revision: try the next one
+        }
+      }
+      const draft = await serverCommand<HistoryDraft & { recorded: boolean }>(client(), "mapcan.lsp.releaseDraft",
+        { uri: uri.toString(), oldText, tags: [...tags] });
+      const title = "Release Version";
+      let changes = draft.changes;
+      if (!draft.recorded && changes.length) {
+        const picked = await vscode.window.showQuickPick(
+          changes.map((label) => ({ label, picked: true })),
+          { title: `${title} (1/3)`, placeHolder: `Changes since ${base} to record`, canPickMany: true },
+        );
+        if (!picked) return;
+        changes = picked.map((p) => p.label);
+      }
+      const version = (await vscode.window.showInputBox({
+        title: `${title} (2/3)`,
+        prompt: draft.recorded
+          ? `The revision history has an entry for ${draft.version}: it is released as it is.`
+          : "Version of the document. The commit is tagged v<version>.",
+        value: draft.version,
+        validateInput: (v) => {
+          const s = v.trim();
+          if (!s) return "Enter a version";
+          if (!/^[\w.+-]+$/.test(s)) return "Letters, digits, '.', '+', '-' and '_' only";
+          return tags.has(`v${s}`) ? `The tag v${s} already exists` : undefined;
+        },
+      }))?.trim();
+      if (!version) return;
+      // The release adds no entry when the version's entry is already in the revision history
+      const recorded = draft.recorded && version === draft.version;
+      if (!recorded) {
+        const remembered = context.globalState.get<string>(AUTHOR_KEY);
+        const suggested = remembered ?? draft.author
+          ?? ((await git(cwd, ["config", "user.name"]).catch(() => "")).trim() || undefined);
+        const author = (await vscode.window.showInputBox({
+          title: `${title} (3/3)`,
+          prompt: "Author of the changes. Press Enter to keep the name.",
+          placeHolder: "Name",
+          value: suggested,
+          validateInput: (v) => (v.trim() ? undefined : "Enter the author's name"),
+        }))?.trim();
+        if (!author) return;
+        if (author !== remembered) await context.globalState.update(AUTHOR_KEY, author);
+        await addToHistory(uri, {
+          version, date: draft.date, author, changes,
+          github: author === draft.author ? draft.github : null,
+        });
+      }
+      const message = changes.length === 1
+        ? `${version}: ${changes[0]}`
+        : [`Version ${version}`, ...(changes.length ? ["", ...changes.map((c) => `- ${c}`)] : [])].join("\n");
+      const doc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
+      if (doc?.isDirty && !(await doc.save())) return;
+      const status = await git(cwd, ["status", "--porcelain", "--", file]);
+      if (status.trim()) {
+        await git(cwd, ["add", "--", file]);
+        await git(cwd, ["commit", "-q", "-m", message, "--", file]);
+      }
+      await git(cwd, ["tag", "-a", `v${version}`, "-m", message]);
+      await history.refresh();
+      vscode.window.setStatusBarMessage(`$(tag) Released v${version}`, 5000);
     })),
 
     vscode.commands.registerCommand("mapcan.compareWithRevision", guarded(async () => {

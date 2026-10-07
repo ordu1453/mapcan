@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+* The **Node** panel shows the frame's bit layout for frames, signals, flags and SDO exchanges, as
+  the web editor does: drag over free bits to add a signal, drag the shown signal to move it or its
+  edge to change its length. The value table of a signal or flag and the flags of a bit field are
+  edited in the panel instead of only in the YAML.
+* The **Map** view marks nodes added (**A**) or modified (**M**) since the last commit, as Source
+  Control marks files; unsaved edits count. Setting: `mapcan.tree.showChanges`.
+* **Release Version…** in the **History** panel: a revision history entry, the document's version
+  and date, a commit of the map and the tag `v<version>` in one action. The History panel shows tags.
+
 ## 0.3.0
 
 * New frames are made as in the web editor: a frame of a CANopen device gets the first free PDO

@@ -1,4 +1,4 @@
-import type { Diagnostic, DiffResult, FsList, GitRevs, GitStatus, Meta, Op, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
+import type { Diagnostic, DiffResult, FsList, GitRevs, GitStatus, Meta, ReleaseDraft, Op, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code = "") {
@@ -57,6 +57,9 @@ export const api = {
   gitInit: () => call<GitStatus>("POST", "/api/git/init"),
   gitCommit: (message: string, tag = "") => call<GitStatus>("POST", "/api/git/commit", { message, tag }),
   gitTag: (name: string, message = "") => call<GitStatus>("POST", "/api/git/tag", { name, message }),
+  gitReleaseDraft: () => call<ReleaseDraft>("GET", "/api/git/release"),
+  gitRelease: (version: string, changes: string[]) =>
+    call<{ git: GitStatus; tag: string }>("POST", "/api/git/release", { version, changes }),
   gitPush: () => call<GitStatus>("POST", "/api/git/push"),
   gitPull: () => call<GitStatus>("POST", "/api/git/pull"),
   gitFetch: () => call<GitStatus>("POST", "/api/git/fetch"),

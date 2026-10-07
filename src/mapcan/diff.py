@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -181,6 +182,61 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, lang: str) -> None
                                         old=a, new=b, **base))
 
 
+# --------------------------------------------------------------------------- узлы новой версии
+
+
+NodeStatus = Literal["added", "modified"]
+
+
+def changed_paths(diff: MapDiff, new: MapCan) -> dict[tuple, NodeStatus]:
+    """Узлы новой версии карты, затронутые изменениями: путь в YAML → added или modified.
+
+    Удалённый узел помечает изменённым своего владельца (кадр — устройство или шину, сигнал — кадр),
+    изменённое значение или флаг — свой сигнал. Предки помеченных узлов не помечаются.
+    """
+    buses = {b.name: b for b in new.buses}
+    out: dict[tuple, NodeStatus] = {}
+
+    def mark(path, status: NodeStatus) -> None:
+        if path and out.get(tuple(path)) != "added":
+            out[tuple(path)] = status
+
+    for c in diff.changes:
+        bus = buses.get(c.bus)
+        if bus is None:
+            continue
+        if c.scope == "bus":
+            mark(bus._path, "added" if c.kind == "added" else "modified")
+            continue
+        if c.scope == "device":
+            dev = next((d for d in bus.devices if d.name == c.device), None)
+            if c.kind == "removed" or dev is None:
+                mark(bus._path, "modified")
+            else:
+                mark(dev._path, "added" if c.kind == "added" else "modified")
+            continue
+        frame = next((f for f in bus.all_frames() if f.name == c.frame), None)
+        if frame is None:
+            # Удалённый кадр: изменилось его устройство, если оно осталось, иначе шина
+            dev = next((d for d in bus.devices if d.name == c.device), None)
+            mark(dev._path if dev is not None else bus._path, "modified")
+            continue
+        if c.scope == "frame":
+            mark(frame._path, "added" if c.kind == "added" else "modified")
+            continue
+        sig = next((s for s in frame.signals if s.name == c.signal), None)
+        if sig is None:
+            mark(frame._path, "modified")       # удалённый сигнал или сигнал SDO-обмена
+        elif c.scope == "signal":
+            mark(sig._path, "added" if c.kind == "added" else "modified")
+        elif c.scope == "flag" and c.kind != "removed":
+            flag = next((x for x in sig.flags or [] if x.name == c.item), None)
+            mark(flag._path if flag is not None else sig._path, "added" if c.kind == "added" else "modified")
+        else:
+            mark(sig._path, "modified")
+    return out
+
+
 # --------------------------------------------------------------------------- changelog
 
 _T = {
@@ -261,6 +317,50 @@ def changelog_lines(diff: MapDiff, lang: str = "ru") -> list[str]:
                 bit = c.new if c.kind == "added" else c.old
                 lines.append(f"{frame}: {c.signal}: {T[c.kind]} {T['flag']} {c.item} ({T['bits']} {bit})")
     return lines
+
+
+def bump_version(version: str) -> str:
+    """Следующая версия: 1.2.3 → 1.2.4; не семантическая версия — без изменений, пустая — 0.1.0."""
+    m = re.match(r"^(\d+)\.(\d+)\.(\d+)", version or "")
+    return f"{m[1]}.{m[2]}.{int(m[3]) + 1}" if m else version or "0.1.0"
+
+
+def release_draft(new: MapCan, old: MapCan | None, tagged) -> dict:
+    """Черновик выпуска версии карты ``new``: {version, recorded, changes}.
+
+    ``old`` — карта прошлого выпуска (или последнего коммита), ``None`` — выпусков ещё не было;
+    ``tagged(version)`` — есть ли уже тег этой версии. Если версия документа уже записана первой в
+    истории изменений, но не выпущена, выпускается она с записанными изменениями (``recorded``).
+    Иначе — следующая невыпущенная версия и изменения с ``old``.
+    """
+    lang = new.lang
+    version = (new.document.version or "").strip()
+    first = new.document.history[0] if new.document.history else None
+    if first is not None and version and first.version == version and not tagged(version):
+        return {"version": version, "recorded": True,
+                "changes": [c for x in first.changes if (c := text(x, lang).strip())]}
+    changes: list[str] = []
+    old_version = None
+    if old is not None:
+        d = diff_maps(old, new)
+        changes, old_version = changelog_lines(d, lang), d.old_version
+    # Версия уже выпущена (есть её тег) или не менялась с прошлого выпуска — следующая
+    while not version or version == old_version or tagged(version):
+        bumped = bump_version(version)
+        if bumped == version:
+            break
+        version, old_version = bumped, None
+    return {"version": version, "recorded": False, "changes": changes}
+
+
+def release_message(version: str, changes: list[str]) -> str:
+    """Описание коммита и тега выпуска (как в диалоге коммита веб-редактора)."""
+    from .i18n import _
+
+    if len(changes) == 1:
+        return f"{version}: {changes[0]}"
+    head = _("Версия {version}", version=version)
+    return "\n".join([head, "", *(f"- {c}" for c in changes)]) if changes else head
 
 
 def render_diff(diff: MapDiff, fmt: str = "text", lang: str = "ru") -> str:

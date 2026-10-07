@@ -12,6 +12,7 @@ import ProfileDialog from "./components/ProfileDialog.vue";
 import StartScreen from "./components/StartScreen.vue";
 import TopBar from "./components/TopBar.vue";
 import GitDialog from "./components/GitDialog.vue";
+import ReleaseDialog from "./components/ReleaseDialog.vue";
 import GhPublishDialog from "./components/GhPublishDialog.vue";
 import GitLogDialog from "./components/GitLogDialog.vue";
 import YamlEditor from "./components/YamlEditor.vue";
@@ -114,6 +115,7 @@ function keepMine() {
     <ProfileDialog v-if="store.dialog === 'profile'" @close="store.dialog = null" />
     <GitDialog v-if="store.dialog === 'git-commit' || store.dialog === 'git-tag'"
                :mode="store.dialog === 'git-commit' ? 'commit' : 'tag'" @close="store.dialog = null" />
+    <ReleaseDialog v-if="store.dialog === 'git-release'" @close="store.dialog = null" />
     <GhPublishDialog v-if="store.dialog === 'gh-publish'" @close="store.dialog = null" />
     <GitLogDialog v-if="store.dialog === 'git-log'" @close="store.dialog = null"
                   @compare="store.dialog = null; openDiff($event)" />

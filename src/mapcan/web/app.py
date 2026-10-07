@@ -25,7 +25,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from .. import __version__, updates
-from ..diff import changelog_lines, diff_maps
+from ..diff import changelog_lines, diff_maps, release_draft, release_message
 from ..i18n import _, normalize_language
 from ..loader import loads
 from ..model import MapCan
@@ -74,6 +74,11 @@ class GitCommitBody(BaseModel):
 class GitTagBody(BaseModel):
     name: str
     message: str = ""             # непустое — аннотированный тег
+
+
+class GitReleaseBody(BaseModel):
+    version: str
+    changes: list[str] = []
 
 
 class GhCreateBody(BaseModel):
@@ -992,6 +997,83 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         s = git_session()
         make_tag(s.path.parent, git_tag_name(body.name), body.message)
         return await git_state(s)
+
+    # ---------------------------------------------------------------- git: выпуск версии
+
+    def release_base(s: EditorSession) -> str | None:
+        """С чем сравнивать выпуск: последний тег ветки с файлом карты, иначе последний коммит; None —
+        карта ещё не в git."""
+        cwd = s.path.parent
+        try:
+            tag = _git(["describe", "--tags", "--abbrev=0", "HEAD"], cwd).strip()
+        except HTTPException:
+            tag = ""
+        for rev in (tag, "HEAD"):
+            if rev and _git_ok(["cat-file", "-e", f"{rev}:./{s.path.name}"], cwd):
+                return rev
+        return None
+
+    @app.get("/api/git/release")
+    async def git_release_draft() -> dict:
+        """Черновик выпуска: следующая версия, изменения с прошлого выпуска (тега) или коммита, тег."""
+        s = wsp.require()
+        if s.map is None:
+            raise AppError(409, "map", _("текущая карта содержит ошибки структуры"))
+        st = await git_state(s)
+        if not st.get("available"):
+            raise AppError(409, "git-unavailable", _("папка карты не в репозитории git"))
+        cwd = s.path.parent
+        base = await run_in_threadpool(release_base, s)
+        old = loads(await run_in_threadpool(git_show, s, base), base).map if base else None
+
+        def tagged(v: str) -> bool:
+            return _git_ok(["rev-parse", "-q", "--verify", f"refs/tags/v{v}"], cwd)
+
+        return {**await run_in_threadpool(release_draft, s.map, old, tagged), "base": base}
+
+    @app.post("/api/git/release")
+    async def git_release(body: GitReleaseBody) -> dict:
+        """Выпуск версии одним действием: запись в истории изменений, версия и дата документа, сохранение,
+        коммит карты и аннотированный тег v<версия>."""
+        import datetime
+
+        writable()
+        s = wsp.require()
+        version = body.version.strip()
+        if not version:
+            raise AppError(400, "version", _("укажите версию"))
+        tag = git_tag_name(f"v{version}")
+        st = await git_state(s)
+        if not st.get("available"):
+            raise AppError(409, "git-unavailable", _("папка карты не в репозитории git"))
+        if st.get("file") == "ignored":
+            raise AppError(409, "git-ignored", _("файл карты исключён через .gitignore — уберите его оттуда"))
+        changes = [c.strip() for c in body.changes if c.strip()]
+        today = datetime.date.today().isoformat()
+        entry: dict[str, Any] = {"version": version, "date": today}
+        user = wsp.config.user
+        if user.name.strip():
+            entry["author"] = user.name.strip()
+        if user.github:
+            entry["github"] = user.github
+        entry["changes"] = changes
+        history = s.map.document.history if s.map is not None else []
+        # Запись этой версии уже есть (добавлена раньше) — вторую не добавляем
+        recorded = bool(history) and history[0].version == version
+        ops: list[dict] = [] if recorded else [
+            {"op": "insert", "path": ["document", "history"], "index": 0, "value": entry}]
+        async with lock:
+            s.apply([*ops, {"op": "set", "path": ["document", "version"], "value": version},
+                     {"op": "set", "path": ["document", "date"], "value": today}])
+            s.save()
+            await changed()
+        cwd = s.path.parent
+        message = release_message(version, changes)
+        files = [s.path.name, *await run_in_threadpool(git_extra, s)]
+        _git(["add", "--", *files], cwd)
+        await run_in_threadpool(git_author, ["commit", "-m", message, "--", *files], cwd)
+        make_tag(cwd, tag, message)
+        return {"git": await git_state(s), "tag": tag}
 
     @app.post("/api/git/fetch")
     async def git_fetch() -> dict:

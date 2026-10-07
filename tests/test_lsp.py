@@ -261,3 +261,37 @@ def test_diff_command_compares_two_versions():
     old = MINIMAL.replace("name: pressure", "name: pressure_old")
     assert "pressure" in diff_command(None, {"oldText": old, "newText": MINIMAL})["text"]
     assert "error" in diff_command(None, {"oldText": "mapcan: [", "newText": MINIMAL})
+
+
+class _Server:
+    """Сервер с одним открытым документом — для вызова команд без протокола."""
+
+    def __init__(self, text: str):
+        self.a = A.analyze(text, "m.yaml")
+
+    def analysis(self, uri: str):
+        return self.a if uri == "file:///m.yaml" else None
+
+
+def test_ops_and_changes_commands():
+    pytest.importorskip("pygls")
+    from mapcan.lsp.server import changes_command, ops_command, release_draft_command
+
+    ls = _Server(MINIMAL)
+    frame = ["buses", 0, "devices", 0, "frames", 0]
+    r = ops_command(ls, {"uri": "file:///m.yaml", "ops": [
+        {"op": "set", "path": [*frame, "signals", 0, "values", "3"], "value": "SERVICE"}]})
+    (sl, _, el, _), text = r["edit"]["range"], r["edit"]["text"]
+    assert sl == el and text.strip() == "3: SERVICE"
+    assert ops_command(ls, {"uri": "file:///m.yaml", "ops": []}) == {}
+    assert "error" in ops_command(ls, {"uri": "file:///m.yaml", "ops": [{"op": "remove", "path": ["nope"]}]})
+    assert "error" in ops_command(ls, {"uri": "file:///other.yaml", "ops": []})
+
+    old = MINIMAL.replace("{name: RUN, description: running}", "{name: RUNNING, description: running}")
+    nodes = changes_command(ls, {"uri": "file:///m.yaml", "oldText": old})["nodes"]
+    assert nodes == [{"path": [*frame, "signals", 0], "status": "modified"}]
+    assert changes_command(ls, {"uri": "file:///m.yaml", "oldText": MINIMAL})["nodes"] == []
+    assert "error" in changes_command(ls, {"uri": "file:///m.yaml", "oldText": "mapcan: ["})
+
+    d = release_draft_command(ls, {"uri": "file:///m.yaml", "oldText": old, "tags": []})
+    assert d["changes"] and d["date"] and not d["recorded"]

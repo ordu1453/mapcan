@@ -132,9 +132,14 @@
           "group": "navigation@1"
         },
         {
+          "command": "mapcan.history.release",
+          "when": "view == mapcan.history && (mapcan.historyState == ok || mapcan.historyState == noCommits)",
+          "group": "navigation@2"
+        },
+        {
           "command": "mapcan.history.refresh",
           "when": "view == mapcan.history",
-          "group": "navigation@2"
+          "group": "navigation@3"
         }
       ],
       "commandPalette": [
@@ -176,6 +181,10 @@
         },
         {
           "command": "mapcan.compareWithRevision",
+          "when": "mapcan.mapOpen"
+        },
+        {
+          "command": "mapcan.history.release",
           "when": "mapcan.mapOpen"
         },
         {
@@ -474,6 +483,12 @@
         "icon": "$(history)"
       },
       {
+        "command": "mapcan.history.release",
+        "title": "Release Version…",
+        "category": "mapcan",
+        "icon": "$(tag)"
+      },
+      {
         "command": "mapcan.history.discard",
         "title": "Discard Changes…",
         "category": "mapcan",
@@ -577,6 +592,12 @@
           "type": "string",
           "default": "build",
           "markdownDescription": "Folder for the **Export** panel's results, relative to the map's folder (absolute paths also work). A folder chosen in the panel takes precedence for that map.",
+          "scope": "resource"
+        },
+        "mapcan.tree.showChanges": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Mark nodes of the **Map** view added or modified since the last commit, as Source Control marks files (A, M). Unsaved edits count too.",
           "scope": "resource"
         }
       }

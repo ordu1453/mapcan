@@ -595,4 +595,8 @@ EN: dict[str, str] = {
         "A version of the map from the history cannot be read.",
     "Историю изменений, записанную в одну строку, нельзя дополнить.":
         "The revision history is written on one line and cannot be extended.",
+    "Документ не является картой mapcan.": "The document is not a mapcan map.",
+    "в YAML синтаксическая ошибка": "the YAML has a syntax error",
+    "Версия {version}": "Version {version}",
+    "укажите версию": "enter a version",
 }

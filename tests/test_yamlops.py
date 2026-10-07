@@ -36,6 +36,9 @@ def test_hex_for_new_ids():
 def test_values_keys_become_ints():
     out = _edit("s:\n  name: x\n", [{"op": "set", "path": ["s", "values"], "value": {"0": "OFF", "0x1": "ON"}}])
     assert "values:\n    0: OFF\n    1: ON\n" in out
+    # Новая строка таблицы — тоже числовой ключ, а не строка «'2'»
+    out = _edit(out, [{"op": "set", "path": ["s", "values", "2"], "value": "ERR"}])
+    assert "    1: ON\n    2: ERR\n" in out
 
 
 @pytest.mark.parametrize("start, length, be, expected", [

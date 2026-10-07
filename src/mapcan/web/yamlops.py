@@ -277,7 +277,11 @@ def op_set(doc, path: list, value: Any) -> None:
         return
     if not isinstance(parent, dict):
         raise OpError(_("родитель не словарь: {path}", path=path))
-    key = _find_key(parent, last) if (last in parent or _key(last) in parent) else last
+    if last in parent or _key(last) in parent:
+        key = _find_key(parent, last)
+    else:
+        # Новая строка таблицы значений: ключ из JSON — число, а не строка «'99'»
+        key = _key(last) if len(path) >= 2 and path[-2] == "values" else last
     if value is None or value == "":
         if key in parent:
             del parent[key]

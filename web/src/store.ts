@@ -12,7 +12,7 @@ interface Toast {
   text: string;
 }
 
-export type DialogKind = "open" | "new" | "saveas" | "example" | "profile" | "git-commit" | "git-tag" | "git-log" | "gh-publish" | null;
+export type DialogKind = "open" | "new" | "saveas" | "example" | "profile" | "git-commit" | "git-tag" | "git-release" | "git-log" | "gh-publish" | null;
 
 function savedTemplate(): string {
   try {

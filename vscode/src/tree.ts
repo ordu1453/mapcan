@@ -1,7 +1,8 @@
 // The Map view: the same tree as the web editor's (buses, devices, frames, signals, flags, SDO
 // exchanges, frames a device receives) from the language server's `mapcan/tree` request.
 // Clicking a node selects it in the editor; moving the cursor selects the node under it.
-// Nodes with problems are colored like files in the Explorer.
+// Nodes with problems are colored like files in the Explorer; nodes changed since the last commit
+// are marked like files in Source Control (A — added, M — modified).
 
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
@@ -76,6 +77,9 @@ export class MapNode {
 }
 
 type Level = "error" | "warning";
+export type ChangeStatus = "added" | "modified";
+
+const pathKey = (path: (string | number)[]) => JSON.stringify(path.map(String));
 
 export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDecorationProvider, vscode.Disposable {
   private readonly changed = new vscode.EventEmitter<void>();
@@ -90,6 +94,12 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
   private revealTimer: NodeJS.Timeout | undefined;
   /** Problems per node id: the worst level and how many belong to the node itself. */
   private problems = new Map<string, { level: Level; own: number }>();
+  /** Changes since the last commit by node path; nodes with changed descendants by node id. */
+  private changes = new Map<string, ChangeStatus>();
+  private changedInside = new Set<string>();
+  private readonly refreshed = new vscode.EventEmitter<void>();
+  /** The map was read again (another map, or its text changed). */
+  readonly onDidRefresh = this.refreshed.event;
   private readonly subscriptions: vscode.Disposable[] = [];
 
   constructor(
@@ -155,16 +165,23 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     } else {
       item.iconPath = this.icon(kind);
     }
-    item.tooltip = lines.join("\n");
     const problem = node.isLink ? undefined : this.problems.get(node.id);
-    if (problem) {
-      // Only the decoration provider reads this URI: it colors the label like a file with problems.
-      item.resourceUri = vscode.Uri.from({
-        scheme: DECORATION_SCHEME,
-        path: `/${node.id}`,
-        query: `${problem.level}&${problem.own}`,
-      });
+    const change = node.isLink ? undefined : this.changes.get(pathKey(node.path));
+    const inside = !node.isLink && this.changedInside.has(node.id);
+    if (problem || change || inside) {
+      // Only the decoration provider reads this URI: it colors the label like a file with problems
+      // or with changes in Source Control.
+      const query = new URLSearchParams();
+      if (problem) {
+        query.set("level", problem.level);
+        query.set("own", String(problem.own));
+      }
+      if (change) query.set("change", change);
+      else if (inside) query.set("change", "inside");
+      item.resourceUri = vscode.Uri.from({ scheme: DECORATION_SCHEME, path: `/${node.id}`, query: query.toString() });
     }
+    if (change) lines.push(change === "added" ? "Added since the last commit" : "Modified since the last commit");
+    item.tooltip = lines.join("\n");
     item.command = { command: "mapcan.revealNode", title: "Reveal", arguments: [this.uri, node.selection] };
     return item;
   }
@@ -173,13 +190,46 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     if (uri.scheme !== DECORATION_SCHEME) {
       return undefined;
     }
-    const [level, own] = uri.query.split("&");
-    const count = Number(own);
-    return {
-      color: new vscode.ThemeColor(level === "error" ? "list.errorForeground" : "list.warningForeground"),
-      badge: count > 0 ? (count > 9 ? "9+" : String(count)) : undefined,
-      tooltip: count > 0 ? `${count} problem${count === 1 ? "" : "s"}` : undefined,
-    };
+    const query = new URLSearchParams(uri.query);
+    const level = query.get("level");
+    const count = Number(query.get("own") ?? 0);
+    const change = query.get("change");
+    // Problems are shown over changes, as in the Explorer
+    if (count > 0 || (level && change !== "added" && change !== "modified")) {
+      return {
+        color: new vscode.ThemeColor(level === "error" ? "list.errorForeground" : "list.warningForeground"),
+        badge: count > 0 ? (count > 9 ? "9+" : String(count)) : undefined,
+        tooltip: count > 0 ? `${count} problem${count === 1 ? "" : "s"}` : undefined,
+      };
+    }
+    if (change === "added" || change === "modified") {
+      return {
+        color: new vscode.ThemeColor(level === "error" ? "list.errorForeground" : level === "warning"
+          ? "list.warningForeground" : change === "added" ? "gitDecoration.addedResourceForeground"
+            : "gitDecoration.modifiedResourceForeground"),
+        badge: change === "added" ? "A" : "M",
+        tooltip: change === "added" ? "Added" : "Modified",
+      };
+    }
+    // Changes inside a node: colored like a folder with changed files, without a badge
+    return change === "inside" ? { color: new vscode.ThemeColor("gitDecoration.modifiedResourceForeground") } : undefined;
+  }
+
+  /** Marks nodes changed since the last commit; an empty list removes the marks. */
+  setChanges(nodes: { path: (string | number)[]; status: ChangeStatus }[]): void {
+    const changes = new Map(nodes.map((n) => [pathKey(n.path), n.status] as const));
+    if (changes.size === this.changes.size && [...changes].every(([k, v]) => this.changes.get(k) === v)) return;
+    this.changes = changes;
+    this.updateChangedInside();
+    this.changed.fire();
+  }
+
+  private updateChangedInside(): void {
+    this.changedInside.clear();
+    for (const node of this.nodes()) {
+      if (!this.changes.has(pathKey(node.path))) continue;
+      for (let p = node.parent; p; p = p.parent) this.changedInside.add(p.id);
+    }
   }
 
   getChildren(node?: MapNode): MapNode[] {
@@ -238,11 +288,14 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
   }
 
   private setRoots(uri: vscode.Uri | undefined, roots: MapNode[]): void {
+    if (uri?.toString() !== this.uri?.toString()) this.changes.clear();
     this.uri = uri;
     this.roots = roots;
     this.updateProblems();
+    this.updateChangedInside();
     void vscode.commands.executeCommand("setContext", "mapcan.mapOpen", uri !== undefined);
     this.changed.fire();
+    this.refreshed.fire();
   }
 
   private updateProblems(): void {
@@ -295,6 +348,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     clearTimeout(this.refreshTimer);
     clearTimeout(this.revealTimer);
     this.changed.dispose();
+    this.refreshed.dispose();
     this.decorationsChanged.dispose();
     this.subscriptions.forEach((d) => d.dispose());
   }

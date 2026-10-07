@@ -8,6 +8,7 @@ import { ChangesPanel } from "./changes";
 import { ExportView } from "./export";
 import { NodeForm } from "./form";
 import { HistoryTree, registerHistory } from "./history";
+import { ChangeMarks } from "./marks";
 import { registerPreview } from "./preview";
 import { isMap, MapTree, revealNode } from "./tree";
 
@@ -93,6 +94,7 @@ export async function activate(
   const changes = new ChangesPanel(context.extensionUri);
   const historyView = vscode.window.createTreeView(HistoryTree.viewId, { treeDataProvider: history });
   history.attach(historyView);
+  const marks = new ChangeMarks(tree, history, () => client);
   context.subscriptions.push(
     output,
     tree,
@@ -101,6 +103,7 @@ export async function activate(
     exportView,
     history,
     historyView,
+    marks,
     changes,
     vscode.window.registerWebviewViewProvider(NodeForm.viewId, form),
     vscode.window.registerWebviewViewProvider(ExportView.viewId, exportView),

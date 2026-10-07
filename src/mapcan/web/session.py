@@ -249,7 +249,7 @@ class EditorSession:
 # --------------------------------------------------------------------------- resolved
 
 
-def _frame_view(f: Frame) -> dict:
+def frame_view(f: Frame) -> dict:
     sigs = []
     explicit = bool(f.signals)
     for i, s in enumerate(f.layout):
@@ -294,5 +294,5 @@ def resolved_view(cmap: MapCan) -> dict:
     frames = []
     for bus in cmap.buses:
         for f in bus.all_frames():
-            frames.append(_frame_view(f))
+            frames.append(frame_view(f))
     return {"frames": frames, "language": cmap.lang}

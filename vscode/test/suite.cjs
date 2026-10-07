@@ -326,8 +326,78 @@ const tests = {
     assert.equal(boxes.filter((b) => b.title.endsWith("(3/3)")).at(-1).value, "Jane Smith");
     assert.equal(doc.getText(), original);
 
+    // The Map view marks nodes changed since the last commit, unsaved edits included
+    const tree = ctx.api.tree;
+    const node = (ident) => [...tree.nodes()].find((n) => n.raw.ident === ident);
+    const change = (ident) => {
+      const uri = tree.getTreeItem(node(ident)).resourceUri;
+      return uri ? new URLSearchParams(uri.query).get("change") : null;
+    };
+    const editor2 = await vscode.window.showTextDocument(doc);
+    await editor2.edit((e) => e.replace(
+      new vscode.Range(positionOf(doc, "name: RUN", 6), positionOf(doc, "name: RUN", 9)), "RUNNING"));
+    await until("modified signal", () => change("mode") === "modified");
+    assert.equal(change("pump_state"), "inside");
+    assert.equal(change("pressure"), null);
+    const deco = tree.provideFileDecoration(tree.getTreeItem(node("mode")).resourceUri);
+    assert.equal(deco.badge, "M");
+    await vscode.commands.executeCommand("undo");
+    await until("no marks", () => change("mode") === null);
+
+    // Release Version: a revision, a commit of the map and the tag v<version>
+    git("config", "user.name", "Test");
+    git("config", "user.email", "test@example.com");
+    await editor2.edit((e) => e.replace(
+      new vscode.Range(positionOf(doc, "name: RUN", 6), positionOf(doc, "name: RUN", 9)), "RUNNING"));
+    vscode.window.showQuickPick = async (items) => items;
+    vscode.window.showInputBox = async (options) => (options.title.endsWith("(3/3)") ? "Test" : options.value);
+    try {
+      await vscode.commands.executeCommand("mapcan.history.release");
+    } finally {
+      Object.assign(vscode.window, { showQuickPick, showInputBox });
+    }
+    const tag = git("tag").trim();
+    assert.match(tag, /^v\d+\.\d+\.\d+$/);
+    assert.equal(doc.isDirty, false);
+    assert.equal(git("status", "--porcelain", "--", "pump.yaml"), "");
+    assert.match(git("log", "-1", "--format=%s"), /RUNNING/);
+    assert.match(doc.getText(), new RegExp(`\\n  version: ${tag.slice(1).replace(/\./g, "\\.")}\\n`));
+    assert.match(doc.getText(), /\n  history:\n    - version: .*\n      date: .*\n      author: Test\n      changes:\n        - .*RUNNING/);
+    await until("tagged commit", () => history.commits[0]?.tags.includes(tag));
+    assert.match(history.getTreeItem(history.commits[0]).description, new RegExp(`^${tag} · `));
+    await until("no marks after the release", () => change("mode") === null);
+
     await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     await vscode.window.showTextDocument(ctx.doc);
+  },
+
+  async "the form's layout and tables write the web editor's operations"(ctx) {
+    await vscode.window.showTextDocument(ctx.doc);
+    const before = ctx.doc.getText();
+    const frame = ["buses", 0, "devices", 0, "frames", 0];
+    const ops = async (list) => {
+      const result = await vscode.commands.executeCommand("mapcan.lsp.ops", { uri: ctx.doc.uri.toString(), ops: list });
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(ctx.doc.uri, new vscode.Range(...result.edit.range), result.edit.text);
+      await vscode.workspace.applyEdit(edit);
+    };
+    // A value of the table and a signal dragged over free bits, each one edit
+    await ops([{ op: "set", path: [...frame, "signals", 0, "values", "3"], value: "SERVICE" }]);
+    assert.match(ctx.doc.getText(), /2: \{name: FAULT, description: fault\}\n {18}3: SERVICE\n/);
+    await vscode.commands.executeCommand("undo");
+    assert.equal(ctx.doc.getText(), before);
+    const n = (await ctx.api.tree.nodeByPath(frame)).children.length;
+    await ops([
+      { op: "insert", path: [...frame, "signals"], value: { name: "extra" } },
+      { op: "set_layout", path: [...frame, "signals", n], start_bit: 60, bit_length: 4 },
+    ]);
+    // The position is written as the map writes positions (byte and bit here)
+    assert.match(ctx.doc.getText(), /\n {14}- name: extra\n {16}byte: 7\n {16}bit: 4\n {16}bit_length: 4\n/);
+    await vscode.commands.executeCommand("undo");
+    assert.equal(ctx.doc.getText(), before);
+    const error = await vscode.commands.executeCommand("mapcan.lsp.ops",
+      { uri: ctx.doc.uri.toString(), ops: [{ op: "remove", path: ["nope"] }] });
+    assert.ok(error.error);
   },
 
   async "edits are validated as you type"(ctx) {

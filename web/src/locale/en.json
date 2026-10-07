@@ -462,5 +462,14 @@
   "Открыть репозиторий в браузере": "Open the repository in a browser",
   "Проверка сервера…": "Checking the server…",
   "Не удалось связаться с сервером": "Could not reach the server",
-  "Проверить сервер (fetch)": "Check the server (fetch)"
+  "Проверить сервер (fetch)": "Check the server (fetch)",
+  "Запись в истории изменений, новая версия документа, коммит и тег версии": "A revision history entry, a new document version, a commit and a version tag",
+  "Выпустить версию…": "Release version…",
+  "Выпустить версию": "Release version",
+  "Версия {version} выпущена: коммит и тег {tag}": "Version {version} released: commit and tag {tag}",
+  "Запись добавится в историю изменений, версия и дата документа обновятся, карта сохранится и будет закоммичена с тегом версии.": "An entry is added to the revision history, the document's version and date are updated, and the map is saved and committed with a version tag.",
+  "Запись версии {version} уже есть в истории изменений — новая не добавится.": "The revision history already has an entry for version {version}; no new entry is added.",
+  "Тег: {tag}": "Tag: {tag}",
+  "с {base}": "since {base}",
+  "Выпустить": "Release"
 }

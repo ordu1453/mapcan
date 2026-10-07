@@ -418,3 +418,297 @@ a:hover {
   color: var(--vscode-textLink-activeForeground);
   text-decoration: underline;
 }
+
+/* ------------------------------------------------------------------ node form: bit layout */
+
+/* Signal colors (--sig, from the web editor's palette) are mixed with the side bar's background,
+   so the bars suit dark and light themes and the text keeps the theme's color. */
+.layout {
+  --bg: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  --line: var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+}
+
+.section-note {
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.bitgrid {
+  display: grid;
+  grid-template-columns: 18px repeat(8, minmax(0, 1fr));
+  user-select: none;
+}
+
+.bg-head,
+.bg-byte {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.8;
+}
+
+.bg-head {
+  grid-row: 1;
+}
+
+.bg-byte {
+  grid-column: 1;
+  justify-content: flex-start;
+}
+
+.bg-bar {
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  margin: 2px 1px;
+  padding: 0 4px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--sig) 70%, var(--bg));
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--sig) 40%, var(--bg));
+  color: var(--vscode-foreground);
+  font-size: 11px;
+}
+
+.bg-bar span {
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.bg-bar.selected {
+  border-color: var(--vscode-focusBorder);
+  background: color-mix(in srgb, var(--sig) 65%, var(--bg));
+  font-weight: 600;
+}
+
+/* The shown bit field: the field is a frame, its flags are bars inside it */
+.bg-bar.field {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--sig) 18%, var(--bg));
+}
+
+.bg-bar.flag {
+  font-weight: normal;
+}
+
+.bg-bar.flag-selected {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+  font-weight: 600;
+}
+
+.bg-bar.synthetic {
+  border-style: dotted;
+  opacity: 0.75;
+}
+
+.bg-bar.conflict {
+  border-color: var(--vscode-errorForeground);
+  background-image: repeating-linear-gradient(45deg, transparent 0 4px,
+    color-mix(in srgb, var(--vscode-errorForeground) 35%, transparent) 4px 6px);
+}
+
+.bg-cell {
+  z-index: 1;
+  position: relative;
+  cursor: grab;
+}
+
+.bg-cell.free {
+  margin: 2px 1px;
+  border: 1px dashed var(--line);
+  border-radius: 3px;
+  cursor: crosshair;
+}
+
+.bg-cell.free:hover {
+  border-style: solid;
+  border-color: var(--vscode-focusBorder);
+}
+
+.bg-cell.synthetic {
+  cursor: default;
+}
+
+.bg-cell.preview,
+.bg-cell.preview-bad {
+  margin: 2px 1px;
+  border-radius: 3px;
+}
+
+.bg-cell.preview {
+  background: color-mix(in srgb, var(--vscode-focusBorder) 45%, transparent);
+}
+
+.bg-cell.preview-bad {
+  background: color-mix(in srgb, var(--vscode-errorForeground) 45%, transparent);
+}
+
+.grip {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--vscode-focusBorder);
+  cursor: ew-resize;
+}
+
+/* Bit 7 is on the left: the LSB handle is on the right edge of its cell */
+.grip.lo {
+  right: 2px;
+}
+
+.grip.hi {
+  left: 2px;
+}
+
+.bitgrid-status {
+  margin: 4px 0 2px 18px;
+  min-height: 16px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.bg-legend {
+  margin: 4px -16px 0 -20px;
+  padding: 0;
+  list-style: none;
+}
+
+.bg-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 0 20px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.bg-legend li {
+  color: var(--vscode-foreground);
+}
+
+/* Flags of the shown bit field, under it */
+.bg-legend li.flag {
+  padding-left: 38px;
+}
+
+.bg-legend li.flag .swatch {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.bg-legend li:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.bg-legend li.selected {
+  color: var(--vscode-list-inactiveSelectionForeground, inherit);
+  background: var(--vscode-list-inactiveSelectionBackground);
+}
+
+.bg-legend li.synthetic {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.bg-legend .swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1px solid color-mix(in srgb, var(--sig) 70%, var(--bg));
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--sig) 65%, var(--bg));
+}
+
+.bg-legend .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bg-legend .bits {
+  flex: none;
+  margin-left: auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ------------------------------------------------------------------ node form: tables */
+
+.tables > .section {
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.2)));
+}
+
+.section-title.with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.link-button {
+  height: auto;
+  padding: 0;
+  color: var(--vscode-textLink-foreground);
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.link-button:hover {
+  color: var(--vscode-textLink-activeForeground);
+  background: none;
+  text-decoration: underline;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th {
+  padding: 0 2px 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--vscode-descriptionForeground);
+}
+
+.table td {
+  padding: 1px 2px;
+}
+
+.table .num {
+  width: 52px;
+}
+
+.table th:last-child,
+.table td.act {
+  width: 28px;
+}
+
+.table input[type="text"] {
+  padding: 3px 4px;
+}
+
+.table .icon-button {
+  height: 24px;
+  width: 24px;
+}

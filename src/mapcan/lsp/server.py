@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-import re
-
 from lsprotocol import types as T
 from pygls.lsp.server import LanguageServer
 from pygls.uris import to_fs_path
@@ -304,6 +302,45 @@ def set_command(ls: MapcanServer, *args) -> dict:
     return {"edits": [{"range": [*e.start, *e.end], "text": e.text} for e in edits]}
 
 
+@server.command("mapcan.lsp.ops")
+def ops_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, ops} — операции веб-редактора (set, remove, insert, move, rename_key, set_layout)
+    одной правкой. Ответ: {edit: {range, text}}, {} — текст не изменился — или {error}."""
+    from ..web.yamlops import OpError
+
+    params = _arg(args)
+    a = ls.analysis(params.get("uri", ""))
+    if a is None:
+        return {"error": _("Документ не является картой mapcan.")}
+    try:
+        text = E.apply_ops(a, list(params.get("ops") or []))
+    except OpError as e:
+        return {"error": str(e)}
+    if text == a.text:
+        return {}
+    e = E.minimal_edit(a.text, text)
+    return {"edit": {"range": [*e.start, *e.end], "text": e.text}}
+
+
+@server.command("mapcan.lsp.changes")
+@server.thread()
+def changes_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, oldText}. Ответ: {nodes: [{path, status}]} — узлы текущей карты, добавленные
+    (added) или изменённые (modified) с версии oldText, — или {error}."""
+    from ..diff import changed_paths, diff_maps
+    from ..loader import loads
+
+    params = _arg(args)
+    a = ls.analysis(params.get("uri", ""))
+    if a is None or a.map is None:
+        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+    old = loads(params.get("oldText") or "", "old.yaml").map
+    if old is None:
+        return {"error": _("Версия карты из истории не разобрана.")}
+    paths = changed_paths(diff_maps(old, a.map), a.map)
+    return {"nodes": [{"path": list(p), "status": s} for p, s in paths.items()]}
+
+
 @server.command("mapcan.lsp.render")
 @server.thread()
 def render_command(ls: MapcanServer, *args) -> dict:
@@ -338,11 +375,6 @@ def diff_command(ls: MapcanServer, *args) -> dict:
     return {"text": render_diff(diff_maps(old, new), "md", new.lang)}
 
 
-def _bump(version: str) -> str:
-    m = re.match(r"^(\d+)\.(\d+)\.(\d+)", version or "")
-    return f"{m[1]}.{m[2]}.{int(m[3]) + 1}" if m else version or "0.1.0"
-
-
 @server.command("mapcan.lsp.historyDraft")
 @server.thread()
 def history_draft_command(ls: MapcanServer, *args) -> dict:
@@ -350,7 +382,7 @@ def history_draft_command(ls: MapcanServer, *args) -> dict:
     текста — {version, date, author, github, changes} — или {error}. Автор — из профиля mapcan."""
     import datetime
 
-    from ..diff import changelog_lines, diff_maps
+    from ..diff import bump_version, changelog_lines, diff_maps
     from ..loader import loads
     from ..userconfig import UserConfig
 
@@ -365,12 +397,39 @@ def history_draft_command(ls: MapcanServer, *args) -> dict:
     current = a.map.document.version or ""
     user = UserConfig.load().user
     return {
-        "version": _bump(current) if d.old_version == current else current,
+        "version": bump_version(current) if d.old_version == current else current,
         "date": datetime.date.today().isoformat(),
         "author": user.name or None,
         "github": user.github,
         "changes": changelog_lines(d, a.map.lang),
     }
+
+
+@server.command("mapcan.lsp.releaseDraft")
+@server.thread()
+def release_draft_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, oldText, tags}: oldText — карта прошлого выпуска или последнего коммита (null —
+    выпусков не было), tags — теги репозитория. Ответ: {version, recorded, changes, date, author, github}
+    или {error}; recorded — запись этой версии уже есть в истории изменений."""
+    import datetime
+
+    from ..diff import release_draft
+    from ..loader import loads
+    from ..userconfig import UserConfig
+
+    params = _arg(args)
+    a = ls.analysis(params.get("uri", ""))
+    if a is None or a.map is None:
+        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+    old = None
+    if params.get("oldText") is not None:
+        old = loads(params["oldText"], "old.yaml").map
+        if old is None:
+            return {"error": _("Версия карты из истории не разобрана.")}
+    tags = set(params.get("tags") or [])
+    user = UserConfig.load().user
+    return {**release_draft(a.map, old, lambda v: f"v{v}" in tags),
+            "date": datetime.date.today().isoformat(), "author": user.name or None, "github": user.github}
 
 
 @server.command("mapcan.lsp.addHistory")

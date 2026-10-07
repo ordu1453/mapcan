@@ -173,6 +173,9 @@ onBeforeUnmount(() => {
             <div class="dd-sep" />
             <button :disabled="unsaved || !gitPending || store.busy" @click="menu = null; store.dialog = 'git-commit'">{{ t("Закоммитить…") }}</button>
             <button :disabled="unsaved || !git.last || store.busy" @click="menu = null; store.dialog = 'git-tag'">{{ t("Поставить тег…") }}</button>
+            <button :disabled="store.busy || store.meta?.readonly || !store.state?.resolved"
+                    :title="t('Запись в истории изменений, новая версия документа, коммит и тег версии')"
+                    @click="menu = null; store.dialog = 'git-release'">{{ t("Выпустить версию…") }}</button>
             <button :disabled="!git.last" @click="menu = null; store.dialog = 'git-log'">{{ t("Журнал версий…") }}</button>
             <div class="dd-sep" />
             <template v-if="git.remote">

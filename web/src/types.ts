@@ -182,6 +182,17 @@ export interface GitCommit {
 }
 
 /** Состояние git для файла карты (меню Git) */
+/** Черновик выпуска версии (GET /api/git/release). */
+export interface ReleaseDraft {
+  version: string;
+  /** Изменения с прошлого выпуска или из уже добавленной записи истории (recorded). */
+  changes: string[];
+  /** Запись этой версии уже есть в истории изменений: новая не добавляется. */
+  recorded: boolean;
+  /** С чем сравнивалась карта: тег прошлого выпуска или HEAD; null — карта ещё не в git. */
+  base: string | null;
+}
+
 export interface GitStatus {
   available: boolean;
   reason?: "no-git" | "no-repo" | "error";

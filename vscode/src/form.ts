@@ -2,6 +2,10 @@
 // Opened by the Map view's "+" buttons (for the new node) and by "Edit…". Every change is written
 // to the YAML right away by the language server (`mapcan.lsp.set`), so the editor shows it as it
 // is typed and Undo works as for any other edit. While open, the form follows the tree selection.
+// Frames, signals, flags and SDO exchanges also show the frame's bit layout, as in the web editor:
+// dragging over free bits adds a signal, dragging a signal moves it, its edges change its length.
+// Signals have their value table and flags. These changes are operations of the web editor
+// (`mapcan.lsp.ops`).
 
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
@@ -27,15 +31,29 @@ interface NodeFields {
   values: Record<string, unknown>;
   /** CANopen frame types for the frame's Type field; `taken` names the frame with the same CAN ID. */
   frameTypes: { type: string; label: string; taken: string | null }[];
+  /** The frame the node belongs to as the web editor shows it (signals with their bits), if the map is read. */
+  frame: unknown;
+  palette: string[];
+  /** Rows of the value table (`values`) of a signal or flag; null — the node has none. */
+  valueTable: unknown[] | null;
+  /** Flags of a bit field signal; null — the signal has none. */
+  flags: unknown[] | null;
 }
 
 interface SetResult {
   edits?: { range: [number, number, number, number]; text: string }[];
 }
 
+interface OpsResult {
+  edit?: { range: [number, number, number, number]; text: string };
+  error?: string;
+}
+
 type Message =
   | { type: "ready" }
   | { type: "set"; key: string; value: unknown }
+  | { type: "ops"; ops: object[]; select?: Path }
+  | { type: "select"; path: Path }
   | { type: "done" }
   | { type: "discard" };
 
@@ -57,7 +75,7 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
     private readonly extensionUri: vscode.Uri,
     private readonly tree: MapTree,
     private readonly client: () => LanguageClient | undefined,
-    treeView: vscode.TreeView<MapNode>,
+    private readonly treeView: vscode.TreeView<MapNode>,
   ) {
     this.subscriptions.push(
       tree.onDidChangeTreeData(() => {
@@ -147,6 +165,12 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
           this.queue = this.queue.then(() => this.set(path, m.value)).catch((err) => console.error(err));
         }
         break;
+      case "ops":
+        this.queue = this.queue.then(() => this.applyOps(m.ops, m.select)).catch((err) => console.error(err));
+        break;
+      case "select":
+        void this.queue.then(() => this.select(m.path));
+        break;
       case "done":
         void this.queue.then(() => this.close());
         break;
@@ -176,6 +200,40 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
       const at = new vscode.Position(sl, sc);
       editor.revealRange(new vscode.Range(at, at), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
     }
+  }
+
+  /** Operations of the web editor in one edit; `select` — then show that node (a signal just added). */
+  private async applyOps(ops: object[], select?: Path): Promise<void> {
+    const uri = this.tree.mapUri;
+    const client = this.client();
+    if (!uri || !client?.isRunning()) return;
+    const result = (await client.sendRequest(ExecuteCommandRequest.type, {
+      command: "mapcan.lsp.ops",
+      arguments: [{ uri: uri.toString(), ops }],
+    })) as OpsResult | null;
+    if (result?.error) {
+      void vscode.window.showErrorMessage(`mapcan: ${result.error}`);
+      void this.refresh();
+      return;
+    }
+    if (!result?.edit) return;
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(uri, new vscode.Range(...result.edit.range), result.edit.text);
+    if (!(await vscode.workspace.applyEdit(edit))) return;
+    if (select) {
+      await this.tree.refresh();
+      await this.select(select);
+    }
+  }
+
+  /** Show another node of the map in the form and select it in the Map view. */
+  private async select(path: Path): Promise<void> {
+    if (!this.path || samePath(path, this.path)) return;
+    this.created = undefined;
+    this.path = path;
+    await this.refresh();
+    const node = this.tree.nodeByPath(path);
+    if (node && this.treeView.visible) await this.treeView.reveal(node, { select: true, focus: false, expand: true });
   }
 
   private async discard(): Promise<void> {
