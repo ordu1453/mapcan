@@ -33,7 +33,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: uv sync --locked
+        run: uv sync --locked --extra lsp
       - name: Lint
         run: uv run ruff check src tests
       - name: Schema is up to date
@@ -49,7 +49,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
-      - run: uv sync --locked
+      - run: uv sync --locked --extra lsp
       - run: uv run pytest
 
   # Пробная сборка Docker-образа (без публикации): иначе поломка Dockerfile всплывает только

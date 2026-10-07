@@ -89,72 +89,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mapcan"
-version = "0.14.1"
-source = { editable = "." }
-dependencies = [
-    { name = "cantools" },
-    { name = "fastapi" },
-    { name = "jinja2" },
-    { name = "openpyxl" },
-    { name = "pillow" },
-    { name = "pydantic" },
-    { name = "python-multipart" },
-    { name = "ruamel-yaml" },
-    { name = "typer" },
-    { name = "typst" },
-    { name = "uvicorn" },
-    { name = "websockets" },
-]
-
-[package.optional-dependencies]
-bus = [
-    { name = "python-can" },
-]
-desktop = [
-    { name = "pywebview" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "httpx" },
-    { name = "jsonschema" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-package = [
-    { name = "pyinstaller" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cantools", specifier = ">=39" },
-    { name = "fastapi", specifier = ">=0.110" },
-    { name = "jinja2", specifier = ">=3.1" },
-    { name = "openpyxl", specifier = ">=3.1" },
-    { name = "pillow", specifier = ">=10" },
-    { name = "pydantic", specifier = ">=2.7,<3" },
-    { name = "python-can", marker = "extra == 'bus'", specifier = ">=4.3" },
-    { name = "python-multipart", specifier = ">=0.0.9" },
-    { name = "pywebview", marker = "extra == 'desktop'", specifier = ">=5" },
-    { name = "ruamel-yaml", specifier = ">=0.18" },
-    { name = "typer", specifier = ">=0.12" },
-    { name = "typst", specifier = ">=0.13" },
-    { name = "uvicorn", specifier = ">=0.29" },
-    { name = "websockets", specifier = ">=12" },
-]
-provides-extras = ["bus", "desktop"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "jsonschema", specifier = ">=4" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "ruff", specifier = ">=0.5" },
-]
-package = [{ name = "pyinstaller", specifier = ">=6.10" }]
-
-[[package]]
 name = "cantools"
 version = "44.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -168,6 +102,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/03/c5/5a48673e37d3827fcd8b47241cf44a2e511fe8a11b85aed1cfea93dd84c1/cantools-44.1.0.tar.gz", hash = "sha256:ddb1538b8ec9353d791da089ba30e1e46ec95f54a55276bbdd3da096876a0a82", size = 1052863, upload-time = "2026-09-16T14:26:27.041Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e5/4b/cfcf668c9e3dc8f8a92ed4dd766b6bb7ba1f0174fce52fcaf66d131e02cc/cantools-44.1.0-py3-none-any.whl", hash = "sha256:41b6f3edf173b7d79354331d4b619f0fad28a9473e4a4a2bdd2ef75156c920a8", size = 167190, upload-time = "2026-09-16T14:26:25.079Z" },
+]
+
+[[package]]
+name = "cattrs"
+version = "26.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/23/75/e72b839c3dc869c990b4842f3dba730bdcdf5215f68fc7955edf849a1792/cattrs-26.2.1.tar.gz", hash = "sha256:679132bfdc225c5ee40c024fc42519954767c387f950dc6751946c586bccdc6d", size = 525617, upload-time = "2026-09-26T20:53:21.114Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e8/cf/22794a399d99480486120e26e879ef008e21f5e85274c2ed591d568bb326/cattrs-26.2.1-py3-none-any.whl", hash = "sha256:a12aaa3453dc8f633a815293179f08b7421ed18d2575c459c3c736f840beac24", size = 74843, upload-time = "2026-09-26T20:53:19.767Z" },
 ]
 
 [[package]]
@@ -353,6 +300,19 @@ wheels = [
 ]
 
 [[package]]
+name = "lsprotocol"
+version = "2025.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "cattrs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/26/67b84e6ec1402f0e6764ef3d2a0aaf9a79522cc1d37738f4e5bb0b21521a/lsprotocol-2025.0.0.tar.gz", hash = "sha256:e879da2b9301e82cfc3e60d805630487ac2f7ab17492f4f5ba5aaba94fe56c29", size = 74896, upload-time = "2025-06-17T21:30:18.156Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/f0/92f2d609d6642b5f30cb50a885d2bf1483301c69d5786286500d15651ef2/lsprotocol-2025.0.0-py3-none-any.whl", hash = "sha256:f9d78f25221f2a60eaa4a96d3b4ffae011b107537facee61d3da3313880995c7", size = 76250, upload-time = "2025-06-17T21:30:19.455Z" },
+]
+
+[[package]]
 name = "macholib"
 version = "1.16.4"
 source = { registry = "https://pypi.org/simple" }
@@ -363,6 +323,76 @@ sdist = { url = "https://files.pythonhosted.org/packages/10/2f/97589876ea9674879
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/d1/a9f36f8ecdf0fb7c9b1e78c8d7af12b8c8754e74851ac7b94a8305540fc7/macholib-1.16.4-py2.py3-none-any.whl", hash = "sha256:da1a3fa8266e30f0ce7e97c6a54eefaae8edd1e5f86f3eb8b95457cae90265ea", size = 38117, upload-time = "2025-11-22T08:28:36.939Z" },
 ]
+
+[[package]]
+name = "mapcan"
+version = "0.14.1"
+source = { editable = "." }
+dependencies = [
+    { name = "cantools" },
+    { name = "fastapi" },
+    { name = "jinja2" },
+    { name = "openpyxl" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "python-multipart" },
+    { name = "ruamel-yaml" },
+    { name = "typer" },
+    { name = "typst" },
+    { name = "uvicorn" },
+    { name = "websockets" },
+]
+
+[package.optional-dependencies]
+bus = [
+    { name = "python-can" },
+]
+desktop = [
+    { name = "pywebview" },
+]
+lsp = [
+    { name = "pygls" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "jsonschema" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+package = [
+    { name = "pyinstaller" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cantools", specifier = ">=39" },
+    { name = "fastapi", specifier = ">=0.110" },
+    { name = "jinja2", specifier = ">=3.1" },
+    { name = "openpyxl", specifier = ">=3.1" },
+    { name = "pillow", specifier = ">=10" },
+    { name = "pydantic", specifier = ">=2.7,<3" },
+    { name = "pygls", marker = "extra == 'lsp'", specifier = ">=2.0,<3" },
+    { name = "python-can", marker = "extra == 'bus'", specifier = ">=4.3" },
+    { name = "python-multipart", specifier = ">=0.0.9" },
+    { name = "pywebview", marker = "extra == 'desktop'", specifier = ">=5" },
+    { name = "ruamel-yaml", specifier = ">=0.18" },
+    { name = "typer", specifier = ">=0.12" },
+    { name = "typst", specifier = ">=0.13" },
+    { name = "uvicorn", specifier = ">=0.29" },
+    { name = "websockets", specifier = ">=12" },
+]
+provides-extras = ["bus", "desktop", "lsp"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "jsonschema", specifier = ">=4" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.5" },
+]
+package = [{ name = "pyinstaller", specifier = ">=6.10" }]
 
 [[package]]
 name = "markdown-it-py"
@@ -534,6 +564,20 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/dd/a18df751a5e37dd51bfad7f68e766999125bebe68c9e1d10a493ad01bd63/pydantic_core-2.46.5-graalpy312-graalpy250_312_native-macosx_11_0_arm64.whl", hash = "sha256:e9c134bb666dd54b778b9fc0d2b50cbb7f979b9e3716f26a88c9ab3b6fc1dd0f", size = 1902040, upload-time = "2026-08-28T10:01:02.529Z" },
     { url = "https://files.pythonhosted.org/packages/b7/13/01d40f9d07ce8a779fd6e0bd8ad4fba91309500dd67b869e2e219d261a6d/pydantic_core-2.46.5-graalpy312-graalpy250_312_native-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:347ec774390c87326a2e4929d58d3f7e8763a104d5d35f4cd595a4c952366433", size = 1967479, upload-time = "2026-08-28T10:01:05.004Z" },
     { url = "https://files.pythonhosted.org/packages/fa/04/c81d4841331c2178b6fb09ae225425e110ed72d990c9fe556c4ec03d1013/pydantic_core-2.46.5-graalpy312-graalpy250_312_native-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8e24d8f05fa2d28513d94e877e9c75ad66175376209b3977f916e240e623193c", size = 2111034, upload-time = "2026-08-28T10:01:07.345Z" },
+]
+
+[[package]]
+name = "pygls"
+version = "2.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "cattrs" },
+    { name = "lsprotocol" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/da/2e/7bbe061d175c0baddde8fc9edb908a4c31ba5d9165b8c68e3439c3a9f138/pygls-2.1.1.tar.gz", hash = "sha256:1da03ba9053201bb337dcdd8d121df70feb2a91e1a0dcc74de5da79755b1a201", size = 55091, upload-time = "2026-03-25T11:19:10.541Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fd/1a/208293b6c350f5abea6941d5606080d4a492644052504f5312e5de30a902/pygls-2.1.1-py3-none-any.whl", hash = "sha256:510a6dea2476177230c7d851125e5948efdf3fdb9ebfd8543fc434972f8faed4", size = 68975, upload-time = "2026-03-25T11:19:11.374Z" },
 ]
 
 [[package]]
