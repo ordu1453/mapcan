@@ -625,6 +625,11 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             wsp.require().set_text(body.text)
             return await changed()
 
+    @app.post("/api/check")
+    async def post_check(body: TextBody) -> dict:
+        s = wsp.require()
+        return {"diagnostics": await run_in_threadpool(s.check_text, body.text)}
+
     @app.post("/api/undo")
     async def post_undo() -> dict:
         async with lock:

@@ -186,6 +186,15 @@ def test_text_with_errors(client):
     assert client.get("/api/export/md").status_code == 409
 
 
+def test_check_text_does_not_apply(client):
+    before = client.get("/api/state").json()
+    text = before["text"].replace("signals:\n", "signals:\n              -oops: 1\n", 1)
+    diags = client.post("/api/check", json={"text": text}).json()["diagnostics"]
+    assert diags and diags[0]["code"] == "yaml" and "space after '-'" in diags[0]["message"]
+    after = client.get("/api/state").json()
+    assert after["text"] == before["text"] and after["version"] == before["version"]
+
+
 def test_save_conflict(client, mapfile):
     ops(client, {"op": "set", "path": SIG + ["unit"], "value": "кВ"})
     mapfile.write_text(mapfile.read_text(encoding="utf-8") + "\n# внешняя правка\n", encoding="utf-8")

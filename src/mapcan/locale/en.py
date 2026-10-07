@@ -247,6 +247,29 @@ EN: dict[str, str] = {
     "cycle_ms задан для режима {mode}": "cycle_ms is set for mode {mode}",
     "sdo у кадра типа {type}": "sdo set on a frame of type {type}",
     "кадр {name!r} без сигналов": "frame {name!r} has no signals",
+    "неизвестное поле {name!r}: если это элемент списка, после «-» нужен пробел":
+        "unknown field {name!r}: if this is meant to be a list item, add a space after '-'",
+    "ожидается список: если {name!r} — его элемент, после «-» нужен пробел":
+        "a list is expected: if {name!r} is meant to be a list item, add a space after '-'",
+    "после «-» нужен пробел: элемент списка записывается как «- {item}»":
+        "missing space after '-': write the list item as '- {item}'",
+    "символ табуляции: отступы в YAML делаются только пробелами":
+        "tab character: YAML indentation must use spaces only",
+    "элемент списка «-» не на своём месте: здесь ожидался ключ блока, начатого в строке {start}; "
+    "проверьте отступ":
+        "unexpected list item '-': a key of the block that starts on line {start} was expected here; "
+        "check the indentation",
+    "неверный отступ: строка не выровнена по блоку, начатому в строке {start}":
+        "bad indentation: this line does not line up with the block that starts on line {start}",
+    "лишнее «:» — возьмите значение, содержащее «: », в кавычки или проверьте, что у предыдущей строки "
+    "есть «:» после ключа":
+        "unexpected ':': quote a value that contains ': ', or check that the previous line has ':' "
+        "after its key",
+    "кавычка, открытая в строке {start}, не закрыта": "the quote opened on line {start} is never closed",
+    "«[», открытая в строке {start}, не закрыта или элементы не разделены запятой":
+        "the '[' opened on line {start} is not closed, or its items are not separated by commas",
+    "«{{», открытая в строке {start}, не закрыта или элементы не разделены запятой":
+        "the '{{' opened on line {start} is not closed, or its items are not separated by commas",
     "DLC служебного кадра CANopen не соответствует CiA 301": "DLC of a CANopen service frame does not match CiA 301",
     "Нестандартная скорость шины": "Non-standard bus bit rate",
     "Расчётная загрузка шины циклическими кадрами выше 70 %": "Estimated bus load from cyclic frames above 70%",

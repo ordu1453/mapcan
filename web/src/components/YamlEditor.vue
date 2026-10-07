@@ -1,7 +1,9 @@
 <script setup lang="ts">
 // Правка YAML целиком. Применение — Ctrl+Enter или кнопка; проверка та же, что в CLI.
 import { computed, nextTick, ref, watch } from "vue";
+import { api } from "../api";
 import { actions, store, tree } from "../store";
+import type { Diagnostic } from "../types";
 import { samePath, type TreeNode } from "../model";
 import { highlight, nodeAtLine, nodeLines } from "../yamltext";
 import { t } from "../i18n";
@@ -61,12 +63,45 @@ function onKeyUp(e: KeyboardEvent) {
   if (/^(Arrow|Page|Home|End)/.test(e.key)) selectAtCursor();
 }
 
+// Живая проверка: неприменённый текст проверяется на сервере с задержкой после ввода.
+const draftDiags = ref<Diagnostic[] | null>(null);
+let checkTimer: ReturnType<typeof setTimeout> | undefined;
+let checkSeq = 0;
+watch(text, (value) => {
+  clearTimeout(checkTimer);
+  if (!local.value) {
+    draftDiags.value = null;
+    return;
+  }
+  const seq = ++checkSeq;
+  checkTimer = setTimeout(async () => {
+    try {
+      const r = await api.check(value);
+      if (seq === checkSeq) draftDiags.value = r.diagnostics;
+    } catch {
+      /* нет связи — пометки остаются прежними */
+    }
+  }, 400);
+});
+
+const diags = computed(() => (local.value ? draftDiags.value ?? [] : store.state?.diagnostics ?? []));
+const draftErrors = computed(() => (local.value ? (draftDiags.value ?? []).filter((d) => d.level === "error") : []));
+
 const marks = computed(() => {
   const m = new Map<number, string>();
-  for (const d of store.state?.diagnostics ?? []) {
+  for (const d of diags.value) {
     if (d.line == null) continue;
     const cur = m.get(d.line);
     if (cur !== "error") m.set(d.line, d.level === "error" ? "error" : cur ?? d.level);
+  }
+  return m;
+});
+
+const lineMessages = computed(() => {
+  const m = new Map<number, string>();
+  for (const d of diags.value) {
+    if (d.line == null) continue;
+    m.set(d.line, (m.has(d.line) ? m.get(d.line) + "\n" : "") + `${d.level}[${d.code}]: ${d.message}`);
   }
   return m;
 });
@@ -130,9 +165,15 @@ function onKey(e: KeyboardEvent) {
       <button :disabled="!local || store.state?.readonly" @click="revert">{{ t("Сбросить изменения") }}</button>
       <button class="primary" :disabled="!local || store.state?.readonly" title="Ctrl+Enter" @click="apply">{{ t("Применить") }}</button>
     </div>
+    <div v-if="draftErrors.length" class="yaml-problems">
+      <button v-for="(d, i) in draftErrors.slice(0, 3)" :key="i" class="link" @click="reveal(d.line)">
+        <b>{{ t("Строка {line}", { line: d.line ?? "?" }) }}:</b> {{ d.message }}
+      </button>
+      <span v-if="draftErrors.length > 3" class="muted">{{ t("и ещё {count}", { count: draftErrors.length - 3 }) }}</span>
+    </div>
     <div class="yaml-body">
       <div ref="gutter" class="gutter mono">
-        <div v-for="n in lines" :key="n" :class="[marks.get(n), { 'in-node': inRange(n) }]"
+        <div v-for="n in lines" :key="n" :class="[marks.get(n), { 'in-node': inRange(n) }]" :title="lineMessages.get(n)"
              :style="{ height: LINE + 'px' }">{{ n }}</div>
       </div>
       <div class="yaml-code">

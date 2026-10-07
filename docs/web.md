@@ -94,7 +94,7 @@ The profile records who made which changes:
 | **Receives** | On a device page: the bus frames the device receives (its own RX frames and other devices' frames that list it as a receiver), with their senders. Below it, **Transmits frames of other devices** lists the frames it sends on behalf of other devices (`sender`). Both are computed from the frames; click a row to jump to the frame. On a frame page, **Sender** is picked from the bus devices and **Receivers** are toggled on and off; renaming a device updates both. |
 | **Values / Flags** | Enum and bit field tables: value (decimal or `0x…`), name, description. **+ Flag** adds a row without leaving the signal page. |
 | **Validation** (bottom) | The same rules as `mapcan validate`. Click a message to jump to the node (or, on the YAML tab, to the line). |
-| **YAML** | Edit the whole file as text; lines with errors are highlighted. Ctrl+Enter applies the edit. |
+| **YAML** | Edit the whole file as text. The text is validated as you type, before it is applied: lines with problems are marked in the gutter (hover a line number to read the message), and syntax errors are listed above the editor; click one to jump to its line. Ctrl+Enter applies the edit. |
 | **Export** | Documents (PDF, HTML, Markdown, Excel) and development formats (DBC, C, Python), generated from the current state, including unsaved changes. Clicking a document opens a preview; for PDF, the template is chosen there: `mapcan` or ESKD (see [templates.md](templates.md)). ↓ on the right downloads the file directly. The document language (English or Russian; the map's language by default) is chosen in the menu and in the preview. The ESKD template is always in Russian. |
 | **Layout and document details** | In the document properties: logo (file upload), designation, letter, organization, city, title block signatures, approval blocks. |
 | **Git → Compare versions…** | Diffs the current map against a git revision (HEAD, a tag or a commit) or an uploaded file: changes to frames, signals, values and flags. **Add to history** writes the changelog into `document.history` and bumps the version. |
@@ -155,6 +155,7 @@ available at `http://127.0.0.1:8765/api/docs`.
 | GET | `/api/state` | Text, data, computed layout and diagnostics |
 | POST | `/api/ops` | `{"ops": [...]}`: apply operations atomically |
 | POST | `/api/text` | Replace the YAML text |
+| POST | `/api/check` | `{"text": ...}`: validate text without applying it; returns `{diagnostics}` |
 | POST | `/api/undo`, `/api/redo` | Edit history |
 | POST | `/api/save` | `{"force": false}`; `409` means the file changed on disk |
 | POST | `/api/reload` | Reload the file from disk |

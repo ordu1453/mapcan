@@ -152,7 +152,15 @@ def _pydantic_messages(err: ValidationError, src: SourceMap, report: Report) -> 
         msg = e["msg"]
         if msg.startswith("Value error, "):
             msg = _(msg[len("Value error, "):])      # сообщения валидаторов модели помечены N_()
-        if e["type"] == "extra_forbidden":
+        dash_keys = [k for k in e.get("input") or {} if str(k).startswith("-")] \
+            if isinstance(e.get("input"), dict) else []
+        if e["type"] == "extra_forbidden" and str(loc[-1]).startswith("-"):
+            msg = _("неизвестное поле {name!r}: если это элемент списка, после «-» нужен пробел",
+                    name=loc[-1])
+        elif e["type"] == "list_type" and dash_keys:
+            msg = _("ожидается список: если {name!r} — его элемент, после «-» нужен пробел",
+                    name=dash_keys[0])
+        elif e["type"] == "extra_forbidden":
             msg = _("неизвестное поле {name!r}", name=loc[-1])
         elif e["type"] == "missing":
             msg = _("отсутствует обязательное поле {name!r}", name=loc[-1])
@@ -173,6 +181,59 @@ def _known_keys(src: SourceMap) -> set:
     return _KEYS_CACHE[k]
 
 
+# Элемент списка без пробела после «-»: «-name: x» читается как ключ «-name», а не как элемент.
+_DASH_NO_SPACE = re.compile(r"^(\s*)-([A-Za-z_\"'{\[][^\n]*)$")
+
+
+def _yaml_error(e: MarkedYAMLError, text: str) -> tuple[str, int | None, int | None]:
+    """Понятное сообщение о синтаксической ошибке YAML: (текст, строка, колонка).
+
+    Сообщения ruamel.yaml («expected <block end>, but found '-'») указывают на место, где разбор
+    сломался, а не на причину. Для частых ошибок ищем причину в строках между началом блока
+    (``context_mark``) и местом сбоя и объясняем, как исправить.
+    """
+    pm, cm = e.problem_mark, e.context_mark
+    mark = pm or cm
+    line = mark.line + 1 if mark else None
+    col = mark.column + 1 if mark else None
+    problem = (e.problem or str(e)).strip()
+    ctx_line = cm.line + 1 if cm else None
+
+    if "duplicate key" in str(e):
+        return _("повторяющийся ключ: {problem}", problem=e.problem or ""), line, col
+
+    lines = text.splitlines()
+    if pm is not None:
+        first = cm.line if cm is not None and cm.line <= pm.line else max(pm.line - 1, 0)
+        for i in range(pm.line, first - 1, -1):
+            m = _DASH_NO_SPACE.match(lines[i]) if i < len(lines) else None
+            if m:
+                return (_("после «-» нужен пробел: элемент списка записывается как «- {item}»",
+                          item=m.group(2).strip()), i + 1, len(m.group(1)) + 1)
+
+    if "cannot start any token" in problem and "\\t" in problem:
+        problem = _("символ табуляции: отступы в YAML делаются только пробелами")
+    elif problem.startswith("expected <block end>"):
+        if "'-'" in problem:
+            problem = _("элемент списка «-» не на своём месте: здесь ожидался ключ блока, начатого "
+                        "в строке {start}; проверьте отступ", start=ctx_line)
+        else:
+            problem = _("неверный отступ: строка не выровнена по блоку, начатому в строке {start}",
+                        start=ctx_line)
+    elif problem.startswith("mapping values are not allowed"):
+        problem = _("лишнее «:» — возьмите значение, содержащее «: », в кавычки или проверьте, "
+                    "что у предыдущей строки есть «:» после ключа")
+    elif "end of stream" in problem and e.context and "quoted scalar" in e.context:
+        problem = _("кавычка, открытая в строке {start}, не закрыта", start=ctx_line)
+    elif problem.startswith("expected ',' or ']'"):
+        problem = _("«[», открытая в строке {start}, не закрыта или элементы не разделены запятой",
+                    start=ctx_line)
+    elif problem.startswith("expected ',' or '}'"):
+        problem = _("«{{», открытая в строке {start}, не закрыта или элементы не разделены запятой",
+                    start=ctx_line)
+    return problem, line, col
+
+
 def _make_yaml() -> YAML:
     y = YAML(typ="rt")
     y.preserve_quotes = True
@@ -185,13 +246,8 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
     try:
         raw = _make_yaml().load(text)
     except MarkedYAMLError as e:
-        mark = e.problem_mark or e.context_mark
-        line = mark.line + 1 if mark else None
-        col = mark.column + 1 if mark else None
-        problem = e.problem or str(e)
-        if "duplicate key" in str(e):
-            problem = _("повторяющийся ключ: {problem}", problem=e.problem or "")
-        report.add(Diagnostic("error", "yaml", problem.strip(), filename, line, col))
+        problem, line, col = _yaml_error(e, text)
+        report.add(Diagnostic("error", "yaml", problem, filename, line, col))
         return LoadResult(None, report, src)
     if raw is None:
         report.add(Diagnostic("error", "yaml", _("пустой файл"), filename, 1, 1))

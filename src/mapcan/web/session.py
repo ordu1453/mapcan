@@ -116,6 +116,11 @@ class EditorSession:
         self._report = check(self._result)
         self.version += 1
 
+    def check_text(self, text: str) -> list[dict]:
+        """Проверить текст, не применяя его (живая проверка во вкладке YAML)."""
+        report = check(loads(text.replace("\r\n", "\n"), str(self.path.name), self.path.parent))
+        return [asdict(d) for d in report.sorted()]
+
     def recheck(self) -> None:
         """Пересобрать сообщения проверки (после смены языка интерфейса)."""
         with self.lock:

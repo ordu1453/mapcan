@@ -432,5 +432,7 @@
   "вне карты": "outside the map",
   "для RX-кадра и кадра шины; пусто — отправитель не описан в карте": "for an RX frame or a bus frame; empty — the sender is not in the map",
   "кадр шины": "bus frame",
-  "устройства шины, которые принимают кадр": "bus devices that receive the frame"
+  "устройства шины, которые принимают кадр": "bus devices that receive the frame",
+  "Строка {line}": "Line {line}",
+  "и ещё {count}": "and {count} more"
 }

@@ -50,6 +50,56 @@ def test_duplicate_key():
     assert "yaml" in rep.codes()
 
 
+def _yaml_diag(text: str):
+    _, rep = run(text)
+    return next(d for d in rep.diagnostics if d.code in ("yaml", "schema"))
+
+
+def test_yaml_dash_without_space_points_to_culprit():
+    """«-name:» без пробела: сообщение и строка — у виновника, а не у следующего элемента."""
+    d = _yaml_diag(one_bus("""
+        - name: f
+          type: pdo_tx1
+          signals:
+            -ndsj:
+              fdjopskd
+            - {name: a, byte: 0}
+    """))
+    assert d.code == "yaml" and "space after '-'" in d.message and "- ndsj:" in d.message
+    assert d.line == 14
+
+
+@pytest.mark.parametrize("text, words", [
+    ("a: b: c\n", "quote a value"),
+    ("a:\n\tb: 1\n", "tab character"),
+    ("a:\n  b: 1\n c: 2\n", "bad indentation"),
+    ("a: [1, 2\nb: 3\n", "'[' opened on line 1"),
+    ("a: {x: 1\nb: 3\n", "'{' opened on line 1"),
+    ('a: "x\nb: 1\n', "quote opened on line 1"),
+])
+def test_yaml_error_hints(text, words):
+    assert words in _yaml_diag(text).message
+
+
+def test_schema_dash_hints():
+    d = _yaml_diag(one_bus("""
+        - name: f
+          type: pdo_tx1
+          signals:
+            -ndsj: x
+    """))
+    assert d.code == "schema" and "space after '-'" in d.message
+    d = _yaml_diag(one_bus("""
+        - name: f
+          type: pdo_tx1
+          signals:
+            - name: a
+              byte: 0
+              -ndsj: x
+    """))
+    assert "unknown field '-ndsj'" in d.message and "space after '-'" in d.message
+
+
 def test_schema_missing_field_and_unknown_field():
     _, rep = run(one_bus("""
         - type: pdo_tx1

@@ -1,4 +1,4 @@
-import type { DiffResult, FsList, GitRevs, GitStatus, Meta, Op, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
+import type { Diagnostic, DiffResult, FsList, GitRevs, GitStatus, Meta, Op, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code = "") {
@@ -45,6 +45,7 @@ export const api = {
   state: () => call<State>("GET", "/api/state"),
   ops: (ops: Op[]) => call<State>("POST", "/api/ops", { ops }),
   text: (text: string) => call<State>("POST", "/api/text", { text }),
+  check: (text: string) => call<{ diagnostics: Diagnostic[] }>("POST", "/api/check", { text }),
   undo: () => call<State>("POST", "/api/undo"),
   redo: () => call<State>("POST", "/api/redo"),
   save: (force = false) => call<State>("POST", "/api/save", { force }),
