@@ -85,6 +85,68 @@ class Analysis:
         m = _TOKEN.match(self.lines[line], col)
         return (line, m.end()) if m and m.end() > col else (line, min(col + 1, len(self.lines[line])))
 
+    def block(self, path: Path_) -> tuple[Pos, Pos] | None:
+        """Текст узла целиком: от его начала до конца последней строки с содержимым.
+
+        Область узла (:func:`node_ranges`) кончается там, где начинается значение следующего узла,
+        то есть захватывает его ключ или «- » и пустые строки и комментарии перед ним; здесь они
+        отрезаются.
+        """
+        n = self.nodes.get(path)
+        if n is None:
+            return None
+        (sl, sc), (el, ec) = n.start, n.end
+        if sl < len(self.lines) and self.lines[sl][sc:sc + 1] in ("{", "["):
+            end = self._closing(n.start)
+            if end is not None:
+                return n.start, end
+        if el > sl:
+            # Следующий узел на другой строке: узел кончается на последней строке перед ней, где есть
+            # что-то кроме комментария и отступ не меньше, чем у начала узла (строка с меньшим
+            # отступом — ключ родителя, например «sdo:» после последнего сигнала).
+            last = el - 1
+            while last > sl:
+                text = self.lines[last]
+                code = _strip_comment(text).rstrip()
+                if code.strip() and len(text) - len(text.lstrip()) >= sc:
+                    break
+                last -= 1
+            line = self.lines[last]
+            return n.start, (last, len(_strip_comment(line).rstrip()))
+        # Следующий узел на той же строке (поток «{…}» или «[…]»): до разделителя перед ним
+        line = self.lines[sl] if sl < len(self.lines) else ""
+        end = len(line) if el > sl else ec
+        text = line[sc:end]
+        m = re.search(r"\s*(?:,\s*)?(?:[A-Za-z_]\w*\s*:\s*|-\s+)?$", text)
+        return n.start, (sl, sc + (m.start() if m else len(text)))
+
+    def _closing(self, start: Pos) -> Pos | None:
+        """Позиция после скобки, парной открывающей в ``start`` (с учётом кавычек и вложенности)."""
+        depth, quote = 0, ""
+        line, col = start
+        while line < len(self.lines):
+            text = self.lines[line]
+            while col < len(text):
+                ch = text[col]
+                if quote:
+                    if ch == "\\" and quote == '"':
+                        col += 1
+                    elif ch == quote:
+                        quote = ""
+                elif ch in "\"'":
+                    quote = ch
+                elif ch == "#" and (col == 0 or text[col - 1] in " \t"):
+                    break
+                elif ch in "{[":
+                    depth += 1
+                elif ch in "}]":
+                    depth -= 1
+                    if depth == 0:
+                        return line, col + 1
+                col += 1
+            line, col = line + 1, 0
+        return None
+
     def path_at(self, pos: Pos) -> Path_:
         """Самый глубокий узел, область которого содержит позицию."""
         best: Path_ = ()
@@ -92,6 +154,17 @@ class Analysis:
             if n.start <= pos < n.end and len(n.path) >= len(best):
                 best = n.path
         return best
+
+
+_COMMENT = re.compile(r"""^((?:[^#"']|"(?:[^"\\]|\\.)*"|'(?:[^']|'')*')*?)\s+#.*$""")
+
+
+def _strip_comment(line: str) -> str:
+    """Строка без комментария в конце (« # …» вне кавычек)."""
+    if line.lstrip().startswith("#"):
+        return ""
+    m = _COMMENT.match(line)
+    return m.group(1) if m else line
 
 
 def analyze(text: str, filename: str | None = None) -> Analysis:
@@ -197,12 +270,13 @@ def map_tree(a: Analysis) -> list[dict]:
         return []
 
     def rng(path: Path_) -> dict | None:
-        n = a.nodes.get(path)
-        if n is None:
+        block = a.block(path)
+        if block is None:
             return None
-        name = a.nodes.get(path + ("name",))
-        sel = name.start if name else n.start
-        return {"range": [*n.start, *n.end], "selection": [*sel, *a.token_end(sel)]}
+        (sl, sc), end = block
+        # Курсор на отступе или «- » перед узлом тоже относится к нему
+        own_line = re.fullmatch(r"\s*(?:-\s+)*", a.lines[sl][:sc]) is not None
+        return {"range": [sl, 0 if own_line else sc, *end], "selection": [sl, sc, *end]}
 
     def name_of(d: dict) -> str:
         return "—" if d.get("name") is None else str(d["name"])

@@ -84,6 +84,37 @@ def test_map_tree_matches_web_editor(minimal):
     assert (3, "signal", None, "speed", "40–55", None) in rows
 
 
+def _selected(a: A.Analysis, node: dict) -> str:
+    sl, sc, el, ec = node["selection"]
+    if sl == el:
+        return a.lines[sl][sc:ec]
+    return "\n".join([a.lines[sl][sc:], *a.lines[sl + 1:el], a.lines[el][:ec]])
+
+
+def test_map_tree_selects_whole_blocks():
+    text = MINIMAL.replace("                bit_length: 4\n", (
+        "                bit_length: 4   # last\n\n"
+        "          # next frame\n"
+        "          - name: f2\n"
+        "            id: 0x300\n"
+        "            signals: [{name: a, byte: 0}, {name: b, byte: 1}]\n"
+        "            sdo:\n"
+        "              - {name: x, command: 0x40, index: 0x1000}\n"))
+    a = A.analyze(text, "t.yaml")
+    device = A.map_tree(a)[0]["children"][0]
+    frame, f2 = device["children"]
+    block = _selected(a, frame)
+    assert block.startswith("name: pump_state") and block.endswith("bit_length: 4")
+    sig = _selected(a, frame["children"][0])
+    assert sig.startswith("name: mode") and sig.endswith("{name: FAULT, description: fault}")
+    flag = frame["children"][1]["children"][2]
+    assert _selected(a, flag) == ("{bit: 4, bit_length: 2, name: sensor_state,\n"
+                                  "                     values: {0: OK, 1: OPEN, 2: SHORT}}")
+    assert [_selected(a, s) for s in f2["children"]] == [
+        "{name: a, byte: 0}", "{name: b, byte: 1}", "{name: x, command: 0x40, index: 0x1000}"]
+    assert frame["range"][1] == 0   # курсор на «- » перед кадром тоже внутри узла
+
+
 def test_map_tree_received_frames_and_pgn():
     a = A.analyze((ROOT / "examples" / "j1939.yaml").read_text(encoding="utf-8"), "j1939.yaml")
     rows = _flat(A.map_tree(a))
