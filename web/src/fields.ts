@@ -18,6 +18,8 @@ export interface FieldCtx {
   bitLength?: number;
   hasSelector?: boolean;
   devices?: string[];
+  /** Подписи устройств шины для людей (сокращение или полное название) по идентификатору. */
+  deviceLabels?: Record<string, string>;
   owner?: string | null;
   direction?: string | null;
   sender?: string | null;
@@ -72,6 +74,11 @@ const TYPE_DIRECTION: Record<string, string> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const frameType = (n: any): string => n?.type ?? "raw";
 
+/** Допустимые DLC служебных кадров CANopen по CiA 301 (как в canopen.py); без dlc берётся наименьший. */
+export const CANOPEN_DLC: Record<string, number[]> = {
+  nmt: [2], sync: [0, 1], time: [6], heartbeat: [1], sdo_tx: [8], sdo_rx: [8],
+};
+
 // «По типу» — направление из типа кадра CANopen; в других протоколах просто не задано
 const directions = (c: FieldCtx): Array<[string, string]> =>
   [["", c.protocol === "canopen" ? N_("по типу") : N_("не задано")], ["tx", "TX"], ["rx", "RX"]];
@@ -79,7 +86,7 @@ const directions = (c: FieldCtx): Array<[string, string]> =>
 // Отправитель и получатели — устройства шины, кроме владельца кадра (он отправитель TX-кадра и получатель RX-кадра);
 // получателем не предлагается и отправитель кадра
 const others = (c: FieldCtx): Array<[string, string]> =>
-  (c.devices ?? []).filter((d) => d !== c.owner).map((d) => [d, d]);
+  (c.devices ?? []).filter((d) => d !== c.owner).map((d) => [d, c.deviceLabels?.[d] ?? d]);
 const senders = (c: FieldCtx): Array<[string, string]> => [["", N_("вне карты")], ...others(c)];
 const receivers = (c: FieldCtx): Array<[string, string]> => others(c).filter(([d]) => d !== c.sender);
 
@@ -142,7 +149,9 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "priority", label: N_("Приоритет"), type: "int", hint: N_("0..7, по умолчанию 6"), when: (_n, c) => c.protocol === "j1939" },
     { key: "destination", label: N_("Получатель (DA)"), type: "hex", hint: N_("PDU1; пусто — 0xFF (всем)"),
       when: (n, c) => c.protocol === "j1939" && n?.pgn != null && ((n.pgn >> 8) & 0xff) < 240 },
-    { key: "dlc", label: "DLC", type: "int" },
+    // Длину служебного кадра CANopen задаёт его тип; у SYNC — 0 или 1
+    { key: "dlc", label: "DLC", type: "int",
+      when: (n, c) => !(c.protocol === "canopen" && CANOPEN_DLC[frameType(n)]?.length === 1) },
     // Направление есть только у кадра устройства; у типа CANopen оно задано типом
     { key: "direction", label: N_("Направление"), type: "select", optionsFor: directions,
       when: (n, c) => !!c.owner && !(c.protocol === "canopen" && TYPE_DIRECTION[frameType(n)]) },

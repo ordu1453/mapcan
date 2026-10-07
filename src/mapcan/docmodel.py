@@ -432,7 +432,9 @@ class ViewBuilder:
         return {
             "name": s.name,
             "upper": s.name.upper(),
-            "description": self.t(s.description),
+            # Как у кадра: без описания в документах выводится название
+            "description": self.t(s.description) or self.t(s.title),
+            "title": self.t(s.title),
             "kind": s.kind,
             "kind_label": L.get(s.kind, s.kind),
             "start_bit": s.start_bit,

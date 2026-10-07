@@ -186,7 +186,7 @@ class CGen:
             S = s.name
             entries = enum_entries(s.values)
             if entries:
-                out.append(f"/* {S}: {self.t(s.description)} */")
+                out.append(f"/* {S}: {self.t(s.description) or self.t(s.title)} */")
                 out.append("typedef enum {")
                 for v, ev in entries:
                     d = self.t(ev.description)
@@ -257,7 +257,7 @@ class CGen:
         if not f.layout:
             out.append(f"    uint8_t reserved_; /* {self.T['no_signals']} */")
         for s in f.layout:
-            d = self.t(s.description)
+            d = self.t(s.description) or self.t(s.title)
             if is_byte_array(s):
                 out.append(f"    uint8_t {s.name}[{s.bit_length // 8}];{' /* ' + d + ' */' if d else ''}")
             else:

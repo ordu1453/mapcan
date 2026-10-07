@@ -148,6 +148,8 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .ticon.frame:not(.tx):not(.rx) { color: var(--info); }
 .tlabel { overflow: hidden; text-overflow: ellipsis; }
 .tsub { color: var(--muted); margin-left: auto; padding-left: 8px; }
+/* Идентификатор рядом с названием в таблицах */
+.ident { color: var(--muted); font-family: var(--mono); font-size: 0.85em; margin-left: 6px; }
 /* Ссылка на чужой кадр, который принимает устройство */
 .tree-row.link .tlabel { font-style: italic; color: var(--muted); }
 .tsub.link-mark { margin-left: 0; padding-left: 4px; }
@@ -179,6 +181,8 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .banner { padding: 6px 10px; border-radius: 6px; border: 1px solid; }
 .banner.error { background: var(--error-soft); border-color: var(--error); }
 .banner.warning { background: var(--warning-soft); border-color: var(--warning); }
+.banner.info { background: var(--info-soft); border-color: var(--info); }
+.banner .fix { margin-left: 8px; }
 .banner.info { background: var(--info-soft); border-color: var(--info); }
 
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; }

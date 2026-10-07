@@ -92,6 +92,8 @@ export interface TreeNode {
   dir?: string | null;   // для кадров: tx / rx / null (широковещательный)
   /** Ссылка на кадр другого устройства, который принимает устройство (path — путь оригинала); значение — отправитель. */
   from?: string;
+  /** У ссылки — имя устройства-получателя, под которым она стоит. */
+  receiver?: string;
 }
 
 function frameSub(rf: ResolvedFrame | undefined): string {
@@ -118,6 +120,11 @@ const nameOf = (v: Data): string => (v.name == null ? "—" : String(v.name));
 export function displayName(v: Data, lang: string): string {
   const title = txt(v?.title, lang) || nameOf(obj(v));
   return v?.short ? `${v.short} · ${title}` : title;
+}
+
+/** Короткая подпись устройства в ссылках на него (отправитель, получатели): сокращение, иначе полное название. */
+export function deviceLabel(v: Data, lang: string): string {
+  return v?.short ? String(v.short) : txt(v?.title, lang) || nameOf(obj(v));
 }
 
 export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string): TreeNode[] {
@@ -192,12 +199,12 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
         if (rf.path[1] !== bi || rf.device === d.name || !rf.receivers.includes(d.name)) continue;
         // Название кадра может не говорить, чей он, — в подписи ссылки указываем отправителя
         const sender = list(bus.devices).find((x: Data) => x.name === rf.sender);
-        const senderLabel = sender ? String(sender.short ?? (txt(sender.title, lang) || sender.name)) : "";
+        const senderLabel = sender ? deviceLabel(sender, lang) : "";
         const frame = obj(getAt(data, rf.path));
         dnode.children.push({
           key: `${pathKey(dp)}/received:${pathKey(rf.path)}`, path: rf.path, kind: "frame",
           label: senderLabel ? `${senderLabel} · ${displayName(frame, lang)}` : displayName(frame, lang),
-          sub: frameSub(rf), children: [], dir: "rx", from: senderLabel || rf.sender || "",
+          sub: frameSub(rf), children: [], dir: "rx", from: senderLabel || rf.sender || "", receiver: d.name,
           search: [rf.name, txt(frame.title, lang), rf.sender ?? "", sender?.short ?? "", txt(sender?.title, lang),
             rf.can_id != null ? hex(rf.can_id) : ""].join(" ").toLowerCase(),
         });

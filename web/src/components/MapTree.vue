@@ -45,7 +45,9 @@ watch(
     for (let n = 1; n < p.length; n++) s.add(pathKey(p.slice(0, n)));
     expanded.value = s;
     await nextTick();
-    document.querySelector(`.tree-row[data-key="${CSS.escape(pathKey(p))}"]`)?.scrollIntoView({ block: "nearest" });
+    // Кадр, выбранный через ссылку, — прокручиваем к ссылке
+    (document.querySelector(".tree-row.selected")
+      ?? document.querySelector(`.tree-row[data-key="${CSS.escape(pathKey(p))}"]`))?.scrollIntoView({ block: "nearest" });
   },
 );
 </script>

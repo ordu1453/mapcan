@@ -35,10 +35,17 @@ function defaultTitle(ru: string, en: string, siblings: Data[]): string {
   return `${base} ${n}`;
 }
 
+/** После создания — открыть в дереве правку названия нового узла, чтобы его сразу ввели. */
+function askTitle(ok: boolean): boolean {
+  if (ok) store.renameRequest = store.selected;
+  return ok;
+}
+
 export function addBus(): Promise<boolean> {
   const buses: Data[] = data()?.buses ?? [];
   const name = uniqueName("bus", buses.map((b) => b.name));
-  return insertAndSelect(["buses"], { name, title: defaultTitle("Шина", "Bus", buses), protocol: "can", devices: [] });
+  return insertAndSelect(["buses"], { name, title: defaultTitle("Шина", "Bus", buses), protocol: "can", devices: [] })
+    .then(askTitle);
 }
 
 export function addDevice(busPath: Path): Promise<boolean> {
@@ -59,7 +66,7 @@ export function addDevice(busPath: Path): Promise<boolean> {
     value.node_id = id;
   }
   value.frames = [];
-  return insertAndSelect([...busPath, "devices"], value);
+  return insertAndSelect([...busPath, "devices"], value).then(askTitle);
 }
 
 /** Новый кадр не выделяется: остаёмся на шине/устройстве, кадр появляется в списке «Кадры». */
@@ -312,6 +319,22 @@ export async function removeNode(path: Path): Promise<boolean> {
   return ok;
 }
 
+/**
+ * Удалить выбранный узел. Кадр, выбранный через ссылку «принимает», не удаляется: устройство убирается
+ * из его получателей, и выбирается это устройство.
+ */
+export async function removeSelected(): Promise<boolean> {
+  const path = store.selected;
+  const via = store.selectedVia;
+  if (via && nodeKind(path) === "frame") {
+    const di = ((busOf(path)?.devices ?? []) as Data[]).findIndex((d) => d?.name === via);
+    const ok = await stopReceiving(path, via);
+    if (ok && di >= 0) actions.select([...path.slice(0, 2), "devices", di]);
+    return ok;
+  }
+  return removeNode(path);
+}
+
 /** Delete — удалить выбранный узел дерева (вне полей ввода и диалогов). */
 export function installDeleteShortcut(): void {
   window.addEventListener("keydown", (e) => {
@@ -323,7 +346,7 @@ export function installDeleteShortcut(): void {
     const path = store.selected;
     if (path.length < 2 || typeof path[path.length - 1] !== "number") return;
     e.preventDefault();
-    void removeNode(path);
+    void removeSelected();
   });
 }
 

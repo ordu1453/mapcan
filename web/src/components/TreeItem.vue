@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { canRename } from "../edit";
 import { getAt, pathKey, samePath, startsWith, txt, worst, type TreeNode } from "../model";
 import { actions, diagsByNode, lang, store } from "../store";
@@ -35,7 +35,9 @@ const nested = computed(() => {
   }
   return lvl;
 });
-const selected = computed(() => samePath(store.selected, props.node.path));
+// Кадр, выбранный через ссылку, подсвечивается только в ссылке, а не у отправителя (и наоборот)
+const selected = computed(() => samePath(store.selected, props.node.path)
+  && (store.selectedVia ?? undefined) === props.node.receiver);
 const onPath = computed(() => !selected.value && startsWith(store.selected, props.node.path));
 const match = computed(() => props.query !== "" && props.node.search.includes(props.query));
 
@@ -52,8 +54,16 @@ function startRename(field: Part) {
   if (props.node.from === undefined && canRename(props.node.path)) renaming.value = field;
 }
 
+// Новая шина или устройство: сразу открыть правку названия (оно обязательно и подставлено по умолчанию)
+watch(() => store.renameRequest, (p) => {
+  if (p && props.node.from === undefined && samePath(p, props.node.path)) {
+    store.renameRequest = null;
+    startRename("title");
+  }
+}, { immediate: true });
+
 function click() {
-  actions.select(props.node.path);
+  actions.select(props.node.path, props.node.receiver ?? null);
   if (!props.expanded.has(props.node.key) && props.node.children.length) emit("toggle", props.node.key);
 }
 </script>

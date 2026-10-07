@@ -113,7 +113,7 @@ class PyGen:
             entries = enum_entries(s.values)
             if entries:
                 out += ["", "", f"class {C}{_cls(s.name)}(IntEnum):"]
-                d = self.t(s.description)
+                d = self.t(s.description) or self.t(s.title)
                 if d:
                     out.append(f"    {_py_str(d)}")
                 for v, ev in entries:
@@ -161,7 +161,8 @@ class PyGen:
                     "",
                     "    @property",
                     f"    def {s.name}_phys(self) -> float:",
-                    f'        """{self.t(s.description)}{unit}"""',
+                    # Текст карты — строковым литералом: кавычки и \ в нём не ломают докстринг
+                    f"        {_py_str((self.t(s.description) or self.t(s.title)) + unit)}",
                     f"        return self.{s.name} * {num(s.factor)} + {num(s.offset)}",
                     "",
                     f"    @{s.name}_phys.setter",

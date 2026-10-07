@@ -106,7 +106,7 @@ lint:
 | `receivers` | Names of the bus devices that receive the frame |
 | `sender` | Name of the bus device that transmits the frame when it is not the owner: an RX frame (a node's PDO RX sent by the master) or a bus frame (NMT, SYNC). If omitted, the sender is outside the map |
 | `extended` | 29-bit ID |
-| `dlc` | Data length (default 8) |
+| `dlc` | Data length (default 8; for CANopen service frames, the CiA 301 length of the type: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8) |
 | `direction` | `tx` / `rx` relative to the owning device. Defaults from the type: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen type whose `sender` is another device → `rx`; otherwise `tx` |
 | `cycle_ms` | Shorthand for `transmission: {mode: cyclic, cycle_ms: …}` |
 | `transmission` | `{mode: cyclic \| event \| on_request, cycle_ms}` |

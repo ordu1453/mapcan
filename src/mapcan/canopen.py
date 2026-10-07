@@ -38,6 +38,11 @@ FUNCTION_CODES: dict[str, FunctionCode] = {
     ]
 }
 
+# Допустимые DLC служебных кадров по CiA 301; без явного dlc кадр получает наименьший из них.
+CANOPEN_DLC: dict[str, set[int]] = {
+    "nmt": {2}, "sync": {0, 1}, "time": {6}, "heartbeat": {1}, "sdo_tx": {8}, "sdo_rx": {8},
+}
+
 # Порядок строк в таблице адресации.
 ADDRESSING_ORDER = list(FUNCTION_CODES)
 

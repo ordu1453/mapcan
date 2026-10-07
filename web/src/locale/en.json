@@ -8,7 +8,6 @@
   "0..7, по умолчанию 6": "0..7, default 6",
   "0x2B — запись 2 байт": "0x2B — write 2 bytes",
   "29-битный ID": "29-bit ID",
-  "8 (по умолчанию)": "8 (default)",
   "C-код": "C code",
   "CAN (явные ID)": "CAN (explicit IDs)",
   "Git не найден — сравнение с версиями из git недоступно.": "Git not found, so comparing with versions from git is unavailable.",
@@ -443,5 +442,9 @@
   "Полное название устройства для людей, напр. «Система управления батареей». Выводится в заголовке раздела устройства в документах и в дереве карты. Обязательно.": "Full human-readable device name, e.g. “Battery management system”. Shown in the device section heading in documents and in the map tree. Required.",
   "Короткое обозначение устройства в таблицах и заголовках документов, напр. BMS. Если задано, в дереве карты выводится перед полным названием. Пусто — в документах идентификатор прописными буквами.": "Short device abbreviation for tables and headings in documents, e.g. BMS. If set, the map tree shows it before the full name. If empty, documents use the identifier in uppercase.",
   "Название кадра для людей, напр. «Состояния»: заголовок кадра в документах и подпись в дереве карты. Необязательно — без него в дереве выводится идентификатор.": "Human-readable frame name, e.g. “Status”: the frame heading in documents and its label in the map tree. Optional; without it, the tree shows the identifier.",
-  "Название сигнала для людей, напр. «Напряжение батареи»: подпись в дереве карты. Необязательно — без него в дереве выводится идентификатор.": "Human-readable signal name, e.g. “Battery voltage”: its label in the map tree. Optional; without it, the tree shows the identifier."
+  "Название сигнала для людей, напр. «Напряжение батареи»: подпись в дереве карты. Необязательно — без него в дереве выводится идентификатор.": "Human-readable signal name, e.g. “Battery voltage”: its label in the map tree. Optional; without it, the tree shows the identifier.",
+  "{n} (по умолчанию)": "{n} (default)",
+  "Принимать кадр {frame}": "Receive frame {frame}",
+  "Кадр описан у отправителя, {device} принимает его. Delete или ✕ — перестать принимать, кадр останется.": "The frame is described at its sender; {device} receives it. Delete or ✕ stops receiving it and keeps the frame.",
+  "Адрес": "Address"
 }

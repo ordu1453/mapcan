@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
-import { addBus, addDevice, addFrame, addSdo, addSignal, canRename, duplicateNode, receiveFrame, removeNode, renameNode,
-  stopReceiving } from "../edit";
+import { addBus, addDevice, addFrame, addSdo, addSignal, canRename, duplicateNode, receiveFrame, removeNode, removeSelected,
+  renameNode, stopReceiving } from "../edit";
 import { HELP } from "../help";
-import { FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
-import { getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath, startsWith, txt } from "../model";
+import { CANOPEN_DLC, FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
+import { deviceLabel, displayName, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath, startsWith, txt } from "../model";
 import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast } from "../store";
 import type { Diagnostic, Path } from "../types";
 import BitGrid from "./BitGrid.vue";
@@ -39,6 +39,8 @@ const fieldCtx = computed<FieldCtx>(() => {
     kind: s?.kind, bitLength: s?.bit_length,
     hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
     devices: (bus?.devices ?? []).map((d: any) => d?.name).filter(Boolean),
+    deviceLabels: Object.fromEntries((bus?.devices ?? []).filter((d: any) => d?.name)
+      .map((d: any) => [d.name, deviceLabel(d, lang.value)])),
     owner: frame?.device ?? null,
     direction: frame?.direction ?? null,
     sender: frame?.sender ?? null,
@@ -76,7 +78,7 @@ function fieldDiags(def: FieldDef) {
 }
 
 const DEFAULTS: Record<string, string> = {
-  dlc: N_("8 (по умолчанию)"), factor: "1", offset: "0", bit_length: "1", protocol: "canopen",
+  factor: "1", offset: "0", bit_length: "1", protocol: "canopen",
 };
 
 function placeholderFor(def: FieldDef): string {
@@ -84,6 +86,8 @@ function placeholderFor(def: FieldDef): string {
     return hex(rframe.value.can_id, rframe.value.extended ? 8 : 3) + " " + t("(вычислен)");
   }
   if (def.key === "priority" && fieldCtx.value.protocol === "j1939") return "6";
+  // DLC по умолчанию: 8, у служебного кадра CANopen — из типа
+  if (kind.value === "frame" && def.key === "dlc") return t("{n} (по умолчанию)", { n: rframe.value?.dlc ?? 8 });
   return t(DEFAULTS[def.key] ?? "");
 }
 
@@ -93,12 +97,16 @@ function commit(def: FieldDef, value: unknown) {
     void renameNode(path.value, String(value ?? "")).then((err) => { if (err) toast(err); });
     return;
   }
-  void actions.apply([{ op: "set", path: [...path.value, ...def.key.split(".")], value }]);
+  // Смена типа CANopen: записанный DLC, недопустимый для нового типа, убираем — берётся длина типа
+  const allowed = kind.value === "frame" && def.key === "type" ? CANOPEN_DLC[String(value ?? "raw")] : undefined;
+  const dlc = node.value?.dlc;
+  void actions.apply([{ op: "set", path: [...path.value, ...def.key.split(".")], value },
+    ...(allowed && dlc != null && !allowed.includes(dlc) ? [{ op: "remove" as const, path: [...path.value, "dlc"] }] : [])]);
 }
 
-// Имя (и у устройства — обозначение) правится двойным щелчком по заголовку
+// В заголовке — название для людей (у устройства с сокращением) и идентификатор; каждая часть правится двойным щелчком
 const renaming = ref<"name" | "short" | "title" | null>(null);
-const busTitle = computed(() => (kind.value === "bus" ? txt(node.value?.title, lang.value) : ""));
+const nodeTitle = computed(() => (["bus", "device", "frame", "signal"].includes(kind.value) ? txt(node.value?.title, lang.value) : ""));
 watch(() => pathKey(path.value), () => { renaming.value = null; });
 
 // Ключи, сообщения по которым показываются у полей формы и в таблицах (значения, флаги, позиция, передача)
@@ -128,7 +136,7 @@ const crumbs = computed(() => {
     if (k === "unknown" || k === "document") continue;
     const nd = getAt(data.value, sub);
     const label = k === "history" ? t("История изменений") : k === "revision" ? nd?.version
-      : k === "bus" ? txt(nd?.title, lang.value) || nd?.name : nd?.name;
+      : ["bus", "device", "frame", "signal"].includes(k) ? displayName(nd, lang.value) : nd?.name;
     out.push({ label, path: sub });
   }
   return out;
@@ -221,6 +229,13 @@ const rxSources = computed(() => {
     }));
 });
 
+/** Кадр-оригинал для сообщения rx-duplicate: тот же CAN ID, описан у отправителя. */
+const rxTwin = computed(() => {
+  const f = rframe.value;
+  if (!f || f.can_id == null) return null;
+  return rxSources.value.find((o) => resolvedFrames.value.get(o.key)?.can_id === f.can_id) ?? null;
+});
+
 function setSource(e: Event) {
   const el = e.target as HTMLSelectElement;
   const src = rxSources.value.find((o) => o.key === el.value);
@@ -283,14 +298,16 @@ const childFrames = computed(() => {
   return (node.value?.frames ?? []).map((f: any, i: number) => {
     const p = [...path.value, "frames", i];
     const rf = resolvedFrames.value.get(pathKey(p));
-    return { path: p, name: f?.name ?? "—", id: rf ? hex(rf.can_id) : "—", type: f?.type ?? "raw", desc: txt(f?.description, lang.value), n: rf?.signals.length ?? 0 };
+    return { path: p, name: f?.name ?? "—", label: displayName(f, lang.value), id: rf ? hex(rf.can_id) : "—", type: f?.type ?? "raw",
+      desc: txt(f?.description, lang.value), n: rf?.signals.length ?? 0 };
   });
 });
 
 const frameSignals = computed(() => {
   if (kind.value !== "frame" || !rframe.value) return [];
   return rframe.value.signals.map((s) => ({
-    s, desc: txt(getAt(data.value, s.path)?.description, lang.value),
+    s, label: s.synthetic ? s.name : displayName(getAt(data.value, s.path), lang.value),
+    desc: txt(getAt(data.value, s.path)?.description, lang.value),
     bits: rangeLabel(Math.min(...s.occupied), Math.max(...s.occupied)),
   }));
 });
@@ -306,11 +323,12 @@ const exchange = computed(() => {
   const bus = getAt(data.value, path.value.slice(0, 2));
   const label = (n: string | null) => {
     const d = n ? (bus?.devices ?? []).find((x: any) => x?.name === n) : null;
-    return !n ? "—" : d?.short ? `${d.short} · ${n}` : n;
+    return !n ? "—" : d ? deviceLabel(d, lang.value) : n;
   };
   const onBus = (store.state?.resolved?.frames ?? []).filter((f) => f.path[1] === path.value[1]);
   const row = (f: (typeof onBus)[number], peer: string) => ({
-    path: f.path, name: f.name, peer, id: hex(f.can_id, f.extended ? 8 : 3),
+    path: f.path, name: f.name, label: displayName(getAt(data.value, f.path), lang.value), peer,
+    id: hex(f.can_id, f.extended ? 8 : 3),
     desc: txt(getAt(data.value, f.path)?.description, lang.value),
   });
   return {
@@ -325,7 +343,7 @@ const exchange = computed(() => {
 const buses = computed(() => {
   if (kind.value !== "document") return [];
   return (data.value?.buses ?? []).map((b: any, i: number) => ({
-    path: ["buses", i], name: b?.name ?? "—", title: txt(b?.title, lang.value), protocol: b?.protocol ?? "can",
+    path: ["buses", i], name: b?.name ?? "—", label: displayName(b, lang.value), protocol: b?.protocol ?? "can",
     devices: b?.devices?.length ?? 0,
     frames: (b?.frames?.length ?? 0) + (b?.devices ?? []).reduce((n: number, d: any) => n + (d?.frames?.length ?? 0), 0),
   }));
@@ -356,13 +374,15 @@ function onLayout(p: Path, start: number, length: number) {
         <h2>
           <span v-if="KIND_LABEL[kind]" class="kind-badge">{{ t(KIND_LABEL[kind]) }}</span>
           <InlineRename v-if="renaming" :path="path" :field="renaming"
-                        :value="renaming === 'title' ? busTitle : node?.[renaming] ?? ''" @done="renaming = null" />
+                        :value="renaming === 'title' ? nodeTitle : node?.[renaming] ?? ''" @done="renaming = null" />
           <template v-else-if="canRename(path)">
-            <span v-if="kind === 'device' && node?.short" class="renamable secondary" :title="t('Двойной щелчок — изменить сокращение')"
-                  @dblclick="renaming = 'short'">{{ node.short }}</span>
-            <span v-if="busTitle" class="renamable" :title="t('Двойной щелчок — изменить название')"
-                  @dblclick="renaming = 'title'">{{ busTitle }}</span>
-            <span class="renamable" :class="{ secondary: !!busTitle }" :title="t('Двойной щелчок — изменить идентификатор')"
+            <template v-if="kind === 'device' && node?.short">
+              <span class="renamable" :title="t('Двойной щелчок — изменить сокращение')"
+                    @dblclick="renaming = 'short'">{{ node.short }}</span><span class="muted">·</span>
+            </template>
+            <span v-if="nodeTitle" class="renamable" :title="t('Двойной щелчок — изменить название')"
+                  @dblclick="renaming = 'title'">{{ nodeTitle }}</span>
+            <span class="renamable mono" :class="{ secondary: !!nodeTitle }" :title="t('Двойной щелчок — изменить идентификатор')"
                   @dblclick="renaming = 'name'">{{ node?.name }}</span>
           </template>
           <template v-else>
@@ -375,13 +395,20 @@ function onLayout(p: Path, start: number, length: number) {
       <div class="ne-actions">
         <template v-if="isListItem && !readonly">
           <button class="icon" :title="t('Дублировать')" @click="duplicateNode(path)">⧉</button>
-          <button class="icon danger" :title="t('Удалить (Delete)')" @click="removeNode(path)">✕</button>
+          <button class="icon danger" :title="store.selectedVia ? t('Не принимать (убрать из получателей)') : t('Удалить (Delete)')"
+                  @click="removeSelected()">✕</button>
         </template>
       </div>
     </header>
 
     <div v-for="d in ownDiags" :key="d.code + d.message" class="banner" :class="d.level">
       <b>{{ d.code }}</b>: {{ d.message }}
+      <button v-if="d.code === 'rx-duplicate' && rxTwin && !readonly" class="small fix"
+              @click="receiveFrame(path, rxTwin.path)">{{ t("Принимать кадр {frame}", { frame: rxTwin.label }) }}</button>
+    </div>
+    <div v-if="kind === 'frame' && store.selectedVia" class="banner info">
+      {{ t("Кадр описан у отправителя, {device} принимает его. Delete или ✕ — перестать принимать, кадр останется.",
+           { device: fieldCtx.deviceLabels?.[store.selectedVia] ?? store.selectedVia }) }}
     </div>
 
     <!-- Битовая карта для кадра, сигнала, флага -->
@@ -478,7 +505,8 @@ function onLayout(p: Path, start: number, length: number) {
           <tr v-for="(r, i) in frameSignals" :key="r.s.name" class="clickable"
               @click="actions.select(r.s.synthetic ? path : r.s.path)">
             <td><span class="swatch" :style="{ background: store.state.palette[i % store.state.palette.length] }" /></td>
-            <td class="mono">{{ r.s.name }}<span v-if="r.s.synthetic" class="muted"> (SDO)</span></td>
+            <td>{{ r.label }}<span v-if="r.label !== r.s.name" class="ident">{{ r.s.name }}</span><span
+              v-if="r.s.synthetic" class="muted"> (SDO)</span></td>
             <td class="mono">{{ r.bits }}</td>
             <td>{{ r.s.kind }}<span v-if="r.s.mux" class="muted"> · mux {{ r.s.mux.join(", ") }}</span></td>
             <td>{{ r.desc }}</td>
@@ -500,7 +528,7 @@ function onLayout(p: Path, start: number, length: number) {
         <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Сигналов") }}</th><th>{{ t("Описание") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="f in childFrames" :key="f.name" class="clickable" @click="actions.select(f.path)">
-            <td class="mono">{{ f.id }}</td><td class="mono">{{ f.name }}</td><td>{{ f.type }}</td>
+            <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td><td>{{ f.type }}</td>
             <td>{{ f.n }}</td><td>{{ f.desc }}</td>
             <td v-if="!readonly" class="act"><button class="icon danger" :title="t('Удалить')" @click.stop="removeNode(f.path)">✕</button></td>
           </tr>
@@ -516,7 +544,8 @@ function onLayout(p: Path, start: number, length: number) {
         <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Отправитель") }}</th><th>{{ t("Описание") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="f in exchange.receives" :key="f.name" class="clickable" @click="actions.select(f.path)">
-            <td class="mono">{{ f.id }}</td><td class="mono">{{ f.name }}</td><td class="mono">{{ f.peer }}</td><td>{{ f.desc }}</td>
+            <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td>
+            <td>{{ f.peer }}</td><td>{{ f.desc }}</td>
             <td v-if="!readonly" class="act">
               <button v-if="f.foreign" class="icon danger" :title="t('Не принимать (убрать из получателей)')"
                       @click.stop="stopReceiving(f.path, node.name)">✕</button>
@@ -531,7 +560,8 @@ function onLayout(p: Path, start: number, length: number) {
           <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Устройство") }}</th><th>{{ t("Описание") }}</th></tr></thead>
           <tbody>
             <tr v-for="f in exchange.sends" :key="f.name" class="clickable" @click="actions.select(f.path)">
-              <td class="mono">{{ f.id }}</td><td class="mono">{{ f.name }}</td><td class="mono">{{ f.peer }}</td><td>{{ f.desc }}</td>
+              <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td>
+              <td>{{ f.peer }}</td><td>{{ f.desc }}</td>
             </tr>
           </tbody>
         </table>
@@ -546,12 +576,12 @@ function onLayout(p: Path, start: number, length: number) {
         </span>
       </h3>
       <table v-if="devices.length" class="list">
-        <thead><tr><th>{{ t("Устройство") }}</th><th>node_id</th><th>{{ t("Полное название") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
+        <thead><tr><th>{{ t("Устройство") }}</th><th>{{ t("Адрес") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
         <tbody>
           <tr v-for="(d, i) in devices" :key="i" class="clickable" @click="actions.select([...path, 'devices', i])">
-            <td class="mono">{{ d.short ? d.short + " · " : "" }}{{ d.name ?? "—" }}</td>
-            <td class="mono">{{ d.node_id != null ? hex(d.node_id, 2) : "—" }}</td>
-            <td>{{ txt(d.title, lang) }}</td><td>{{ d.frames?.length ?? 0 }}</td>
+            <td>{{ displayName(d, lang) }}<span v-if="d.name" class="ident">{{ d.name }}</span></td>
+            <td class="mono">{{ d.node_id != null ? hex(d.node_id, 2) : d.address != null ? hex(d.address, 2) : "—" }}</td>
+            <td>{{ d.frames?.length ?? 0 }}</td>
           </tr>
         </tbody>
       </table>
@@ -566,10 +596,10 @@ function onLayout(p: Path, start: number, length: number) {
         </span>
       </h3>
       <table v-if="buses.length" class="list">
-        <thead><tr><th>{{ t("Шина") }}</th><th>{{ t("Название") }}</th><th>{{ t("Протокол") }}</th><th>{{ t("Устройства") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
+        <thead><tr><th>{{ t("Шина") }}</th><th>{{ t("Протокол") }}</th><th>{{ t("Устройства") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
         <tbody>
           <tr v-for="b in buses" :key="b.name" class="clickable" @click="actions.select(b.path)">
-            <td class="mono">{{ b.name }}</td><td>{{ b.title }}</td><td>{{ b.protocol }}</td>
+            <td>{{ b.label }}<span v-if="b.label !== b.name" class="ident">{{ b.name }}</span></td><td>{{ b.protocol }}</td>
             <td>{{ b.devices }}</td><td>{{ b.frames }}</td>
           </tr>
         </tbody>

@@ -43,6 +43,9 @@ export const store = reactive({
   // diags — проверка неприменённого черновика (null — ещё не проверен).
   yaml: { draft: null as string | null, applied: null as string | null, diags: null as Diagnostic[] | null },
   focusPath: null as Path | null,              // поле формы, к которому перейти (клик по сообщению проверки)
+  // Кадр выбран через ссылку «принимает» под устройством: имя этого устройства (Delete убирает его из получателей)
+  selectedVia: null as string | null,
+  renameRequest: null as Path | null,          // узел, у которого в дереве сразу открыть правку названия
   update: null as UpdateInfo | null,           // доступная новая версия (плашка вверху)
   git: null as GitStatus | null,               // состояние git для файла карты (меню Git)
 });
@@ -73,7 +76,13 @@ function accept(s: State): void {
     while (p.length > 1 && !exists(p)) p = p.slice(0, -1);
     if (p.length === 1 && p[0] !== "document" && getAt(s.data, p) === undefined) p = ["document"];
     // Путь вида […, "signals"] — список, а не узел дерева: выбираем его владельца (кадр и т. п.)
-    store.selected = nodeKind(p) === "unknown" ? ownerPath(p) : p;
+    p = nodeKind(p) === "unknown" ? ownerPath(p) : p;
+    // Ссылка, через которую выбран кадр, исчезла (устройство больше не получатель) — выбран сам кадр
+    const receivers = getAt(s.data, [...p, "receivers"]);
+    if (!samePath(p, store.selected) || !(Array.isArray(receivers) && receivers.includes(store.selectedVia))) {
+      store.selectedVia = null;
+    }
+    store.selected = p;
   }
 }
 
@@ -95,6 +104,7 @@ function acceptSession(r: SessionResult): void {
   store.meta = r.meta;
   store.fileChangedBanner = false;
   store.selected = ["document"];
+  store.selectedVia = null;
   store.muxView = {};
   store.tab = "editor";
   store.yaml = { draft: null, applied: null, diags: null };
@@ -242,8 +252,10 @@ export const actions = {
       store.busy = false;
     }
   },
-  select: (p: Path) => {
+  /** via — устройство-получатель, если кадр выбран через ссылку на него в дереве. */
+  select: (p: Path, via: string | null = null) => {
     store.selected = p;
+    store.selectedVia = via;
   },
   refreshGit: async () => {
     if (!store.state || store.meta?.readonly) {

@@ -12,7 +12,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 
 from . import bits as B
-from .canopen import FUNCTION_CODES
+from .canopen import CANOPEN_DLC, FUNCTION_CODES
 from .diagnostics import Report
 from .i18n import N_, _
 from .loader import LoadResult, SourceMap, load, loads
@@ -45,7 +45,6 @@ STANDARD_BITRATES = frozenset({10_000, 20_000, 33_333, 50_000, 83_333, 100_000, 
 BUS_LOAD_LIMIT = 70  # %, порог предупреждения о загрузке шины
 # Длина данных служебных кадров CANopen по CiA 301. EMCY не проверяется: CiA 301 требует 8 байт,
 # но многие устройства передают укороченный кадр, и это не мешает его приёму.
-CANOPEN_DLC = {"nmt": {2}, "sync": {0, 1}, "time": {6}, "heartbeat": {1}, "sdo_tx": {8}, "sdo_rx": {8}}
 # Широковещательные службы CANopen: получателей у них не перечисляют.
 BROADCAST_TYPES = frozenset({"nmt", "sync", "time", "emcy", "heartbeat"})
 

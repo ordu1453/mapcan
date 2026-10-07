@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .canopen import default_direction
+from .canopen import CANOPEN_DLC, default_direction
 from .model import EnumValue, Frame, MapCan, Signal
 from .protocols import frame_id
 
@@ -29,6 +29,9 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
     frame._bus = bus
     frame._device = dev
     frame._can_id, frame.extended = frame_id(bus, dev, frame)
+    # Длина служебного кадра CANopen задана CiA 301 (NMT — 2, Heartbeat — 1…): dlc можно не писать
+    if bus.protocol == "canopen" and "dlc" not in frame.model_fields_set and frame.type in CANOPEN_DLC:
+        frame.dlc = min(CANOPEN_DLC[frame.type])
     if frame.direction is None and dev is not None:
         # Кадр без типа CANopen с чужим отправителем устройство принимает
         foreign = frame.sender is not None and frame.sender != dev.name

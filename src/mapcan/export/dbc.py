@@ -73,7 +73,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         sel = next((s for s in f.layout if s.multiplexer), None) if has_mux else None
         sigs = []
         for s in f.layout:
-            desc = _comment(text(s.description, lang), text(s.comment, lang))
+            desc = _comment(text(s.description, lang) or text(s.title, lang), text(s.comment, lang))
             if s.kind == "bitfield" and s.flags:
                 occ = B.occupied_bits(s.start_bit, s.bit_length, s.byte_order == "big_endian")
                 for fl in s.flags:
