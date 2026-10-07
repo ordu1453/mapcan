@@ -362,7 +362,7 @@ def test_git_revs_reason(client, mapfile):
 def test_git_commit_tag_pull(client, mapfile, tmp_path):
     def git(*args, cwd=mapfile.parent):
         return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
-                              cwd=cwd, check=True, capture_output=True, text=True).stdout
+                              cwd=cwd, check=True, capture_output=True, text=True, encoding="utf-8").stdout
 
     assert client.get("/api/git/status").json() == {"available": False, "reason": "no-repo"}
     assert client.post("/api/git/init").json()["available"]
@@ -438,8 +438,9 @@ def test_git_commit_tag_pull(client, mapfile, tmp_path):
 @pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
 def test_git_logo_tag_identity(client, mapfile, monkeypatch):
     def git(*args):
+        # git пишет UTF-8; без encoding Windows читает вывод в кодировке ANSI (cp1252)
         return subprocess.run(["git", *args], cwd=mapfile.parent, check=True, capture_output=True,
-                              text=True).stdout
+                              text=True, encoding="utf-8").stdout
 
     # Без глобальных настроек git автор берётся из профиля mapcan
     empty = mapfile.parent / "empty.gitconfig"
