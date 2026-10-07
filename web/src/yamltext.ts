@@ -178,6 +178,81 @@ export function nodeLines(text: string, path: Path): { first: number; last: numb
   return found && { first: found[0] + 1, last: found[1] };
 }
 
+// ------------------------------------------------------------------ правка клавишами
+
+const INDENT = 2;
+
+/** Замена text[from, to) на insert и новое выделение — результат нажатия клавиши. */
+export interface TextEdit {
+  from: number;
+  to: number;
+  insert: string;
+  selStart: number;
+  selEnd: number;
+}
+
+const lineStartAt = (text: string, pos: number) => text.lastIndexOf("\n", pos - 1) + 1;
+
+/** Сдвиг строк выделения вправо (Tab) или влево (Shift+Tab); пустые строки не трогаем. */
+function shiftLines(text: string, start: number, end: number, out: boolean): TextEdit | null {
+  const from = lineStartAt(text, start);
+  // Выделение, кончающееся в начале строки, эту строку не захватывает.
+  let to = text.indexOf("\n", end > start && end === lineStartAt(text, end) ? end - 1 : end);
+  if (to < 0) to = text.length;
+  const lines = text.slice(from, to).split("\n");
+  const deltas = lines.map((l) => (out ? -Math.min(INDENT, indentOf(l)) : l.trim() ? INDENT : 0));
+  if (deltas.every((d) => d === 0)) return null;
+  const insert = lines.map((l, i) => (deltas[i] > 0 ? " ".repeat(INDENT) + l : l.slice(-deltas[i]))).join("\n");
+  // Позиция в исходном тексте → в новом: курсор остаётся на своём символе, но не уходит левее начала строки;
+  // из начала строки не сдвигаем — выделение целых строк захватывает и новый отступ.
+  const map = (p: number) => {
+    let ls = from;
+    let shift = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const le = ls + lines[i].length;
+      if (p <= le) return ls + shift + (p === ls ? 0 : Math.max(0, p - ls + deltas[i]));
+      shift += deltas[i];
+      ls = le + 1;
+    }
+    return p + shift;
+  };
+  return { from, to, insert, selStart: map(start), selEnd: map(end) };
+}
+
+/**
+ * Правка по клавише во вкладке YAML или null — тогда работает поведение браузера.
+ * Tab — отступ (с выделением — сдвиг строк), Shift+Tab — сдвиг влево, Enter — перенос
+ * с отступом текущей строки (глубже после «ключ:»), Backspace в отступе — удаление до предыдущего уровня.
+ */
+export function keyEdit(text: string, start: number, end: number, key: string, shift: boolean): TextEdit | null {
+  const ls = lineStartAt(text, start);
+  const before = text.slice(ls, start);
+  if (key === "Tab") {
+    if (shift || start !== end) return shiftLines(text, start, end, shift);
+    const pad = " ".repeat(INDENT - (before.length % INDENT));
+    return { from: start, to: end, insert: pad, selStart: start + pad.length, selEnd: start + pad.length };
+  }
+  if (key === "Enter") {
+    if (!before.trim()) return null;
+    // Поля элемента списка «- key: …» продолжаются на уровне ключа, после «ключ:» и «|», «>» — глубже.
+    let ind = before.trimStart().startsWith("-") ? keyCol(before) : indentOf(before);
+    const code = before.replace(/\s+#.*$/, "").trimEnd();
+    if (code.endsWith(":") || /:\s+[|>][-+0-9]*$/.test(code)) ind += INDENT;
+    let to = end;
+    while (text[to] === " ") to++;           // пробелы после курсора не переносим
+    const insert = "\n" + " ".repeat(ind);
+    return { from: start, to, insert, selStart: start + insert.length, selEnd: start + insert.length };
+  }
+  if (key === "Backspace" && start === end) {
+    // Пробелы перед курсором удаляются до предыдущей позиции табуляции, но не дальше самих пробелов.
+    const spaces = before.length - before.trimEnd().length;
+    const n = Math.min(spaces, ((before.length - 1) % INDENT) + 1);
+    if (n < 2) return null;
+    return { from: start - n, to: start, insert: "", selStart: start - n, selEnd: start - n };
+  }
+  return null;
+}
+
 /** Самый вложенный из узлов `paths`, строки которого содержат строку `line` (с 1). */
 export function nodeAtLine(text: string, line: number, paths: Path[]): Path | null {
   let best: Path | null = null;

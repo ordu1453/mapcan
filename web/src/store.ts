@@ -38,6 +38,9 @@ export const store = reactive({
   toasts: [] as Toast[],
   muxView: {} as Record<string, number | null>, // выбранное значение селектора по кадру
   revealLine: null as number | null,           // строка для перехода во вкладке YAML
+  // Текст вкладки YAML: null — показываем текст сервера; иначе черновик, который применяется по ходу ввода.
+  // applied — последний применённый черновик (сервер мог дописать в нём ссылки при переименовании).
+  yaml: { draft: null as string | null, applied: null as string | null },
   focusPath: null as Path | null,              // поле формы, к которому перейти (клик по сообщению проверки)
   update: null as UpdateInfo | null,           // доступная новая версия (плашка вверху)
   git: null as GitStatus | null,               // состояние git для файла карты (меню Git)
@@ -53,7 +56,13 @@ export function toast(text: string, kind: Toast["kind"] = "error"): void {
   }, kind === "error" ? 7000 : 3000);
 }
 
+let ownVersion = -1;   // версия состояния, полученного в ответ на применение черновика YAML
+
 function accept(s: State): void {
+  // Чужая правка (undo, перечитывание, другая вкладка браузера): черновик без неприменённого ввода
+  // уступает новому тексту сервера; с неприменённым — остаётся, как и раньше.
+  const y = store.yaml;
+  if (y.draft !== null && y.draft === y.applied && s.version !== ownVersion) y.draft = y.applied = null;
   store.state = s;
   if (s.disk_changed) store.fileChangedBanner = true;
   // Выбранный узел мог исчезнуть (удаление, undo) — поднимаемся к существующему предку.
@@ -87,6 +96,7 @@ function acceptSession(r: SessionResult): void {
   store.selected = ["document"];
   store.muxView = {};
   store.tab = "editor";
+  store.yaml = { draft: null, applied: null };
   store.state = null;
   if (r.state) {
     accept(r.state);
@@ -170,7 +180,38 @@ export const actions = {
     }
     return run(() => api.ops(ops));
   },
-  setText: (text: string) => run(() => api.text(text)),
+  /**
+   * Применить текст вкладки YAML. `live` — по ходу ввода: шаги сливаются в один шаг отмены, черновик
+   * остаётся в поле как есть. Обычное применение завершает серию, и поле показывает текст сервера.
+   */
+  setText: (text: string, live = false) =>
+    run(async () => {
+      const s = await api.text(text, live);
+      ownVersion = s.version;
+      if (live && store.yaml.draft !== null) store.yaml.applied = text;
+      else if (store.yaml.draft === text) store.yaml = { draft: null, applied: null };
+      return s;
+    }),
+  /** Применить черновик YAML перед уходом с вкладки или сохранением; false — в нём синтаксическая ошибка. */
+  flushYaml: async (): Promise<boolean> => {
+    const draft = store.yaml.draft;
+    if (draft === null || store.state?.readonly) return true;
+    if (draft !== store.yaml.applied) {
+      const err = (await api.check(draft)).diagnostics.find((d) => d.code === "yaml");
+      if (err) {
+        store.tab = "yaml";
+        store.revealLine = err.line;
+        toast(t("В YAML синтаксическая ошибка (строка {line}): {message}", { line: err.line ?? "?", message: err.message }));
+        return false;
+      }
+    }
+    return actions.setText(draft);
+  },
+  setTab: async (tab: "editor" | "yaml") => {
+    if (tab === store.tab) return;
+    if (tab === "editor" && !(await actions.flushYaml())) return;
+    store.tab = tab;
+  },
   undo: () => run(api.undo),
   redo: () => run(api.redo),
   reload: async () => {
@@ -178,6 +219,7 @@ export const actions = {
     return run(api.reload, t("Файл перечитан с диска"));
   },
   save: async (force = false): Promise<void> => {
+    if (!force && !(await actions.flushYaml())) return;
     store.busy = true;
     try {
       accept(await api.save(force));

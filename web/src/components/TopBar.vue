@@ -124,8 +124,8 @@ onBeforeUnmount(() => {
     <span v-if="!store.online" class="badge warning" :title="t('Нет связи с сервером mapcan')">{{ t("нет связи") }}</span>
 
     <nav v-if="hasMap" class="tabs">
-      <button :class="{ active: store.tab === 'editor' }" :disabled="!store.state?.data" @click="store.tab = 'editor'">{{ t("Редактор") }}</button>
-      <button :class="{ active: store.tab === 'yaml' }" @click="store.tab = 'yaml'">YAML</button>
+      <button :class="{ active: store.tab === 'editor' }" :disabled="!store.state?.data" @click="actions.setTab('editor')">{{ t("Редактор") }}</button>
+      <button :class="{ active: store.tab === 'yaml' }" @click="actions.setTab('yaml')">YAML</button>
     </nav>
 
     <span class="spacer" />

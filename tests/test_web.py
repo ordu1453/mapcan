@@ -195,6 +195,59 @@ def test_check_text_does_not_apply(client):
     assert after["text"] == before["text"] and after["version"] == before["version"]
 
 
+SYNC = ["buses", 0, "frames", 0]
+
+
+def _with_refs(client):
+    """Кадр sync со ссылками на устройства imd и cmu."""
+    return ops(client, {"op": "set", "path": SYNC + ["sender"], "value": "imd"},
+               {"op": "set", "path": SYNC + ["receivers"], "value": ["cmu", "imd"]})
+
+
+def _rename(text, old, new):
+    assert f"      - name: {old}\n" in text
+    return text.replace(f"      - name: {old}\n", f"      - name: {new}\n", 1)
+
+
+def test_text_rename_device_updates_refs(client):
+    t0 = _with_refs(client)["text"]
+    st = client.post("/api/text", json={"text": _rename(t0, "imd", "iso")}).json()
+    sync = st["data"]["buses"][0]["frames"][0]
+    assert sync["sender"] == "iso" and sync["receivers"] == ["cmu", "iso"]
+    assert not [d for d in st["diagnostics"] if d["level"] == "error"]
+    assert client.post("/api/undo").json()["text"] == t0
+
+
+def test_text_swap_devices_keeps_refs(client):
+    t0 = _with_refs(client)["text"]
+    text = _rename(_rename(_rename(t0, "imd", "tmp"), "cmu", "imd"), "tmp", "cmu")
+    sync = client.post("/api/text", json={"text": text}).json()["data"]["buses"][0]["frames"][0]
+    assert sync["sender"] == "imd" and sync["receivers"] == ["cmu", "imd"]
+
+
+def test_live_text_is_one_undo_step(client):
+    t0 = _with_refs(client)["text"]
+    # Ввод по буквам: промежуточные имена, в том числе пустое, не должны сбить ссылки.
+    for name in ("im", "", "is", "iso"):
+        st = client.post("/api/text", json={"text": _rename(t0, "imd", name), "live": True}).json()
+    sync = st["data"]["buses"][0]["frames"][0]
+    assert sync["sender"] == "iso" and sync["receivers"] == ["cmu", "iso"]
+    final = client.post("/api/text", json={"text": _rename(t0, "imd", "iso")}).json()
+    assert final["text"] == st["text"]
+    st = client.post("/api/undo").json()
+    assert st["text"] == t0 and st["can_undo"]                # шаг правки ссылок формой остался
+    assert client.post("/api/undo").json()["data"]["buses"][0]["frames"][0].get("sender") is None
+
+
+def test_live_text_back_to_start_leaves_no_step(client):
+    t0 = _with_refs(client)["text"]
+    client.post("/api/text", json={"text": _rename(t0, "imd", "iso"), "live": True})
+    st = client.post("/api/text", json={"text": t0, "live": True}).json()
+    assert st["text"] == t0
+    # Последний шаг отмены — правка ссылок формой, а не пустая серия ввода.
+    assert client.post("/api/undo").json()["data"]["buses"][0]["frames"][0].get("sender") is None
+
+
 def test_save_conflict(client, mapfile):
     ops(client, {"op": "set", "path": SIG + ["unit"], "value": "кВ"})
     mapfile.write_text(mapfile.read_text(encoding="utf-8") + "\n# внешняя правка\n", encoding="utf-8")

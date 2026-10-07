@@ -418,3 +418,56 @@ def apply_ops(doc, ops: list[dict]) -> None:
             raise
         except (KeyError, TypeError, ValueError) as e:
             raise OpError(f"{kind}: {e}") from e
+
+
+# ---------------------------------------------------------------- переименование устройств
+
+def _names(items: Any) -> list:
+    return [d.get("name") if isinstance(d, dict) else None for d in items] if isinstance(items, list) else []
+
+
+def _bus_frames(bus: dict, bp: list) -> list[tuple[list, dict]]:
+    """Все кадры шины с путями: общие и кадры устройств."""
+    out = []
+    frames = bus.get("frames")
+    if isinstance(frames, list):
+        out += [([*bp, "frames", i], f) for i, f in enumerate(frames)]
+    devices = bus.get("devices")
+    if isinstance(devices, list):
+        for di, d in enumerate(devices):
+            frames = d.get("frames") if isinstance(d, dict) else None
+            if isinstance(frames, list):
+                out += [([*bp, "devices", di, "frames", i], f) for i, f in enumerate(frames)]
+    return [(p, f) for p, f in out if isinstance(f, dict)]
+
+
+def device_rename_ops(old: Any, new: Any) -> list[dict]:
+    """Операции, переносящие переименование устройств (правкой текста) в sender/receivers кадров.
+
+    Переименование узнаём по месту: у устройства на той же позиции той же шины другое имя,
+    причём старого имени среди устройств шины больше нет, а нового раньше не было.
+    Меняются только ссылки, всё ещё указывающие на старое имя. `old`, `new` — простые данные (plain).
+    """
+    ops: list[dict] = []
+    old_buses = old.get("buses") if isinstance(old, dict) else None
+    new_buses = new.get("buses") if isinstance(new, dict) else None
+    if not isinstance(old_buses, list) or not isinstance(new_buses, list):
+        return ops
+    for bi, (ob, nb) in enumerate(zip(old_buses, new_buses, strict=False)):
+        if not isinstance(ob, dict) or not isinstance(nb, dict):
+            continue
+        od, nd = _names(ob.get("devices")), _names(nb.get("devices"))
+        renames = {a: b for a, b in zip(od, nd, strict=False)
+                   if isinstance(a, str) and isinstance(b, str) and a and b and a != b
+                   and a not in nd and b not in od}
+        if not renames:
+            continue
+        for fp, f in _bus_frames(nb, ["buses", bi]):
+            sender = f.get("sender")
+            if isinstance(sender, str) and sender in renames:
+                ops.append({"op": "set", "path": [*fp, "sender"], "value": renames[sender]})
+            rec = f.get("receivers")
+            if isinstance(rec, list) and any(isinstance(r, str) and r in renames for r in rec):
+                ops.append({"op": "set", "path": [*fp, "receivers"],
+                            "value": [renames.get(r, r) if isinstance(r, str) else r for r in rec]})
+    return ops

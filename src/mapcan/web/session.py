@@ -17,7 +17,7 @@ from ..loader import LoadResult, loads
 from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
 from ..validate import check
-from .yamlops import OpError, apply_ops, dump, make_yaml, merge_text, plain
+from .yamlops import OpError, apply_ops, device_rename_ops, dump, make_yaml, merge_text, plain
 
 HISTORY_LIMIT = 200
 
@@ -42,6 +42,7 @@ class EditorSession:
         self.version = 0
         self.undo_stack: list[str] = []
         self.redo_stack: list[str] = []
+        self._live_base: str | None = None     # текст до серии правок вкладки YAML по ходу ввода
         self._result: LoadResult | None = None
         self._report = None
         self.reload()
@@ -67,6 +68,7 @@ class EditorSession:
             self.saved_text = text
             self.undo_stack.clear()
             self.redo_stack.clear()
+            self._live_base = None
             self._set_text(text)
 
     def save(self, force: bool = False) -> None:
@@ -129,6 +131,7 @@ class EditorSession:
             self.version += 1
 
     def _commit(self, new_text: str) -> bool:
+        self._live_base = None
         if new_text == self.text:
             return False
         self.undo_stack.append(self.text)
@@ -152,14 +155,55 @@ class EditorSession:
                 raise
             return self._commit(merge_text(self.text, canon_old, canon_new))
 
-    def set_text(self, text: str) -> bool:
+    def _carry_renames(self, base: str, text: str) -> str:
+        """Переименование устройства в тексте переносим в sender/receivers кадров — как при правке формой."""
+        y = make_yaml(text)
+        try:
+            old = plain(make_yaml(base).load(base))
+            doc = y.load(text)
+        except YAMLError:
+            return text
+        ops = device_rename_ops(old, plain(doc))
+        if not ops:
+            return text
+        canon_old = dump(y, doc)
+        try:
+            apply_ops(doc, ops)
+        except OpError:
+            return text
+        return merge_text(text, canon_old, dump(y, doc))
+
+    def set_text(self, text: str, live: bool = False) -> bool:
+        """Принять текст вкладки YAML.
+
+        `live` — промежуточное применение по ходу ввода: такие правки подряд сливаются в один шаг
+        отмены, пока не придёт обычное применение или другая правка. Переименования устройств
+        отсчитываются от текста до начала этой серии, поэтому промежуточные имена ничего не ломают.
+        """
         with self.lock:
             self._check_writable()
-            return self._commit(text.replace("\r\n", "\n"))
+            base = self._live_base
+            self._live_base = None
+            text = self._carry_renames(self.text if base is None else base, text.replace("\r\n", "\n"))
+            if base is None:
+                changed = self._commit(text)
+                if live and changed:
+                    self._live_base = self.undo_stack[-1]
+                return changed
+            if text == base:                     # серия вернула текст к исходному — шаг отмены не нужен
+                self.undo_stack.pop()
+            elif live:
+                self._live_base = base
+            if text == self.text:
+                return False
+            self.redo_stack.clear()
+            self._set_text(text)
+            return True
 
     def undo(self) -> bool:
         with self.lock:
             self._check_writable()
+            self._live_base = None
             if not self.undo_stack:
                 return False
             self.redo_stack.append(self.text)
@@ -169,6 +213,7 @@ class EditorSession:
     def redo(self) -> bool:
         with self.lock:
             self._check_writable()
+            self._live_base = None
             if not self.redo_stack:
                 return False
             self.undo_stack.append(self.text)

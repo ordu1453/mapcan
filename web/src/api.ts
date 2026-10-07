@@ -44,7 +44,7 @@ export const api = {
   close: (force = false) => call<SessionResult>("POST", "/api/file/close", { force }),
   state: () => call<State>("GET", "/api/state"),
   ops: (ops: Op[]) => call<State>("POST", "/api/ops", { ops }),
-  text: (text: string) => call<State>("POST", "/api/text", { text }),
+  text: (text: string, live = false) => call<State>("POST", "/api/text", { text, live }),
   check: (text: string) => call<{ diagnostics: Diagnostic[] }>("POST", "/api/check", { text }),
   undo: () => call<State>("POST", "/api/undo"),
   redo: () => call<State>("POST", "/api/redo"),

@@ -1,26 +1,27 @@
 <script setup lang="ts">
-// Правка YAML целиком. Применение — Ctrl+Enter или кнопка; проверка та же, что в CLI.
-import { computed, nextTick, ref, watch } from "vue";
+// Правка YAML целиком. Текст без синтаксических ошибок применяется по ходу ввода (дерево и проверка
+// обновляются сразу), Ctrl+Enter или кнопка — применить немедленно; проверка та же, что в CLI.
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { api } from "../api";
 import { actions, store, tree } from "../store";
 import type { Diagnostic } from "../types";
 import { samePath, type TreeNode } from "../model";
-import { highlight, nodeAtLine, nodeLines } from "../yamltext";
+import { highlight, keyEdit, nodeAtLine, nodeLines, type TextEdit } from "../yamltext";
 import { t } from "../i18n";
 
-const text = ref(store.state?.text ?? "");
+// Черновик живёт в store: при переходе на другую вкладку он не теряется, а применяется.
+const text = computed({
+  get: () => store.yaml.draft ?? store.state?.text ?? "",
+  set: (v: string) => { store.yaml.draft = v; },
+});
 const ta = ref<HTMLTextAreaElement | null>(null);
 const gutter = ref<HTMLDivElement | null>(null);
 const code = ref<HTMLPreElement | null>(null);
 const scrollTop = ref(0);
 const LINE = 20;
 
-const local = computed(() => text.value !== (store.state?.text ?? ""));
-
-// Новое состояние с сервера (правка формой, undo) — подхватываем, если нет своих правок.
-watch(() => store.state?.text, (t) => {
-  if (!local.value || t === text.value) text.value = t ?? "";
-});
+// Есть ввод, ещё не применённый на сервере.
+const local = computed(() => store.yaml.draft !== null && store.yaml.draft !== store.yaml.applied);
 
 const lines = computed(() => text.value.split("\n").length);
 const html = computed(() => highlight(text.value).join("\n") + "\n");
@@ -63,7 +64,8 @@ function onKeyUp(e: KeyboardEvent) {
   if (/^(Arrow|Page|Home|End)/.test(e.key)) selectAtCursor();
 }
 
-// Живая проверка: неприменённый текст проверяется на сервере с задержкой после ввода.
+// Живая проверка: неприменённый текст проверяется на сервере с задержкой после ввода
+// и, если он разбирается, применяется (одним шагом отмены на всю серию ввода).
 const draftDiags = ref<Diagnostic[] | null>(null);
 let checkTimer: ReturnType<typeof setTimeout> | undefined;
 let checkSeq = 0;
@@ -77,12 +79,16 @@ watch(text, (value) => {
   checkTimer = setTimeout(async () => {
     try {
       const r = await api.check(value);
-      if (seq === checkSeq) draftDiags.value = r.diagnostics;
+      if (seq !== checkSeq) return;
+      draftDiags.value = r.diagnostics;
+      if (!store.state?.readonly && !r.diagnostics.some((d) => d.code === "yaml")) await actions.setText(value, true);
     } catch {
       /* нет связи — пометки остаются прежними */
     }
   }, 400);
 });
+
+onBeforeUnmount(() => clearTimeout(checkTimer));
 
 const diags = computed(() => (local.value ? draftDiags.value ?? [] : store.state?.diagnostics ?? []));
 const draftErrors = computed(() => (local.value ? (draftDiags.value ?? []).filter((d) => d.level === "error") : []));
@@ -134,25 +140,59 @@ watch(() => store.revealLine, (l) => {
 }, { immediate: true });
 
 async function apply() {
-  if (!local.value) return;
-  await actions.setText(text.value);
+  if (store.yaml.draft === null) return;
+  const el = ta.value;
+  const sel = el && [el.selectionStart, el.selectionEnd, el.scrollTop];
+  clearTimeout(checkTimer);
+  checkSeq++;
+  await actions.flushYaml();
+  // Поле перешло на текст сервера — курсор и прокрутка остаются на месте.
+  await nextTick();
+  if (el && sel && document.activeElement === el) {
+    el.setSelectionRange(sel[0], sel[1]);
+    el.scrollTop = sel[2];
+    syncScroll();
+  }
 }
 
+// Отменить ввод, ещё не применённый на сервере.
 function revert() {
-  text.value = store.state?.text ?? "";
+  store.yaml = { draft: null, applied: null };
 }
+
+// Правка через execCommand попадает в историю отмены textarea (Ctrl+Z); присваивание text — нет.
+function replace(el: HTMLTextAreaElement, ed: TextEdit) {
+  el.setSelectionRange(ed.from, ed.to);
+  const ok = ed.insert ? document.execCommand("insertText", false, ed.insert)
+    : ed.from === ed.to || document.execCommand("delete");
+  if (!ok) {
+    el.setRangeText(ed.insert, ed.from, ed.to, "end");
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  el.setSelectionRange(ed.selStart, ed.selEnd);
+}
+
+// После Esc клавиша Tab уводит фокус из поля, как в обычной форме.
+let tabLeaves = false;
 
 function onKey(e: KeyboardEvent) {
+  const el = e.target as HTMLTextAreaElement;
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
     e.preventDefault();
     void apply();
-  } else if (e.key === "Tab") {
-    e.preventDefault();
-    const el = e.target as HTMLTextAreaElement;
-    const s = el.selectionStart;
-    text.value = text.value.slice(0, s) + "  " + text.value.slice(el.selectionEnd);
-    void nextTick(() => el.setSelectionRange(s + 2, s + 2));
+    return;
   }
+  if (e.key === "Escape") {
+    tabLeaves = true;
+    return;
+  }
+  const leave = tabLeaves;
+  tabLeaves = false;
+  if (el.readOnly || e.ctrlKey || e.metaKey || e.altKey || e.isComposing || (e.key === "Tab" && leave)) return;
+  const ed = keyEdit(text.value, el.selectionStart, el.selectionEnd, e.key, e.shiftKey);
+  if (!ed) return;
+  e.preventDefault();
+  replace(el, ed);
 }
 </script>
 

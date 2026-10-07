@@ -56,6 +56,7 @@
   "Будет создан репозиторий на GitHub от имени {user}, он станет remote «origin», и все коммиты будут отправлены.": "This creates a GitHub repository under {user}, adds it as the “origin” remote and pushes all commits.",
   "В кадре нет свободных бит: освободите место или увеличьте DLC": "No free bits left in the frame. Free up space or increase the DLC",
   "В коммит попадут только файл карты и её логотип; остальные изменения в репозитории не затрагиваются.": "Only the map file and its logo are committed; other changes in the repository are not affected.",
+  "В YAML синтаксическая ошибка (строка {line}): {message}": "YAML syntax error (line {line}): {message}",
   "В папке нет YAML-файлов и подпапок.": "This folder contains no YAML files or subfolders.",
   "Вверх": "Up",
   "Версия": "Version",
