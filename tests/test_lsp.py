@@ -252,3 +252,12 @@ def test_server_protocol(tmp_path):
     finally:
         proc.kill()
         proc.wait()
+
+
+def test_diff_command_compares_two_versions():
+    pytest.importorskip("pygls")
+    from mapcan.lsp.server import diff_command
+
+    old = MINIMAL.replace("name: pressure", "name: pressure_old")
+    assert "pressure" in diff_command(None, {"oldText": old, "newText": MINIMAL})["text"]
+    assert "error" in diff_command(None, {"oldText": "mapcan: [", "newText": MINIMAL})

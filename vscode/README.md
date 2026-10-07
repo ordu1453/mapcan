@@ -28,9 +28,12 @@ file with a top-level `mapcan: 1` key. Other YAML files are left alone.
   All References (Shift+F12), and Rename (F2) that updates every reference.
 * **Snippets.** After `- `, completion offers a device, a frame and signals (plain, with a value
   table, a physical quantity, a bit field).
-* **Preview and comparison.** **mapcan: Open Document Preview** shows the map's document in the
-  Markdown preview and follows edits. **mapcan: Compare with Revision…** lists the map's Git
-  history and shows what changed since the chosen version.
+* **Preview.** **mapcan: Open Document Preview** shows the map's document in the Markdown preview
+  and follows edits.
+* **History.** The **History** panel in the mapcan side bar lists the map's Git commits, renames
+  included, with uncommitted changes on top. Clicking a commit shows what changed in signals,
+  frames and devices since that version. The context menu shows the changes made by the commit,
+  compares the YAML with the current text, opens the version read-only and copies the commit ID.
 * **Export.** The **Export** panel in the mapcan side bar builds DBC, C and Python code, Excel, PDF,
   Markdown and HTML from the current text of the map, unsaved edits included, into `build/` next
   to the map or the folder chosen in the panel, and lists the files it wrote. It refuses while the

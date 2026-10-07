@@ -63,6 +63,12 @@
           "name": "Export",
           "icon": "media/mapcan.svg",
           "when": "mapcan.mapOpen"
+        },
+        {
+          "id": "mapcan.history",
+          "name": "History",
+          "icon": "media/mapcan.svg",
+          "when": "mapcan.mapOpen"
         }
       ]
     },
@@ -71,6 +77,21 @@
         "view": "mapcan.map",
         "contents": "[Open Map](command:mapcan.openMap)",
         "when": "!mapcan.mapOpen"
+      },
+      {
+        "view": "mapcan.history",
+        "contents": "The map is not in a Git repository.\n[Initialize Repository](command:git.init)",
+        "when": "mapcan.historyState == noRepo"
+      },
+      {
+        "view": "mapcan.history",
+        "contents": "No commits for this map yet.",
+        "when": "mapcan.historyState == noCommits"
+      },
+      {
+        "view": "mapcan.history",
+        "contents": "Git is not installed or not on PATH.\n[Download Git](https://git-scm.com/downloads)",
+        "when": "mapcan.historyState == noGit"
       }
     ],
     "menus": {
@@ -86,11 +107,6 @@
           "group": "navigation@1"
         },
         {
-          "command": "mapcan.compareWithRevision",
-          "when": "view == mapcan.map && mapcan.mapOpen",
-          "group": "1_map@1"
-        },
-        {
           "command": "mapcan.revealFormNode",
           "when": "view == mapcan.form",
           "group": "navigation@0"
@@ -99,6 +115,11 @@
           "command": "mapcan.closeForm",
           "when": "view == mapcan.form",
           "group": "navigation@1"
+        },
+        {
+          "command": "mapcan.history.refresh",
+          "when": "view == mapcan.history",
+          "group": "navigation@0"
         }
       ],
       "commandPalette": [
@@ -152,6 +173,30 @@
         },
         {
           "command": "mapcan.revealFormNode",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.refresh",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.showChangesSince",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.showCommitChanges",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.openDiff",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.openVersion",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.copyCommitId",
           "when": "false"
         }
       ],
@@ -210,6 +255,41 @@
           "command": "mapcan.deleteNode",
           "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
           "group": "3_delete@1"
+        },
+        {
+          "command": "mapcan.history.openDiff",
+          "when": "view == mapcan.history && viewItem =~ /^(commit|uncommitted)/",
+          "group": "inline@1"
+        },
+        {
+          "command": "mapcan.history.openVersion",
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
+          "group": "inline@2"
+        },
+        {
+          "command": "mapcan.history.showChangesSince",
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
+          "group": "1_changes@1"
+        },
+        {
+          "command": "mapcan.history.showCommitChanges",
+          "when": "view == mapcan.history && viewItem == commit",
+          "group": "1_changes@2"
+        },
+        {
+          "command": "mapcan.history.openDiff",
+          "when": "view == mapcan.history && viewItem =~ /^(commit|uncommitted)/",
+          "group": "2_yaml@1"
+        },
+        {
+          "command": "mapcan.history.openVersion",
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
+          "group": "2_yaml@2"
+        },
+        {
+          "command": "mapcan.history.copyCommitId",
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
+          "group": "3_copy@1"
         }
       ]
     },
@@ -252,6 +332,40 @@
         "title": "Compare with Revision…",
         "category": "mapcan",
         "icon": "$(git-compare)"
+      },
+      {
+        "command": "mapcan.history.refresh",
+        "title": "Refresh",
+        "category": "mapcan",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "mapcan.history.showChangesSince",
+        "title": "Show Changes Since This Version",
+        "category": "mapcan",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "mapcan.history.showCommitChanges",
+        "title": "Show Changes in This Commit",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.history.openDiff",
+        "title": "Compare YAML with Current",
+        "category": "mapcan",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "mapcan.history.openVersion",
+        "title": "Open This Version",
+        "category": "mapcan",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "mapcan.history.copyCommitId",
+        "title": "Copy Commit ID",
+        "category": "mapcan"
       },
       {
         "command": "mapcan.addBus",

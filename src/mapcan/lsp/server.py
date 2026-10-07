@@ -317,16 +317,23 @@ def render_command(ls: MapcanServer, *args) -> dict:
 @server.command("mapcan.lsp.diff")
 @server.thread()
 def diff_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, oldText}. Ответ: {text} — изменения в Markdown — или {error}."""
+    """Аргумент: {uri, oldText, newText?}. Без newText новая версия — текущий текст карты.
+    Ответ: {text} — изменения в Markdown — или {error}."""
     from ..diff import diff_maps, render_diff
     from ..loader import loads
 
     params = _arg(args)
-    a = ls.analysis(params.get("uri", ""))
-    old = loads(params.get("oldText") or "", "old.yaml")
-    if a is None or a.map is None or old.map is None:
-        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
-    return {"text": render_diff(diff_maps(old.map, a.map), "md", a.map.lang)}
+    if params.get("newText") is not None:
+        new = loads(params["newText"], "new.yaml").map
+    else:
+        a = ls.analysis(params.get("uri", ""))
+        new = a.map if a else None
+        if new is None:
+            return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+    old = loads(params.get("oldText") or "", "old.yaml").map
+    if old is None or new is None:
+        return {"error": _("Версия карты из истории не разобрана.")}
+    return {"text": render_diff(diff_maps(old, new), "md", new.lang)}
 
 
 def main() -> None:

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* **History** panel in the side bar: the map's Git commits and uncommitted changes, with the changes
+  since a version, the changes of a commit, a YAML diff, the version itself and its commit ID.
 * The **Node** panel has all the fields of the web editor: byte order of any signal longer than a
   byte (not only on CAN buses), signed code, "no data" values, value format, multiplexer selector and
   mux values, notes of frames and signals, the bus interface, the J1939 destination address and the

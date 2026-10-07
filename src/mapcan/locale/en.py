@@ -590,4 +590,6 @@ EN: dict[str, str] = {
         "The map cannot be read: fix the errors to see the document.",
     "Карта не разобрана: исправьте ошибки, чтобы сравнить версии.":
         "The map cannot be read: fix the errors to compare versions.",
+    "Версия карты из истории не разобрана.":
+        "A version of the map from the history cannot be read.",
 }

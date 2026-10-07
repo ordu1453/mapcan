@@ -6,6 +6,7 @@ import { LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-lan
 import { registerTreeActions } from "./actions";
 import { ExportView } from "./export";
 import { NodeForm } from "./form";
+import { HistoryTree, registerHistory } from "./history";
 import { registerPreview } from "./preview";
 import { isMap, MapTree, revealNode } from "./tree";
 
@@ -78,19 +79,26 @@ async function openMap(): Promise<void> {
 }
 
 /** The returned object is used by the integration tests. */
-export async function activate(context: vscode.ExtensionContext): Promise<{ tree: MapTree; form: NodeForm }> {
+export async function activate(
+  context: vscode.ExtensionContext,
+): Promise<{ tree: MapTree; form: NodeForm; history: HistoryTree }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
   tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
   const view = vscode.window.createTreeView("mapcan.map", { treeDataProvider: tree, showCollapseAll: true });
   tree.attach(view);
   form = new NodeForm(context.extensionUri, tree, () => client, view);
   const exportView = new ExportView(context, tree, () => client);
+  const history = new HistoryTree(tree);
+  const historyView = vscode.window.createTreeView(HistoryTree.viewId, { treeDataProvider: history });
+  history.attach(historyView);
   context.subscriptions.push(
     output,
     tree,
     view,
     form,
     exportView,
+    history,
+    historyView,
     vscode.window.registerWebviewViewProvider(NodeForm.viewId, form),
     vscode.window.registerWebviewViewProvider(ExportView.viewId, exportView),
     vscode.commands.registerCommand("mapcan.restartServer", async () => {
@@ -111,9 +119,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<{ tree
     }),
   );
   registerTreeActions(context, tree, form, () => client);
-  registerPreview(context, () => client, currentMap);
+  const showChanges = registerPreview(context, () => client, currentMap);
+  registerHistory(context, history, currentMap, showChanges);
   await start();
-  return { tree, form };
+  return { tree, form, history };
 }
 
 export function deactivate(): Promise<void> {

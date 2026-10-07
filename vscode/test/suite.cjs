@@ -1,5 +1,6 @@
 // Runs inside the Extension Development Host (see runTest.mjs).
 const assert = require("node:assert/strict");
+const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const vscode = require("vscode");
@@ -204,6 +205,56 @@ const tests = {
     const old = fs.readFileSync(example, "utf8").replace("name: pressure", "name: pressure_old");
     const diff = await vscode.commands.executeCommand("mapcan.lsp.diff", { uri: ctx.doc.uri.toString(), oldText: old });
     assert.match(diff.text, /pressure/);
+  },
+
+  async "history lists commits and compares versions"(ctx) {
+    // A map of its own in a repository of its own, so the edits of other tests do not matter
+    const repo = path.join(workspace, "repo");
+    fs.mkdirSync(repo);
+    const file = path.join(repo, "pump.yaml");
+    const original = fs.readFileSync(example, "utf8");
+    const git = (...args) => execFileSync("git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", ...args], { cwd: repo, encoding: "utf8" });
+    git("init", "-q");
+    fs.writeFileSync(file, original.replace("name: pressure", "name: pressure_old"));
+    git("add", "pump.yaml");
+    git("commit", "-q", "-m", "Add map");
+    fs.writeFileSync(file, original);
+    git("commit", "-q", "-am", "Rename pressure");
+    const doc = await vscode.workspace.openTextDocument(file);
+    await vscode.window.showTextDocument(doc);
+    await until("map in the tree", () => ctx.api.tree.mapUri?.toString() === doc.uri.toString());
+
+    const history = ctx.api.history;
+    await vscode.commands.executeCommand("mapcan.history.focus");
+    await vscode.commands.executeCommand("mapcan.history.refresh");
+    const commits = await until("commits", () => (history.commits.length === 2 ? history.commits : undefined));
+    assert.deepEqual(commits.map((c) => c.subject), ["Rename pressure", "Add map"]);
+    assert.equal(commits[1].parentPath, undefined);
+    assert.equal(history.getTreeItem(commits[1]).contextValue, "commit.added");
+
+    const preview = (title) => vscode.workspace.openTextDocument(vscode.Uri.from(
+      { scheme: "mapcan-preview", path: `/pump ${title}.md`, query: doc.uri.toString() }));
+    await vscode.commands.executeCommand("mapcan.history.showCommitChanges", commits[0]);
+    assert.match((await preview(`in ${commits[0].short}`)).getText(), /pressure/);
+    await vscode.commands.executeCommand("mapcan.history.showChangesSince", commits[1]);
+    assert.match((await preview(`since ${commits[1].short}`)).getText(), /pressure/);
+
+    await vscode.commands.executeCommand("mapcan.history.openVersion", commits[1]);
+    const version = vscode.window.activeTextEditor.document;
+    assert.equal(version.uri.scheme, "mapcan-rev");
+    assert.match(version.getText(), /name: pressure_old/);
+    await new Promise((r) => setTimeout(r, 500));
+    assert.equal(ctx.api.tree.mapUri.toString(), doc.uri.toString());
+
+    const editor = await vscode.window.showTextDocument(doc);
+    await editor.edit((e) => e.insert(new vscode.Position(0, 0), "# edited\n"));
+    await until("uncommitted entry", () => history.getChildren().length === 3);
+    assert.equal(history.getTreeItem(history.getChildren()[0]).contextValue, "uncommitted");
+    await vscode.commands.executeCommand("undo");
+    await until("no uncommitted entry", () => history.getChildren().length === 2);
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    await vscode.window.showTextDocument(ctx.doc);
   },
 
   async "edits are validated as you type"(ctx) {
