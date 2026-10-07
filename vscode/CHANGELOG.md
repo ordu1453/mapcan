@@ -2,8 +2,10 @@
 
 ## Unreleased
 
-* **History** panel in the side bar: the map's Git commits and uncommitted changes, with the changes
-  since a version, the changes of a commit, a YAML diff, the version itself and its commit ID.
+* **History** panel in the side bar: the map's Git commits and uncommitted changes. Commit or
+  discard the changes of the map, compare any two versions, open or restore a version, and add the
+  changes to the revision history in the YAML (`document.history`). Comparisons open in one
+  **Changes** tab instead of a new preview each time.
 * The **Node** panel has all the fields of the web editor: byte order of any signal longer than a
   byte (not only on CAN buses), signed code, "no data" values, value format, multiplexer selector and
   mux values, notes of frames and signals, the bus interface, the J1939 destination address and the

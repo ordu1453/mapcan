@@ -1,9 +1,10 @@
-// Document preview and comparison of map versions, both shown in VS Code's Markdown preview.
-// The Markdown comes from the language server and lives in virtual `mapcan-preview:` documents.
+// Document preview in VS Code's Markdown preview and comparison of map versions in the Changes tab.
+// The Markdown comes from the language server; the preview's lives in virtual `mapcan-preview:` documents.
 
 import * as path from "path";
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
+import { ChangesInfo, ChangesPanel } from "./changes";
 
 const SCHEME = "mapcan-preview";
 
@@ -57,12 +58,13 @@ function previewUri(map: vscode.Uri, title: string): vscode.Uri {
 }
 
 /** Shows what changed between two versions of a map; without `newText` the newer one is its current text. */
-export type ShowChanges = (map: vscode.Uri, title: string, oldText: string, newText?: string) => Promise<void>;
+export type ShowChanges = (map: vscode.Uri, info: ChangesInfo, oldText: string, newText?: string) => Promise<void>;
 
 export function registerPreview(
   context: vscode.ExtensionContext,
   client: () => LanguageClient | undefined,
   currentMap: () => vscode.Uri | undefined,
+  changes: ChangesPanel,
 ): ShowChanges {
   const content = new PreviewContent();
   let timer: NodeJS.Timeout | undefined;
@@ -95,11 +97,8 @@ export function registerPreview(
     }),
   );
 
-  return async (map, title, oldText, newText) => {
+  return async (map, info, oldText, newText) => {
     const text = await serverText(client(), "mapcan.lsp.diff", { uri: map.toString(), oldText, newText });
-    if (text === undefined) return;
-    const target = previewUri(map, title);
-    content.set(target, text.trim() ? text : "No changes.\n");
-    await vscode.commands.executeCommand("markdown.showPreviewToSide", target);
+    if (text !== undefined) await changes.show(map, info, text.trim() ? text : "No changes.\n");
   };
 }

@@ -4,6 +4,7 @@
 import * as vscode from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { registerTreeActions } from "./actions";
+import { ChangesPanel } from "./changes";
 import { ExportView } from "./export";
 import { NodeForm } from "./form";
 import { HistoryTree, registerHistory } from "./history";
@@ -81,7 +82,7 @@ async function openMap(): Promise<void> {
 /** The returned object is used by the integration tests. */
 export async function activate(
   context: vscode.ExtensionContext,
-): Promise<{ tree: MapTree; form: NodeForm; history: HistoryTree }> {
+): Promise<{ tree: MapTree; form: NodeForm; history: HistoryTree; changes: ChangesPanel }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
   tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
   const view = vscode.window.createTreeView("mapcan.map", { treeDataProvider: tree, showCollapseAll: true });
@@ -89,6 +90,7 @@ export async function activate(
   form = new NodeForm(context.extensionUri, tree, () => client, view);
   const exportView = new ExportView(context, tree, () => client);
   const history = new HistoryTree(tree);
+  const changes = new ChangesPanel(context.extensionUri);
   const historyView = vscode.window.createTreeView(HistoryTree.viewId, { treeDataProvider: history });
   history.attach(historyView);
   context.subscriptions.push(
@@ -99,6 +101,7 @@ export async function activate(
     exportView,
     history,
     historyView,
+    changes,
     vscode.window.registerWebviewViewProvider(NodeForm.viewId, form),
     vscode.window.registerWebviewViewProvider(ExportView.viewId, exportView),
     vscode.commands.registerCommand("mapcan.restartServer", async () => {
@@ -119,10 +122,10 @@ export async function activate(
     }),
   );
   registerTreeActions(context, tree, form, () => client);
-  const showChanges = registerPreview(context, () => client, currentMap);
-  registerHistory(context, history, currentMap, showChanges);
+  const showChanges = registerPreview(context, () => client, currentMap, changes);
+  registerHistory(context, history, currentMap, showChanges, () => client);
   await start();
-  return { tree, form, history };
+  return { tree, form, history, changes };
 }
 
 export function deactivate(): Promise<void> {

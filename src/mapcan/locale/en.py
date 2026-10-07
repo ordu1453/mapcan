@@ -592,4 +592,6 @@ EN: dict[str, str] = {
         "The map cannot be read: fix the errors to compare versions.",
     "Версия карты из истории не разобрана.":
         "A version of the map from the history cannot be read.",
+    "Историю изменений, записанную в одну строку, нельзя дополнить.":
+        "The revision history is written on one line and cannot be extended.",
 }

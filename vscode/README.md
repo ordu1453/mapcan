@@ -32,8 +32,15 @@ file with a top-level `mapcan: 1` key. Other YAML files are left alone.
   and follows edits.
 * **History.** The **History** panel in the mapcan side bar lists the map's Git commits, renames
   included, with uncommitted changes on top. Clicking a commit shows what changed in signals,
-  frames and devices since that version. The context menu shows the changes made by the commit,
-  compares the YAML with the current text, opens the version read-only and copies the commit ID.
+  frames and devices since that version in the **Changes** tab, which every comparison reuses.
+  * Uncommitted changes: **Commit…** (only this map), **Discard Changes…**, YAML diff.
+  * A commit: the changes it made, **Select for Compare** and **Compare with Selected** for any two
+    versions, YAML diff with the current text, **Open This Version**, **Restore This Version** (an
+    edit that Undo reverts), **Copy Commit ID**.
+  * **Add to Revision History…** writes the changes since the last commit (or since the chosen
+    one) as the first `document.history` entry and sets the document's version and date. The last
+    step asks for the author, prefilled with the name entered last time (at first, the name from
+    the mapcan profile or from Git); Enter keeps it, and a new name is remembered.
 * **Export.** The **Export** panel in the mapcan side bar builds DBC, C and Python code, Excel, PDF,
   Markdown and HTML from the current text of the map, unsaved edits included, into `build/` next
   to the map or the folder chosen in the panel, and lists the files it wrote. It refuses while the

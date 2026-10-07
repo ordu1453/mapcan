@@ -1,0 +1,71 @@
+/* The Changes tab: Markdown in the style of VS Code's Markdown preview, colors from the theme. */
+
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 16px 26px 32px;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-markdown-font-family, var(--vscode-font-family));
+  font-size: var(--vscode-markdown-font-size, 14px);
+  line-height: var(--vscode-markdown-line-height, 1.6);
+  background: var(--vscode-editor-background);
+}
+
+header {
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 1.6em;
+  font-weight: 600;
+}
+
+.detail {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+h2 {
+  margin: 1.2em 0 0.6em;
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+article > h2:first-child {
+  margin-top: 0;
+}
+
+ul {
+  padding-left: 1.4em;
+}
+
+li + li {
+  margin-top: 2px;
+}
+
+code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.92em;
+  background: var(--vscode-textCodeBlock-background);
+}
+
+pre {
+  white-space: pre-wrap;
+  font-family: var(--vscode-editor-font-family);
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 4px 10px;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+  text-align: left;
+}

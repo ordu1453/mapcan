@@ -85,13 +85,18 @@
       },
       {
         "view": "mapcan.history",
-        "contents": "No commits for this map yet.",
+        "contents": "No commits for this map yet.\n[Commit Map](command:mapcan.history.commit)",
         "when": "mapcan.historyState == noCommits"
       },
       {
         "view": "mapcan.history",
         "contents": "Git is not installed or not on PATH.\n[Download Git](https://git-scm.com/downloads)",
         "when": "mapcan.historyState == noGit"
+      },
+      {
+        "view": "mapcan.history",
+        "contents": "Save the map to track its history.",
+        "when": "mapcan.historyState == unsaved"
       }
     ],
     "menus": {
@@ -117,9 +122,19 @@
           "group": "navigation@1"
         },
         {
+          "command": "mapcan.history.commit",
+          "when": "view == mapcan.history && (mapcan.historyChanges || mapcan.historyState == noCommits)",
+          "group": "navigation@0"
+        },
+        {
+          "command": "mapcan.history.addToHistory",
+          "when": "view == mapcan.history && mapcan.historyState == ok",
+          "group": "navigation@1"
+        },
+        {
           "command": "mapcan.history.refresh",
           "when": "view == mapcan.history",
-          "group": "navigation@0"
+          "group": "navigation@2"
         }
       ],
       "commandPalette": [
@@ -198,6 +213,30 @@
         {
           "command": "mapcan.history.copyCommitId",
           "when": "false"
+        },
+        {
+          "command": "mapcan.history.commit",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.addToHistory",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.discard",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.restore",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.selectForCompare",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.history.compareWithSelected",
+          "when": "false"
         }
       ],
       "view/item/context": [
@@ -258,7 +297,42 @@
         },
         {
           "command": "mapcan.history.openDiff",
-          "when": "view == mapcan.history && viewItem =~ /^(commit|uncommitted)/",
+          "when": "view == mapcan.history && viewItem == uncommitted",
+          "group": "inline@1"
+        },
+        {
+          "command": "mapcan.history.discard",
+          "when": "view == mapcan.history && viewItem == uncommitted",
+          "group": "inline@2"
+        },
+        {
+          "command": "mapcan.history.commit",
+          "when": "view == mapcan.history && viewItem == uncommitted",
+          "group": "inline@3"
+        },
+        {
+          "command": "mapcan.history.commit",
+          "when": "view == mapcan.history && viewItem == uncommitted",
+          "group": "1_commit@1"
+        },
+        {
+          "command": "mapcan.history.addToHistory",
+          "when": "view == mapcan.history && viewItem == uncommitted",
+          "group": "1_commit@2"
+        },
+        {
+          "command": "mapcan.history.openDiff",
+          "when": "view == mapcan.history && viewItem == uncommitted",
+          "group": "2_yaml@1"
+        },
+        {
+          "command": "mapcan.history.discard",
+          "when": "view == mapcan.history && viewItem == uncommitted",
+          "group": "3_discard@1"
+        },
+        {
+          "command": "mapcan.history.openDiff",
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
           "group": "inline@1"
         },
         {
@@ -277,19 +351,39 @@
           "group": "1_changes@2"
         },
         {
+          "command": "mapcan.history.selectForCompare",
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
+          "group": "2_compare@1"
+        },
+        {
+          "command": "mapcan.history.compareWithSelected",
+          "when": "view == mapcan.history && viewItem =~ /^commit/ && mapcan.historySelected",
+          "group": "2_compare@2"
+        },
+        {
           "command": "mapcan.history.openDiff",
-          "when": "view == mapcan.history && viewItem =~ /^(commit|uncommitted)/",
-          "group": "2_yaml@1"
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
+          "group": "3_yaml@1"
         },
         {
           "command": "mapcan.history.openVersion",
           "when": "view == mapcan.history && viewItem =~ /^commit/",
-          "group": "2_yaml@2"
+          "group": "3_yaml@2"
+        },
+        {
+          "command": "mapcan.history.restore",
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
+          "group": "3_yaml@3"
+        },
+        {
+          "command": "mapcan.history.addToHistory",
+          "when": "view == mapcan.history && viewItem =~ /^commit/",
+          "group": "4_history@1"
         },
         {
           "command": "mapcan.history.copyCommitId",
           "when": "view == mapcan.history && viewItem =~ /^commit/",
-          "group": "3_copy@1"
+          "group": "5_copy@1"
         }
       ]
     },
@@ -365,6 +459,39 @@
       {
         "command": "mapcan.history.copyCommitId",
         "title": "Copy Commit ID",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.history.commit",
+        "title": "Commit…",
+        "category": "mapcan",
+        "icon": "$(check)"
+      },
+      {
+        "command": "mapcan.history.addToHistory",
+        "title": "Add to Revision History…",
+        "category": "mapcan",
+        "icon": "$(history)"
+      },
+      {
+        "command": "mapcan.history.discard",
+        "title": "Discard Changes…",
+        "category": "mapcan",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "mapcan.history.restore",
+        "title": "Restore This Version",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.history.selectForCompare",
+        "title": "Select for Compare",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.history.compareWithSelected",
+        "title": "Compare with Selected",
         "category": "mapcan"
       },
       {

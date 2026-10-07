@@ -233,12 +233,19 @@ const tests = {
     assert.equal(commits[1].parentPath, undefined);
     assert.equal(history.getTreeItem(commits[1]).contextValue, "commit.added");
 
-    const preview = (title) => vscode.workspace.openTextDocument(vscode.Uri.from(
-      { scheme: "mapcan-preview", path: `/pump ${title}.md`, query: doc.uri.toString() }));
+    // Every comparison goes to the same Changes tab, which does not take the focus
+    const groups = vscode.window.tabGroups.all.length;
     await vscode.commands.executeCommand("mapcan.history.showCommitChanges", commits[0]);
-    assert.match((await preview(`in ${commits[0].short}`)).getText(), /pressure/);
+    assert.match(ctx.api.changes.markdown, /pressure/);
+    ctx.api.changes.markdown = undefined;
     await vscode.commands.executeCommand("mapcan.history.showChangesSince", commits[1]);
-    assert.match((await preview(`since ${commits[1].short}`)).getText(), /pressure/);
+    assert.match(ctx.api.changes.markdown, /pressure/);
+    await vscode.commands.executeCommand("mapcan.history.showChangesSince", commits[0]);
+    const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs)
+      .filter((t) => t.input instanceof vscode.TabInputWebview && t.input.viewType.endsWith("mapcan.changes"));
+    assert.equal(tabs.length, 1);
+    assert.ok(vscode.window.tabGroups.all.length <= groups + 1);
+    assert.equal(vscode.window.activeTextEditor.document.uri.toString(), doc.uri.toString());
 
     await vscode.commands.executeCommand("mapcan.history.openVersion", commits[1]);
     const version = vscode.window.activeTextEditor.document;
@@ -253,6 +260,59 @@ const tests = {
     assert.equal(history.getTreeItem(history.getChildren()[0]).contextValue, "uncommitted");
     await vscode.commands.executeCommand("undo");
     await until("no uncommitted entry", () => history.getChildren().length === 2);
+
+    // Two versions: the older one is the old side, whichever was selected first
+    await vscode.commands.executeCommand("mapcan.history.selectForCompare", commits[0]);
+    assert.match(history.getTreeItem(commits[0]).description, /selected$/);
+    ctx.api.changes.markdown = undefined;
+    await vscode.commands.executeCommand("mapcan.history.compareWithSelected", commits[1]);
+    assert.match(ctx.api.changes.markdown, /pressure/);
+
+    // Restore is an edit of the document: Undo brings the current text back
+    await vscode.commands.executeCommand("mapcan.history.restore", commits[1]);
+    assert.match(doc.getText(), /name: pressure_old/);
+    await vscode.window.showTextDocument(doc);
+    await vscode.commands.executeCommand("undo");
+    assert.equal(doc.getText(), original);
+
+    // Revision history: the draft lists the changes, the entry goes first with the document version
+    const oldText = execFileSync("git", ["show", `${commits[1].hash}:pump.yaml`], { cwd: repo, encoding: "utf8" });
+    const draft = await vscode.commands.executeCommand("mapcan.lsp.historyDraft", { uri: doc.uri.toString(), oldText });
+    assert.ok(draft.changes.some((l) => /pressure/.test(l)), draft.changes.join("\n"));
+    const added = await vscode.commands.executeCommand("mapcan.lsp.addHistory",
+      { uri: doc.uri.toString(), ...draft, version: "0.2.0", author: "Test" });
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(doc.uri, new vscode.Range(...added.edit.range), added.edit.text);
+    await vscode.workspace.applyEdit(edit);
+    assert.match(doc.getText(), /\n  version: 0\.2\.0\n/);
+    assert.match(doc.getText(), /\n  history:\n    - version: 0\.2\.0\n      date: \d{4}-\d\d-\d\d\n      author: Test\n      changes:\n/);
+    await vscode.commands.executeCommand("undo");
+    assert.equal(doc.getText(), original);
+
+    // The button asks for the author every time, prefilled with the name entered last time
+    const { showQuickPick, showInputBox } = vscode.window;
+    const boxes = [];
+    const addWith = async (author) => {
+      vscode.window.showQuickPick = async (items) => items;
+      vscode.window.showInputBox = async (options) => {
+        boxes.push(options);
+        return options.title.endsWith("(3/3)") ? author ?? options.value : options.value;
+      };
+      try {
+        await vscode.commands.executeCommand("mapcan.history.addToHistory", commits[1]);
+      } finally {
+        Object.assign(vscode.window, { showQuickPick, showInputBox });
+      }
+      await vscode.window.showTextDocument(doc);
+      const text = doc.getText();
+      await vscode.commands.executeCommand("undo");
+      return text;
+    };
+    assert.match(await addWith("Jane Smith"), /\n      author: Jane Smith\n/);
+    assert.match(await addWith(undefined), /\n      author: Jane Smith\n/);
+    assert.equal(boxes.filter((b) => b.title.endsWith("(3/3)")).at(-1).value, "Jane Smith");
+    assert.equal(doc.getText(), original);
+
     await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     await vscode.window.showTextDocument(ctx.doc);
   },

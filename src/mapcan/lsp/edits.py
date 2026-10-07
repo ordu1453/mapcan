@@ -476,22 +476,86 @@ def append_item(a: Analysis, owner: Path_, key: str, fields: list[tuple[str, str
         indent = a.nodes[last].start[1]
         at = a.block(last)[1][0] + 1
     else:
-        n = a.nodes.get(owner)
-        if n is None:
+        slot = _empty_list_slot(a, owner, key, lines)
+        if slot is None:
             return None
-        kr = key_range(a, owner + (key,)) if owner + (key,) in a.nodes else None
-        if kr:      # «key: []» или «key:» без значения: элементы — блоком под ключом
-            kline = kr[0][0]
-            lines[kline] = lines[kline][:kr[1][1]] + ":"
-            dash, at = kr[0][1] + 2, kline + 1
-        else:
-            dash, at = n.start[1] + 2, a.block(owner)[1][0] + 1
-            lines = _splice(lines, at, [" " * n.start[1] + f"{key}:"])
-            at += 1
+        dash, at = slot
         indent = dash + 2
     new = [" " * dash + "- " + first] + [" " * indent + f"{k}: {v}" for k, v in fields[1:]]
     lines = _splice(lines, at, new)
     return TextChange(_join(a, lines), (at, dash + 2 + len(f"{fields[0][0]}: ")))
+
+
+def _empty_list_slot(a: Analysis, owner: Path_, key: str, lines: list[str]) -> tuple[int, int] | None:
+    """Место первого элемента пустого или отсутствующего списка ``owner.key``: (колонка «-», строка).
+    Ключ списка при необходимости записывается в ``lines``."""
+    n = a.nodes.get(owner)
+    if n is None:
+        return None
+    kr = key_range(a, owner + (key,)) if owner + (key,) in a.nodes else None
+    if kr:      # «key: []» или «key:» без значения: элементы — блоком под ключом
+        kline = kr[0][0]
+        lines[kline] = lines[kline][:kr[1][1]] + ":"
+        return kr[0][1] + 2, kline + 1
+    at = a.block(owner)[1][0] + 1
+    lines[at:at] = [" " * n.start[1] + f"{key}:"]
+    return n.start[1] + 2, at + 1
+
+
+HISTORY: Path_ = ("document", "history")
+
+
+def _entry_value(key: str, value: str) -> str:
+    """Версия вида 1.2.3 — без кавычек (YAML не читает её как число), остальное — как текст."""
+    if key == "version" and re.fullmatch(r"\d+\.\d+\.\d+[\w.+-]*", value):
+        return value
+    return yaml_text(value)
+
+
+def apply_edits(text: str, edits: list[Edit]) -> str:
+    lines = text.splitlines(keepends=True)
+    starts = [0]
+    for line in lines:
+        starts.append(starts[-1] + len(line))
+
+    def offset(p: Pos) -> int:
+        return starts[p[0]] + p[1] if p[0] < len(lines) else len(text)
+
+    for e in sorted(edits, key=lambda e: e.start, reverse=True):
+        text = text[:offset(e.start)] + e.text + text[offset(e.end):]
+    return text
+
+
+def add_history(a: Analysis, entry: dict, changes: list[str]) -> TextChange | None:
+    """Запись первой в ``document.history`` (поля ``entry``: version, date, author, github и
+    изменения по строке); версия и дата документа — из неё. Курсор — на версии новой записи."""
+    from .analysis import analyze
+
+    items = raw_at(a, HISTORY)
+    if isinstance(items, list) and items and _is_flow(a, HISTORY):
+        return None
+    lines = list(a.lines)
+    if isinstance(items, list) and items:
+        first = HISTORY + (0,)
+        dash, at = _dash_col(a, first), a.nodes[first].start[0]
+    else:
+        slot = _empty_list_slot(a, HISTORY[:-1], HISTORY[-1], lines)
+        if slot is None:
+            return None
+        dash, at = slot
+    fields = [f"{k}: {_entry_value(k, str(v))}" for k, v in entry.items() if v]
+    pad = " " * (dash + 2)
+    new = [" " * dash + "- " + fields[0]] + [pad + f for f in fields[1:]]
+    if changes:
+        new += [pad + "changes:"] + [pad + "  - " + yaml_text(c) for c in changes]
+    text = _join(a, _splice(lines, at, new))
+    for key in ("version", "date"):
+        if entry.get(key):
+            b = analyze(text, a.result.source.file)
+            text = apply_edits(text, set_value(b, ("document", key), _entry_value(key, str(entry[key]))))
+    b = analyze(text, a.result.source.file)
+    n = b.nodes.get(HISTORY + (0, "version"))
+    return TextChange(text, n.start if n else (at, dash + 2))
 
 
 def _free_id(a: Analysis, bus_path: Path_) -> int:

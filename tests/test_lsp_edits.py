@@ -282,3 +282,27 @@ def test_map_tree_nodes_have_paths():
     bus = A.map_tree(a)[0]
     assert bus["path"] == ["buses", 0]
     assert bus["children"][0]["children"][0]["path"] == list(FRAME)
+
+
+def test_add_history_entry():
+    entry = {"version": "0.2.0", "date": "2026-10-07", "author": "Jane Smith", "github": None}
+    changes = ["0x1A1 pump_state: added signal speed (bits 40–55)"]
+    # Без истории: список создаётся в document, версия и дата документа — из записи
+    a = A.analyze(MINIMAL, "m.yaml")
+    change = E.add_history(a, entry, changes)
+    out = _change(MINIMAL, change)
+    b = A.analyze(out, "r.yaml")
+    assert b.map.document.version == "0.2.0" and str(b.map.document.date) == "2026-10-07"
+    first = b.map.document.history[0]
+    assert (first.version, first.author, first.github) == ("0.2.0", "Jane Smith", None)
+    assert first.changes == changes
+    assert b.lines[change.cursor[0]].strip() == "- version: 0.2.0"
+    # Новая запись — первой, перед прежними
+    entry2 = {**entry, "version": "0.3.0"}
+    c = A.analyze(out, "r.yaml")
+    out2 = _change(out, E.add_history(c, entry2, ["x"]))
+    assert [h.version for h in A.analyze(out2, "r.yaml").map.document.history] == ["0.3.0", "0.2.0"]
+    assert errors(out2) == errors(MINIMAL)
+    # Запись «[…]» в одну строку не дополняется
+    flow = MINIMAL.replace("  version: 0.1.0\n", "  version: 0.1.0\n  history: [{version: 0.1.0}]\n")
+    assert E.add_history(A.analyze(flow, "m.yaml"), entry, changes) is None

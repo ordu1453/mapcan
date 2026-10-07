@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import re
+
 from lsprotocol import types as T
 from pygls.lsp.server import LanguageServer
 from pygls.uris import to_fs_path
@@ -334,6 +336,57 @@ def diff_command(ls: MapcanServer, *args) -> dict:
     if old is None or new is None:
         return {"error": _("Версия карты из истории не разобрана.")}
     return {"text": render_diff(diff_maps(old, new), "md", new.lang)}
+
+
+def _bump(version: str) -> str:
+    m = re.match(r"^(\d+)\.(\d+)\.(\d+)", version or "")
+    return f"{m[1]}.{m[2]}.{int(m[3]) + 1}" if m else version or "0.1.0"
+
+
+@server.command("mapcan.lsp.historyDraft")
+@server.thread()
+def history_draft_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, oldText}. Ответ: черновик записи истории изменений с версии oldText до текущего
+    текста — {version, date, author, github, changes} — или {error}. Автор — из профиля mapcan."""
+    import datetime
+
+    from ..diff import changelog_lines, diff_maps
+    from ..loader import loads
+    from ..userconfig import UserConfig
+
+    params = _arg(args)
+    a = ls.analysis(params.get("uri", ""))
+    if a is None or a.map is None:
+        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+    old = loads(params.get("oldText") or "", "old.yaml").map
+    if old is None:
+        return {"error": _("Версия карты из истории не разобрана.")}
+    d = diff_maps(old, a.map)
+    current = a.map.document.version or ""
+    user = UserConfig.load().user
+    return {
+        "version": _bump(current) if d.old_version == current else current,
+        "date": datetime.date.today().isoformat(),
+        "author": user.name or None,
+        "github": user.github,
+        "changes": changelog_lines(d, a.map.lang),
+    }
+
+
+@server.command("mapcan.lsp.addHistory")
+def add_history_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, version, date, author, github, changes}. Новая запись — первой в истории
+    изменений, версия и дата документа — из неё. Ответ: {edit: {range, text}, cursor} или {error}."""
+    params = _arg(args)
+    a = ls.analysis(params.get("uri", ""))
+    if a is None or a.result.raw is None:
+        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+    entry = {k: params.get(k) for k in ("version", "date", "author", "github")}
+    change = E.add_history(a, entry, [str(c) for c in params.get("changes") or []])
+    if change is None:
+        return {"error": _("Историю изменений, записанную в одну строку, нельзя дополнить.")}
+    e = E.minimal_edit(a.text, change.text)
+    return {"edit": {"range": [*e.start, *e.end], "text": e.text}, "cursor": list(change.cursor)}
 
 
 def main() -> None:
