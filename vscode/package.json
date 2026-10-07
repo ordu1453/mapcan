@@ -1,0 +1,83 @@
+{
+  "name": "mapcan",
+  "displayName": "mapcan",
+  "description": "CAN signal maps as code: validation, hovers with frame bit layouts and computed CAN IDs for mapcan YAML files.",
+  "version": "0.1.0",
+  "publisher": "ordu1453",
+  "private": true,
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ordu1453/mapcan"
+  },
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "CAN",
+    "CANopen",
+    "J1939",
+    "DBC",
+    "YAML"
+  ],
+  "activationEvents": [
+    "onLanguage:yaml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mapcan.restartServer",
+        "title": "Restart Language Server",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.showOutput",
+        "title": "Show Language Server Output",
+        "category": "mapcan"
+      }
+    ],
+    "configuration": {
+      "title": "mapcan",
+      "properties": {
+        "mapcan.server.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to the `mapcan` executable that runs the language server. Empty means `mapcan` from `PATH`. Requires `mapcan[lsp]`.",
+          "scope": "machine-overridable"
+        },
+        "mapcan.server.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "lsp"
+          ],
+          "description": "Arguments passed to the mapcan executable.",
+          "scope": "machine-overridable"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "~1.91.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.28.0",
+    "typescript": "~5.9.0"
+  }
+}

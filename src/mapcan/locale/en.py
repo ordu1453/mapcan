@@ -538,4 +538,19 @@ EN: dict[str, str] = {
     "API доступно на <a href='/api/docs'>/api/docs</a>.":
         "The interface is not built: run <code>npm run build</code> in <code>web/</code>. "
         "The API is available at <a href='/api/docs'>/api/docs</a>.",
+    # ------------------------------------------------------------------ языковой сервер
+    "Языковой сервер (LSP) через stdio: проверка и подсказки в VS Code и других редакторах.":
+        "Language server (LSP) over stdio: validation and hints in VS Code and other editors.",
+    "Языковому серверу нужен пакет pygls: pip install \"mapcan[lsp]\"":
+        "The language server needs the pygls package: pip install \"mapcan[lsp]\"",
+    "биты {msb}…{lsb} (BE)": "bits {msb}…{lsb} (BE)",
+    "биты {lo}–{hi}": "bits {lo}–{hi}",
+    "единица: {unit}": "unit: {unit}",
+    "диапазон: {lo} … {hi}": "range: {lo} … {hi}",
+    "цикл {ms} мс": "cycle {ms} ms",
+    "Значение": "Value",
+    "Имя": "Name",
+    "Бит": "Bit",
+    "Флаг": "Flag",
+    "Байт": "Byte",
 }

@@ -165,6 +165,17 @@ def app_cmd(
     raise typer.Exit(run(path, window=not browser, readonly=readonly))
 
 
+@app.command(help=_("Языковой сервер (LSP) через stdio: проверка и подсказки в VS Code и других редакторах."))
+def lsp() -> None:
+    try:
+        from .lsp.server import main as lsp_main
+    except ImportError as e:
+        typer.secho(_("Языковому серверу нужен пакет pygls: pip install \"mapcan[lsp]\""),
+                    fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from e
+    lsp_main()
+
+
 class DiffFormat(str, Enum):
     text = "text"
     md = "md"

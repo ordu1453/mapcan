@@ -30,6 +30,7 @@ output/
 
 # IDE / OS
 .vscode/
+!vscode/.vscode/
 .idea/
 Thumbs.db
 desktop.ini

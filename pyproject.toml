@@ -25,6 +25,8 @@ dependencies = [
 bus = ["python-can>=4.3"]
 # Отдельное окно приложения (`mapcan app`); без него редактор открывается в браузере.
 desktop = ["pywebview>=5"]
+# Языковой сервер (`mapcan lsp`) для расширения VS Code и других редакторов.
+lsp = ["pygls>=2.0,<3"]
 
 [project.scripts]
 mapcan = "mapcan.cli:main"

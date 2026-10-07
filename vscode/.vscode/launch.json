@@ -1,0 +1,19 @@
+{
+  // F5 from the vscode/ folder: an Extension Development Host with the examples folder open.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}", "${workspaceFolder}/../examples"],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "preLaunchTask": "build",
+      "env": {
+        "MAPCAN_SERVER": "${workspaceFolder}/../.venv/Scripts/mapcan.exe"
+      },
+      "linux": { "env": { "MAPCAN_SERVER": "${workspaceFolder}/../.venv/bin/mapcan" } },
+      "osx": { "env": { "MAPCAN_SERVER": "${workspaceFolder}/../.venv/bin/mapcan" } }
+    }
+  ]
+}
