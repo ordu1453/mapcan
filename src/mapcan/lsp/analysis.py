@@ -178,6 +178,117 @@ def _detail(a: Analysis, node: dict, path: Path_, kind: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Дерево карты (боковая панель) — те же узлы и подписи, что в дереве веб-редактора
+# --------------------------------------------------------------------------- #
+
+
+def _hexw(v, width: int) -> str:
+    return f"0x{v:0{width}X}" if isinstance(v, int) else "—"
+
+
+def map_tree(a: Analysis) -> list[dict]:
+    """Узлы: kind, label, description, dir (кадры), from (принимаемые кадры), range, selection, children.
+
+    Строится по сырому YAML, вычисленные ID и биты — из модели, если карта разобрана.
+    """
+    raw = a.result.raw
+    buses = raw.get("buses") if isinstance(raw, dict) else None
+    if not isinstance(buses, list):
+        return []
+
+    def rng(path: Path_) -> dict | None:
+        n = a.nodes.get(path)
+        if n is None:
+            return None
+        name = a.nodes.get(path + ("name",))
+        sel = name.start if name else n.start
+        return {"range": [*n.start, *n.end], "selection": [*sel, *a.token_end(sel)]}
+
+    def name_of(d: dict) -> str:
+        return "—" if d.get("name") is None else str(d["name"])
+
+    def model(path: Path_):
+        return _find(a.map, path) if a.map is not None else None
+
+    def frame_node(f: dict, path: Path_) -> dict | None:
+        loc = rng(path)
+        if loc is None:
+            return None
+        rf = model(path)
+        sub = ""
+        if isinstance(f.get("pgn"), int):
+            sub = f"PGN {_hexw(f['pgn'], 4)}"
+        elif isinstance(rf, M.Frame) and rf.can_id is not None:
+            sub = _hex(rf.can_id, rf.extended)
+        node = {"kind": "frame", "label": name_of(f), "description": sub,
+                "dir": rf.direction if isinstance(rf, M.Frame) and rf.device is not None else None,
+                "children": [], **loc}
+        for si, s in enumerate(_items(f.get("signals"))):
+            sp = path + ("signals", si)
+            if (sl := rng(sp)) is None:
+                continue
+            rs = model(sp)
+            sub = ""
+            if isinstance(rs, M.Signal):
+                bits = occupied_bits(rs.start_bit or 0, rs.bit_length or 1, rs.byte_order == "big_endian")
+                lo, hi = min(bits), max(bits)
+                sub = str(lo) if lo == hi else f"{lo}–{hi}"
+            snode = {"kind": "signal", "label": name_of(s), "description": sub, "children": [], **sl}
+            for fi, fl in enumerate(_items(s.get("flags"))):
+                if (fll := rng(sp + ("flags", fi))) is not None:
+                    snode["children"].append({"kind": "flag", "label": name_of(fl),
+                                              "description": _("бит {bit}", bit=fl.get("bit")),
+                                              "children": [], **fll})
+            node["children"].append(snode)
+        for ei, e in enumerate(_items(f.get("sdo"))):
+            if (el := rng(path + ("sdo", ei))) is not None:
+                node["children"].append({"kind": "sdo", "label": name_of(e),
+                                         "description": f"{_hexw(e.get('index'), 4)}:{e.get('subindex', 0)}",
+                                         "children": [], **el})
+        return node
+
+    out = []
+    for bi, bus in enumerate(_items(buses)):
+        bp = ("buses", bi)
+        if (bl := rng(bp)) is None:
+            continue
+        title = M.text(bus.get("title"), a.map.lang if a.map else "en") if bus.get("title") else ""
+        bnode = {"kind": "bus", "label": title or name_of(bus), "description": name_of(bus) if title else "",
+                 "children": [], **bl}
+        for fi, f in enumerate(_items(bus.get("frames"))):
+            if (fn := frame_node(f, bp + ("frames", fi))) is not None:
+                bnode["children"].append(fn)
+        mbus = model(bp)
+        for di, d in enumerate(_items(bus.get("devices"))):
+            dp = bp + ("devices", di)
+            if (dl := rng(dp)) is None:
+                continue
+            sub = (_hexw(d["node_id"], 2) if isinstance(d.get("node_id"), int)
+                   else f"SA {_hexw(d['address'], 2)}" if isinstance(d.get("address"), int) else "")
+            label = f"{d['short']} · {name_of(d)}" if d.get("short") else name_of(d)
+            dnode = {"kind": "device", "label": label, "description": sub, "children": [], **dl}
+            for fi, f in enumerate(_items(d.get("frames"))):
+                if (fn := frame_node(f, dp + ("frames", fi))) is not None:
+                    dnode["children"].append(fn)
+            # Чужие кадры, которые устройство принимает, — ссылками после своих
+            for rf in mbus.all_frames() if isinstance(mbus, M.Bus) else []:
+                own = rf.device is not None and rf.device.name == d.get("name")
+                if own or d.get("name") not in rf.receivers or (loc := rng(rf._path)) is None:
+                    continue
+                dnode["children"].append({
+                    "kind": "frame", "label": rf.name, "dir": "rx", "from": rf.sender_name or "",
+                    "description": _hex(rf.can_id, rf.extended) if rf.can_id is not None else "",
+                    "children": [], **loc})
+            bnode["children"].append(dnode)
+        out.append(bnode)
+    return out
+
+
+def _items(v) -> list[dict]:
+    return [x if isinstance(x, dict) else {} for x in v] if isinstance(v, list) else []
+
+
+# --------------------------------------------------------------------------- #
 # Поиск модели по пути
 # --------------------------------------------------------------------------- #
 

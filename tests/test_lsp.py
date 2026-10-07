@@ -63,6 +63,35 @@ def test_symbols(minimal):
     assert LINES[sel[0][0]][sel[0][1]:sel[1][1]] == "pump_state"
 
 
+def _flat(nodes: list[dict], depth: int = 0) -> list[tuple]:
+    out = []
+    for n in nodes:
+        out.append((depth, n["kind"], n.get("dir"), n["label"], n["description"], n.get("from")))
+        out.extend(_flat(n["children"], depth + 1))
+    return out
+
+
+def test_map_tree_matches_web_editor(minimal):
+    rows = _flat(A.map_tree(minimal))
+    assert rows[:5] == [
+        (0, "bus", None, "Demo bus", "demo", None),
+        (1, "device", None, "PMP · pump", "0x21", None),
+        (2, "frame", "tx", "pump_state", "0x1A1", None),
+        (3, "signal", None, "mode", "0–7", None),
+        (3, "signal", None, "alarms", "8–15", None),
+    ]
+    assert (4, "flag", None, "sensor_state", "bit 4", None) in rows
+    assert (3, "signal", None, "speed", "40–55", None) in rows
+
+
+def test_map_tree_received_frames_and_pgn():
+    a = A.analyze((ROOT / "examples" / "j1939.yaml").read_text(encoding="utf-8"), "j1939.yaml")
+    rows = _flat(A.map_tree(a))
+    assert (2, "frame", "tx", "eec1", "PGN 0xF004", None) in rows
+    assert (2, "frame", "rx", "eec1", "0x0CF00400", "engine") in rows
+    assert (1, "device", None, "ECU · engine", "SA 0x00", None) in rows
+
+
 def test_symbols_survive_model_errors():
     a = A.analyze(MINIMAL.replace("byte: 4\n", "byte: 4\n                bit_length: 99\n"), "t.yaml")
     assert a.map is None

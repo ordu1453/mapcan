@@ -5,3 +5,5 @@ node_modules/**
 esbuild.mjs
 tsconfig.json
 test/**
+scripts/**
+media/icon.svg

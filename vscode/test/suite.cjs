@@ -27,10 +27,14 @@ const tests = {
       const r = ctx.api.tree.getChildren();
       return r.length ? r : undefined;
     });
-    assert.equal(roots[0].symbol.name, "demo");
-    const frame = ctx.api.tree.getChildren(ctx.api.tree.getChildren(roots[0])[0])[0];
-    assert.equal(frame.symbol.name, "pump_state");
-    assert.equal(ctx.api.tree.getTreeItem(frame).description, "0x1A1");
+    const bus = ctx.api.tree.getTreeItem(roots[0]);
+    assert.deepEqual([bus.label, bus.description], ["Demo bus", "demo"]);
+    const device = ctx.api.tree.getChildren(roots[0])[0];
+    assert.equal(ctx.api.tree.getTreeItem(device).label, "PMP · pump");
+    const frame = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(device)[0]);
+    assert.deepEqual([frame.label, frame.description, frame.tooltip], ["pump_state", "0x1A1", "TX"]);
+    assert.match(frame.iconPath.dark.path, /tree\/dark\/frame-tx\.svg$/);
+    assert.ok(fs.existsSync(frame.iconPath.dark.fsPath));
     assert.equal(ctx.api.tree.mapUri.toString(), ctx.doc.uri.toString());
   },
 

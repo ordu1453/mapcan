@@ -6,6 +6,11 @@
   "publisher": "ordu1453",
   "private": true,
   "license": "UNLICENSED",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0065A9",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/ordu1453/mapcan"
@@ -42,16 +47,15 @@
       "mapcan": [
         {
           "id": "mapcan.map",
-          "name": "Map",
-          "icon": "media/mapcan.svg",
-          "contextualTitle": "mapcan"
+          "name": "mapcan",
+          "icon": "media/mapcan.svg"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "mapcan.map",
-        "contents": "Open a mapcan map (a YAML file with a top-level `mapcan: 1` key) to see its buses, devices, frames and signals.",
+        "contents": "[Open Map](command:mapcan.openMap)",
         "when": "!mapcan.mapOpen"
       }
     ],
@@ -61,20 +65,11 @@
           "command": "mapcan.export",
           "when": "view == mapcan.map && mapcan.mapOpen",
           "group": "navigation@1"
-        },
-        {
-          "command": "mapcan.refreshMap",
-          "when": "view == mapcan.map",
-          "group": "navigation@2"
         }
       ],
       "commandPalette": [
         {
           "command": "mapcan.revealNode",
-          "when": "false"
-        },
-        {
-          "command": "mapcan.refreshMap",
           "when": "false"
         },
         {
@@ -91,10 +86,10 @@
         "icon": "$(export)"
       },
       {
-        "command": "mapcan.refreshMap",
-        "title": "Refresh",
+        "command": "mapcan.openMap",
+        "title": "Open Map…",
         "category": "mapcan",
-        "icon": "$(refresh)"
+        "icon": "$(folder-opened)"
       },
       {
         "command": "mapcan.revealNode",

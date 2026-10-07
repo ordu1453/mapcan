@@ -62,10 +62,21 @@ function currentMap(): vscode.Uri | undefined {
   return isMap(doc) ? doc.uri : tree?.mapUri;
 }
 
+async function openMap(): Promise<void> {
+  const picked = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    filters: { "mapcan map": ["yaml", "yml"] },
+    openLabel: "Open Map",
+  });
+  if (picked?.[0]) {
+    await vscode.window.showTextDocument(picked[0]);
+  }
+}
+
 /** The returned object is used by the integration tests. */
 export async function activate(context: vscode.ExtensionContext): Promise<{ tree: MapTree }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
-  tree = new MapTree(() => client);
+  tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
   const view = vscode.window.createTreeView("mapcan.map", { treeDataProvider: tree, showCollapseAll: true });
   tree.attach(view);
   context.subscriptions.push(
@@ -79,7 +90,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<{ tree
     vscode.commands.registerCommand("mapcan.showOutput", () => output?.show()),
     vscode.commands.registerCommand("mapcan.export", () => exportMap(context, client, currentMap())),
     vscode.commands.registerCommand("mapcan.revealNode", revealNode),
-    vscode.commands.registerCommand("mapcan.refreshMap", () => tree?.refresh()),
+    vscode.commands.registerCommand("mapcan.openMap", openMap),
     vscode.workspace.onDidChangeConfiguration(async (e) => {
       if (e.affectsConfiguration("mapcan.server")) {
         await stop();

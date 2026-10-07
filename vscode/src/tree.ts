@@ -1,8 +1,9 @@
-// The Map view: buses, devices, frames, signals and flags of the active map, from the
-// language server's document symbols. Follows the cursor and reveals nodes on click.
+// The Map view: the same tree as the web editor's (buses, devices, frames, signals, flags, SDO
+// exchanges, frames a device receives) from the language server's `mapcan/tree` request.
+// Clicking a node selects it in the editor; moving the cursor selects the node under it.
 
 import * as vscode from "vscode";
-import { DocumentSymbol, DocumentSymbolRequest, LanguageClient } from "vscode-languageclient/node";
+import { LanguageClient } from "vscode-languageclient/node";
 
 const MAP_HEADER = /^(mapcan|canmap)\s*:/m;
 
@@ -10,24 +11,40 @@ export function isMap(doc: vscode.TextDocument | undefined): doc is vscode.TextD
   return doc !== undefined && doc.languageId === "yaml" && MAP_HEADER.test(doc.getText());
 }
 
-// Kinds the server sends for each level of the map.
-const KIND: Partial<Record<vscode.SymbolKind, { context: string; icon: string }>> = {
-  [vscode.SymbolKind.Namespace]: { context: "bus", icon: "symbol-namespace" },
-  [vscode.SymbolKind.Module]: { context: "device", icon: "symbol-module" },
-  [vscode.SymbolKind.Struct]: { context: "frame", icon: "symbol-struct" },
-  [vscode.SymbolKind.Field]: { context: "signal", icon: "symbol-field" },
-  [vscode.SymbolKind.Boolean]: { context: "flag", icon: "symbol-boolean" },
-};
+type Kind = "bus" | "device" | "frame" | "signal" | "flag" | "sdo";
+
+/** A node as the server sends it; ranges are [line, character, line, character]. */
+interface RawNode {
+  kind: Kind;
+  label: string;
+  description: string;
+  dir?: "tx" | "rx" | null;
+  from?: string;
+  range: [number, number, number, number];
+  selection: [number, number, number, number];
+  children: RawNode[];
+}
+
+const toRange = (r: number[]) => new vscode.Range(r[0], r[1], r[2], r[3]);
 
 export class MapNode {
   readonly children: MapNode[];
+  readonly range: vscode.Range;
+  readonly selection: vscode.Range;
 
   constructor(
-    readonly symbol: vscode.DocumentSymbol,
+    readonly raw: RawNode,
     readonly id: string,
     readonly parent: MapNode | undefined,
   ) {
-    this.children = symbol.children.map((c, i) => new MapNode(c, `${id}/${i}:${c.name}`, this));
+    this.range = toRange(raw.range);
+    this.selection = toRange(raw.selection);
+    this.children = raw.children.map((c, i) => new MapNode(c, `${id}/${i}`, this));
+  }
+
+  /** Links to frames of other devices are not part of this node's text. */
+  get isLink(): boolean {
+    return this.raw.from !== undefined;
   }
 }
 
@@ -42,17 +59,21 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
   private revealTimer: NodeJS.Timeout | undefined;
   private readonly subscriptions: vscode.Disposable[] = [];
 
-  constructor(private readonly client: () => LanguageClient | undefined) {}
+  constructor(
+    private readonly media: vscode.Uri,
+    private readonly client: () => LanguageClient | undefined,
+  ) {}
 
   attach(view: vscode.TreeView<MapNode>): void {
     this.view = view;
     this.subscriptions.push(
       vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
       vscode.workspace.onDidChangeTextDocument((e) => {
-        if (e.document === vscode.window.activeTextEditor?.document) {
+        if (e.document.uri.toString() === this.uri?.toString() || e.document === vscode.window.activeTextEditor?.document) {
           this.scheduleRefresh();
         }
       }),
+      vscode.workspace.onDidCloseTextDocument(() => this.refresh()),
       vscode.window.onDidChangeTextEditorSelection((e) => {
         if (e.textEditor === vscode.window.activeTextEditor && e.kind !== undefined) {
           this.scheduleReveal();
@@ -66,24 +87,33 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
     return this.uri;
   }
 
+  private icon(name: string): { light: vscode.Uri; dark: vscode.Uri } {
+    return {
+      light: vscode.Uri.joinPath(this.media, "tree", "light", `${name}.svg`),
+      dark: vscode.Uri.joinPath(this.media, "tree", "dark", `${name}.svg`),
+    };
+  }
+
   getTreeItem(node: MapNode): vscode.TreeItem {
-    const s = node.symbol;
-    const kind = KIND[s.kind];
+    const { kind, label, description, dir, from } = node.raw;
     const state = node.children.length === 0
       ? vscode.TreeItemCollapsibleState.None
-      : kind?.context === "bus" || kind?.context === "device"
+      : kind === "bus" || kind === "device"
         ? vscode.TreeItemCollapsibleState.Expanded
         : vscode.TreeItemCollapsibleState.Collapsed;
-    const item = new vscode.TreeItem(s.name, state);
+    const item = new vscode.TreeItem(label, state);
     item.id = node.id;
-    item.description = s.detail;
-    item.contextValue = kind?.context;
-    item.iconPath = new vscode.ThemeIcon(kind?.icon ?? "symbol-misc");
-    item.command = {
-      command: "mapcan.revealNode",
-      title: "Reveal",
-      arguments: [this.uri, s.selectionRange],
-    };
+    item.description = from !== undefined ? `${description} ↪`.trim() : description;
+    item.contextValue = node.isLink ? "frameLink" : kind;
+    if (kind === "frame") {
+      item.iconPath = this.icon(dir === "tx" ? "frame-tx" : dir === "rx" ? "frame-rx" : "frame-broadcast");
+      item.tooltip = from !== undefined
+        ? `Received from ${from || "outside the map"}`
+        : dir === "tx" ? "TX" : dir === "rx" ? "RX" : "Broadcast";
+    } else {
+      item.iconPath = this.icon(kind);
+    }
+    item.command = { command: "mapcan.revealNode", title: "Reveal", arguments: [this.uri, node.selection] };
     return item;
   }
 
@@ -96,27 +126,20 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
   }
 
   async refresh(): Promise<void> {
-    const doc = vscode.window.activeTextEditor?.document;
-    if (!isMap(doc)) {
-      // Keep showing the last map while another editor (e.g. Output) is focused, unless it was closed.
-      if (this.uri && !vscode.workspace.textDocuments.some((d) => d.uri.toString() === this.uri!.toString())) {
-        this.setRoots(undefined, []);
-      }
-      return;
-    }
+    const active = vscode.window.activeTextEditor?.document;
+    // Another editor (Output, settings, a non-map file) keeps the last map until that map is closed.
+    const doc = isMap(active)
+      ? active
+      : vscode.workspace.textDocuments.find((d) => d.uri.toString() === this.uri?.toString());
     const client = this.client();
-    if (!client?.isRunning()) {
+    if (!isMap(doc) || !client?.isRunning()) {
+      if (!isMap(doc)) this.setRoots(undefined, []);
       return;
     }
-    const result = await client.sendRequest(DocumentSymbolRequest.type, {
+    const nodes = await client.sendRequest<RawNode[] | null>("mapcan/tree", {
       textDocument: { uri: doc.uri.toString() },
     });
-    const symbols = result
-      ? await client.protocol2CodeConverter.asDocumentSymbols(
-          result.filter((s): s is DocumentSymbol => "selectionRange" in s),
-        )
-      : [];
-    this.setRoots(doc.uri, symbols.map((s, i) => new MapNode(s, `${i}:${s.name}`, undefined)));
+    this.setRoots(doc.uri, (nodes ?? []).map((n, i) => new MapNode(n, String(i), undefined)));
     this.scheduleReveal();
   }
 
@@ -124,9 +147,6 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
     this.uri = uri;
     this.roots = roots;
     void vscode.commands.executeCommand("setContext", "mapcan.mapOpen", uri !== undefined);
-    if (this.view) {
-      this.view.description = uri ? vscode.workspace.asRelativePath(uri) : undefined;
-    }
     this.changed.fire();
   }
 
@@ -140,7 +160,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
     this.revealTimer = setTimeout(() => void this.revealCursor(), 150);
   }
 
-  /** Select the deepest node containing the cursor of the active editor. */
+  /** Select the deepest node whose text contains the cursor of the active editor. */
   private async revealCursor(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!this.view?.visible || !editor || editor.document.uri.toString() !== this.uri?.toString()) {
@@ -150,10 +170,8 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
     let found: MapNode | undefined;
     let level = this.roots;
     for (;;) {
-      const next = level.find((n) => n.symbol.range.contains(pos));
-      if (!next) {
-        break;
-      }
+      const next = level.find((n) => !n.isLink && n.range.contains(pos));
+      if (!next) break;
       found = next;
       level = next.children;
     }

@@ -127,6 +127,15 @@ def completion(ls: MapcanServer, params: T.CompletionParams) -> T.CompletionList
                             items=[T.CompletionItem(label=c, kind=kind, detail=key) for c in choices])
 
 
+@server.feature("mapcan/tree")
+def map_tree(ls: MapcanServer, params) -> list[dict]:
+    """Узлы дерева карты для боковой панели. Параметр: {textDocument: {uri}}."""
+    doc = params.get("textDocument") if isinstance(params, dict) else getattr(params, "textDocument", None)
+    uri = doc.get("uri") if isinstance(doc, dict) else getattr(doc, "uri", None)
+    a = ls.analysis(uri) if uri else None
+    return A.map_tree(a) if a else []
+
+
 @server.command("mapcan.lsp.export")
 @server.thread()
 def export_command(ls: MapcanServer, *args) -> dict:
