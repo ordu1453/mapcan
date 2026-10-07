@@ -445,6 +445,90 @@ def test_sdo_rules():
     assert {"sdo-frame-type", "sdo-duplicate"} <= c
 
 
+def _sig(extra: str) -> str:
+    return one_bus(OK_SIGNAL.replace("byte: 0}", "byte: 0, " + extra + "}"))
+
+
+@pytest.mark.parametrize("name", ["default", "class", "unsigned", "pack", "DLC"])
+def test_reserved_identifier_signal(name):
+    assert "reserved-identifier" in codes(one_bus(OK_SIGNAL.replace("name: a,", f"name: {name},")))
+
+
+def test_reserved_identifier_value():
+    assert "reserved-identifier" in codes(_sig("values: {0: None, 1: OK}"))
+    assert "reserved-identifier" not in codes(_sig("values: {0: NONE, 1: OK}"))
+
+
+def test_name_collision():
+    assert "name-collision" in codes(one_bus("""
+        - name: f
+          type: pdo_tx1
+          signals:
+            - {name: speed, description: x, byte: 0}
+            - {name: Speed, description: x, byte: 1}
+    """, lint="lint:\n  signal_name: any\n"))
+    assert "name-collision" in codes(one_bus("""
+        - name: f
+          type: pdo_tx1
+          signals:
+            - {name: speed, description: x, byte: 0, factor: 0.1, unit: km/h}
+            - {name: speed_phys, description: x, byte: 1}
+    """))
+    assert "name-collision" in codes(_sig("values: {0: OK, 1: Ok}"))
+    assert "name-collision" in codes(one_bus(OK_SIGNAL + OK_SIGNAL.replace("name: f", "name: F")
+                                             .replace("pdo_tx1", "pdo_tx2"), lint="lint:\n  frame_name: any\n"))
+
+
+def test_canopen_dlc():
+    assert "canopen-dlc" in codes(one_bus(OK_SIGNAL.replace("pdo_tx1", "heartbeat") + "          dlc: 8\n"))
+    assert "canopen-dlc" not in codes(one_bus(OK_SIGNAL.replace("pdo_tx1", "heartbeat")
+                                             + "          dlc: 1\n"))
+    assert "canopen-dlc" not in codes(one_bus(OK_SIGNAL.replace("pdo_tx1", "raw") + "          id: 0x701\n"
+                                             + "          dlc: 8\n"))
+
+
+def test_bitrate_nonstandard():
+    text = one_bus(OK_SIGNAL).replace("    protocol: canopen\n", "    protocol: canopen\n    bitrate: RATE\n")
+    assert "bitrate-nonstandard" in codes(text.replace("RATE", "300000"))
+    assert "bitrate-nonstandard" not in codes(text.replace("RATE", "250000"))
+
+
+def test_bus_load():
+    text = one_bus(OK_SIGNAL.replace("cycle_ms: 100", "cycle_ms: CYCLE")).replace(
+        "    protocol: canopen\n", "    protocol: canopen\n    bitrate: 125000\n")
+    # 8 байт, 11-битный ID: до 135 бит → 1 мс на 125 кбит/с ≈ 108 %
+    assert "bus-load" in codes(text.replace("CYCLE", "1"))
+    assert "bus-load" not in codes(text.replace("CYCLE", "10"))
+    fd = text.replace("    bitrate: 125000\n", "    bitrate: 125000\n    fd: true\n")
+    assert "bus-load" not in codes(fd.replace("CYCLE", "1"))
+
+
+def test_invalid_in_range():
+    assert "invalid-in-range" in codes(_sig("factor: 0.5, unit: V, min: 0, max: 200, invalid: 0xFF"))
+    assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid: 0xFF"))
+
+
+def test_missing_unit():
+    assert "missing-unit" in codes(_sig("factor: 0.1"))
+    assert "missing-unit" not in codes(_sig("factor: 0.1, unit: V"))
+
+
+def test_no_receivers_and_duplicate_short():
+    extra = "      - name: vcu\n        node_id: 0x20\n        short: DEV\n"
+    text = one_bus(OK_SIGNAL, devices_extra=extra).replace("        node_id: 0x10\n",
+                                                           "        node_id: 0x10\n        short: DEV\n")
+    c = codes(text)
+    assert {"no-receivers", "duplicate-short"} <= c
+    assert "no-receivers" not in codes(text.replace("cycle_ms: 100", "cycle_ms: 100\n          receivers: [vcu]"))
+
+
+def test_history_version():
+    text = one_bus(OK_SIGNAL).replace("  title: Тест\n", "  title: Тест\n  version: '1.1'\n  history:\n"
+                                                      "    - {version: '{}', changes: [x]}\n")
+    assert "history-version" in codes(text.replace("'{}'", "'1.0'"))
+    assert "history-version" not in codes(text.replace("'{}'", "'1.1'"))
+
+
 def test_info_rules():
     _, rep = run(one_bus("""
         - name: f

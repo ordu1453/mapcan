@@ -185,7 +185,7 @@ tests/data/invalid_map.yaml:24:17: error[number-cyrillic-x]: value '0х196': the
 tests/data/invalid_map.yaml:33:22: error[invalid-identifier]: value name 'NO DATA': only Latin letters, digits and _ are allowed
 tests/data/invalid_map.yaml:62:36: error[duplicate-signal-name]: flag 'dc_status' already exists in frame 'pcu_state' (signal)
 ...
-FAIL: errors: 12, warnings: 2, notes: 0
+FAIL: errors: 12, warnings: 2, notes: 4
 ```
 
 `mapcan rules` lists every rule; any of them can be turned off with `--disable CODE`.

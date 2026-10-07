@@ -247,6 +247,51 @@ EN: dict[str, str] = {
     "cycle_ms задан для режима {mode}": "cycle_ms is set for mode {mode}",
     "sdo у кадра типа {type}": "sdo set on a frame of type {type}",
     "кадр {name!r} без сигналов": "frame {name!r} has no signals",
+    "DLC служебного кадра CANopen не соответствует CiA 301": "DLC of a CANopen service frame does not match CiA 301",
+    "Нестандартная скорость шины": "Non-standard bus bit rate",
+    "Расчётная загрузка шины циклическими кадрами выше 70 %": "Estimated bus load from cyclic frames above 70%",
+    "Имя совпадает с ключевым словом C/Python или членом сгенерированного класса":
+        "Name is a C/Python keyword or a member of the generated class",
+    "Имена совпадают в сгенерированном коде (различаются только регистром или совпадают со свойством _phys)":
+        "Names collide in generated code (differ only in case, or clash with a _phys property)",
+    "Значение invalid попадает в рабочий диапазон min..max": "invalid value falls inside the min..max range",
+    "Физическая величина без единицы измерения": "Physical quantity without a unit",
+    "У кадра нет получателей на шине": "Frame has no receivers on the bus",
+    "Повтор короткого обозначения устройства на шине": "Duplicate device short label on the bus",
+    "Версия документа не совпадает с последней записью истории":
+        "Document version differs from the latest revision history entry",
+    "версия документа {version!r}, а последняя запись истории — {latest!r}":
+        "document version is {version!r}, but the latest revision history entry is {latest!r}",
+    "скорость {bitrate} бит/с не входит в стандартный ряд (125000, 250000, 500000, 1000000…)":
+        "bit rate {bitrate} bit/s is not a standard value (125000, 250000, 500000, 1000000…)",
+    "обозначение {short!r} уже у устройства {other!r}": "short label {short!r} is already used by device {other!r}",
+    "кадр {name!r} отличается от {other!r} только регистром: в C-коде их макросы совпадут":
+        "frame {name!r} differs from {other!r} only in case: their C macros will collide",
+    "расчётная загрузка шины {bus!r} — {load:.0f} % (циклических кадров: {count}, {bitrate} бит/с), "
+    "рекомендуется не больше {limit} %":
+        "estimated load of bus {bus!r} is {load:.0f}% (cyclic frames: {count}, {bitrate} bit/s); "
+        "keep it at or below {limit}%",
+    "кадр {type} по CiA 301 имеет DLC {expected}, указано {dlc}":
+        "a {type} frame has DLC {expected} under CiA 301, but {dlc} is set",
+    "кадр {name!r} никто не принимает: укажите получателей в receivers":
+        "nobody receives frame {name!r}: list the receiving devices in receivers",
+    "имя сигнала {name!r} — ключевое слово C/Python: сгенерированный код не скомпилируется":
+        "signal name {name!r} is a C/Python keyword: the generated code will not compile",
+    "имя сигнала {name!r} совпадает с членом класса кадра в Python-модуле ({members})":
+        "signal name {name!r} clashes with a frame class member in the Python module ({members})",
+    "сигнал {name!r} совпадает со свойством физического значения сигнала {other!r} в Python-модуле":
+        "signal {name!r} clashes with the physical value property of signal {other!r} in the Python module",
+    "{name!r} отличается от {other!r} только регистром: в C-коде их макросы совпадут":
+        "{name!r} differs from {other!r} only in case: their C macros will collide",
+    "имя значения {name!r} — ключевое слово Python: сгенерированный модуль не загрузится":
+        "value name {name!r} is a Python keyword: the generated module will not import",
+    "значение {name!r} отличается от {other!r} только регистром: в C-коде их макросы совпадут":
+        "value {name!r} differs from {other!r} only in case: their C macros will collide",
+    "у физической величины {name!r} не указана единица (unit)": "physical quantity {name!r} has no unit",
+    "invalid = {value} соответствует {phys:g} в пределах min..max: "
+    "приёмник не отличит «нет данных» от реального значения":
+        "invalid = {value} maps to {phys:g}, inside min..max: a receiver cannot tell "
+        "\"not available\" from a real value",
     "селектор {name!r} не может иметь mux": "selector {name!r} cannot have mux",
     "сигнал {name!r} занимает байты {first}..{last}, а DLC = {dlc}":
         "signal {name!r} occupies bytes {first}..{last}, but DLC = {dlc}",

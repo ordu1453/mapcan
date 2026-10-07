@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import keyword
 import re
 from collections import defaultdict
 from collections.abc import Iterable
@@ -27,6 +28,27 @@ STYLE_RE = {
 IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 FD_DLC = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64}
 
+# Ключевые слова C (C99…C23) и Python: имена сигналов становятся полями структур и классов.
+C_KEYWORDS = frozenset("""
+    auto break case char const continue default do double else enum extern float for goto if inline
+    int long register restrict return short signed sizeof static struct switch typedef union unsigned
+    void volatile while _Alignas _Alignof _Atomic _Bool _Complex _Generic _Imaginary _Noreturn
+    _Static_assert _Thread_local alignas alignof bool constexpr false nullptr static_assert
+    thread_local true typeof typeof_unqual
+""".split())
+PY_KEYWORDS = frozenset(keyword.kwlist)
+# Члены сгенерированного класса кадра в Python-модуле.
+PY_FRAME_MEMBERS = frozenset({"ID", "DLC", "pack", "unpack"})
+# Стандартные скорости классического CAN, бит/с (33,3 и 83,3 кбит/с — GMLAN и низкоскоростные шины).
+STANDARD_BITRATES = frozenset({10_000, 20_000, 33_333, 50_000, 83_333, 100_000, 125_000, 250_000,
+                               500_000, 800_000, 1_000_000})
+BUS_LOAD_LIMIT = 70  # %, порог предупреждения о загрузке шины
+# Длина данных служебных кадров CANopen по CiA 301. EMCY не проверяется: CiA 301 требует 8 байт,
+# но многие устройства передают укороченный кадр, и это не мешает его приёму.
+CANOPEN_DLC = {"nmt": {2}, "sync": {0, 1}, "time": {6}, "heartbeat": {1}, "sdo_tx": {8}, "sdo_rx": {8}}
+# Широковещательные службы CANopen: получателей у них не перечисляют.
+BROADCAST_TYPES = frozenset({"nmt", "sync", "time", "emcy", "heartbeat"})
+
 # Правила, которые описаны в документации (для `mapcan rules`).
 RULES = {
     "yaml": ("error", N_("Синтаксическая ошибка YAML, повторяющийся ключ")),
@@ -43,7 +65,14 @@ RULES = {
     "duplicate-can-id": ("error", N_("Повтор CAN ID на шине")),
     "can-id-range": ("error", N_("CAN ID не помещается в 11 бит (нужно extended: true)")),
     "dlc-range": ("error", N_("Недопустимый DLC")),
+    "canopen-dlc": ("warning", N_("DLC служебного кадра CANopen не соответствует CiA 301")),
+    "bitrate-nonstandard": ("warning", N_("Нестандартная скорость шины")),
+    "bus-load": ("warning", N_("Расчётная загрузка шины циклическими кадрами выше 70 %")),
     "duplicate-signal-name": ("error", N_("Повтор имени сигнала/флага в кадре")),
+    "reserved-identifier": ("error", N_("Имя совпадает с ключевым словом C/Python или членом "
+                                        "сгенерированного класса")),
+    "name-collision": ("error", N_("Имена совпадают в сгенерированном коде (различаются только регистром "
+                                   "или совпадают со свойством _phys)")),
     "signal-out-of-frame": ("error", N_("Сигнал выходит за пределы DLC")),
     "bit-overlap": ("error", N_("Пересечение сигналов по битам (с учётом мультиплексирования)")),
     "enum-overflow": ("error", N_("Значение enum не помещается в разрядность поля")),
@@ -55,6 +84,8 @@ RULES = {
     "metric-factor": ("error", N_("Нулевой масштаб")),
     "metric-range": ("warning", N_("min/max вне диапазона, представимого полем")),
     "min-max": ("error", N_("min больше max")),
+    "invalid-in-range": ("warning", N_("Значение invalid попадает в рабочий диапазон min..max")),
+    "missing-unit": ("info", N_("Физическая величина без единицы измерения")),
     "mux-no-selector": ("error", N_("Мультиплексированный сигнал в кадре без селектора")),
     "mux-multiple-selectors": ("error", N_("Больше одного селектора в кадре")),
     "mux-value-overflow": ("error", N_("Значение mux не помещается в селектор")),
@@ -77,6 +108,9 @@ RULES = {
     "sender-mismatch": ("warning", N_("sender противоречит направлению кадра или совпадает с получателем")),
     "rx-duplicate": ("error", N_("RX-кадр повторяет кадр другого устройства (описывайте кадр у отправителя)")),
     "rx-no-sender": ("info", N_("RX-кадр без отправителя")),
+    "no-receivers": ("info", N_("У кадра нет получателей на шине")),
+    "duplicate-short": ("warning", N_("Повтор короткого обозначения устройства на шине")),
+    "history-version": ("warning", N_("Версия документа не совпадает с последней записью истории")),
     "float-length": ("error", N_("Сигнал float должен быть 32 или 64 бита")),
     "initial-range": ("warning", N_("Значение по умолчанию вне диапазона сигнала")),
     "invalid-overflow": ("error", N_("Значение invalid не помещается в разрядность сигнала")),
@@ -112,6 +146,12 @@ def validate_map(cmap: MapCan, src: SourceMap, disable: Iterable[str] = ()) -> R
                                       logo=cmap.document.logo, formats=", ".join(LOGO_FORMATS)), ("document", "logo"))
         elif not logo.is_file():
             ctx.emit("logo-missing", _("файл логотипа не найден: {path}", path=logo), ("document", "logo"))
+
+    hist = cmap.document.history
+    if hist and hist[0].version != cmap.document.version:
+        ctx.emit("history-version", _("версия документа {version!r}, а последняя запись истории — {latest!r}",
+                                      version=cmap.document.version, latest=hist[0].version),
+                 ("document", "version"))
 
     for bus in cmap.buses:
         _check_bus(ctx, bus)
@@ -152,8 +192,17 @@ def _ident(ctx: _Ctx, name: str, what: str, path, style: str | None) -> None:
 
 def _check_bus(ctx: _Ctx, bus) -> None:
     lint = ctx.cmap.lint
-    names, nodes, addrs = {}, {}, {}
+    if bus.bitrate is not None and bus.bitrate not in STANDARD_BITRATES:
+        ctx.emit("bitrate-nonstandard", _("скорость {bitrate} бит/с не входит в стандартный ряд "
+                                          "(125000, 250000, 500000, 1000000…)", bitrate=bus.bitrate),
+                 bus._path + ("bitrate",))
+    names, nodes, addrs, shorts = {}, {}, {}, {}
     for dev in bus.devices:
+        if dev.short:
+            if dev.short in shorts:
+                ctx.emit("duplicate-short", _("обозначение {short!r} уже у устройства {other!r}",
+                                              short=dev.short, other=shorts[dev.short]), dev._path + ("short",))
+            shorts.setdefault(dev.short, dev.name)
         if dev.address is not None:
             if bus.protocol != "j1939":
                 ctx.emit("j1939-field-protocol", _("address у устройства на шине {protocol}", protocol=bus.protocol),
@@ -184,12 +233,17 @@ def _check_bus(ctx: _Ctx, bus) -> None:
                          dev._path + ("node_id",))
             nodes[dev.node_id] = dev
 
-    frame_names, ids = {}, {}
+    frame_names, ids, upper = {}, {}, {}
     for frame in bus.all_frames():
         p = frame._path
         if frame.name in frame_names:
             ctx.emit("duplicate-frame-name", _("кадр {name!r} уже описан на шине", name=frame.name), p + ("name",))
+        elif frame.name.upper() in upper:
+            ctx.emit("name-collision", _("кадр {name!r} отличается от {other!r} только регистром: "
+                                         "в C-коде их макросы совпадут", name=frame.name,
+                                         other=upper[frame.name.upper()]), p + ("name",))
         frame_names[frame.name] = frame
+        upper.setdefault(frame.name.upper(), frame.name)
         if frame.can_id is None:
             if bus.protocol == "j1939":
                 # Сообщение — на поле, которое нужно заполнить (редактор подсвечивает его)
@@ -226,6 +280,29 @@ def _check_bus(ctx: _Ctx, bus) -> None:
             ids[frame.can_id] = frame
         if frame.can_id > 0x7FF and not frame.extended:
             ctx.emit("can-id-range", _("CAN ID {can_id:#x} > 0x7FF", can_id=frame.can_id), p + ("id",))
+    _check_bus_load(ctx, bus)
+
+
+def _frame_bits(dlc: int, extended: bool) -> int:
+    """Длина кадра классического CAN в битах с худшим случаем бит-стаффинга (Davis et al., 2007)."""
+    n = 8 * dlc
+    return n + 67 + (54 + n - 1) // 4 if extended else n + 47 + (34 + n - 1) // 4
+
+
+def _check_bus_load(ctx: _Ctx, bus) -> None:
+    # У CAN FD фаза данных идёт на другой скорости, которой нет в карте, — оценка была бы неверной.
+    if bus.fd or not bus.bitrate:
+        return
+    cyclic = [f for f in bus.all_frames()
+              if f.can_id is not None and f.transmission and f.transmission.mode == "cyclic"
+              and f.transmission.cycle_ms]
+    bits_per_s = sum(_frame_bits(f.dlc, f.extended) * 1000 / f.transmission.cycle_ms for f in cyclic)
+    load = 100 * bits_per_s / bus.bitrate
+    if load > BUS_LOAD_LIMIT:
+        ctx.emit("bus-load", _("расчётная загрузка шины {bus!r} — {load:.0f} % (циклических кадров: {count}, "
+                               "{bitrate} бит/с), рекомендуется не больше {limit} %",
+                               bus=bus.name, load=load, count=len(cyclic), bitrate=bus.bitrate,
+                               limit=BUS_LOAD_LIMIT), bus._path + ("bitrate",))
 
 
 def _rx_twin(a: Frame, b: Frame) -> tuple[Frame, Frame] | None:
@@ -249,6 +326,11 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
         ctx.emit("dlc-range", _("DLC {dlc} > 8 (для CAN FD укажите fd: true у шины)", dlc=frame.dlc), p + ("dlc",))
 
     fc = FUNCTION_CODES.get(frame.type)
+    allowed = CANOPEN_DLC.get(frame.type)
+    if bus.protocol == "canopen" and allowed and frame.dlc not in allowed:
+        ctx.emit("canopen-dlc", _("кадр {type} по CiA 301 имеет DLC {expected}, указано {dlc}",
+                                  type=frame.type, expected=" / ".join(map(str, sorted(allowed))), dlc=frame.dlc),
+                 p + ("dlc",))
     devices = {d.name for d in bus.devices}
     for i, r in enumerate(frame.receivers):
         if r not in devices:
@@ -272,6 +354,10 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
         if r == snd:
             ctx.emit("sender-mismatch", _("отправитель {name!r} указан среди получателей кадра", name=r),
                      p + ("receivers", i))
+    if (dev is not None and snd is not None and not frame.receiver_names and len(devices) > 1
+            and frame.type not in BROADCAST_TYPES):
+        ctx.emit("no-receivers", _("кадр {name!r} никто не принимает: укажите получателей в receivers",
+                                   name=frame.name), p + ("receivers",))
     if dev is not None and frame.direction == "rx" and frame.sender is None and fc is None and len(devices) > 1:
         ctx.emit("rx-no-sender", _("RX-кадр {name!r} без отправителя: если он описан на шине, укажите sender "
                                    "или перенесите кадр к отправителю и добавьте {device!r} в receivers",
@@ -331,7 +417,22 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
 
     # Имена
     names: dict[str, tuple] = {}
+    upper: dict[str, str] = {}
+    phys = {s.name + "_phys": s.name for s in sigs if s.factor != 1 or s.offset != 0 or s.kind == "metric"}
     for s in sigs:
+        if s.name in C_KEYWORDS or s.name in PY_KEYWORDS:
+            ctx.emit("reserved-identifier", _("имя сигнала {name!r} — ключевое слово C/Python: "
+                                              "сгенерированный код не скомпилируется", name=s.name),
+                     s._path + ("name",))
+        elif s.name in PY_FRAME_MEMBERS:
+            ctx.emit("reserved-identifier", _("имя сигнала {name!r} совпадает с членом класса кадра "
+                                              "в Python-модуле ({members})", name=s.name,
+                                              members=", ".join(sorted(PY_FRAME_MEMBERS))),
+                     s._path + ("name",))
+        if s.name in phys:
+            ctx.emit("name-collision", _("сигнал {name!r} совпадает со свойством физического значения "
+                                         "сигнала {other!r} в Python-модуле", name=s.name, other=phys[s.name]),
+                     s._path + ("name",))
         entries = [(s.name, s._path + ("name",), False)]
         entries += [(f.name, f._path + ("name",), True) for f in s.flags or []]
         for name, path, is_flag in entries:
@@ -343,6 +444,11 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                 ctx.emit("duplicate-signal-name", msg.format(name=name, frame=frame.name, other=other), path)
             else:
                 names[name] = (path, is_flag)
+                if name.upper() in upper:
+                    ctx.emit("name-collision", _("{name!r} отличается от {other!r} только регистром: "
+                                                 "в C-коде их макросы совпадут", name=name,
+                                                 other=upper[name.upper()]), path)
+                upper.setdefault(name.upper(), name)
 
     # Мультиплексирование
     selectors = [s for s in sigs if s.multiplexer]
@@ -398,11 +504,21 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
         if s.kind == "float" and s.bit_length not in (32, 64):
             ctx.emit("float-length", _("сигнал {name!r}: float — 32 или 64 бита, задано {bits}",
                                        name=s.name, bits=s.bit_length), sp + ("bit_length",))
+        if s.kind == "metric" and not s.unit and (s.factor != 1 or s.offset != 0):
+            ctx.emit("missing-unit", _("у физической величины {name!r} не указана единица (unit)", name=s.name),
+                     sp + ("unit",))
         raw_lo, raw_hi = (lo, hi) if s.kind != "float" else (None, None)
         for v in s.invalid_values:
             if raw_lo is not None and not raw_lo <= v <= raw_hi:
                 ctx.emit("invalid-overflow", _("invalid = {value} не помещается в {bits} бит ({lo}..{hi})",
                                                value=v, bits=s.bit_length, lo=raw_lo, hi=raw_hi), sp + ("invalid",))
+            elif raw_lo is not None and s.min is not None and s.max is not None and s.factor != 0:
+                pv = v * s.factor + s.offset
+                if s.min - 1e-9 <= pv <= s.max + 1e-9:
+                    ctx.emit("invalid-in-range",
+                             _("invalid = {value} соответствует {phys:g} в пределах min..max: "
+                               "приёмник не отличит «нет данных» от реального значения",
+                               value=v, phys=pv), sp + ("invalid",))
         if s.initial is not None and s.factor != 0:
             raw = s.initial_raw
             if raw_lo is not None and not raw_lo <= raw <= raw_hi:
@@ -443,12 +559,21 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
 
 
 def _dup_enum_names(ctx: _Ctx, values, path) -> None:
-    seen = {}
+    seen, upper = {}, {}
     for v, ev in enum_entries(values):
+        if ev.name in PY_KEYWORDS:
+            ctx.emit("reserved-identifier", _("имя значения {name!r} — ключевое слово Python: "
+                                              "сгенерированный модуль не загрузится", name=ev.name),
+                     path + ("values", v))
         if ev.name in seen:
             ctx.emit("duplicate-enum-name", _("имя {name!r} у значений {a} и {b}", name=ev.name, a=seen[ev.name], b=v),
                      path + ("values", v))
+        elif ev.name.upper() in upper:
+            ctx.emit("name-collision", _("значение {name!r} отличается от {other!r} только регистром: "
+                                         "в C-коде их макросы совпадут", name=ev.name, other=upper[ev.name.upper()]),
+                     path + ("values", v))
         seen[ev.name] = v
+        upper.setdefault(ev.name.upper(), ev.name)
 
 
 def _check_flags(ctx: _Ctx, s: Signal) -> None:

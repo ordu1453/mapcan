@@ -318,38 +318,128 @@ values: *dc_states
 **warning** (exit code 1 only with `--strict`), **info** (shown with `--info`). Any rule can be
 turned off with `--disable CODE` or `lint.disable`.
 
+### Syntax and structure
+
 | Code | Severity | What is checked |
 |---|---|---|
-| `yaml` | error | YAML syntax, duplicate keys |
-| `schema` | error | Structure: types, required fields, unknown fields, allowed values |
-| `number-comma` | error | `0,1` instead of `0.1` |
-| `number-cyrillic-x` | error | Cyrillic "х" in `0х196` |
-| `number-quoted` | warning | Number in quotes (`"0x196"`) |
-| `invalid-identifier` | error | Name cannot be used in code (`NO DATA`) |
-| `name-style` | warning | Name does not follow the `lint` style |
-| `name-inconsistent` | warning | The same value name is spelled differently (`NO DATA` / `NO_DATA`) |
-| `duplicate-signal-name` | error | Repeated signal or flag name in a frame |
-| `duplicate-enum-name` | warning | The same name for different enum values |
-| `duplicate-can-id` | error | Repeated CAN ID on a bus |
-| `duplicate-frame-name`, `duplicate-device-name`, `duplicate-node-id` | error | Duplicates on a bus |
-| `node-id-range`, `can-id-range`, `dlc-range` | error | Values out of range |
-| `frame-id-missing` | error | The ID cannot be computed (no `node_id` or `id`) |
+| `yaml` | error | YAML syntax error, duplicate key |
+| `schema` | error | Schema violation: wrong type, missing required field or invalid value |
+| `number-comma` | error | Number written with a decimal comma (0,1 instead of 0.1) |
+| `number-cyrillic-x` | error | Cyrillic “х” in a hexadecimal number |
+| `number-quoted` | warning | Number written as a quoted string |
+
+### Names
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `invalid-identifier` | error | Name cannot be used as a C/Python identifier |
+| `reserved-identifier` | error | Name is a C/Python keyword or a member of the generated class |
+| `name-collision` | error | Names collide in generated code (differ only in case, or clash with a _phys property) |
+| `name-style` | warning | Name does not match the style rule (lint) |
+| `name-inconsistent` | warning | The same value name is spelled differently |
+| `duplicate-device-name` | error | Duplicate device name on the bus |
+| `duplicate-frame-name` | error | Duplicate frame name on the bus |
+| `duplicate-signal-name` | error | Duplicate signal/flag name in the frame |
+| `duplicate-enum-name` | warning | Same name for different enum values |
+| `duplicate-short` | warning | Duplicate device short label on the bus |
+
+### Bus and addressing
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `bitrate-nonstandard` | warning | Non-standard bus bit rate |
+| `bus-load` | warning | Estimated bus load from cyclic frames above 70% |
+| `duplicate-node-id` | error | Duplicate node_id on the bus |
+| `node-id-range` | error | CANopen node_id outside 1..127 |
+| `frame-id-missing` | error | Cannot determine the frame's CAN ID |
+| `duplicate-can-id` | error | Duplicate CAN ID on the bus |
+| `can-id-range` | error | CAN ID does not fit in 11 bits (needs extended: true) |
+| `dlc-range` | error | Invalid DLC |
+| `canopen-dlc` | warning | DLC of a CANopen service frame does not match CiA 301 |
+| `frame-type-protocol` | warning | CANopen frame type on a non-CANopen bus |
+| `direction-mismatch` | warning | Direction conflicts with the CANopen frame type |
+
+### SAE J1939
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `j1939-address` | error | J1939 address outside 0..253 or repeated on the bus |
+| `j1939-pdu1-pgn` | warning | PDU1 PGN (PF < 240) with a non-zero low byte |
+| `j1939-destination` | warning | destination set for a PDU2 PGN (PF ≥ 240) and unused |
+| `j1939-field-protocol` | warning | pgn/priority/destination/address on a non-J1939 bus |
+
+### Sender and receivers
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `unknown-receiver` | error | Frame receiver is not defined on the bus |
+| `unknown-sender` | error | Frame sender is not defined on the bus |
+| `sender-mismatch` | warning | sender conflicts with the frame direction or matches a receiver |
+| `rx-duplicate` | error | RX frame duplicates another device's frame (describe the frame at its sender) |
+| `rx-no-sender` | info | RX frame without a sender |
+| `no-receivers` | info | Frame has no receivers on the bus |
+
+### Transmission
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `cycle-missing` | error | cyclic mode without cycle_ms |
+| `cycle-unexpected` | warning | cycle_ms set for a non-cyclic frame |
+
+### Signal layout
+
+| Code | Severity | What is checked |
+|---|---|---|
 | `signal-out-of-frame` | error | Signal extends beyond the DLC |
-| `bit-overlap` | error | Overlapping signals (taking `mux` into account) |
-| `enum-overflow` | error | Value does not fit in the field width |
-| `flag-out-of-field`, `flag-overlap`, `flags-kind`, `flag-length` | error/warning | Bit fields |
-| `metric-factor`, `metric-range`, `min-max` | error/warning | Physical conversion |
-| `mux-no-selector`, `mux-multiple-selectors`, `mux-value-overflow`, `mux-value-unknown`, `mux-selector-muxed` | error/warning | Multiplexing |
-| `cycle-missing`, `cycle-unexpected` | error/warning | Transmission mode |
-| `direction-mismatch`, `frame-type-protocol` | warning | Consistency of the frame type |
-| `sdo-frame-type`, `sdo-duplicate` | warning/error | SDO descriptions |
-| `j1939-address`, `j1939-pdu1-pgn`, `j1939-destination`, `j1939-field-protocol` | error/warning | J1939 address out of range or repeated, PDU1 PGN with a non-zero low byte, destination on a PDU2 PGN, J1939 fields on another bus |
-| `unknown-receiver`, `unknown-sender` | error | Frame receiver or sender is not defined on the bus |
-| `sender-mismatch` | warning | `sender` on a TX frame, `sender` equal to the owner of an RX frame, or the sender listed among the receivers |
-| `rx-duplicate` | error | RX frame duplicates the sender's frame (same CAN ID): describe the frame once at the sender and list the receiver in `receivers` |
-| `rx-no-sender` | info | RX frame with no CANopen type and no `sender`: if the sender is in the map, move the frame to it |
-| `float-length` | error | Float signal is neither 32 nor 64 bits |
-| `initial-range`, `invalid-overflow` | warning/error | Default value out of range; `invalid` does not fit in the field |
-| `signed-code` | info | Signed number code is not supported by code generation, or is set on an unsigned signal |
-| `logo-missing`, `logo-format` | warning/error | Logo file not found / unsupported format |
-| `missing-description`, `empty-frame` | info | Completeness of the description |
+| `bit-overlap` | error | Overlapping signals (multiplexing-aware) |
+| `float-length` | error | A float signal must be 32 or 64 bits |
+
+### Values and conversion
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `enum-overflow` | error | Enum value does not fit in the field width |
+| `metric-factor` | error | Zero factor |
+| `metric-range` | warning | min/max outside the range the field can represent |
+| `min-max` | error | min is greater than max |
+| `initial-range` | warning | Default value outside the signal's range |
+| `invalid-overflow` | error | invalid value does not fit in the signal width |
+| `invalid-in-range` | warning | invalid value falls inside the min..max range |
+| `signed-code` | info | Signed number code is not supported by code generation or is set on an unsigned signal |
+| `missing-unit` | info | Physical quantity without a unit |
+
+### Bit fields
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `flags-kind` | error | flags set on a signal that is not a bitfield |
+| `flag-out-of-field` | error | Flag extends beyond the bit field |
+| `flag-overlap` | error | Flags overlap inside the bit field |
+| `flag-length` | warning | Flag signal longer than 1 bit |
+
+### Multiplexing
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `mux-no-selector` | error | Multiplexed signal in a frame without a selector |
+| `mux-multiple-selectors` | error | More than one selector in the frame |
+| `mux-value-overflow` | error | mux value does not fit in the selector |
+| `mux-value-unknown` | warning | mux value is not in the selector's value table |
+| `mux-selector-muxed` | error | Selector is itself multiplexed |
+
+### SDO
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `sdo-frame-type` | warning | sdo description on a frame that is not sdo_tx/sdo_rx |
+| `sdo-duplicate` | error | Duplicate SDO exchange (command, index, subindex) |
+
+### Document
+
+| Code | Severity | What is checked |
+|---|---|---|
+| `logo-missing` | warning | Logo file not found |
+| `logo-format` | error | Unsupported logo format |
+| `history-version` | warning | Document version differs from the latest revision history entry |
+| `missing-description` | info | Signal has no description |
+| `empty-frame` | info | Frame has no signals |
