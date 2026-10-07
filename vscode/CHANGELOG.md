@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 * The **Node** panel shows the frame's bit layout for frames, signals, flags and SDO exchanges, as
   the web editor does: drag over free bits to add a signal, drag the shown signal to move it or its

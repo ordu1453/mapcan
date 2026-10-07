@@ -2,7 +2,7 @@
   "name": "mapcan",
   "displayName": "mapcan",
   "description": "CAN signal maps as code: validation, hovers with frame bit layouts and computed CAN IDs for mapcan YAML files.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "ordu1453",
   "private": true,
   "license": "UNLICENSED",
