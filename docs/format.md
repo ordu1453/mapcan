@@ -1,57 +1,62 @@
-# Формат карты сигналов (mapcan, v1)
+# Signal map format (mapcan, v1)
 
-Карта — это YAML-файл. Из него генерируются все документы и код. JSON Schema формата
-лежит в [`schema/mapcan.schema.json`](../schema/mapcan.schema.json): если в первой строке
-файла указать
+A signal map is a single YAML file, and every document and code artifact is generated from it.
+The format is defined by the JSON Schema in
+[`schema/mapcan.schema.json`](../schema/mapcan.schema.json). Add this line at the top of a map:
 
 ```yaml
 # yaml-language-server: $schema=./schema/mapcan.schema.json
 ```
 
-VS Code с расширением *YAML* (Red Hat) будет подсказывать поля и подчёркивать ошибки.
+and VS Code with the Red Hat *YAML* extension will complete field names and underline errors as
+you type. `mapcan schema -o schema.json` writes the schema anywhere you need it.
 
-## Соглашения
+## Conventions
 
-| Что | Правило |
+| Topic | Rule |
 |---|---|
-| Нумерация байт | с 0 |
-| Нумерация бит | `lsb0`: бит 0 — младший бит байта 0; бит `N` лежит в байте `N div 8` на позиции `N mod 8` |
-| Позиция сигнала | `start_bit` — позиция **младшего** бита значения |
-| Физическая величина | `physical = raw * factor + offset` |
-| Числа | десятичные или `0x…`; дробная часть — через точку (`0.1`, не `0,1`) |
-| Имена | латиница, цифры и `_` (идентификаторы C/Python). Стиль задаётся в `lint` |
+| Byte numbering | Starts at 0 |
+| Bit numbering | `lsb0`: bit 0 is the least significant bit of byte 0; bit `N` is in byte `N div 8` at position `N mod 8` |
+| Signal position | `start_bit` is the position of the **least significant** bit of the value |
+| Physical value | `physical = raw * factor + offset` |
+| Numbers | Decimal or `0x…`; use a decimal point (`0.1`, not `0,1`) |
+| Names | Latin letters, digits and `_` (valid C/Python identifiers). The naming style is set in `lint` |
 
-Нумерация фиксируется полем `document.bit_numbering: lsb0` и выводится во всех документах.
+The numbering is stated explicitly by `document.bit_numbering: lsb0` and printed in every
+document.
 
-## Структура файла
+## File structure
 
 ```yaml
-mapcan: 1                 # версия формата (карты с прежним ключом canmap: 1 тоже читаются)
-document: {...}           # метаданные и история изменений
-lint: {...}               # правила стиля (необязательно)
-buses: [...]              # одна или несколько шин
+mapcan: 1                 # format version (maps with the legacy key canmap: 1 are also accepted)
+document: {...}           # metadata and revision history
+lint: {...}               # style rules (optional)
+buses: [...]              # one or more buses
 ```
 
-### document
+### `document`
 
-| Поле | Тип | Описание |
+| Field | Type | Description |
 |---|---|---|
-| `title` | текст | Название документа (обязательно) |
-| `subtitle` | текст | Подзаголовок |
-| `version` | строка | Версия карты |
-| `date` | дата `YYYY-MM-DD` | Дата выпуска |
-| `author`, `organization` | строка | |
-| `language` | `ru` \| `en` | Язык документов (по умолчанию `ru`) |
-| `bit_numbering` | `lsb0` | Явная фиксация нумерации бит |
-| `logo` | путь | Логотип предприятия (PNG/JPG/SVG/GIF/WEBP), относительно файла карты |
-| `designation`, `litera`, `city` | строка | Обозначение документа, литера, город — для шаблонов ГОСТ |
-| `signatures` | объект | `{developed, checked, tech_control, norm_control, approved}` — подписи основной надписи |
-| `approve`, `agree` | `{position, name}`, список | Блоки «УТВЕРЖДАЮ» и «СОГЛАСОВАНО» титульного листа |
-| `history` | список | `{version, date, author, github, changes: [текст, ...]}`; `github` — имя пользователя GitHub автора |
+| `title` | text | Document title (required) |
+| `subtitle` | text | Subtitle |
+| `version` | string | Map version (default `0.1`) |
+| `date` | date `YYYY-MM-DD` | Release date |
+| `author`, `organization` | string | |
+| `language` | `ru` \| `en` | Default document language (default `ru`); `--lang` overrides it at export |
+| `bit_numbering` | `lsb0` | Explicit statement of the bit numbering |
+| `logo` | path | Company logo (PNG/JPG/SVG/GIF/WEBP), relative to the map file |
+| `designation`, `litera`, `city` | string | Document designation, letter and city for the GOST template |
+| `signatures` | object | `{developed, checked, tech_control, norm_control, approved}`: title block signatures |
+| `approve`, `agree` | `{position, name}`, list | "Approved" (УТВЕРЖДАЮ) and "Agreed" (СОГЛАСОВАНО) blocks on the title page |
+| `history` | list | `{version, date, author, github, changes: [text, ...]}`; `github` is the author's GitHub user name |
 
-**Текст** — строка или объект с переводами: `{ru: "Состояние", en: "State"}`.
+**Text** fields accept a string or an object with translations: `{en: "State", ru: "Состояние"}`.
+Documents use the translation for the selected language and fall back to the other one.
 
-### lint
+See [templates.md](templates.md) for how the document details are laid out in PDF.
+
+### `lint`
 
 ```yaml
 lint:
@@ -59,58 +64,59 @@ lint:
   frame_name: snake_case
   device_name: snake_case
   value_name: UPPER_SNAKE
-  disable: [missing-description]   # отключить правила по коду
+  disable: [missing-description]   # turn rules off by code
 ```
 
-### Шина (`buses[]`)
+### Bus (`buses[]`)
 
-| Поле | Описание |
+| Field | Description |
 |---|---|
-| `name` | Идентификатор шины (имя файлов DBC/C) |
-| `title` | Название в документах («Шина 1») |
-| `interface` | Интерфейс (`can0`, `PCAN_USBBUS1`…) |
-| `bitrate` | Скорость, бит/с |
-| `protocol` | `canopen` — ID вычисляются из функционального кода и `node_id`; `j1939` — из PGN, приоритета и адреса устройства; `can` — ID задаются явно |
-| `fd` | `true` для CAN FD (DLC до 64) |
-| `frames` | Широковещательные кадры без владельца (`nmt`, `sync`, `time`) |
-| `devices` | Устройства |
+| `name` | Bus identifier (used for DBC and C file names) |
+| `title` | Display name in documents ("Powertrain CAN") |
+| `description` | Description |
+| `interface` | Interface (`can0`, `PCAN_USBBUS1`, …) |
+| `bitrate` | Bit rate, bit/s |
+| `protocol` | `canopen` (default): IDs are computed from the function code and `node_id`; `j1939`: from the PGN, priority and device address; `can`: IDs are set explicitly |
+| `fd` | `true` for CAN FD (DLC up to 64) |
+| `frames` | Broadcast frames with no owning device (`nmt`, `sync`, `time`) |
+| `devices` | Devices |
 
-### Устройство (`devices[]`)
+### Device (`devices[]`)
 
-| Поле | Описание |
+| Field | Description |
 |---|---|
-| `name` | Идентификатор (`imd`) |
-| `short` | Короткое обозначение для таблиц (`BMS`) |
-| `title` | Полное название |
-| `node_id` | Адрес CANopen (1..127) |
-| `address` | Адрес источника J1939 (0..253) |
-| `description` | Описание |
-| `frames` | Кадры устройства: те, что оно передаёт, и RX-кадры, ID которых зависит от его адреса (см. [Отправитель и получатели](#отправитель-и-получатели)) |
+| `name` | Identifier (`imd`) |
+| `short` | Short label for tables (`BMS`) |
+| `title` | Full name |
+| `node_id` | CANopen node address (1..127) |
+| `address` | J1939 source address (0..253) |
+| `description` | Description |
+| `frames` | The device's frames: those it transmits, plus RX frames whose ID depends on its address (see [Sender and receivers](#sender-and-receivers)) |
 
-### Кадр (`frames[]`)
+### Frame (`frames[]`)
 
-| Поле | Описание |
+| Field | Description |
 |---|---|
-| `name` | Идентификатор кадра (уникален на шине) |
-| `title` | Короткий заголовок («СОСТОЯНИЯ») |
-| `description` | Назначение кадра |
-| `type` | `nmt`, `sync`, `emcy`, `time`, `pdo_tx1..4`, `pdo_rx1..4`, `sdo_tx`, `sdo_rx`, `heartbeat`, `raw` |
-| `id` | Явный CAN ID (обязателен на шинах `can`; на CANopen и J1939 переопределяет вычисленный) |
-| `pgn`, `priority`, `destination` | J1939: номер группы параметров, приоритет 0..7 (по умолчанию 6), адрес получателя для PDU1 (по умолчанию 0xFF) |
-| `receivers` | Имена устройств шины, принимающих кадр |
-| `sender` | Имя устройства шины, передающего кадр, если это не владелец: RX-кадр (PDO RX узла, который шлёт мастер) или кадр шины (NMT, SYNC). Не задан — отправитель вне карты |
-| `extended` | 29-битный ID |
-| `dlc` | Длина данных (по умолчанию 8) |
-| `direction` | `tx` / `rx` относительно устройства. По умолчанию из типа: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` — `tx`; `pdo_rx*`, `sdo_rx`, `nmt` — `rx`; у кадра без типа CANopen с чужим `sender` — `rx`, иначе `tx` |
-| `cycle_ms` | Сокращение для `transmission: {mode: cyclic, cycle_ms: …}` |
+| `name` | Frame identifier (unique on the bus) |
+| `title` | Short heading ("STATES") |
+| `description` | Purpose of the frame |
+| `type` | `nmt`, `sync`, `emcy`, `time`, `pdo_tx1..4`, `pdo_rx1..4`, `sdo_tx`, `sdo_rx`, `heartbeat`, `raw` (default) |
+| `id` | Explicit CAN ID (required on `can` buses; on CANopen and J1939 it overrides the computed ID) |
+| `pgn`, `priority`, `destination` | J1939: parameter group number, priority 0..7 (default 6), destination address for PDU1 (default 0xFF) |
+| `receivers` | Names of the bus devices that receive the frame |
+| `sender` | Name of the bus device that transmits the frame when it is not the owner: an RX frame (a node's PDO RX sent by the master) or a bus frame (NMT, SYNC). If omitted, the sender is outside the map |
+| `extended` | 29-bit ID |
+| `dlc` | Data length (default 8) |
+| `direction` | `tx` / `rx` relative to the owning device. Defaults from the type: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen type whose `sender` is another device → `rx`; otherwise `tx` |
+| `cycle_ms` | Shorthand for `transmission: {mode: cyclic, cycle_ms: …}` |
 | `transmission` | `{mode: cyclic \| event \| on_request, cycle_ms}` |
-| `signals` | Сигналы |
-| `sdo` | Описание SDO-обменов (для `sdo_tx`/`sdo_rx`) |
-| `comment` | Примечание |
+| `signals` | Signals |
+| `sdo` | SDO exchanges (for `sdo_tx`/`sdo_rx`) |
+| `comment` | Note |
 
-Вычисление ID для CANopen:
+CANopen ID computation:
 
-| Тип | ID |
+| Type | ID |
 |---|---|
 | `nmt` | `0x000` |
 | `sync` | `0x080` |
@@ -123,58 +129,63 @@ lint:
 | `sdo_tx` / `sdo_rx` | `0x580` / `0x600` `+ node_id` |
 | `heartbeat` | `0x700 + node_id` |
 
-### Сигнал (`signals[]`)
+### Signal (`signals[]`)
 
-| Поле | Описание |
+| Field | Description |
 |---|---|
-| `name` | Идентификатор (уникален в кадре вместе с именами флагов) |
-| `description` | Описание |
-| `kind` | `enum`, `flag`, `bitfield`, `metric`, `raw`, `float`, `bytes`. Если не задан: есть `values` → `enum`, есть `flags` → `bitfield`, есть `factor`/`offset`/`unit` → `metric`, иначе `raw` |
-| `start_bit` + `bit_length` | Каноническая позиция |
-| `byte` [+ `bit`] [+ `byte_length` \| `bit_length`] | Сокращённая запись (см. ниже) |
-| `byte_order` | `little_endian` (по умолчанию) или `big_endian` |
-| `signed` | Знаковое значение |
-| `signed_code` | Код знакового числа: `twos_complement` — дополнительный (по умолчанию), `ones_complement` — обратный, `sign_magnitude` — прямой. Пометка для документов: сгенерированный код и DBC работают в дополнительном коде |
-| `values` | Таблица значений: `{0: NO_DATA, 1: {name: OK, description: "в норме"}}` |
-| `value_format` | `dec` \| `hex` — как показывать значения в документах |
-| `flags` | Флаги битового поля: `{bit, bit_length: 1, name, description, values}`; `bit` — смещение от младшего бита поля |
-| `factor`, `offset`, `unit`, `min`, `max` | Физическое преобразование и диапазон (в физических единицах) |
-| `multiplexer` | `true` — сигнал-селектор мультиплексора |
-| `mux` | Значение (или список) селектора, при котором сигнал присутствует |
-| `initial` | Значение по умолчанию в физических единицах (в C — `…_INITIAL_RAW`, в DBC — `GenSigStartValue`) |
-| `invalid` | Сырое значение (или список), означающее «нет данных / недостоверно», напр. `0xFF` |
-| `comment` | Примечание |
+| `name` | Identifier (unique within the frame, together with flag names) |
+| `description` | Description |
+| `kind` | `enum`, `flag`, `bitfield`, `metric`, `raw`, `float`, `bytes`. If omitted: `flags` present → `bitfield`, `values` present → `enum`, `factor`/`offset`/`unit` present → `metric`, otherwise `raw` |
+| `start_bit` + `bit_length` | Canonical position |
+| `byte` [+ `bit`] [+ `byte_length` \| `bit_length`] | Shorthand position (see below) |
+| `byte_order` | `little_endian` (default) or `big_endian` |
+| `signed` | Signed value |
+| `signed_code` | Signed number representation: `twos_complement` (default), `ones_complement` or `sign_magnitude`. This is a note for the documents only: generated code and DBC always use two's complement |
+| `values` | Value table: `{0: NO_DATA, 1: {name: OK, description: "normal"}}` |
+| `value_format` | `dec` \| `hex`: how values are shown in documents |
+| `flags` | Bit field flags: `{bit, bit_length: 1, name, description, values}`; `bit` is the offset from the least significant bit of the field |
+| `factor`, `offset`, `unit`, `min`, `max` | Physical conversion and range (in physical units) |
+| `multiplexer` | `true` for the multiplexer selector signal |
+| `mux` | Selector value (or list of values) for which the signal is present |
+| `initial` | Default value in physical units (`…_INITIAL_RAW` in C, `GenSigStartValue` in DBC) |
+| `invalid` | Raw value (or list) meaning "not available / invalid", e.g. `0xFF` |
+| `comment` | Note |
 
-#### Числа с плавающей точкой
+If no length is given, a signal is 8 bits long; a `float` is 32 bits, and a `flag` or a
+`byte` + `bit` position without `bit_length` is 1 bit.
 
-`kind: float` — IEEE 754, 32 бита (по умолчанию) или 64 бита (`bit_length: 64`), любой порядок
-байт. `factor` и `offset` допустимы. В C поле имеет тип `float` или `double`, в DBC сигнал
-помечается как float.
+#### Floating point
+
+`kind: float` is IEEE 754, 32 bits (default) or 64 bits (`bit_length: 64`), in either byte order.
+`factor` and `offset` are allowed. In C the field is a `float` or `double`; in DBC the signal is
+marked as float.
 
 ```yaml
-- {name: pack_voltage, byte: 0, kind: float, unit: В}
-- {name: timestamp, byte: 0, kind: float, bit_length: 64, unit: с}
+- {name: pack_voltage, byte: 0, kind: float, unit: V}
+- {name: timestamp, byte: 0, kind: float, bit_length: 64, unit: s}
 ```
 
-#### Сокращённая запись позиции
+#### Shorthand position
 
-| Запись | Эквивалент |
+| Shorthand | Equivalent |
 |---|---|
 | `byte: 2` | `start_bit: 16, bit_length: 8` |
 | `byte: 1, byte_length: 2` | `start_bit: 8, bit_length: 16` |
 | `byte: 1, bit: 3` | `start_bit: 11, bit_length: 1` |
 | `byte: 2, bit: 4, bit_length: 4` | `start_bit: 20, bit_length: 4` |
-| `byte: 1, byte_length: 2, byte_order: big_endian` | `start_bit: 16, bit_length: 16` — старший байт в байте 1 |
+| `byte: 1, byte_length: 2, byte_order: big_endian` | `start_bit: 16, bit_length: 16`, most significant byte in byte 1 |
 
-Одновременно указывать `start_bit` и `byte`/`bit` нельзя.
+`start_bit` cannot be combined with `byte`/`bit`, and `bit_length` cannot be combined with
+`byte_length`.
 
 #### Big-endian
 
-Для `big_endian` (Motorola) `start_bit` — тоже позиция младшего бита. От него значение идёт к старшим
-битам байта, а затем продолжается с бита 0 *предыдущего* байта. При записи `byte:` указывается первый
-(старший) байт поля — так, как его обычно читают в таблице.
+For `big_endian` (Motorola) signals, `start_bit` is also the position of the least significant
+bit. From there the value runs towards the most significant bits of that byte and continues from
+bit 0 of the *previous* byte. With the `byte:` shorthand you give the first (most significant)
+byte of the field, the way it is usually read in a table.
 
-#### Мультиплексирование
+#### Multiplexing
 
 ```yaml
 signals:
@@ -187,18 +198,18 @@ signals:
   - {name: temperature_data, byte: 1, byte_length: 7, kind: bytes, mux: 1}
 ```
 
-Сигналы с разными `mux` могут занимать одни и те же биты — это не считается пересечением.
-Сигнал без `mux` присутствует при любом значении селектора.
+Signals with different `mux` values may occupy the same bits; this is not an overlap. A signal
+without `mux` is present for every selector value.
 
-### Протоколы и CAN ID
+### Protocols and CAN IDs
 
-| `protocol` | Как получается ID |
+| `protocol` | How the ID is obtained |
 |---|---|
-| `canopen` | Из `type` кадра и `node_id` устройства (таблица ниже); `id` переопределяет |
-| `j1939` | 29 бит: `priority << 26 \| PGN << 8 \| address`. Для PDU1 (PF < 240) младший байт PGN заменяется на `destination` |
-| `can` | Только явный `id`; 29-битный ID — `extended: true`; для CAN FD у шины `fd: true` |
+| `canopen` | From the frame `type` and the device `node_id` (see the table above); `id` overrides it |
+| `j1939` | 29 bits: `priority << 26 \| PGN << 8 \| address`. For PDU1 (PF < 240) the low byte of the PGN is replaced by `destination` |
+| `can` | Explicit `id` only; `extended: true` for a 29-bit ID; `fd: true` on the bus for CAN FD |
 
-J1939:
+J1939 example:
 
 ```yaml
 buses:
@@ -215,46 +226,49 @@ buses:
             cycle_ms: 20
             receivers: [cluster]
             signals:
-              - {name: engine_speed, byte: 3, byte_length: 2, factor: 0.125, unit: об/мин, invalid: 0xFFFF}
+              - {name: engine_speed, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid: 0xFFFF}
+      - name: cluster
+        address: 0x17
       - name: diag
         address: 0xF9
         frames:
           - name: request
-            pgn: 0xEA00          # PDU1: адресный
+            pgn: 0xEA00          # PDU1: addressed
             destination: 0x00    # → ID 0x18EA00F9
             dlc: 3
 ```
 
 ### SDO (`sdo[]`)
 
-Для кадров `sdo_rx`/`sdo_tx` вместо `signals` можно описать обмены (expedited SDO):
+For `sdo_rx`/`sdo_tx` frames you can describe expedited SDO exchanges instead of `signals`:
 
 ```yaml
 - name: imd_sdo_request
   type: sdo_rx
   sdo:
     - name: set_alarm_resistance
-      description: Установка ALARM_RESISTANCE
-      command: 0x2B          # CCS: запись 2 байт
+      description: Set ALARM_RESISTANCE
+      command: 0x2B          # CCS: write 2 bytes
       index: 0x4010
       subindex: 0x01
-      value: {name: alarm_resistance, bit_length: 16, unit: кОм}
+      value: {name: alarm_resistance, bit_length: 16, unit: kOhm}
 ```
 
-mapcan построит раскладку кадра сам: байт 0 — команда, байты 1–2 — индекс (little-endian),
-байт 3 — субиндекс (селектор мультиплексора, если индекс один), байты 4–7 — значение.
+mapcan builds the frame layout itself: byte 0 is the command, bytes 1–2 the index
+(little-endian), byte 3 the subindex (the multiplexer selector when all exchanges share one
+index), and bytes 4–7 the value.
 
-## Отправитель и получатели
+## Sender and receivers
 
-У каждого кадра один отправитель. Кадр, который передаёт описанное в карте устройство, описывается
-**у отправителя**, а принимающие устройства перечисляются в `receivers`. Отдельные RX-кадры у
-получателей не нужны: что принимает устройство, mapcan вычисляет сам.
+Every frame has exactly one sender. A frame transmitted by a device in the map is described
+**at the sender**, and the receiving devices are listed in `receivers`. Receivers do not need
+their own copies of the frame: mapcan derives what each device receives.
 
-RX-кадр у устройства описывают в двух случаях:
+Describe an RX frame at a device in two cases only:
 
-* отправителя нет в карте (ПК, тестер, чужой контроллер) — `sender` не задают;
-* ID кадра зависит от адреса **получателя**: `pdo_rx*` и `sdo_rx` CANopen (`0x200 + node_id` узла).
-  Если мастер тоже описан в карте, его указывают в `sender`.
+* the sender is not in the map (a PC, a tester, a third-party controller); leave `sender` out;
+* the frame ID depends on the **receiver's** address: CANopen `pdo_rx*` and `sdo_rx`
+  (`0x200 + node_id` of the node). If the master is also in the map, name it in `sender`.
 
 ```yaml
 devices:
@@ -262,30 +276,33 @@ devices:
     node_id: 0x01
     frames:
       - name: master_status
-        type: pdo_tx1          # передаёт master, принимает node
+        type: pdo_tx1          # sent by master, received by node
         receivers: [node]
   - name: node
     node_id: 0x05
     frames:
       - name: node_command
-        type: pdo_rx1          # ID 0x205 — от node_id узла
-        sender: master         # шлёт мастер
+        type: pdo_rx1          # ID 0x205, from the node's node_id
+        sender: master         # sent by the master
       - name: node_status
         type: pdo_tx1
         receivers: [master]
 ```
 
-Из `sender` и `receivers` всех кадров шины строятся:
+The owner of an RX frame is always one of its receivers, so it does not need to be listed in
+`receivers`. From `sender` and `receivers` across all frames on the bus, mapcan builds:
 
-* в редакторе — у устройства карточки «Принимает» и «Передаёт кадры других устройств»;
-* в документах (PDF, HTML, Markdown) — те же таблицы в разделе устройства, у кадра — отправитель,
-  если это не его владелец;
-* в Excel — лист «Матрица обмена»: строки — кадры, колонки — устройства, в ячейках TX/RX;
-* в DBC — передатчик сообщения и получатели сигналов.
+* in the editor, the **Receives** and **Transmits frames of other devices** cards on each device
+  page;
+* in documents (PDF, HTML, Markdown), the same tables in each device section, and the sender of
+  any frame it differs from the owner;
+* in Excel, the "Communication matrix" sheet: frames as rows, devices as columns, TX/RX in the
+  cells;
+* in DBC, the message transmitter and the signal receivers.
 
-## Ссылки YAML
+## YAML anchors
 
-Повторяющиеся таблицы значений удобно описывать якорями:
+Repeated value tables are easiest to share with anchors:
 
 ```yaml
 values: &dc_states
@@ -295,42 +312,44 @@ values: &dc_states
 values: *dc_states
 ```
 
-## Правила проверки
+## Validation rules
 
-Полный список — `mapcan rules`. Уровни: **error** (генерация прерывается, код возврата 1),
-**warning** (код 1 только с `--strict`), **info** (показывается с `--info`).
+`mapcan rules` prints the full list. Severities: **error** (generation stops, exit code 1),
+**warning** (exit code 1 only with `--strict`), **info** (shown with `--info`). Any rule can be
+turned off with `--disable CODE` or `lint.disable`.
 
-| Код | Уровень | Что проверяется |
+| Code | Severity | What is checked |
 |---|---|---|
-| `yaml` | error | синтаксис YAML, повторяющиеся ключи |
-| `schema` | error | структура: типы, обязательные поля, неизвестные поля, допустимые значения |
-| `number-comma` | error | `0,1` вместо `0.1` |
-| `number-cyrillic-x` | error | кириллическая «х» в `0х196` |
-| `number-quoted` | warning | число в кавычках (`"0x196"`) |
-| `invalid-identifier` | error | имя нельзя использовать в коде (`NO DATA`) |
-| `name-style` | warning | имя не в стиле из `lint` |
-| `name-inconsistent` | warning | одно и то же значение записано по-разному (`NO DATA` / `NO_DATA`) |
-| `duplicate-signal-name` | error | повтор имени сигнала или флага в кадре |
-| `duplicate-enum-name` | warning | одно имя у разных значений enum |
-| `duplicate-can-id` | error | повтор CAN ID на шине |
-| `duplicate-frame-name`, `duplicate-device-name`, `duplicate-node-id` | error | повторы на шине |
-| `node-id-range`, `can-id-range`, `dlc-range` | error | выход за допустимые диапазоны |
-| `frame-id-missing` | error | ID нельзя вычислить (нет `node_id` или `id`) |
-| `signal-out-of-frame` | error | сигнал выходит за DLC |
-| `bit-overlap` | error | пересечение сигналов по битам (с учётом `mux`) |
-| `enum-overflow` | error | значение не помещается в разрядность поля |
-| `flag-out-of-field`, `flag-overlap`, `flags-kind`, `flag-length` | error/warning | битовые поля |
-| `metric-factor`, `metric-range`, `min-max` | error/warning | физическое преобразование |
-| `mux-no-selector`, `mux-multiple-selectors`, `mux-value-overflow`, `mux-value-unknown`, `mux-selector-muxed` | error/warning | мультиплексирование |
-| `cycle-missing`, `cycle-unexpected` | error/warning | режим передачи |
-| `direction-mismatch`, `frame-type-protocol` | warning | согласованность типа кадра |
-| `sdo-frame-type`, `sdo-duplicate` | warning/error | описание SDO |
-| `j1939-address`, `j1939-pdu1-pgn`, `j1939-destination`, `j1939-field-protocol` | error/warning | адрес J1939 вне диапазона или повторяется, PDU1-PGN с ненулевым младшим байтом, DA у PDU2, поля J1939 на другой шине |
-| `unknown-receiver`, `unknown-sender` | error | получатель или отправитель кадра не описан на шине |
-| `sender-mismatch` | warning | `sender` у TX-кадра или равен владельцу RX-кадра; отправитель указан среди получателей |
-| `rx-duplicate` | error | RX-кадр повторяет кадр отправителя (тот же CAN ID): описывайте кадр один раз у отправителя, получателя — в `receivers` |
-| `rx-no-sender` | info | RX-кадр без типа CANopen и без `sender`: если отправитель описан, перенесите кадр к нему |
-| `float-length` | error | float не 32 и не 64 бита |
-| `initial-range`, `invalid-overflow` | warning/error | значение по умолчанию вне диапазона, `invalid` не помещается в поле |
-| `logo-missing`, `logo-format` | warning/error | файл логотипа не найден / неподдерживаемый формат |
-| `missing-description`, `empty-frame` | info | полнота описания |
+| `yaml` | error | YAML syntax, duplicate keys |
+| `schema` | error | Structure: types, required fields, unknown fields, allowed values |
+| `number-comma` | error | `0,1` instead of `0.1` |
+| `number-cyrillic-x` | error | Cyrillic "х" in `0х196` |
+| `number-quoted` | warning | Number in quotes (`"0x196"`) |
+| `invalid-identifier` | error | Name cannot be used in code (`NO DATA`) |
+| `name-style` | warning | Name does not follow the `lint` style |
+| `name-inconsistent` | warning | The same value name is spelled differently (`NO DATA` / `NO_DATA`) |
+| `duplicate-signal-name` | error | Repeated signal or flag name in a frame |
+| `duplicate-enum-name` | warning | The same name for different enum values |
+| `duplicate-can-id` | error | Repeated CAN ID on a bus |
+| `duplicate-frame-name`, `duplicate-device-name`, `duplicate-node-id` | error | Duplicates on a bus |
+| `node-id-range`, `can-id-range`, `dlc-range` | error | Values out of range |
+| `frame-id-missing` | error | The ID cannot be computed (no `node_id` or `id`) |
+| `signal-out-of-frame` | error | Signal extends beyond the DLC |
+| `bit-overlap` | error | Overlapping signals (taking `mux` into account) |
+| `enum-overflow` | error | Value does not fit in the field width |
+| `flag-out-of-field`, `flag-overlap`, `flags-kind`, `flag-length` | error/warning | Bit fields |
+| `metric-factor`, `metric-range`, `min-max` | error/warning | Physical conversion |
+| `mux-no-selector`, `mux-multiple-selectors`, `mux-value-overflow`, `mux-value-unknown`, `mux-selector-muxed` | error/warning | Multiplexing |
+| `cycle-missing`, `cycle-unexpected` | error/warning | Transmission mode |
+| `direction-mismatch`, `frame-type-protocol` | warning | Consistency of the frame type |
+| `sdo-frame-type`, `sdo-duplicate` | warning/error | SDO descriptions |
+| `j1939-address`, `j1939-pdu1-pgn`, `j1939-destination`, `j1939-field-protocol` | error/warning | J1939 address out of range or repeated, PDU1 PGN with a non-zero low byte, destination on a PDU2 PGN, J1939 fields on another bus |
+| `unknown-receiver`, `unknown-sender` | error | Frame receiver or sender is not defined on the bus |
+| `sender-mismatch` | warning | `sender` on a TX frame, `sender` equal to the owner of an RX frame, or the sender listed among the receivers |
+| `rx-duplicate` | error | RX frame duplicates the sender's frame (same CAN ID): describe the frame once at the sender and list the receiver in `receivers` |
+| `rx-no-sender` | info | RX frame with no CANopen type and no `sender`: if the sender is in the map, move the frame to it |
+| `float-length` | error | Float signal is neither 32 nor 64 bits |
+| `initial-range`, `invalid-overflow` | warning/error | Default value out of range; `invalid` does not fit in the field |
+| `signed-code` | info | Signed number code is not supported by code generation, or is set on an unsigned signal |
+| `logo-missing`, `logo-format` | warning/error | Logo file not found / unsupported format |
+| `missing-description`, `empty-frame` | info | Completeness of the description |

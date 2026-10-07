@@ -1,92 +1,99 @@
-# Шаблоны PDF и оформление по ГОСТ
+# PDF templates and GOST formatting
 
-PDF собирается встроенным компилятором Typst из одного из шаблонов:
+PDF documents are built by the bundled [Typst](https://typst.app) compiler from one of the
+built-in templates:
 
-| Шаблон | Стандарт | Что входит |
+| Template | Standard | Contents |
 |---|---|---|
-| `mapcan` (по умолчанию) | — (стандартное оформление) | Цветные битовые диаграммы, колонтитулы, титульный лист в свободной форме |
-| `gost-2.105` | ЕСКД: ГОСТ 2.105, 2.104, 2.503 | Рамка (поле подшивки 20 мм, остальные 5 мм); основная надпись по форме 2 на первом листе и 2а на последующих; дополнительные графы 19–25 на левом поле; титульный лист с «СОГЛАСОВАНО» / «УТВЕРЖДАЮ»; «Содержание»; разделы «1», «1.1»; таблицы «Таблица N — …»; приложение; лист регистрации изменений |
+| `mapcan` (default) | — (standard layout) | Colored bit diagrams, headers and footers, free-form title page |
+| `gost-2.105` | ESKD: GOST 2.105, 2.104, 2.503 | Drawing frame (20 mm binding margin, 5 mm elsewhere); title block in form 2 on the first sheet and form 2a on the following ones; additional columns 19–25 in the left margin; title page with "СОГЛАСОВАНО" / "УТВЕРЖДАЮ" approval blocks; table of contents; numbered sections ("1", "1.1"); captioned tables ("Таблица N — …"); appendix; change registration sheet |
 
-Шаблон ЕСКД формируется только на русском: язык, выбранный при экспорте или заданный в карте, для него
-не учитывается. Шаблон `mapcan` — на языке карты или выбранном при экспорте (`--lang en`).
+The ESKD template is always produced in Russian: the document language of the map or the one
+chosen at export is ignored for it. The `mapcan` template follows the map's `document.language`
+or the language chosen at export (`--lang en`).
 
-Выбор шаблона:
+## Choosing a template
 
 ```sh
-mapcan template --list                                   # список шаблонов
-mapcan export pdf my-map.yaml --template gost-2.105      # встроенный шаблон по имени
-mapcan build my-map.yaml --pdf-template mapcan --pdf-template gost-2.105   # несколько PDF в CI
+mapcan template --list                                   # list built-in templates
+mapcan export pdf my-map.yaml --template gost-2.105      # built-in template by name
+mapcan build my-map.yaml --pdf-template mapcan --pdf-template gost-2.105   # several PDFs in CI
 ```
 
-В веб-редакторе шаблон выбирается в **Экспорт → PDF…** (предпросмотр со списком шаблонов) или
-сразу в **Экспорт → Скачать PDF**. Выбор запоминается в браузере.
+In the web editor, open the PDF preview from the **Export** menu and pick the template there; the
+↓ button next to the format downloads the PDF straight away. The editor remembers your choice.
 
-## Реквизиты документа
+## Document details
 
-Штамп, титульный лист и листы утверждения заполняются из `document`. Все поля необязательны:
-незаполненные графы остаются пустыми — их можно вписать от руки.
+The title block, title page and approval sheets are filled in from `document`. Every field is
+optional: empty boxes stay blank and can be filled in by hand.
 
 ```yaml
 document:
-  title: Карта сигналов изделия
+  title: Product signal map
   version: 1.0.0
-  organization: ООО «Пример»
-  logo: logo.png                     # путь относительно файла карты (PNG, JPG, SVG, GIF, WEBP)
-  designation: АБВГ.468332.001 Д1    # обозначение документа (ЕСКД)
-  litera: О1                         # литера (ЕСКД)
-  city: Москва                       # город на титульном листе
-  signatures:                        # основная надпись ЕСКД, лист утверждения, список исполнителей
-    developed: Иванов                # Разраб.
-    checked: Петров                  # Пров.
-    tech_control: Сидоров            # Т. контр.
-    norm_control: Кузнецова          # Н. контр.
-    approved: Смирнов                # Утв.
-  approve:                           # «УТВЕРЖДАЮ» на титульном листе
-    position: Главный конструктор
-    name: А. А. Смирнов
-  agree:                             # «СОГЛАСОВАНО» (сколько угодно)
-    - position: Начальник отдела
-      name: Б. Б. Орлов
+  organization: Example LLC
+  logo: logo.png                     # relative to the map file (PNG, JPG, SVG, GIF, WEBP)
+  designation: ABCD.468332.001 D1    # document designation (ESKD)
+  litera: O1                         # letter (ESKD "Лит.")
+  city: Moscow                       # city on the title page
+  signatures:                        # ESKD title block, approval sheet, list of contributors
+    developed: Ivanov                # Разраб. (developed by)
+    checked: Petrov                  # Пров. (checked by)
+    tech_control: Sidorov            # Т. контр. (technical control)
+    norm_control: Kuznetsova         # Н. контр. (standards control)
+    approved: Smirnov                # Утв. (approved by)
+  approve:                           # "УТВЕРЖДАЮ" (approved) block on the title page
+    position: Chief Designer
+    name: A. A. Smirnov
+  agree:                             # "СОГЛАСОВАНО" (agreed) blocks, any number
+    - position: Head of Department
+      name: B. B. Orlov
 ```
 
-В веб-редакторе те же поля — в свойствах документа, карточка **«Оформление и реквизиты»**.
+In the web editor, the same fields are in the document properties, on the
+**Layout and document details** card.
 
-| Поле | `mapcan` | ЕСКД `gost-2.105` |
+Where each field appears:
+
+| Field | `mapcan` | ESKD `gost-2.105` |
 |---|---|---|
-| `logo` | титул, колонтитул | титул, графа 9 основной надписи |
-| `organization` | титул | титул, графа 9 |
-| `designation` | титул | графа 2 основной надписи, титул |
-| `litera` | — | графа «Лит.» |
-| `signatures` | — | «Разраб.», «Пров.», «Т. контр.», «Н. контр.», «Утв.»; подписи на титуле |
-| `approve`, `agree` | — | титул |
-| `city` | — | титул |
+| `logo` | title page, header | title page, title block box 9 |
+| `organization` | title page | title page, box 9 |
+| `designation` | title page | title block box 2, title page |
+| `litera` | — | "Лит." box |
+| `signatures` | — | "Разраб.", "Пров.", "Т. контр.", "Н. контр.", "Утв." boxes; signatures on the title page |
+| `approve`, `agree` | — | title page |
+| `city` | — | title page |
 
-## Логотип
+## Logo
 
-* **Файл**: PNG, JPG, GIF, WEBP или SVG. Путь в `document.logo` задаётся относительно файла
-  карты; можно указать и абсолютный.
-* **Веб-редактор**: кнопка «Загрузить…» сохраняет файл рядом с картой как `<имя карты>-logo.<ext>`
-  и прописывает его в `document.logo`.
-* **Где выводится**: в PDF (по таблице выше), в HTML (встраивается в файл) и на листе «Сводка»
-  в Excel. Excel не поддерживает SVG — для него нужен PNG или JPG.
-* **Проверка**: если файл не найден, будет предупреждение `logo-missing`; неподдерживаемый
-  формат — ошибка `logo-format`.
+* **File format:** PNG, JPG, GIF, WEBP or SVG. The path in `document.logo` is relative to the map
+  file; an absolute path also works.
+* **Web editor:** **Upload…** saves the file next to the map as `<map name>-logo.<ext>` and sets
+  `document.logo`.
+* **Where it appears:** in PDF (see the table above), in HTML (embedded in the file) and on the
+  Excel "Summary" sheet. Excel does not support SVG, so use PNG or JPG if you need the logo there.
+* **Validation:** a missing file produces the `logo-missing` warning; an unsupported format is the
+  `logo-format` error.
 
+## Fonts
 
-## Шрифты
+PT Sans and PT Serif (SIL Open Font License) are bundled, so the PDF looks the same on every
+machine. The ESKD title block uses "GOST type A" if it is installed on the system and falls back to
+PT Sans otherwise. Additional fonts are loaded with `--font-path DIR`.
 
-Встроены PT Sans и PT Serif (лицензия OFL), поэтому PDF одинаково собирается на любой машине.
-Основная надпись ЕСКД набирается шрифтом «GOST type A», если он установлен в системе; иначе
-используется PT Sans. Свои шрифты подключаются через `--font-path DIR`.
+## Custom templates
 
-## Свой шаблон (корпоративное оформление)
+To apply a corporate layout, copy a built-in template and edit it:
 
 ```sh
-mapcan template pdf --name gost-2.105 -o corp/corp.typ   # копия шаблона + corp/lib.typ
-# правка corp/corp.typ: графы штампа, шрифты, логотип, дополнительные листы
+mapcan template pdf --name gost-2.105 -o corp/corp.typ   # template copy + corp/lib.typ
+# edit corp/corp.typ: title block boxes, fonts, logo, extra sheets
 mapcan export pdf my-map.yaml --template corp/corp.typ
 ```
 
-`lib.typ` содержит общие элементы: битовую диаграмму, таблицы сигналов, адресацию, лист
-регистрации изменений, графы на поле подшивки. Данные карты доступны шаблону как
-`json(bytes(sys.inputs.data))`; их структура описана в `src/mapcan/docmodel.py`.
+`lib.typ` holds the shared building blocks: the bit diagram, signal tables, addressing, the change
+registration sheet and the binding-margin columns. The template receives the map data as
+`json(bytes(sys.inputs.data))`; its structure is defined in
+[`src/mapcan/docmodel.py`](../src/mapcan/docmodel.py).
