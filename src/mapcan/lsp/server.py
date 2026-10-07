@@ -254,9 +254,10 @@ def edit_command(ls: MapcanServer, *args) -> dict:
     uri = params.get("uri", "")
     a = ls.analysis(uri) if uri else None
     path = tuple(params.get("path") or ())
-    if a is None or not path:
-        return {}
     action = params.get("action")
+    # Пустой путь — только у новой шины (добавляется в карту)
+    if a is None or not (path or (action == "add" and params.get("kind") == "bus")):
+        return {}
     if action == "add":
         change = E.add_node(a, path, params.get("kind", ""))
     elif action == "duplicate":
@@ -269,6 +270,36 @@ def edit_command(ls: MapcanServer, *args) -> dict:
         return {}
     e = E.minimal_edit(a.text, change.text)
     return {"edit": {"range": [*e.start, *e.end], "text": e.text}, "cursor": list(change.cursor)}
+
+
+def _params(params) -> tuple[str, tuple]:
+    """(uri, path) из параметров запроса {textDocument: {uri}, path}."""
+    get = (lambda o, k: o.get(k)) if isinstance(params, dict) else (lambda o, k: getattr(o, k, None))
+    doc = get(params, "textDocument")
+    uri = (doc.get("uri") if isinstance(doc, dict) else getattr(doc, "uri", None)) if doc else None
+    return uri or "", tuple(get(params, "path") or ())
+
+
+@server.feature("mapcan/node")
+def node_request(ls: MapcanServer, params) -> dict | None:
+    """Поля узла для формы. Параметр: {textDocument: {uri}, path}."""
+    uri, path = _params(params)
+    a = ls.analysis(uri) if uri else None
+    return E.node_fields(a, path) if a else None
+
+
+@server.command("mapcan.lsp.set")
+def set_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, path, value} — путь поля и новое значение (null — удалить).
+    Ответ: {edits: [{range, text}]}."""
+    params = _arg(args)
+    uri = params.get("uri", "")
+    a = ls.analysis(uri) if uri else None
+    path = tuple(params.get("path") or ())
+    if a is None or not path:
+        return {"edits": []}
+    edits = E.set_field(a, path, params.get("value"))
+    return {"edits": [{"range": [*e.start, *e.end], "text": e.text} for e in edits]}
 
 
 @server.command("mapcan.lsp.render")

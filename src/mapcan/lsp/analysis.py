@@ -259,15 +259,43 @@ def _hexw(v, width: int) -> str:
     return f"0x{v:0{width}X}" if isinstance(v, int) else "—"
 
 
-def map_tree(a: Analysis) -> list[dict]:
-    """Узлы: kind, label, description, dir (кадры), from (принимаемые кадры), range, selection, children.
+def _txt(value, lang: str) -> str:
+    """Текст сырого YAML (строка или {ru, en}) на языке документа с откатом на любой доступный."""
+    if isinstance(value, dict):
+        return str(value.get(lang) or next((v for v in value.values() if v), "") or "")
+    return "" if value is None else str(value)
 
-    Строится по сырому YAML, вычисленные ID и биты — из модели, если карта разобрана.
+
+def doc_language(a: Analysis) -> str:
+    raw = a.result.raw
+    doc = raw.get("document") if isinstance(raw, dict) else None
+    lang = doc.get("language") if isinstance(doc, dict) else None
+    return lang if lang in ("ru", "en") else "ru"
+
+
+def display_name(d: dict, lang: str) -> str:
+    """Подпись узла, как в веб-редакторе: название для людей, идентификатор — если названия нет;
+    у устройства перед названием — сокращение."""
+    title = _txt(d.get("title"), lang) or ("—" if d.get("name") is None else str(d["name"]))
+    return f"{d['short']} · {title}" if d.get("short") else title
+
+
+def device_label(d: dict, lang: str) -> str:
+    """Короткая подпись устройства в ссылках на него: сокращение, иначе полное название."""
+    return str(d["short"]) if d.get("short") else display_name(d, lang)
+
+
+def map_tree(a: Analysis) -> list[dict]:
+    """Узлы: kind, label, ident, description, dir (кадры), from (принимаемые кадры), range, selection, children.
+
+    Подписи — как в дереве веб-редактора: названия (title) на языке документа, идентификатор (``ident``)
+    только если названия нет. Строится по сырому YAML, вычисленные ID и биты — из модели, если карта разобрана.
     """
     raw = a.result.raw
     buses = raw.get("buses") if isinstance(raw, dict) else None
     if not isinstance(buses, list):
         return []
+    lang = doc_language(a)
 
     def rng(path: Path_) -> dict | None:
         block = a.block(path)
@@ -296,7 +324,7 @@ def map_tree(a: Analysis) -> list[dict]:
             sub = f"PGN {_hexw(f['pgn'], 4)}"
         elif isinstance(rf, M.Frame) and rf.can_id is not None:
             sub = _hex(rf.can_id, rf.extended)
-        node = {"kind": "frame", "label": name_of(f), "description": sub,
+        node = {"kind": "frame", "label": display_name(f, lang), "ident": name_of(f), "description": sub,
                 "dir": rf.direction if isinstance(rf, M.Frame) and rf.device is not None else None,
                 "children": [], **loc}
         for si, s in enumerate(_items(f.get("signals"))):
@@ -309,16 +337,17 @@ def map_tree(a: Analysis) -> list[dict]:
                 bits = occupied_bits(rs.start_bit or 0, rs.bit_length or 1, rs.byte_order == "big_endian")
                 lo, hi = min(bits), max(bits)
                 sub = str(lo) if lo == hi else f"{lo}–{hi}"
-            snode = {"kind": "signal", "label": name_of(s), "description": sub, "children": [], **sl}
+            snode = {"kind": "signal", "label": display_name(s, lang), "ident": name_of(s), "description": sub,
+                     "children": [], **sl}
             for fi, fl in enumerate(_items(s.get("flags"))):
                 if (fll := rng(sp + ("flags", fi))) is not None:
-                    snode["children"].append({"kind": "flag", "label": name_of(fl),
+                    snode["children"].append({"kind": "flag", "label": name_of(fl), "ident": name_of(fl),
                                               "description": _("бит {bit}", bit=fl.get("bit")),
                                               "children": [], **fll})
             node["children"].append(snode)
         for ei, e in enumerate(_items(f.get("sdo"))):
             if (el := rng(path + ("sdo", ei))) is not None:
-                node["children"].append({"kind": "sdo", "label": name_of(e),
+                node["children"].append({"kind": "sdo", "label": name_of(e), "ident": name_of(e),
                                          "description": f"{_hexw(e.get('index'), 4)}:{e.get('subindex', 0)}",
                                          "children": [], **el})
         return node
@@ -328,36 +357,51 @@ def map_tree(a: Analysis) -> list[dict]:
         bp = ("buses", bi)
         if (bl := rng(bp)) is None:
             continue
-        title = M.text(bus.get("title"), a.map.lang if a.map else "en") if bus.get("title") else ""
-        bnode = {"kind": "bus", "label": title or name_of(bus), "description": name_of(bus) if title else "",
+        bnode = {"kind": "bus", "label": display_name(bus, lang), "ident": name_of(bus), "description": "",
                  "children": [], **bl}
         for fi, f in enumerate(_items(bus.get("frames"))):
             if (fn := frame_node(f, bp + ("frames", fi))) is not None:
                 bnode["children"].append(fn)
         mbus = model(bp)
-        for di, d in enumerate(_items(bus.get("devices"))):
+        devices = _items(bus.get("devices"))
+        for di, d in enumerate(devices):
             dp = bp + ("devices", di)
             if (dl := rng(dp)) is None:
                 continue
             sub = (_hexw(d["node_id"], 2) if isinstance(d.get("node_id"), int)
                    else f"SA {_hexw(d['address'], 2)}" if isinstance(d.get("address"), int) else "")
-            label = f"{d['short']} · {name_of(d)}" if d.get("short") else name_of(d)
-            dnode = {"kind": "device", "label": label, "description": sub, "children": [], **dl}
+            dnode = {"kind": "device", "label": display_name(d, lang), "ident": name_of(d), "description": sub,
+                     "children": [], **dl}
             for fi, f in enumerate(_items(d.get("frames"))):
                 if (fn := frame_node(f, dp + ("frames", fi))) is not None:
                     dnode["children"].append(fn)
-            # Чужие кадры, которые устройство принимает, — ссылками после своих
+            # Чужие кадры, которые устройство принимает, — ссылками после своих; название кадра может
+            # не говорить, чей он, — в подписи ссылки указываем отправителя
             for rf in mbus.all_frames() if isinstance(mbus, M.Bus) else []:
                 own = rf.device is not None and rf.device.name == d.get("name")
                 if own or d.get("name") not in rf.receivers or (loc := rng(rf._path)) is None:
                     continue
+                sender = next((x for x in devices if x.get("name") == rf.sender_name), None)
+                sender_label = device_label(sender, lang) if sender else ""
+                frame = raw_at_path(raw, rf._path)
+                title = display_name(frame if isinstance(frame, dict) else {"name": rf.name}, lang)
                 dnode["children"].append({
-                    "kind": "frame", "label": rf.name, "dir": "rx", "from": rf.sender_name or "",
+                    "kind": "frame", "label": f"{sender_label} · {title}" if sender_label else title,
+                    "ident": rf.name, "dir": "rx", "from": sender_label or rf.sender_name or "",
                     "description": _hex(rf.can_id, rf.extended) if rf.can_id is not None else "",
                     "children": [], **loc})
             bnode["children"].append(dnode)
         out.append(bnode)
     return out
+
+
+def raw_at_path(raw, path: Path_):
+    for el in path:
+        try:
+            raw = raw[el]
+        except (KeyError, IndexError, TypeError):
+            return None
+    return raw
 
 
 def _items(v) -> list[dict]:

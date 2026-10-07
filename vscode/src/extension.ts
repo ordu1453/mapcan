@@ -4,13 +4,15 @@
 import * as vscode from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 import { registerTreeActions } from "./actions";
-import { exportMap } from "./export";
+import { ExportView } from "./export";
+import { NodeForm } from "./form";
 import { registerPreview } from "./preview";
 import { isMap, MapTree, revealNode } from "./tree";
 
 let client: LanguageClient | undefined;
 let output: vscode.LogOutputChannel | undefined;
 let tree: MapTree | undefined;
+let form: NodeForm | undefined;
 
 function serverOptions(): ServerOptions {
   const config = vscode.workspace.getConfiguration("mapcan.server");
@@ -76,21 +78,29 @@ async function openMap(): Promise<void> {
 }
 
 /** The returned object is used by the integration tests. */
-export async function activate(context: vscode.ExtensionContext): Promise<{ tree: MapTree }> {
+export async function activate(context: vscode.ExtensionContext): Promise<{ tree: MapTree; form: NodeForm }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
   tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
   const view = vscode.window.createTreeView("mapcan.map", { treeDataProvider: tree, showCollapseAll: true });
   tree.attach(view);
+  form = new NodeForm(context.extensionUri, tree, () => client, view);
+  const exportView = new ExportView(context, tree, () => client);
   context.subscriptions.push(
     output,
     tree,
     view,
+    form,
+    exportView,
+    vscode.window.registerWebviewViewProvider(NodeForm.viewId, form),
+    vscode.window.registerWebviewViewProvider(ExportView.viewId, exportView),
     vscode.commands.registerCommand("mapcan.restartServer", async () => {
       await stop();
       await start();
     }),
     vscode.commands.registerCommand("mapcan.showOutput", () => output?.show()),
-    vscode.commands.registerCommand("mapcan.export", () => exportMap(context, client, currentMap())),
+    vscode.commands.registerCommand("mapcan.export", () => exportView.reveal()),
+    vscode.commands.registerCommand("mapcan.closeForm", () => form?.close()),
+    vscode.commands.registerCommand("mapcan.revealFormNode", () => form?.reveal()),
     vscode.commands.registerCommand("mapcan.revealNode", revealNode),
     vscode.commands.registerCommand("mapcan.openMap", openMap),
     vscode.workspace.onDidChangeConfiguration(async (e) => {
@@ -100,10 +110,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<{ tree
       }
     }),
   );
-  registerTreeActions(context, tree, () => client);
+  registerTreeActions(context, tree, form, () => client);
   registerPreview(context, () => client, currentMap);
   await start();
-  return { tree };
+  return { tree, form };
 }
 
 export function deactivate(): Promise<void> {

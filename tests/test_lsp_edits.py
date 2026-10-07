@@ -149,6 +149,64 @@ def test_add_node(path, kind, line):
     assert [c for c in errors(out) if c not in errors(MINIMAL)] == []
 
 
+def test_add_bus_and_device_get_titles():
+    a = A.analyze(MINIMAL, "m.yaml")
+    out = _change(MINIMAL, E.add_node(a, (), "bus"))
+    assert out.endswith("  - name: bus\n    title: Bus 2\n    protocol: can\n")
+    out = _change(MINIMAL, E.add_node(a, ("buses", 0), "device"))
+    assert "      - name: device\n        title: Device 2\n        node_id: 0x01\n" in out
+    assert "missing-title" not in [d.code for d in A.analyze(out, "m.yaml").diagnostics]
+
+
+@pytest.mark.parametrize(("value", "text"), [
+    ("Pump state", "Pump state"), ("Состояние насоса", "Состояние насоса"), ("on", '"on"'), ("0x10", '"0x10"'),
+    ("a: b", '"a: b"'), ("x, y", '"x, y"'), ("- x", '"- x"'), ('say "hi"', 'say "hi"'), ("#1", '"#1"'),
+])
+def test_yaml_text(value, text):
+    assert E.yaml_text(value) == text
+
+
+def test_node_fields():
+    a = A.analyze(MINIMAL, "m.yaml")
+    f = E.node_fields(a, FRAME)
+    assert (f["kind"], f["lang"], f["protocol"], f["owner"]) == ("frame", "en", "canopen", "pump")
+    assert f["values"] == {"name": "pump_state", "type": "pdo_tx1", "description": "Pump state", "cycle_ms": 100}
+    assert f["devices"] == [{"name": "pump", "label": "PMP"}]
+    assert E.node_fields(a, ("buses", 0))["values"]["title"] == "Demo bus"
+    assert E.node_fields(a, FRAME + ("signals", 0))["units"][0] == ["В", "V"]
+    assert E.node_fields(a, FRAME + ("signals",)) is None
+
+
+def test_set_field():
+    a = A.analyze(MINIMAL, "m.yaml")
+    # Новое поле — рядом с остальными полями, перед списком сигналов
+    out = apply(MINIMAL, E.set_field(a, FRAME + ("title",), "Pump state"))
+    assert "            cycle_ms: 100\n            title: Pump state\n            signals:\n" in out
+    out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 0, "unit"), "rpm"))
+    assert "                byte: 0\n                unit: rpm\n                values:\n" in out
+    out = apply(MINIMAL, E.set_field(a, DEV + ("node_id",), 0x22))
+    assert "node_id: 0x22\n" in out
+    out = apply(MINIMAL, E.set_field(a, FRAME + ("description",), None))
+    assert "Pump state" not in out and errors(out) == errors(MINIMAL)
+    out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 3, "signed"), False))
+    assert "signed: false" in out
+    out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 2, "factor"), 0.1))
+    assert "factor: 0.1\n" in out
+    # Имя устройства меняется вместе со ссылками на него
+    assert E.set_field(a, DEV + ("name",), "pump") == []
+    assert [e.text for e in E.set_field(a, DEV + ("name",), "pump2")] == ["pump2"]
+    # Текст на нескольких языках меняется только на языке документа
+    text = MINIMAL.replace("    title: Demo bus", "    title: {ru: Шина, en: Demo bus}")
+    b = A.analyze(text, "m.yaml")
+    assert "    title: {ru: Шина, en: CAN 1}\n" in apply(text, E.set_field(b, ("buses", 0, "title"), "CAN 1"))
+    # Получатели: блочный список заменяется записью «[…]»
+    text = MINIMAL.replace("            cycle_ms: 100\n",
+                           "            cycle_ms: 100\n            receivers:\n              - a\n")
+    c = A.analyze(text, "m.yaml")
+    out = apply(text, E.set_field(c, FRAME + ("receivers",), ["a", "b"]))
+    assert "            receivers: [a, b]\n            signals:" in out
+
+
 def test_add_signal_to_flow_list_and_empty_frame():
     text = MINIMAL.replace("          - name: pump_state", (
         "          - name: f2\n            id: 0x300\n            signals: [{name: a, byte: 0}]\n"

@@ -47,8 +47,22 @@
       "mapcan": [
         {
           "id": "mapcan.map",
-          "name": "mapcan",
+          "name": "Map",
           "icon": "media/mapcan.svg"
+        },
+        {
+          "id": "mapcan.form",
+          "type": "webview",
+          "name": "Node",
+          "icon": "media/mapcan.svg",
+          "when": "mapcan.formOpen"
+        },
+        {
+          "id": "mapcan.export",
+          "type": "webview",
+          "name": "Export",
+          "icon": "media/mapcan.svg",
+          "when": "mapcan.mapOpen"
         }
       ]
     },
@@ -62,24 +76,38 @@
     "menus": {
       "view/title": [
         {
+          "command": "mapcan.addBus",
+          "when": "view == mapcan.map && mapcan.mapOpen",
+          "group": "navigation@0"
+        },
+        {
           "command": "mapcan.openPreview",
           "when": "view == mapcan.map && mapcan.mapOpen",
           "group": "navigation@1"
         },
         {
-          "command": "mapcan.export",
-          "when": "view == mapcan.map && mapcan.mapOpen",
-          "group": "navigation@2"
-        },
-        {
           "command": "mapcan.compareWithRevision",
           "when": "view == mapcan.map && mapcan.mapOpen",
           "group": "1_map@1"
+        },
+        {
+          "command": "mapcan.revealFormNode",
+          "when": "view == mapcan.form",
+          "group": "navigation@0"
+        },
+        {
+          "command": "mapcan.closeForm",
+          "when": "view == mapcan.form",
+          "group": "navigation@1"
         }
       ],
       "commandPalette": [
         {
           "command": "mapcan.export",
+          "when": "mapcan.mapOpen"
+        },
+        {
+          "command": "mapcan.addBus",
           "when": "mapcan.mapOpen"
         },
         {
@@ -113,6 +141,18 @@
         {
           "command": "mapcan.compareWithRevision",
           "when": "mapcan.mapOpen"
+        },
+        {
+          "command": "mapcan.editNode",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.closeForm",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.revealFormNode",
+          "when": "false"
         }
       ],
       "view/item/context": [
@@ -132,6 +172,11 @@
           "group": "inline@1"
         },
         {
+          "command": "mapcan.editNode",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
+          "group": "inline@2"
+        },
+        {
           "command": "mapcan.addDevice",
           "when": "view == mapcan.map && viewItem == bus",
           "group": "1_add@1"
@@ -145,6 +190,11 @@
           "command": "mapcan.addSignal",
           "when": "view == mapcan.map && viewItem == frame",
           "group": "1_add@3"
+        },
+        {
+          "command": "mapcan.editNode",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
+          "group": "2_edit@0"
         },
         {
           "command": "mapcan.renameNode",
@@ -166,7 +216,7 @@
     "commands": [
       {
         "command": "mapcan.export",
-        "title": "Export…",
+        "title": "Export",
         "category": "mapcan",
         "icon": "$(export)"
       },
@@ -204,6 +254,12 @@
         "icon": "$(git-compare)"
       },
       {
+        "command": "mapcan.addBus",
+        "title": "Add Bus",
+        "category": "mapcan",
+        "icon": "$(add)"
+      },
+      {
         "command": "mapcan.addDevice",
         "title": "Add Device",
         "category": "mapcan",
@@ -222,6 +278,12 @@
         "icon": "$(add)"
       },
       {
+        "command": "mapcan.editNode",
+        "title": "Edit…",
+        "category": "mapcan",
+        "icon": "$(edit)"
+      },
+      {
         "command": "mapcan.renameNode",
         "title": "Rename…",
         "category": "mapcan"
@@ -236,6 +298,18 @@
         "title": "Delete",
         "category": "mapcan",
         "icon": "$(trash)"
+      },
+      {
+        "command": "mapcan.closeForm",
+        "title": "Close",
+        "category": "mapcan",
+        "icon": "$(close)"
+      },
+      {
+        "command": "mapcan.revealFormNode",
+        "title": "Show in Editor",
+        "category": "mapcan",
+        "icon": "$(go-to-file)"
       }
     ],
     "configuration": {
@@ -261,7 +335,7 @@
         "mapcan.export.outputDir": {
           "type": "string",
           "default": "build",
-          "markdownDescription": "Folder for **mapcan: Export…** results, relative to the map's folder (absolute paths also work).",
+          "markdownDescription": "Folder for the **Export** panel's results, relative to the map's folder (absolute paths also work). A folder chosen in the panel takes precedence for that map.",
           "scope": "resource"
         }
       }

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+* The Map view shows names for people (titles, "abbreviation · full name" for devices, the sender
+  of received frames) instead of identifiers, as the web editor does; identifiers are in tooltips.
+* The **+** buttons open the new node in the **Node** panel, whose fields are written to the YAML as
+  you type, with a list of standard units for the unit field. **Edit…** opens existing nodes there. New buses and devices get a default full name.
+* **Add Bus** in the Map view title.
+* Export moved to its own **Export** panel in the side bar: formats, output folder, exported files.
+
 ## 0.1.0
 
 * First version: validation, hovers with frame bit layouts, inlay hints with computed CAN IDs and

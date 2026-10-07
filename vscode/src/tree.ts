@@ -15,10 +15,18 @@ export function isMap(doc: vscode.TextDocument | undefined): doc is vscode.TextD
 
 export type Kind = "bus" | "device" | "frame" | "signal" | "flag" | "sdo";
 
-/** A node as the server sends it; ranges are [line, character, line, character]. */
+export const KIND_TITLE: Record<Kind, string> = {
+  bus: "Bus", device: "Device", frame: "Frame", signal: "Signal", flag: "Flag", sdo: "SDO exchange",
+};
+
+/**
+ * A node as the server sends it; ranges are [line, character, line, character]. The label is the
+ * human-readable title, as in the web editor's tree; `ident` is the identifier from YAML.
+ */
 interface RawNode {
   kind: Kind;
   label: string;
+  ident?: string;
   description: string;
   dir?: "tx" | "rx" | null;
   from?: string;
@@ -125,7 +133,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
   }
 
   getTreeItem(node: MapNode): vscode.TreeItem {
-    const { kind, label, description, dir, from } = node.raw;
+    const { kind, label, ident, description, dir, from } = node.raw;
     const state = node.children.length === 0
       ? vscode.TreeItemCollapsibleState.None
       : kind === "bus" || kind === "device"
@@ -135,14 +143,17 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     item.id = node.id;
     item.description = from !== undefined ? `${description} ↪`.trim() : description;
     item.contextValue = node.isLink ? "frameLink" : kind;
+    // The identifier is not in the label (only titles are), so the tooltip shows it
+    const lines = [`${KIND_TITLE[kind]} ${ident ?? label}`];
     if (kind === "frame") {
       item.iconPath = this.icon(dir === "tx" ? "frame-tx" : dir === "rx" ? "frame-rx" : "frame-broadcast");
-      item.tooltip = from !== undefined
+      lines.push(from !== undefined
         ? `Received from ${from || "outside the map"}`
-        : dir === "tx" ? "TX" : dir === "rx" ? "RX" : "Broadcast";
+        : dir === "tx" ? "TX" : dir === "rx" ? "RX" : "Broadcast");
     } else {
       item.iconPath = this.icon(kind);
     }
+    item.tooltip = lines.join("\n");
     const problem = node.isLink ? undefined : this.problems.get(node.id);
     if (problem) {
       // Only the decoration provider reads this URI: it colors the label like a file with problems.
@@ -184,6 +195,14 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
       yield n;
       yield* this.nodes(n.children);
     }
+  }
+
+  /** The node (not a link) at a YAML path. */
+  nodeByPath(path: (string | number)[]): MapNode | undefined {
+    for (const n of this.nodes()) {
+      if (n.path.length === path.length && n.path.every((x, i) => String(x) === String(path[i]))) return n;
+    }
+    return undefined;
   }
 
   /** The deepest node whose text contains the position. */

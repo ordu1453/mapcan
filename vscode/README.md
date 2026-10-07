@@ -6,11 +6,17 @@ file with a top-level `mapcan: 1` key. Other YAML files are left alone.
 ## Features
 
 * **Map view.** The mapcan icon in the Activity Bar opens the buses, devices, frames, signals and
-  flags of the active map, with computed CAN IDs and signal bits.
+  flags of the active map, with computed CAN IDs and signal bits. Nodes are labelled with their
+  names for people (`title`, a device as "abbreviation · full name"), as in the web editor; a node
+  without a title shows its identifier, and the tooltip always shows it.
   * Clicking a node selects its lines in the editor, and moving the cursor selects the node under it.
-  * The **+** button and the context menu add devices, frames and signals. The context menu also
-    renames (F2), duplicates and deletes (Delete) nodes. Every change is a normal edit, so Undo
-    reverts it.
+  * The **+** buttons add buses, devices, frames and signals. The new node opens in the **Node**
+    panel below the tree: its fields (name, identifier, ID, position, scaling…) are written to the
+    YAML as you type, so the editor shows each change. The unit field offers the standard units
+    and accepts any other text. **Done** closes the panel, **Discard** deletes the new node. **Edit…** (the pencil) opens any node in the same panel; while it is open,
+    it follows the selection in the tree.
+  * The context menu also renames (F2), duplicates and deletes (Delete) nodes. Every change is a
+    normal edit, so Undo reverts it.
   * Nodes with errors or warnings are colored, and a badge shows how many problems they have.
 * **Quick fixes** (the light bulb, Ctrl+.):
   * decimal commas, a Cyrillic «х» in hex numbers and hex numbers in quotes;
@@ -25,9 +31,10 @@ file with a top-level `mapcan: 1` key. Other YAML files are left alone.
 * **Preview and comparison.** **mapcan: Open Document Preview** shows the map's document in the
   Markdown preview and follows edits. **mapcan: Compare with Revision…** lists the map's Git
   history and shows what changed since the chosen version.
-* **Export.** **mapcan: Export…** (also the button in the Map view) builds DBC, C and Python code,
-  Excel, PDF, Markdown and HTML from the current text of the map, unsaved edits included, into
-  `build/` next to the map. It refuses while the map has errors.
+* **Export.** The **Export** panel in the mapcan side bar builds DBC, C and Python code, Excel, PDF,
+  Markdown and HTML from the current text of the map, unsaved edits included, into `build/` next
+  to the map or the folder chosen in the panel, and lists the files it wrote. It refuses while the
+  map has errors.
 * **Validation as you type.** mapcan reports errors and warnings in the editor and in the Problems
   panel, each with its rule code.
 * **Hovers.**
@@ -64,11 +71,12 @@ If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable.
 |---|---|---|
 | `mapcan.server.path` | `""` | Path to the `mapcan` executable; empty uses `PATH` |
 | `mapcan.server.args` | `["lsp"]` | Arguments for the executable |
-| `mapcan.export.outputDir` | `"build"` | Export folder, relative to the map's folder |
+| `mapcan.export.outputDir` | `"build"` | Export folder, relative to the map's folder; a folder chosen in the Export panel takes precedence for that map |
 
 ## Commands
 
-* **mapcan: Export…**
+* **mapcan: Export** (shows the Export panel)
+* **mapcan: Add Bus**
 * **mapcan: Open Document Preview**
 * **mapcan: Compare with Revision…**
 * **mapcan: Restart Language Server**

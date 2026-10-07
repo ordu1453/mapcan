@@ -74,8 +74,8 @@ def _flat(nodes: list[dict], depth: int = 0) -> list[tuple]:
 def test_map_tree_matches_web_editor(minimal):
     rows = _flat(A.map_tree(minimal))
     assert rows[:5] == [
-        (0, "bus", None, "Demo bus", "demo", None),
-        (1, "device", None, "PMP · pump", "0x21", None),
+        (0, "bus", None, "Demo bus", "", None),
+        (1, "device", None, "PMP · Pump", "0x21", None),
         (2, "frame", "tx", "pump_state", "0x1A1", None),
         (3, "signal", None, "mode", "0–7", None),
         (3, "signal", None, "alarms", "8–15", None),
@@ -118,9 +118,11 @@ def test_map_tree_selects_whole_blocks():
 def test_map_tree_received_frames_and_pgn():
     a = A.analyze((ROOT / "examples" / "j1939.yaml").read_text(encoding="utf-8"), "j1939.yaml")
     rows = _flat(A.map_tree(a))
-    assert (2, "frame", "tx", "eec1", "PGN 0xF004", None) in rows
-    assert (2, "frame", "rx", "eec1", "0x0CF00400", "engine") in rows
-    assert (1, "device", None, "ECU · engine", "SA 0x00", None) in rows
+    # Подписи — названия для людей, как в веб-редакторе; у принимаемого кадра — отправитель
+    assert (2, "frame", "tx", "EEC1", "PGN 0xF004", None) in rows
+    assert (2, "frame", "rx", "ECU · EEC1", "0x0CF00400", "ECU") in rows
+    assert (1, "device", None, "ECU · Engine control unit", "SA 0x00", None) in rows
+    assert A.map_tree(a)[0]["children"][0]["ident"] == "engine"
 
 
 def test_symbols_survive_model_errors():

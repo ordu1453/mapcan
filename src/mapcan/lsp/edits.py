@@ -14,8 +14,9 @@ from dataclasses import dataclass, field
 from .. import model as M
 from ..bits import occupied_bits
 from ..i18n import _
+from ..units import UNITS
 from ..validate import STYLE_RE
-from .analysis import Analysis, Path_, Pos, enum_choices, model_for
+from .analysis import Analysis, Path_, Pos, _txt, doc_language, enum_choices, model_for
 
 _PLAIN = re.compile(r"^[A-Za-z0-9_.+-]+$")
 
@@ -514,11 +515,29 @@ def _free_number(values, lo: int, hi: int) -> int | None:
     return next((v for v in range(lo, hi + 1) if v not in used), None)
 
 
+def _default_title(a: Analysis, ru: str, en: str, siblings) -> str:
+    """Полное название нового узла на языке документа: «Шина 2», «Device 3» — первое свободное среди соседей
+    (как в веб-редакторе)."""
+    lang = doc_language(a)
+    base = en if lang == "en" else ru
+    taken = {_txt(s.get("title"), lang) for s in siblings or [] if isinstance(s, dict)}
+    n = len(siblings or []) + 1
+    while f"{base} {n}" in taken:
+        n += 1
+    return f"{base} {n}"
+
+
 def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
-    """Добавить устройство (в шину), кадр (в шину или устройство) или сигнал (в кадр)."""
+    """Добавить шину (в карту), устройство (в шину), кадр (в шину или устройство) или сигнал (в кадр)."""
+    if kind == "bus" and path == ():
+        buses = raw_at(a, ("buses",)) or []
+        return append_item(a, (), "buses", [("name", _unique("bus", _names(buses))),
+                                            ("title", yaml_text(_default_title(a, "Шина", "Bus", buses))),
+                                            ("protocol", "can")])
     if kind == "device" and len(path) == 2:
         devices = raw_at(a, path + ("devices",)) or []
-        fields = [("name", _unique("device", _names(devices)))]
+        fields = [("name", _unique("device", _names(devices))),
+                  ("title", yaml_text(_default_title(a, "Устройство", "Device", devices)))]
         protocol = (raw_at(a, path) or {}).get("protocol", "canopen")
         if protocol == "canopen" and (nid := _free_number([d.get("node_id") for d in devices
                                                           if isinstance(d, dict)], 1, 127)):
@@ -622,6 +641,142 @@ def delete_node(a: Analysis, path: Path_) -> TextChange | None:
             lines[kline] = lines[kline][:kr[1][1]] + ": []"
             cursor = (kline, kr[0][1])
     return TextChange(_join(a, lines), cursor)
+
+
+# --------------------------------------------------------------------------- #
+# Поля узла (форма в боковой панели)
+# --------------------------------------------------------------------------- #
+
+#: Тексты, которые могут быть записаны на нескольких языках ({ru, en}).
+TEXT_KEYS = {"title", "subtitle", "description", "comment"}
+#: Поля, которые пишутся в шестнадцатеричном виде.
+HEX_KEYS = {"id", "pgn", "node_id", "address", "index", "subindex", "command", "destination"}
+
+
+def node_kind(path: Path_) -> str | None:
+    """Тип узла дерева по форме пути."""
+    if len(path) == 2 and path[0] == "buses":
+        return "bus"
+    if len(path) >= 2 and isinstance(path[-1], int):
+        return {"devices": "device", "frames": "frame", "signals": "signal", "flags": "flag",
+                "sdo": "sdo"}.get(path[-2])
+    return None
+
+
+_RESERVED = re.compile(r"(?i)true|false|yes|no|on|off|null|~|[-+]?(0x[0-9a-f]+|[\d.]+(e[-+]?\d+)?)")
+
+
+def yaml_text(value: str) -> str:
+    """Текст для людей в YAML: без кавычек, если YAML прочитает его как ту же строку (пробелы и любые
+    буквы допустимы; запятые и скобки — нет, чтобы текст годился и для записи «{…}»), иначе в кавычках."""
+    plain = (value == value.strip() and value != "" and value[0] not in "-?:!&*|>'\"%@`"
+             and not any(c in value for c in ",[]{}#\n\r\t") and ": " not in value and not value.endswith(":")
+             and not _RESERVED.fullmatch(value))
+    return value if plain else '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _insert_field(a: Analysis, map_path: Path_, key: str, text: str) -> list[Edit]:
+    """Добавить ключ в словарь: в блочной записи — перед первым вложенным списком или словарём
+    (``signals``, ``values``…), чтобы поле оказалось рядом с остальными полями узла."""
+    n = a.nodes.get(map_path)
+    raw = raw_at(a, map_path)
+    if n is None or _is_flow(a, map_path) or not isinstance(raw, dict):
+        return insert_key(a, map_path, key, text)
+    for k, v in raw.items():
+        kr = key_range(a, map_path + (k,)) if isinstance(v, (dict, list)) else None
+        if kr and kr[0][0] > n.start[0]:
+            pos = (kr[0][0], 0)
+            return [Edit(pos, pos, f"{' ' * n.start[1]}{key}: {text}\n")]
+    return insert_key(a, map_path, key, text)
+
+
+def format_value(key: str, value) -> str:
+    """Значение поля формы → текст YAML."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        if key in HEX_KEYS and value >= 0:
+            width = 2 if value <= 0xFF else 3 if value <= 0xFFF else 4 if value <= 0xFFFF else 8
+            return f"0x{value:0{width}X}"
+        return str(value)
+    if isinstance(value, float):
+        return str(int(value)) if value.is_integer() else repr(value)
+    return yaml_text(str(value)) if key in TEXT_KEYS or key == "unit" else yaml_scalar(str(value))
+
+
+def node_fields(a: Analysis, path: Path_) -> dict | None:
+    """Данные узла для формы: тип, язык документа, протокол шины, владелец кадра, устройства шины
+    и скалярные поля (тексты {ru, en} — на языке документа)."""
+    raw = raw_at(a, path)
+    kind = node_kind(path)
+    if kind is None or not isinstance(raw, dict):
+        return None
+    lang = doc_language(a)
+    bus = raw_at(a, path[:2]) if path[:1] == ("buses",) else None
+    bus = bus if isinstance(bus, dict) else {}
+    values = {}
+    for k, v in raw.items():
+        if isinstance(v, dict) and k in TEXT_KEYS:
+            values[k] = _txt(v, lang)
+        elif isinstance(v, (str, int, float, bool)) or v is None:
+            values[k] = v
+        elif isinstance(v, list) and all(isinstance(x, (str, int)) for x in v):
+            values[k] = list(v)
+        elif not isinstance(v, (dict, list)):
+            values[k] = str(v)
+    owner = raw_at(a, path[:4]) if len(path) >= 6 and path[2] == "devices" else None
+    devices = [(d.get("name"), _txt(d.get("short"), lang) or _txt(d.get("title"), lang) or d.get("name"))
+               for d in bus.get("devices") or [] if isinstance(d, dict) and isinstance(d.get("name"), str)]
+    # Вычисленный тип сигнала (kind по умолчанию выводится из полей), если карта разобрана
+    signal = _find(a.map, path) if a.map is not None and kind == "signal" else None
+    return {"kind": kind, "path": list(path), "lang": lang, "protocol": bus.get("protocol") or "canopen",
+            "owner": owner.get("name") if isinstance(owner, dict) else None,
+            "signalKind": signal.kind if isinstance(signal, M.Signal) else values.get("kind"),
+            "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
+            # Справочник единиц (ru, en) для подсказок в поле «Единица»; свой текст тоже допустим
+            "units": [list(u) for u in UNITS] if kind == "signal" else []}
+
+
+def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
+    """Записать поле узла (``path`` — путь поля): новое значение, ``None`` или "" — удалить ключ.
+
+    Имя переименовывается вместе со ссылками на него; текст, записанный на нескольких языках,
+    меняется только на языке документа.
+    """
+    if not path or not isinstance(path[-1], str) or not isinstance(raw_at(a, path[:-1]), dict):
+        return []
+    key = path[-1]
+    current = raw_at(a, path)
+    if value is None or value == "":
+        if current is None or path not in a.nodes:
+            return []
+        if isinstance(current, dict) and key in TEXT_KEYS:
+            lang = doc_language(a)
+            return delete_key(a, path + (lang,)) if lang in current else []
+        return delete_key(a, path)
+    if key == "name":
+        return rename_edits(a, path, str(value)) if value != current else []
+    if isinstance(current, dict) and key in TEXT_KEYS:
+        lang = doc_language(a)
+        return set_value(a, path + (lang,), yaml_text(str(value))) if current.get(lang) != value else []
+    if isinstance(value, list):
+        text = "[" + ", ".join(format_value(key, v) for v in value) + "]"
+        if isinstance(current, list):
+            n = a.nodes.get(path)
+            if n is None:
+                return []
+            if not _is_flow(a, path):
+                # Блочный список — заменяется записью «[…]» после ключа
+                kr, block = key_range(a, path), a.block(path)
+                return [Edit(kr[1], block[1], f": {text}")] if kr and block else []
+            close = a._closing(n.start)
+            return [Edit(n.start, close, text)] if close else []
+        return _insert_field(a, path[:-1], key, text)
+    if isinstance(current, (dict, list)) or current == value and type(current) is type(value):
+        return []
+    if path not in a.nodes:
+        return _insert_field(a, path[:-1], key, format_value(key, value))
+    return set_value(a, path, format_value(key, value))
 
 
 def minimal_edit(old: str, new: str) -> Edit:

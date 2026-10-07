@@ -28,11 +28,12 @@ const tests = {
       return r.length ? r : undefined;
     });
     const bus = ctx.api.tree.getTreeItem(roots[0]);
-    assert.deepEqual([bus.label, bus.description], ["Demo bus", "demo"]);
+    // Titles, as in the web editor; the identifier is in the tooltip
+    assert.deepEqual([bus.label, bus.description, bus.tooltip], ["Demo bus", "", "Bus demo"]);
     const device = ctx.api.tree.getChildren(roots[0])[0];
-    assert.equal(ctx.api.tree.getTreeItem(device).label, "PMP · pump");
+    assert.equal(ctx.api.tree.getTreeItem(device).label, "PMP · Pump");
     const frame = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(device)[0]);
-    assert.deepEqual([frame.label, frame.description, frame.tooltip], ["pump_state", "0x1A1", "TX"]);
+    assert.deepEqual([frame.label, frame.description, frame.tooltip], ["pump_state", "0x1A1", "Frame pump_state\nTX"]);
     assert.match(frame.iconPath.dark.path, /tree\/dark\/frame-tx\.svg$/);
     assert.ok(fs.existsSync(frame.iconPath.dark.fsPath));
     assert.equal(ctx.api.tree.mapUri.toString(), ctx.doc.uri.toString());
@@ -100,6 +101,29 @@ const tests = {
       await until(`tree without ${label}`, () => !frame().children.some((s) => s.raw.label === label));
     }
     assert.equal(ctx.doc.getText(), before);
+  },
+
+  async "a node added with + opens in the form, which writes fields to the YAML"(ctx) {
+    const tree = ctx.api.tree;
+    const form = ctx.api.form;
+    const frame = () => tree.getChildren(tree.getChildren(tree.getChildren()[0])[0])[0];
+    const before = ctx.doc.getText();
+    await vscode.commands.executeCommand("mapcan.addSignal", frame());
+    const added = await until("new signal", () => frame().children.find((s) => s.raw.ident === "signal"));
+    assert.deepEqual(form.openPath, added.path);
+    const set = (key, value) => vscode.commands.executeCommand("mapcan.lsp.set",
+      { uri: ctx.doc.uri.toString(), path: [...added.path, key], value });
+    const result = await set("title", "Battery voltage");
+    const edit = new vscode.WorkspaceEdit();
+    for (const e of result.edits) edit.replace(ctx.doc.uri, new vscode.Range(...e.range), e.text);
+    await vscode.workspace.applyEdit(edit);
+    assert.match(ctx.doc.getText(), /- name: signal\n {16}start_bit: 60\n {16}bit_length: 1\n {16}title: Battery voltage\n/);
+    await until("tree with the title", () => frame().children.some((s) => s.raw.label === "Battery voltage"));
+    await vscode.commands.executeCommand("mapcan.deleteNode", frame().children.find((s) => s.raw.ident === "signal"));
+    assert.equal(form.openPath, undefined);
+    await until("tree without the signal", () => !frame().children.some((s) => s.raw.ident === "signal"));
+    assert.equal(ctx.doc.getText(), before);
+    await vscode.commands.executeCommand("mapcan.export");
   },
 
   async "quick fix corrects a decimal comma"(ctx) {
@@ -171,6 +195,8 @@ const tests = {
   },
 
   async "preview and comparison render Markdown"(ctx) {
+    // The previous test undoes an edit; the preview needs the server to have checked the map again
+    await until("no errors", () => vscode.languages.getDiagnostics(ctx.doc.uri).every((d) => d.severity > 0));
     await vscode.commands.executeCommand("mapcan.openPreview");
     const uri = vscode.Uri.from({ scheme: "mapcan-preview", path: "/minimal.md", query: ctx.doc.uri.toString() });
     const preview = await vscode.workspace.openTextDocument(uri);
