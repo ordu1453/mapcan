@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 * The Map view shows names for people (titles, "abbreviation · full name" for devices, the sender
   of received frames) instead of identifiers, as the web editor does; identifiers are in tooltips.
