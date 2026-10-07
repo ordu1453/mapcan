@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // Правка YAML целиком. Текст без синтаксических ошибок применяется по ходу ввода (дерево и проверка
 // обновляются сразу), Ctrl+Enter или кнопка — применить немедленно; проверка та же, что в CLI.
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { api } from "../api";
 import { actions, diagnostics as diags, store, tree, yamlLocal as local } from "../store";
 import { samePath, type TreeNode } from "../model";
 import { highlight, keyEdit, nodeAtLine, nodeLines, type TextEdit } from "../yamltext";
+import { complete, type CompletionList, type Schema } from "../yamlcomplete";
 import { t } from "../i18n";
 
 // Черновик живёт в store: при переходе на другую вкладку он не теряется, а применяется.
@@ -16,7 +17,9 @@ const text = computed({
 const ta = ref<HTMLTextAreaElement | null>(null);
 const gutter = ref<HTMLDivElement | null>(null);
 const code = ref<HTMLPreElement | null>(null);
+const box = ref<HTMLDivElement | null>(null);
 const scrollTop = ref(0);
+const scrollLeft = ref(0);
 const LINE = 20;
 
 const lines = computed(() => text.value.split("\n").length);
@@ -57,8 +60,76 @@ function selectAtCursor() {
 }
 
 function onKeyUp(e: KeyboardEvent) {
-  if (/^(Arrow|Page|Home|End)/.test(e.key)) selectAtCursor();
+  if (/^(Arrow|Page|Home|End)/.test(e.key) && !(hint.value && /^Arrow(Up|Down)$/.test(e.key))) {
+    hint.value = null;
+    selectAtCursor();
+  }
 }
+
+// ---- подсказки ключей и значений по схеме формата (Ctrl+Space — показать вручную)
+let schema: Schema | null = null;
+const hint = ref<CompletionList | null>(null);
+const hintIdx = ref(0);
+const charWidth = ref(8);
+
+onMounted(async () => {
+  if (ta.value) {
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (ctx) {
+      ctx.font = getComputedStyle(ta.value).font;
+      charWidth.value = ctx.measureText("0".repeat(20)).width / 20;
+    }
+  }
+  try {
+    schema = await api.schema();
+  } catch {
+    /* без схемы — без подсказок */
+  }
+});
+
+function showHint(force = false) {
+  const el = ta.value;
+  hint.value = el && schema && !el.readOnly && el.selectionStart === el.selectionEnd
+    ? complete(el.value, el.selectionStart, schema, force) : null;
+  hintIdx.value = 0;
+}
+
+function onInput(e: Event) {
+  const kind = (e as InputEvent).inputType ?? "";
+  const el = ta.value;
+  // Новый элемент списка «- », начало «{» или следующий ключ после «, » — сразу поля
+  const lineHead = el ? el.value.slice(el.value.lastIndexOf("\n", el.selectionStart - 1) + 1, el.selectionStart) : "";
+  if (kind === "insertText" && (/^\s*-\s$/.test(lineHead) || /(\{|,\s)$/.test(lineHead))) showHint(true);
+  else if (kind.startsWith("insert") && kind !== "insertFromPaste") showHint();
+  else if (hint.value && kind.startsWith("delete")) showHint();
+  else hint.value = null;
+}
+
+function acceptHint(i: number) {
+  const c = hint.value?.items[i];
+  const el = ta.value;
+  hint.value = null;
+  if (!c || !el) return;
+  replace(el, c.edit);
+  if (c.chain) showHint(true);
+}
+
+// Список — под строкой курсора, у начала слова; у нижнего края — над строкой.
+const hintStyle = computed(() => {
+  const h = hint.value;
+  if (!h) return {};
+  const left = 10 + h.col * charWidth.value - scrollLeft.value;
+  const top = 6 + (h.line + 1) * LINE - scrollTop.value;
+  const height = box.value?.clientHeight ?? 0;
+  return top + 230 > height && top - LINE > 230
+    ? { left: left + "px", bottom: height - (top - LINE) + "px" }
+    : { left: left + "px", top: top + "px" };
+});
+
+watch(hintIdx, async () => {
+  await nextTick();
+  box.value?.querySelector(".yaml-suggest li.active")?.scrollIntoView({ block: "nearest" });
+});
 
 // Живая проверка: неприменённый текст проверяется на сервере с задержкой после ввода
 // и, если он разбирается, применяется (одним шагом отмены на всю серию ввода). Результат проверки
@@ -112,6 +183,7 @@ const lineMessages = computed(() => {
 function syncScroll() {
   if (!ta.value) return;
   scrollTop.value = ta.value.scrollTop;
+  scrollLeft.value = ta.value.scrollLeft;
   if (gutter.value) gutter.value.scrollTop = ta.value.scrollTop;
   if (code.value) {
     code.value.scrollTop = ta.value.scrollTop;
@@ -179,6 +251,28 @@ function onKey(e: KeyboardEvent) {
     void apply();
     return;
   }
+  if (hint.value && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const n = hint.value.items.length;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      hintIdx.value = (hintIdx.value + (e.key === "ArrowDown" ? 1 : n - 1)) % n;
+      return;
+    }
+    if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
+      e.preventDefault();
+      acceptHint(hintIdx.value);
+      return;
+    }
+    if (e.key === "Escape") {
+      hint.value = null;
+      return;
+    }
+  }
+  if (e.ctrlKey && e.code === "Space") {
+    e.preventDefault();
+    showHint(true);
+    return;
+  }
   if (e.key === "Escape") {
     tabLeaves = true;
     return;
@@ -212,14 +306,23 @@ function onKey(e: KeyboardEvent) {
         <div v-for="n in lines" :key="n" :class="[marks.get(n), { 'in-node': inRange(n) }]" :title="lineMessages.get(n)"
              :style="{ height: LINE + 'px' }">{{ n }}</div>
       </div>
-      <div class="yaml-code">
+      <div ref="box" class="yaml-code">
         <!-- Подсветка — слои под прозрачным текстом textarea; прокрутка синхронизируется. -->
         <div v-if="range" class="yaml-node" :style="{ top: 6 + (range.first - 1) * LINE - scrollTop + 'px',
              height: (range.last - range.first + 1) * LINE + 'px' }" />
         <pre ref="code" class="yaml-hl mono" aria-hidden="true" :style="{ lineHeight: LINE + 'px' }"><code v-html="html" /></pre>
         <textarea ref="ta" v-model="text" class="mono" spellcheck="false" :readonly="store.state?.readonly"
-                  :style="{ lineHeight: LINE + 'px' }" @scroll="syncScroll" @keydown="onKey"
-                  @keyup="onKeyUp" @mouseup="selectAtCursor" />
+                  :style="{ lineHeight: LINE + 'px' }" @scroll="syncScroll" @keydown="onKey" @input="onInput"
+                  @keyup="onKeyUp" @mouseup="hint = null; selectAtCursor()" @blur="hint = null" />
+        <div v-if="hint" class="yaml-suggest" :style="hintStyle" @mousedown.prevent>
+          <ul>
+            <li v-for="(c, i) in hint.items" :key="c.label" :class="{ active: i === hintIdx }"
+                @mouseenter="hintIdx = i" @click="acceptHint(i)">
+              <span class="mono">{{ c.label }}</span><span class="muted">{{ c.detail }}</span>
+            </li>
+          </ul>
+          <div v-if="hint.items[hintIdx]?.doc" class="yaml-suggest-doc">{{ hint.items[hintIdx].doc }}</div>
+        </div>
       </div>
     </div>
   </div>

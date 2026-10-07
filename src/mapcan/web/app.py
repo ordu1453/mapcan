@@ -657,6 +657,13 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     # ---------------------------------------------------------------- export
 
+    @app.get("/api/schema")
+    async def get_schema() -> dict:
+        """JSON Schema формата — для подсказок во вкладке YAML."""
+        from ..schema import json_schema
+
+        return json_schema()
+
     @app.get("/api/templates")
     async def get_templates() -> dict:
         from ..export.pdf import DEFAULT_TEMPLATE_NAME, PDF_TEMPLATES

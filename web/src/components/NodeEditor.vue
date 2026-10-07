@@ -37,7 +37,7 @@ const fieldCtx = computed<FieldCtx>(() => {
     protocol: bus ? bus.protocol ?? "canopen" : "",
     kind: s?.kind, bitLength: s?.bit_length,
     hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
-    devices: (bus?.devices ?? []).map((d: any) => d.name),
+    devices: (bus?.devices ?? []).map((d: any) => d?.name).filter(Boolean),
     owner: frame?.device ?? null,
     direction: frame?.direction ?? null,
     sender: frame?.sender ?? null,
@@ -264,7 +264,7 @@ const childFrames = computed(() => {
   return (node.value?.frames ?? []).map((f: any, i: number) => {
     const p = [...path.value, "frames", i];
     const rf = resolvedFrames.value.get(pathKey(p));
-    return { path: p, name: f.name, id: rf ? hex(rf.can_id) : "—", type: f.type ?? "raw", desc: txt(f.description, lang.value), n: rf?.signals.length ?? 0 };
+    return { path: p, name: f?.name ?? "—", id: rf ? hex(rf.can_id) : "—", type: f?.type ?? "raw", desc: txt(f?.description, lang.value), n: rf?.signals.length ?? 0 };
   });
 });
 
@@ -276,7 +276,9 @@ const frameSignals = computed(() => {
   }));
 });
 
-const devices = computed(() => (kind.value === "bus" ? (node.value?.devices ?? []) : []));
+// Пустой элемент «- » в черновике YAML — null: показываем строку без полей
+const devices = computed(() => (kind.value === "bus" && Array.isArray(node.value?.devices)
+  ? node.value.devices.map((d: any) => (d && typeof d === "object" ? d : {})) : []));
 
 /** Обмен устройства — вычисляется из отправителей и получателей всех кадров шины. */
 const exchange = computed(() => {
@@ -284,7 +286,7 @@ const exchange = computed(() => {
   const name = node.value?.name;
   const bus = getAt(data.value, path.value.slice(0, 2));
   const label = (n: string | null) => {
-    const d = n ? (bus?.devices ?? []).find((x: any) => x.name === n) : null;
+    const d = n ? (bus?.devices ?? []).find((x: any) => x?.name === n) : null;
     return !n ? "—" : d?.short ? `${d.short} · ${n}` : n;
   };
   const onBus = (store.state?.resolved?.frames ?? []).filter((f) => f.path[1] === path.value[1]);
@@ -302,9 +304,9 @@ const exchange = computed(() => {
 const buses = computed(() => {
   if (kind.value !== "document") return [];
   return (data.value?.buses ?? []).map((b: any, i: number) => ({
-    path: ["buses", i], name: b.name, title: txt(b.title, lang.value), protocol: b.protocol ?? "can",
-    devices: b.devices?.length ?? 0,
-    frames: (b.frames?.length ?? 0) + (b.devices ?? []).reduce((n: number, d: any) => n + (d.frames?.length ?? 0), 0),
+    path: ["buses", i], name: b?.name ?? "—", title: txt(b?.title, lang.value), protocol: b?.protocol ?? "can",
+    devices: b?.devices?.length ?? 0,
+    frames: (b?.frames?.length ?? 0) + (b?.devices ?? []).reduce((n: number, d: any) => n + (d?.frames?.length ?? 0), 0),
   }));
 });
 // SDO-обмены — только у кадров CANopen
@@ -511,8 +513,8 @@ function onLayout(p: Path, start: number, length: number) {
       <table v-if="devices.length" class="list">
         <thead><tr><th>{{ t("Устройство") }}</th><th>node_id</th><th>{{ t("Полное название") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
         <tbody>
-          <tr v-for="(d, i) in devices" :key="d.name" class="clickable" @click="actions.select([...path, 'devices', i])">
-            <td class="mono">{{ d.short ? d.short + " · " : "" }}{{ d.name }}</td>
+          <tr v-for="(d, i) in devices" :key="i" class="clickable" @click="actions.select([...path, 'devices', i])">
+            <td class="mono">{{ d.short ? d.short + " · " : "" }}{{ d.name ?? "—" }}</td>
             <td class="mono">{{ d.node_id != null ? hex(d.node_id, 2) : "—" }}</td>
             <td>{{ txt(d.title, lang) }}</td><td>{{ d.frames?.length ?? 0 }}</td>
           </tr>

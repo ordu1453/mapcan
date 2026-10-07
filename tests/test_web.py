@@ -195,6 +195,13 @@ def test_check_text_does_not_apply(client):
     assert after["text"] == before["text"] and after["version"] == before["version"]
 
 
+
+def test_schema_for_yaml_hints(client):
+    from mapcan.schema import json_schema
+
+    assert client.get("/api/schema").json() == json_schema()
+
+
 SYNC = ["buses", 0, "frames", 0]
 
 

@@ -103,73 +103,79 @@ function signalSub(rs: ResolvedSignal | undefined): string {
   return rangeLabel(lo, hi);
 }
 
+// Данные могут не проходить проверку схемы (черновик YAML применяется по ходу ввода): пустой элемент «- » — null,
+// вместо списка — число. Дерево строится по тому, что есть; элемент без имени показывается как «—».
+const list = (v: unknown): Data[] => (Array.isArray(v) ? v.map(obj) : []);
+const obj = (v: unknown): Data => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+const nameOf = (v: Data): string => (v.name == null ? "—" : String(v.name));
+
 export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string): TreeNode[] {
   const doc: TreeNode = {
     key: "document", path: ["document"], kind: "document", label: txt(data?.document?.title, lang) || t("Документ"),
     sub: data?.document?.version ?? "", children: [], search: "",
   };
-  const history: Data[] = data?.document?.history ?? [];
+  const history = list(data?.document?.history);
   doc.children.push({
     key: pathKey(HISTORY_PATH), path: HISTORY_PATH, kind: "history", label: t("История изменений"),
     sub: history.length ? String(history.length) : "", search: `${t("История изменений").toLowerCase()} история изменений history`,
     children: history.map((h: Data, i: number) => ({
       key: pathKey([...HISTORY_PATH, i]), path: [...HISTORY_PATH, i], kind: "revision" as NodeKind,
       label: String(h?.version ?? "—"), sub: h?.date ? String(h.date) : "", children: [],
-      search: [h?.version, h?.author, h?.github, ...(h?.changes ?? []).map((c: unknown) => txt(c, lang))]
+      search: [h?.version, h?.author, h?.github, ...(Array.isArray(h?.changes) ? h.changes : []).map((c: unknown) => txt(c, lang))]
         .filter(Boolean).join(" ").toLowerCase(),
     })),
   });
   const out: TreeNode[] = [doc];
-  (data?.buses ?? []).forEach((bus: Data, bi: number) => {
+  list(data?.buses).forEach((bus: Data, bi: number) => {
     const bp: Path = ["buses", bi];
     const bnode: TreeNode = {
-      key: pathKey(bp), path: bp, kind: "bus", label: txt(bus.title, lang) || bus.name, sub: bus.name,
+      key: pathKey(bp), path: bp, kind: "bus", label: txt(bus.title, lang) || nameOf(bus), sub: nameOf(bus),
       children: [], search: `${bus.name} ${txt(bus.title, lang)}`.toLowerCase(),
     };
     const frameNode = (f: Data, fp: Path): TreeNode => {
       const rf = frames.get(pathKey(fp));
       const fnode: TreeNode = {
-        key: pathKey(fp), path: fp, kind: "frame", label: f.name,
+        key: pathKey(fp), path: fp, kind: "frame", label: nameOf(f),
         sub: f.pgn != null ? `PGN ${hex(f.pgn, 4)}` : frameSub(rf), children: [],
         dir: rf?.device ? rf.direction : null,
         search: [f.name, txt(f.title, lang), txt(f.description, lang), rf?.can_id != null ? hex(rf.can_id) : "",
           rf?.can_id != null ? String(rf.can_id) : "", f.pgn != null ? hex(f.pgn, 4) : ""].join(" ").toLowerCase(),
       };
-      (f.signals ?? []).forEach((s: Data, si: number) => {
+      list(f.signals).forEach((s: Data, si: number) => {
         const sp = [...fp, "signals", si];
         const rs = rf?.signals.find((x) => x.index === si);
         const snode: TreeNode = {
-          key: pathKey(sp), path: sp, kind: "signal", label: s.name, sub: signalSub(rs), children: [],
+          key: pathKey(sp), path: sp, kind: "signal", label: nameOf(s), sub: signalSub(rs), children: [],
           search: [s.name, txt(s.description, lang)].join(" ").toLowerCase(),
         };
-        (s.flags ?? []).forEach((fl: Data, fi: number) => {
+        list(s.flags).forEach((fl: Data, fi: number) => {
           const flp = [...sp, "flags", fi];
           snode.children.push({
-            key: pathKey(flp), path: flp, kind: "flag", label: fl.name,
+            key: pathKey(flp), path: flp, kind: "flag", label: nameOf(fl),
             sub: t("бит {bit}", { bit: fl.bit }), children: [], search: [fl.name, txt(fl.description, lang)].join(" ").toLowerCase(),
           });
         });
         fnode.children.push(snode);
       });
-      (f.sdo ?? []).forEach((e: Data, ei: number) => {
+      list(f.sdo).forEach((e: Data, ei: number) => {
         const ep = [...fp, "sdo", ei];
         fnode.children.push({
-          key: pathKey(ep), path: ep, kind: "sdo", label: e.name,
+          key: pathKey(ep), path: ep, kind: "sdo", label: nameOf(e),
           sub: `${hex(e.index, 4)}:${e.subindex ?? 0}`, children: [],
           search: [e.name, txt(e.description, lang)].join(" ").toLowerCase(),
         });
       });
       return fnode;
     };
-    (bus.frames ?? []).forEach((f: Data, fi: number) => bnode.children.push(frameNode(f, [...bp, "frames", fi])));
-    (bus.devices ?? []).forEach((d: Data, di: number) => {
+    list(bus.frames).forEach((f: Data, fi: number) => bnode.children.push(frameNode(f, [...bp, "frames", fi])));
+    list(bus.devices).forEach((d: Data, di: number) => {
       const dp: Path = [...bp, "devices", di];
       const dnode: TreeNode = {
-        key: pathKey(dp), path: dp, kind: "device", label: d.short ? `${d.short} · ${d.name}` : d.name,
+        key: pathKey(dp), path: dp, kind: "device", label: d.short ? `${d.short} · ${nameOf(d)}` : nameOf(d),
         sub: d.node_id != null ? hex(d.node_id, 2) : d.address != null ? `SA ${hex(d.address, 2)}` : "", children: [],
         search: [d.name, d.short ?? "", txt(d.title, lang)].join(" ").toLowerCase(),
       };
-      (d.frames ?? []).forEach((f: Data, fi: number) => dnode.children.push(frameNode(f, [...dp, "frames", fi])));
+      list(d.frames).forEach((f: Data, fi: number) => dnode.children.push(frameNode(f, [...dp, "frames", fi])));
       bnode.children.push(dnode);
     });
     out.push(bnode);

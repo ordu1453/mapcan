@@ -325,6 +325,11 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .yaml-hl { overflow: hidden; color: var(--fg); background: transparent; pointer-events: none; }
 /* Запас под полосы прокрутки textarea, чтобы слой докручивался до того же места. */
 .yaml-hl code { font: inherit; display: inline-block; padding: 0 40px 40px 0; }
+.yaml-suggest { position: absolute; z-index: 5; min-width: 220px; max-width: 420px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px; box-shadow: var(--shadow); font-size: 13px; }
+.yaml-suggest ul { list-style: none; margin: 0; padding: 2px 0; max-height: 176px; overflow: auto; }
+.yaml-suggest li { display: flex; justify-content: space-between; gap: 16px; padding: 2px 8px; cursor: pointer; white-space: nowrap; }
+.yaml-suggest li.active { background: var(--accent-soft); }
+.yaml-suggest-doc { border-top: 1px solid var(--line); padding: 4px 8px; color: var(--muted); }
 .yaml-node { position: absolute; left: 0; right: 0; background: var(--accent-soft); pointer-events: none; }
 .y-key { color: var(--y-key); }
 .y-str { color: var(--y-str); }

@@ -46,6 +46,8 @@ export const api = {
   ops: (ops: Op[]) => call<State>("POST", "/api/ops", { ops }),
   text: (text: string, live = false) => call<State>("POST", "/api/text", { text, live }),
   check: (text: string) => call<{ diagnostics: Diagnostic[] }>("POST", "/api/check", { text }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: () => call<any>("GET", "/api/schema"),
   undo: () => call<State>("POST", "/api/undo"),
   redo: () => call<State>("POST", "/api/redo"),
   save: (force = false) => call<State>("POST", "/api/save", { force }),
