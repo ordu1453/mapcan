@@ -83,6 +83,103 @@ const tests = {
     assert.ok(fs.existsSync(path.join(outDir, "minimal.md")));
   },
 
+  async "tree commands add, duplicate and delete nodes"(ctx) {
+    const tree = ctx.api.tree;
+    const frame = () => tree.getChildren(tree.getChildren(tree.getChildren()[0])[0])[0];
+    const before = ctx.doc.getText();
+    await vscode.commands.executeCommand("mapcan.addSignal", frame());
+    assert.match(ctx.doc.getText(), /\n {14}- name: signal\n {16}start_bit: 60\n {16}bit_length: 1\n/);
+    assert.equal(vscode.window.activeTextEditor.document.getText(vscode.window.activeTextEditor.selection), "signal");
+    await until("tree with the new signal", () => frame().children.some((s) => s.raw.label === "signal"));
+    const added = frame().children.find((s) => s.raw.label === "signal");
+    await vscode.commands.executeCommand("mapcan.duplicateNode", added);
+    assert.match(ctx.doc.getText(), /- name: signal_copy\n/);
+    await until("tree with the copy", () => frame().children.some((s) => s.raw.label === "signal_copy"));
+    for (const label of ["signal_copy", "signal"]) {
+      await vscode.commands.executeCommand("mapcan.deleteNode", frame().children.find((s) => s.raw.label === label));
+      await until(`tree without ${label}`, () => !frame().children.some((s) => s.raw.label === label));
+    }
+    assert.equal(ctx.doc.getText(), before);
+  },
+
+  async "quick fix corrects a decimal comma"(ctx) {
+    const editor = await vscode.window.showTextDocument(ctx.doc);
+    const at = positionOf(ctx.doc, "factor: 0.01", "factor: 0".length);
+    await editor.edit((e) => e.replace(new vscode.Range(at, at.translate(0, 1)), ","));
+    const diag = await until("number-comma", () =>
+      vscode.languages.getDiagnostics(ctx.doc.uri).find((d) => d.code === "number-comma"));
+    const actions = await vscode.commands.executeCommand(
+      "vscode.executeCodeActionProvider", ctx.doc.uri, diag.range, vscode.CodeActionKind.QuickFix.value);
+    const fix = actions.find((a) => a.title === "Change to 0.01");
+    assert.ok(fix, actions.map((a) => a.title).join(", "));
+    await vscode.workspace.applyEdit(fix.edit);
+    assert.match(ctx.doc.getText(), /factor: 0\.01\n/);
+    await until("no diagnostics", () => vscode.languages.getDiagnostics(ctx.doc.uri).every((d) => d.severity > 1));
+  },
+
+  async "problems color the tree"(ctx) {
+    const editor = await vscode.window.showTextDocument(ctx.doc);
+    const at = positionOf(ctx.doc, "start_bit: 56", "start_bit: ".length);
+    await editor.edit((e) => e.replace(new vscode.Range(at, at.translate(0, 2)), "0"));
+    const tree = ctx.api.tree;
+    const counter = () => tree.getChildren(tree.getChildren(tree.getChildren()[0])[0])[0].children
+      .find((s) => s.raw.label === "counter");
+    const item = await until("decorated counter", () => {
+      const it = tree.getTreeItem(counter());
+      return it.resourceUri ? it : undefined;
+    });
+    const deco = tree.provideFileDecoration(item.resourceUri);
+    assert.equal(deco.badge, "1");
+    assert.equal(deco.color.id, "list.errorForeground");
+    const diag = vscode.languages.getDiagnostics(ctx.doc.uri).find((d) => d.code === "bit-overlap");
+    const actions = await vscode.commands.executeCommand(
+      "vscode.executeCodeActionProvider", ctx.doc.uri, diag.range, vscode.CodeActionKind.QuickFix.value);
+    await vscode.workspace.applyEdit(actions.find((a) => a.title.startsWith("Move to free bits")).edit);
+    assert.match(ctx.doc.getText(), /start_bit: 56\n/);
+    await until("tree without problems", () => !tree.getTreeItem(counter()).resourceUri);
+  },
+
+  async "definition, references and rename follow devices"(ctx) {
+    const editor = await vscode.window.showTextDocument(ctx.doc);
+    const at = positionOf(ctx.doc, "            cycle_ms: 100", 0);
+    await editor.edit((e) => e.insert(at, "            receivers: [pump]\n"));
+    const ref = positionOf(ctx.doc, "receivers: [pump]", "receivers: [".length + 1);
+    const defs = await vscode.commands.executeCommand("vscode.executeDefinitionProvider", ctx.doc.uri, ref);
+    const def = defs[0].targetRange ?? defs[0].range;
+    assert.equal(ctx.doc.lineAt(def.start.line).text.trim(), "- name: pump");
+    const refs = await vscode.commands.executeCommand("vscode.executeReferenceProvider", ctx.doc.uri, ref);
+    assert.equal(refs.length, 2);
+    const edit = await vscode.commands.executeCommand("vscode.executeDocumentRenameProvider", ctx.doc.uri, ref, "motor");
+    await vscode.workspace.applyEdit(edit);
+    assert.match(ctx.doc.getText(), /- name: motor\n/);
+    assert.match(ctx.doc.getText(), /receivers: \[motor\]/);
+    await vscode.commands.executeCommand("undo");
+    await vscode.commands.executeCommand("undo");
+    assert.ok(!ctx.doc.getText().includes("receivers: [pump]"));
+  },
+
+  async "snippets are offered after a dash"(ctx) {
+    const editor = await vscode.window.showTextDocument(ctx.doc);
+    const end = ctx.doc.lineAt(ctx.doc.lineCount - 1).range.end;
+    await editor.edit((e) => e.insert(end, "\n              - "));
+    const pos = ctx.doc.lineAt(ctx.doc.lineCount - 1).range.end;
+    const list = await vscode.commands.executeCommand("vscode.executeCompletionItemProvider", ctx.doc.uri, pos);
+    const signal = list.items.find((i) => (i.label.label ?? i.label) === "signal enum");
+    assert.ok(signal, list.items.map((i) => i.label.label ?? i.label).join(", "));
+    assert.match(signal.insertText.value ?? signal.textEdit?.newText, /^name: \$\{1:state\}\n {2}description/);
+    await vscode.commands.executeCommand("undo");
+  },
+
+  async "preview and comparison render Markdown"(ctx) {
+    await vscode.commands.executeCommand("mapcan.openPreview");
+    const uri = vscode.Uri.from({ scheme: "mapcan-preview", path: "/minimal.md", query: ctx.doc.uri.toString() });
+    const preview = await vscode.workspace.openTextDocument(uri);
+    assert.match(preview.getText(), /pump_state/);
+    const old = fs.readFileSync(example, "utf8").replace("name: pressure", "name: pressure_old");
+    const diff = await vscode.commands.executeCommand("mapcan.lsp.diff", { uri: ctx.doc.uri.toString(), oldText: old });
+    assert.match(diff.text, /pressure/);
+  },
+
   async "edits are validated as you type"(ctx) {
     const editor = await vscode.window.showTextDocument(ctx.doc);
     await editor.edit((e) => e.replace(

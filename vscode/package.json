@@ -62,19 +62,104 @@
     "menus": {
       "view/title": [
         {
-          "command": "mapcan.export",
+          "command": "mapcan.openPreview",
           "when": "view == mapcan.map && mapcan.mapOpen",
           "group": "navigation@1"
+        },
+        {
+          "command": "mapcan.export",
+          "when": "view == mapcan.map && mapcan.mapOpen",
+          "group": "navigation@2"
+        },
+        {
+          "command": "mapcan.compareWithRevision",
+          "when": "view == mapcan.map && mapcan.mapOpen",
+          "group": "1_map@1"
         }
       ],
       "commandPalette": [
         {
-          "command": "mapcan.revealNode",
+          "command": "mapcan.export",
+          "when": "mapcan.mapOpen"
+        },
+        {
+          "command": "mapcan.addDevice",
           "when": "false"
         },
         {
-          "command": "mapcan.export",
+          "command": "mapcan.addFrame",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.addSignal",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.renameNode",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.duplicateNode",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.deleteNode",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.openPreview",
           "when": "mapcan.mapOpen"
+        },
+        {
+          "command": "mapcan.compareWithRevision",
+          "when": "mapcan.mapOpen"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "mapcan.addDevice",
+          "when": "view == mapcan.map && viewItem == bus",
+          "group": "inline@1"
+        },
+        {
+          "command": "mapcan.addFrame",
+          "when": "view == mapcan.map && viewItem == device",
+          "group": "inline@1"
+        },
+        {
+          "command": "mapcan.addSignal",
+          "when": "view == mapcan.map && viewItem == frame",
+          "group": "inline@1"
+        },
+        {
+          "command": "mapcan.addDevice",
+          "when": "view == mapcan.map && viewItem == bus",
+          "group": "1_add@1"
+        },
+        {
+          "command": "mapcan.addFrame",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device)$/",
+          "group": "1_add@2"
+        },
+        {
+          "command": "mapcan.addSignal",
+          "when": "view == mapcan.map && viewItem == frame",
+          "group": "1_add@3"
+        },
+        {
+          "command": "mapcan.renameNode",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "mapcan.duplicateNode",
+          "when": "view == mapcan.map && viewItem =~ /^(device|frame|signal|flag|sdo)$/",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "mapcan.deleteNode",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
+          "group": "3_delete@1"
         }
       ]
     },
@@ -105,6 +190,52 @@
         "command": "mapcan.showOutput",
         "title": "Show Language Server Output",
         "category": "mapcan"
+      },
+      {
+        "command": "mapcan.openPreview",
+        "title": "Open Document Preview",
+        "category": "mapcan",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "mapcan.compareWithRevision",
+        "title": "Compare with Revision…",
+        "category": "mapcan",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "mapcan.addDevice",
+        "title": "Add Device",
+        "category": "mapcan",
+        "icon": "$(add)"
+      },
+      {
+        "command": "mapcan.addFrame",
+        "title": "Add Frame",
+        "category": "mapcan",
+        "icon": "$(add)"
+      },
+      {
+        "command": "mapcan.addSignal",
+        "title": "Add Signal",
+        "category": "mapcan",
+        "icon": "$(add)"
+      },
+      {
+        "command": "mapcan.renameNode",
+        "title": "Rename…",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.duplicateNode",
+        "title": "Duplicate",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.deleteNode",
+        "title": "Delete",
+        "category": "mapcan",
+        "icon": "$(trash)"
       }
     ],
     "configuration": {
@@ -134,7 +265,20 @@
           "scope": "resource"
         }
       }
-    }
+    },
+    "keybindings": [
+      {
+        "command": "mapcan.renameNode",
+        "key": "f2",
+        "when": "focusedView == mapcan.map"
+      },
+      {
+        "command": "mapcan.deleteNode",
+        "key": "delete",
+        "mac": "cmd+backspace",
+        "when": "focusedView == mapcan.map"
+      }
+    ]
   },
   "scripts": {
     "build": "node esbuild.mjs",

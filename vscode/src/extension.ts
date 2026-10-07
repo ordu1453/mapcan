@@ -3,7 +3,9 @@
 
 import * as vscode from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
+import { registerTreeActions } from "./actions";
 import { exportMap } from "./export";
+import { registerPreview } from "./preview";
 import { isMap, MapTree, revealNode } from "./tree";
 
 let client: LanguageClient | undefined;
@@ -98,6 +100,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<{ tree
       }
     }),
   );
+  registerTreeActions(context, tree, () => client);
+  registerPreview(context, () => client, currentMap);
   await start();
   return { tree };
 }

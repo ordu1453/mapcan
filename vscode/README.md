@@ -6,8 +6,25 @@ file with a top-level `mapcan: 1` key. Other YAML files are left alone.
 ## Features
 
 * **Map view.** The mapcan icon in the Activity Bar opens the buses, devices, frames, signals and
-  flags of the active map, with computed CAN IDs and signal bits. Clicking a node jumps to it in
-  the editor. Moving the cursor selects the node under it.
+  flags of the active map, with computed CAN IDs and signal bits.
+  * Clicking a node selects its lines in the editor, and moving the cursor selects the node under it.
+  * The **+** button and the context menu add devices, frames and signals. The context menu also
+    renames (F2), duplicates and deletes (Delete) nodes. Every change is a normal edit, so Undo
+    reverts it.
+  * Nodes with errors or warnings are colored, and a badge shows how many problems they have.
+* **Quick fixes** (the light bulb, Ctrl+.):
+  * decimal commas, a Cyrillic «х» in hex numbers and hex numbers in quotes;
+  * a missing space after `-`;
+  * misspelled keys, values, receivers and senders;
+  * overlapping signals moved to free bits, `extended: true` for 29-bit IDs, names in the lint
+    style, the document version from the history.
+* **Device references.** Go to Definition (F12) from `receivers` and `sender` to the device, Find
+  All References (Shift+F12), and Rename (F2) that updates every reference.
+* **Snippets.** After `- `, completion offers a device, a frame and signals (plain, with a value
+  table, a physical quantity, a bit field).
+* **Preview and comparison.** **mapcan: Open Document Preview** shows the map's document in the
+  Markdown preview and follows edits. **mapcan: Compare with Revision…** lists the map's Git
+  history and shows what changed since the chosen version.
 * **Export.** **mapcan: Export…** (also the button in the Map view) builds DBC, C and Python code,
   Excel, PDF, Markdown and HTML from the current text of the map, unsaved edits included, into
   `build/` next to the map. It refuses while the map has errors.
@@ -52,6 +69,8 @@ If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable.
 ## Commands
 
 * **mapcan: Export…**
+* **mapcan: Open Document Preview**
+* **mapcan: Compare with Revision…**
 * **mapcan: Restart Language Server**
 * **mapcan: Show Language Server Output**
 

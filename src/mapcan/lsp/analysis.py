@@ -276,7 +276,9 @@ def map_tree(a: Analysis) -> list[dict]:
         (sl, sc), end = block
         # Курсор на отступе или «- » перед узлом тоже относится к нему
         own_line = re.fullmatch(r"\s*(?:-\s+)*", a.lines[sl][:sc]) is not None
-        return {"range": [sl, 0 if own_line else sc, *end], "selection": [sl, sc, *end], "path": list(path)}
+        name = a.nodes.get(path + ("name",))
+        return {"range": [sl, 0 if own_line else sc, *end], "selection": [sl, sc, *end], "path": list(path),
+                "name": list(name.start) if name else None}
 
     def name_of(d: dict) -> str:
         return "—" if d.get("name") is None else str(d["name"])

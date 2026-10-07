@@ -1,17 +1,19 @@
 // The Map view: the same tree as the web editor's (buses, devices, frames, signals, flags, SDO
 // exchanges, frames a device receives) from the language server's `mapcan/tree` request.
 // Clicking a node selects it in the editor; moving the cursor selects the node under it.
+// Nodes with problems are colored like files in the Explorer.
 
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
 const MAP_HEADER = /^(mapcan|canmap)\s*:/m;
+const DECORATION_SCHEME = "mapcan-node";
 
 export function isMap(doc: vscode.TextDocument | undefined): doc is vscode.TextDocument {
   return doc !== undefined && doc.languageId === "yaml" && MAP_HEADER.test(doc.getText());
 }
 
-type Kind = "bus" | "device" | "frame" | "signal" | "flag" | "sdo";
+export type Kind = "bus" | "device" | "frame" | "signal" | "flag" | "sdo";
 
 /** A node as the server sends it; ranges are [line, character, line, character]. */
 interface RawNode {
@@ -20,6 +22,8 @@ interface RawNode {
   description: string;
   dir?: "tx" | "rx" | null;
   from?: string;
+  path: (string | number)[];
+  name: [number, number] | null;
   range: [number, number, number, number];
   selection: [number, number, number, number];
   children: RawNode[];
@@ -42,21 +46,40 @@ export class MapNode {
     this.children = raw.children.map((c, i) => new MapNode(c, `${id}/${i}`, this));
   }
 
+  get kind(): Kind {
+    return this.raw.kind;
+  }
+
+  get path(): (string | number)[] {
+    return this.raw.path;
+  }
+
+  /** Position of the node's name value, for rename. */
+  get namePosition(): vscode.Position | undefined {
+    return this.raw.name ? new vscode.Position(this.raw.name[0], this.raw.name[1]) : undefined;
+  }
+
   /** Links to frames of other devices are not part of this node's text. */
   get isLink(): boolean {
     return this.raw.from !== undefined;
   }
 }
 
-export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposable {
+type Level = "error" | "warning";
+
+export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDecorationProvider, vscode.Disposable {
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this.changed.event;
+  private readonly decorationsChanged = new vscode.EventEmitter<undefined>();
+  readonly onDidChangeFileDecorations = this.decorationsChanged.event;
 
   private roots: MapNode[] = [];
   private uri: vscode.Uri | undefined;
   private view: vscode.TreeView<MapNode> | undefined;
   private refreshTimer: NodeJS.Timeout | undefined;
   private revealTimer: NodeJS.Timeout | undefined;
+  /** Problems per node id: the worst level and how many belong to the node itself. */
+  private problems = new Map<string, { level: Level; own: number }>();
   private readonly subscriptions: vscode.Disposable[] = [];
 
   constructor(
@@ -67,6 +90,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
   attach(view: vscode.TreeView<MapNode>): void {
     this.view = view;
     this.subscriptions.push(
+      vscode.window.registerFileDecorationProvider(this),
       vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
       vscode.workspace.onDidChangeTextDocument((e) => {
         if (e.document.uri.toString() === this.uri?.toString() || e.document === vscode.window.activeTextEditor?.document) {
@@ -74,6 +98,12 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
         }
       }),
       vscode.workspace.onDidCloseTextDocument(() => this.refresh()),
+      vscode.languages.onDidChangeDiagnostics((e) => {
+        if (this.uri && e.uris.some((u) => u.toString() === this.uri!.toString())) {
+          this.updateProblems();
+          this.changed.fire();
+        }
+      }),
       vscode.window.onDidChangeTextEditorSelection((e) => {
         if (e.textEditor === vscode.window.activeTextEditor && e.kind !== undefined) {
           this.scheduleReveal();
@@ -113,8 +143,30 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
     } else {
       item.iconPath = this.icon(kind);
     }
+    const problem = node.isLink ? undefined : this.problems.get(node.id);
+    if (problem) {
+      // Only the decoration provider reads this URI: it colors the label like a file with problems.
+      item.resourceUri = vscode.Uri.from({
+        scheme: DECORATION_SCHEME,
+        path: `/${node.id}`,
+        query: `${problem.level}&${problem.own}`,
+      });
+    }
     item.command = { command: "mapcan.revealNode", title: "Reveal", arguments: [this.uri, node.selection] };
     return item;
+  }
+
+  provideFileDecoration(uri: vscode.Uri): vscode.FileDecoration | undefined {
+    if (uri.scheme !== DECORATION_SCHEME) {
+      return undefined;
+    }
+    const [level, own] = uri.query.split("&");
+    const count = Number(own);
+    return {
+      color: new vscode.ThemeColor(level === "error" ? "list.errorForeground" : "list.warningForeground"),
+      badge: count > 0 ? (count > 9 ? "9+" : String(count)) : undefined,
+      tooltip: count > 0 ? `${count} problem${count === 1 ? "" : "s"}` : undefined,
+    };
   }
 
   getChildren(node?: MapNode): MapNode[] {
@@ -123,6 +175,27 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
 
   getParent(node: MapNode): MapNode | undefined {
     return node.parent;
+  }
+
+  /** All nodes (not links), depth first. */
+  *nodes(level: MapNode[] = this.roots): Generator<MapNode> {
+    for (const n of level) {
+      if (n.isLink) continue;
+      yield n;
+      yield* this.nodes(n.children);
+    }
+  }
+
+  /** The deepest node whose text contains the position. */
+  nodeAt(pos: vscode.Position): MapNode | undefined {
+    let found: MapNode | undefined;
+    let level = this.roots;
+    for (;;) {
+      const next = level.find((n) => !n.isLink && n.range.contains(pos));
+      if (!next) return found;
+      found = next;
+      level = next.children;
+    }
   }
 
   async refresh(): Promise<void> {
@@ -146,8 +219,28 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
   private setRoots(uri: vscode.Uri | undefined, roots: MapNode[]): void {
     this.uri = uri;
     this.roots = roots;
+    this.updateProblems();
     void vscode.commands.executeCommand("setContext", "mapcan.mapOpen", uri !== undefined);
     this.changed.fire();
+  }
+
+  private updateProblems(): void {
+    this.problems.clear();
+    if (this.uri) {
+      for (const d of vscode.languages.getDiagnostics(this.uri)) {
+        if (d.source !== "mapcan" || d.severity > vscode.DiagnosticSeverity.Warning) continue;
+        const level: Level = d.severity === vscode.DiagnosticSeverity.Error ? "error" : "warning";
+        let node = this.nodeAt(d.range.start);
+        let own = true;
+        for (; node; node = node.parent, own = false) {
+          const p = this.problems.get(node.id) ?? { level, own: 0 };
+          if (level === "error") p.level = "error";
+          if (own) p.own += 1;
+          this.problems.set(node.id, p);
+        }
+      }
+    }
+    this.decorationsChanged.fire(undefined);
   }
 
   private scheduleRefresh(): void {
@@ -161,29 +254,27 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.Disposa
   }
 
   /** Select the deepest node whose text contains the cursor of the active editor. */
-  private async revealCursor(): Promise<void> {
+  async revealCursor(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!this.view?.visible || !editor || editor.document.uri.toString() !== this.uri?.toString()) {
       return;
     }
-    const pos = editor.selection.active;
-    let found: MapNode | undefined;
-    let level = this.roots;
-    for (;;) {
-      const next = level.find((n) => !n.isLink && n.range.contains(pos));
-      if (!next) break;
-      found = next;
-      level = next.children;
-    }
+    const found = this.nodeAt(editor.selection.active);
     if (found && this.view.selection[0]?.id !== found.id) {
-      await this.view.reveal(found, { select: true, focus: false, expand: false });
+      await this.view.reveal(found, { select: true, focus: false, expand: true });
     }
+  }
+
+  /** The node a tree command acts on: the clicked one, else the selected one. */
+  target(node: MapNode | undefined): MapNode | undefined {
+    return node ?? this.view?.selection[0];
   }
 
   dispose(): void {
     clearTimeout(this.refreshTimer);
     clearTimeout(this.revealTimer);
     this.changed.dispose();
+    this.decorationsChanged.dispose();
     this.subscriptions.forEach((d) => d.dispose());
   }
 }
