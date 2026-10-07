@@ -38,6 +38,19 @@ const tests = {
     assert.equal(ctx.api.tree.mapUri.toString(), ctx.doc.uri.toString());
   },
 
+  async "clicking a node selects its whole lines"(ctx) {
+    const device = ctx.api.tree.getChildren(ctx.api.tree.getChildren()[0])[0];
+    const signal = ctx.api.tree.getChildren(ctx.api.tree.getChildren(device)[0])[0];
+    const item = ctx.api.tree.getTreeItem(signal);
+    await vscode.commands.executeCommand(item.command.command, ...item.command.arguments);
+    const sel = vscode.window.activeTextEditor.selection;
+    assert.equal(sel.active.character, 0);
+    assert.equal(sel.end.character, 0);
+    const text = ctx.doc.getText(sel);
+    assert.match(text, /^ {14}- name: mode {12}# enum, byte 0\n/);
+    assert.match(text, /2: \{name: FAULT, description: fault\}\n$/);
+  },
+
   async "hover shows the frame layout"(ctx) {
     const hovers = await vscode.commands.executeCommand(
       "vscode.executeHoverProvider", ctx.doc.uri, positionOf(ctx.doc, "pump_state", 3));

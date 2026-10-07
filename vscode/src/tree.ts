@@ -194,8 +194,13 @@ export async function revealNode(uri: vscode.Uri | undefined, range: vscode.Rang
   }
   // Focus stays in the Map view (as in Outline), so the tree can still be browsed with the keyboard.
   const editor = await vscode.window.showTextDocument(uri, { preserveFocus: true, preview: false });
-  // The whole block is selected with the cursor at its start, so the editor shows the beginning.
-  editor.selection = new vscode.Selection(range.end, range.start);
+  // Whole lines of the block are selected (as when clicking line numbers), with the cursor at the
+  // start, so the editor shows the beginning.
+  const doc = editor.document;
+  const end = range.end.line + 1 < doc.lineCount
+    ? new vscode.Position(range.end.line + 1, 0)
+    : doc.lineAt(range.end.line).range.end;
+  editor.selection = new vscode.Selection(end, new vscode.Position(range.start.line, 0));
   const lines = editor.visibleRanges[0];
   const fits = lines && range.end.line - range.start.line < lines.end.line - lines.start.line;
   editor.revealRange(fits ? range : new vscode.Range(range.start, range.start),
