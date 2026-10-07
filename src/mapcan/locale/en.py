@@ -561,4 +561,15 @@ EN: dict[str, str] = {
         "Export canceled: the map has errors ({errors}). Fix them and try again.",
     "Сохраните карту в файл перед экспортом.": "Save the map to a file before exporting.",
     "Ошибка экспорта: {error}": "Export failed: {error}",
+    "Заменить на {value}": "Change to {value}",
+    "Заменить на {value!r}": "Change to {value!r}",
+    "Добавить extended: true": "Add extended: true",
+    "Удалить destination": "Remove destination",
+    "Переименовать в {value!r}": "Rename to {value!r}",
+    "Переместить на свободные биты: {bits}": "Move to free bits: {bits}",
+    "Вставить пробел после «-»": "Insert a space after '-'",
+    "Карта не разобрана: исправьте ошибки, чтобы увидеть документ.":
+        "The map cannot be read: fix the errors to see the document.",
+    "Карта не разобрана: исправьте ошибки, чтобы сравнить версии.":
+        "The map cannot be read: fix the errors to compare versions.",
 }

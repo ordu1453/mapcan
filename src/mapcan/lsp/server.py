@@ -13,6 +13,7 @@ from pygls.uris import to_fs_path
 from .. import __version__
 from ..i18n import _
 from . import analysis as A
+from . import edits as E
 
 SEVERITY = {"error": T.DiagnosticSeverity.Error, "warning": T.DiagnosticSeverity.Warning,
             "info": T.DiagnosticSeverity.Information}
@@ -26,6 +27,17 @@ def _pos(p: A.Pos) -> T.Position:
 
 def _range(a: A.Pos, b: A.Pos) -> T.Range:
     return T.Range(start=_pos(a), end=_pos(b))
+
+
+def _text_edit(e: E.Edit) -> T.TextEdit:
+    return T.TextEdit(range=_range(e.start, e.end), new_text=e.text)
+
+
+def _arg(args) -> dict:
+    """Аргумент команды: pygls передаёт аргументы списком или по одному."""
+    if len(args) == 1 and isinstance(args[0], list):
+        args = args[0]
+    return args[0] if args and isinstance(args[0], dict) else {}
 
 
 class MapcanServer(LanguageServer):
@@ -52,7 +64,7 @@ class MapcanServer(LanguageServer):
         for d in a.diagnostics if a else ():
             start, end = A.diagnostic_range(a, d)
             diags.append(T.Diagnostic(range=_range(start, end), message=d.message, severity=SEVERITY[d.level],
-                                      code=d.code, source="mapcan"))
+                                      code=d.code, source="mapcan", data={"node": d.node}))
         self.text_document_publish_diagnostics(T.PublishDiagnosticsParams(uri=uri, diagnostics=diags))
 
 
@@ -118,13 +130,90 @@ def completion(ls: MapcanServer, params: T.CompletionParams) -> T.CompletionList
     if not A.is_mapcan(doc.source):
         return None
     ls.analysis(uri)
-    found = A.completions(doc.source, (params.position.line, params.position.character), ls.analyses.get(uri))
+    pos = (params.position.line, params.position.character)
+    found = A.completions(doc.source, pos, ls.analyses.get(uri))
     if not found:
-        return None
+        return _snippets(doc.source, pos)
     key, choices = found
     kind = T.CompletionItemKind.Reference if key in A.DEVICE_KEYS else T.CompletionItemKind.EnumMember
     return T.CompletionList(is_incomplete=False,
                             items=[T.CompletionItem(label=c, kind=kind, detail=key) for c in choices])
+
+
+def _snippets(text: str, pos: A.Pos) -> T.CompletionList | None:
+    """Заготовки элементов списков после «- » (сам «- » уже набран, в заготовку не входит)."""
+    lines = text.splitlines()
+    before = (lines[pos[0]] if pos[0] < len(lines) else "")[:pos[1]]
+    m = A.SNIPPET_CTX.match(before)
+    if not m:
+        return None
+    word = _range((pos[0], pos[1] - len(m.group(2))), pos)
+    items = []
+    for label, detail, body in A.SNIPPETS:
+        items.append(T.CompletionItem(
+            label=label, kind=T.CompletionItemKind.Snippet, detail=detail, filter_text=label,
+            insert_text_format=T.InsertTextFormat.Snippet,
+            text_edit=T.TextEdit(range=word, new_text=body.removeprefix("- "))))
+    return T.CompletionList(is_incomplete=False, items=items)
+
+
+@server.feature(T.TEXT_DOCUMENT_CODE_ACTION,
+                T.CodeActionOptions(code_action_kinds=[T.CodeActionKind.QuickFix]))
+def code_action(ls: MapcanServer, params: T.CodeActionParams) -> list[T.CodeAction] | None:
+    uri = params.text_document.uri
+    a = ls.analysis(uri)
+    if a is None:
+        return None
+    diags = [d for d in params.context.diagnostics if d.source == "mapcan"]
+    keys = [(str(d.code), (d.data or {}).get("node") or [], (d.range.start.line, d.range.start.character))
+            for d in diags]
+    out = []
+    for act in E.quick_fixes(a, keys):
+        out.append(T.CodeAction(
+            title=act.title, kind=T.CodeActionKind.QuickFix, is_preferred=act.preferred,
+            diagnostics=[diags[i] for i in act.diagnostics],
+            edit=T.WorkspaceEdit(changes={uri: [_text_edit(e) for e in act.edits]})))
+    return out
+
+
+@server.feature(T.TEXT_DOCUMENT_DEFINITION)
+def definition(ls: MapcanServer, params: T.DefinitionParams) -> T.Location | None:
+    uri = params.text_document.uri
+    a = ls.analysis(uri)
+    found = E.definition(a, (params.position.line, params.position.character)) if a else None
+    return T.Location(uri=uri, range=_range(*found)) if found else None
+
+
+@server.feature(T.TEXT_DOCUMENT_REFERENCES)
+def references(ls: MapcanServer, params: T.ReferenceParams) -> list[T.Location] | None:
+    uri = params.text_document.uri
+    a = ls.analysis(uri)
+    if a is None:
+        return None
+    found = E.references(a, (params.position.line, params.position.character),
+                         params.context.include_declaration)
+    return [T.Location(uri=uri, range=_range(*r)) for r in found]
+
+
+@server.feature(T.TEXT_DOCUMENT_PREPARE_RENAME)
+def prepare_rename(ls: MapcanServer, params: T.PrepareRenameParams):
+    a = ls.analysis(params.text_document.uri)
+    path = E.name_at(a, (params.position.line, params.position.character)) if a else None
+    if path is None:
+        return None
+    start, end = E.value_range(a, path)
+    return T.PrepareRenamePlaceholder(range=_range(start, end), placeholder=str(E.raw_at(a, path)))
+
+
+@server.feature(T.TEXT_DOCUMENT_RENAME)
+def rename(ls: MapcanServer, params: T.RenameParams) -> T.WorkspaceEdit | None:
+    uri = params.text_document.uri
+    a = ls.analysis(uri)
+    path = E.name_at(a, (params.position.line, params.position.character)) if a else None
+    if path is None or not params.new_name.strip():
+        return None
+    edits = E.rename_edits(a, path, params.new_name.strip())
+    return T.WorkspaceEdit(changes={uri: [_text_edit(e) for e in edits]})
 
 
 @server.feature("mapcan/tree")
@@ -142,7 +231,7 @@ def export_command(ls: MapcanServer, *args) -> dict:
     """Аргумент: {uri, formats: [...], outDir}. Ответ: {files: [...], warnings: [...]} или {error}."""
     from .exports import ExportError, export
 
-    params = args[0] if args and isinstance(args[0], dict) else {}
+    params = _arg(args)
     uri = params.get("uri", "")
     path = to_fs_path(uri)
     if not path or not uri.startswith("file:"):
@@ -156,6 +245,57 @@ def export_command(ls: MapcanServer, *args) -> dict:
         ls.window_log_message(T.LogMessageParams(type=T.MessageType.Error, message=repr(e)))
         return {"error": _("Ошибка экспорта: {error}", error=e)}
     return {"files": [str(f) for f in files], "warnings": warnings}
+
+
+@server.command("mapcan.lsp.edit")
+def edit_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, action: add|duplicate|delete, path, kind}. Ответ: {edit: {range, text}, cursor} или {}."""
+    params = _arg(args)
+    uri = params.get("uri", "")
+    a = ls.analysis(uri) if uri else None
+    path = tuple(params.get("path") or ())
+    if a is None or not path:
+        return {}
+    action = params.get("action")
+    if action == "add":
+        change = E.add_node(a, path, params.get("kind", ""))
+    elif action == "duplicate":
+        change = E.duplicate_node(a, path)
+    elif action == "delete":
+        change = E.delete_node(a, path)
+    else:
+        change = None
+    if change is None:
+        return {}
+    e = E.minimal_edit(a.text, change.text)
+    return {"edit": {"range": [*e.start, *e.end], "text": e.text}, "cursor": list(change.cursor)}
+
+
+@server.command("mapcan.lsp.render")
+@server.thread()
+def render_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri}. Ответ: {text} — документ карты в Markdown — или {error}."""
+    from ..export.text import render
+
+    a = ls.analysis(_arg(args).get("uri", ""))
+    if a is None or a.map is None:
+        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы увидеть документ.")}
+    return {"text": render(a.map, "md")}
+
+
+@server.command("mapcan.lsp.diff")
+@server.thread()
+def diff_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, oldText}. Ответ: {text} — изменения в Markdown — или {error}."""
+    from ..diff import diff_maps, render_diff
+    from ..loader import loads
+
+    params = _arg(args)
+    a = ls.analysis(params.get("uri", ""))
+    old = loads(params.get("oldText") or "", "old.yaml")
+    if a is None or a.map is None or old.map is None:
+        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+    return {"text": render_diff(diff_maps(old.map, a.map), "md", a.map.lang)}
 
 
 def main() -> None:

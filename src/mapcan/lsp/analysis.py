@@ -276,7 +276,7 @@ def map_tree(a: Analysis) -> list[dict]:
         (sl, sc), end = block
         # Курсор на отступе или «- » перед узлом тоже относится к нему
         own_line = re.fullmatch(r"\s*(?:-\s+)*", a.lines[sl][:sc]) is not None
-        return {"range": [sl, 0 if own_line else sc, *end], "selection": [sl, sc, *end]}
+        return {"range": [sl, 0 if own_line else sc, *end], "selection": [sl, sc, *end], "path": list(path)}
 
     def name_of(d: dict) -> str:
         return "—" if d.get("name") is None else str(d["name"])
@@ -595,6 +595,27 @@ def inlay_hints(a: Analysis) -> list[Hint]:
 # --------------------------------------------------------------------------- #
 # Автодополнение значений
 # --------------------------------------------------------------------------- #
+
+# Заготовки (snippet) элементов списков: метка, описание, текст с отступами относительно «-».
+SNIPPET_CTX = re.compile(r"^\s*(-\s+)([A-Za-z_]*)$")
+SNIPPETS = [
+    ("device", "mapcan device",
+     "- name: ${1:device}\n  node_id: ${2:0x01}\n  frames:\n    - name: ${3:frame}\n      type: ${4:pdo_tx1}\n"
+     "      cycle_ms: ${5:100}\n      signals: []"),
+    ("frame", "mapcan frame",
+     "- name: ${1:frame}\n  id: ${2:0x100}\n  cycle_ms: ${3:100}\n  receivers: [$4]\n  signals:\n"
+     "    - name: ${5:signal}\n      byte: ${6:0}"),
+    ("signal", "mapcan signal",
+     "- name: ${1:signal}\n  description: ${2:Description}\n  byte: ${3:0}"),
+    ("signal enum", "mapcan signal with a value table",
+     "- name: ${1:state}\n  description: ${2:State}\n  byte: ${3:0}\n  values:\n    0: ${4:OFF}\n    1: ${5:ON}"),
+    ("signal quantity", "mapcan physical quantity",
+     "- name: ${1:value}\n  description: ${2:Value}\n  byte: ${3:0}\n  byte_length: ${4:2}\n"
+     "  factor: ${5:0.1}\n  unit: ${6:V}\n  min: ${7:0}\n  max: ${8:100}"),
+    ("signal flags", "mapcan bit field",
+     "- name: ${1:status}\n  description: ${2:Status}\n  byte: ${3:0}\n  flags:\n"
+     "    - {bit: 0, name: ${4:ready}}\n    - {bit: 1, name: ${5:fault}}"),
+]
 
 _VALUE_CTX = re.compile(r"(?:^|[\s{,])([A-Za-z_]\w*)\s*:\s*([^\s,{}\[\]]*)$")
 _LIST_CTX = re.compile(r"(?:^|[\s{,])(receivers)\s*:\s*\[[^\]]*?([^\s,\[]*)$")
