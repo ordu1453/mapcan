@@ -86,7 +86,9 @@ watch(text, (value) => {
 
 onBeforeUnmount(() => clearTimeout(checkTimer));
 
-const draftErrors = computed(() => (local.value ? (store.yaml.diags ?? []).filter((d) => d.level === "error") : []));
+// Синтаксические ошибки черновика — строкой в панели инструментов (высота не меняется, редактор не сдвигается).
+// Остальные сообщения — на полях строк и в панели «Проверка».
+const syntaxErrors = computed(() => (local.value ? (store.yaml.diags ?? []).filter((d) => d.code === "yaml") : []));
 
 const marks = computed(() => {
   const m = new Map<number, string>();
@@ -194,17 +196,16 @@ function onKey(e: KeyboardEvent) {
 <template>
   <div class="yaml-editor">
     <div class="yaml-bar">
-      <span class="muted">{{ t("Правка YAML целиком. Комментарии сохраняются как есть.") }}</span>
-      <span class="spacer" />
+      <span v-if="syntaxErrors.length" class="yaml-problem">
+        <button class="link" :title="syntaxErrors[0].message" @click="reveal(syntaxErrors[0].line)">
+          <b>{{ t("Строка {line}", { line: syntaxErrors[0].line ?? "?" }) }}:</b> {{ syntaxErrors[0].message }}
+        </button>
+        <span v-if="syntaxErrors.length > 1" class="muted">{{ t("и ещё {count}", { count: syntaxErrors.length - 1 }) }}</span>
+      </span>
+      <span v-else class="muted yaml-hint">{{ t("Правка YAML целиком. Комментарии сохраняются как есть.") }}</span>
       <span v-if="local" class="badge warning">{{ t("не применено") }}</span>
       <button :disabled="!local || store.state?.readonly" @click="revert">{{ t("Сбросить изменения") }}</button>
       <button class="primary" :disabled="!local || store.state?.readonly" title="Ctrl+Enter" @click="apply">{{ t("Применить") }}</button>
-    </div>
-    <div v-if="draftErrors.length" class="yaml-problems">
-      <button v-for="(d, i) in draftErrors.slice(0, 3)" :key="i" class="link" @click="reveal(d.line)">
-        <b>{{ t("Строка {line}", { line: d.line ?? "?" }) }}:</b> {{ d.message }}
-      </button>
-      <span v-if="draftErrors.length > 3" class="muted">{{ t("и ещё {count}", { count: draftErrors.length - 3 }) }}</span>
     </div>
     <div class="yaml-body">
       <div ref="gutter" class="gutter mono">

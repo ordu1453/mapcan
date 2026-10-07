@@ -302,9 +302,10 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 /* ------------------------------------------------------------------ YAML */
 .yaml-editor { display: flex; flex-direction: column; height: 100%; }
 .yaml-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.yaml-hint, .yaml-problem { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yaml-problem { display: flex; align-items: center; gap: 8px; color: var(--error); }
+.yaml-problem .link { color: inherit; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .yaml-body { flex: 1; display: flex; min-height: 0; }
-.yaml-problems { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--error-soft); color: var(--error); }
-.yaml-problems .link { color: inherit; text-align: left; }
 .gutter { overflow: hidden; padding: 6px 0; min-width: 52px; text-align: right; color: var(--muted); background: var(--panel); border-right: 1px solid var(--line); }
 .gutter div { padding-right: 8px; }
 .gutter .error { background: var(--error-soft); color: var(--error); font-weight: 700; }
