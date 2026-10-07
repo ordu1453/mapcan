@@ -254,6 +254,35 @@ export async function setShort(path: Path, raw: string): Promise<string | null> 
     ? null : t("Не удалось переименовать");
 }
 
+/**
+ * RX-кадр устройства — это кадр другого устройства: устройство добавляется в receivers кадра-оригинала,
+ * а своя копия удаляется (кадр описывается один раз, у отправителя).
+ */
+export async function receiveFrame(rxPath: Path, txPath: Path): Promise<boolean> {
+  const device = getAt(data(), rxPath.slice(0, 4))?.name;
+  const tx = getAt(data(), txPath);
+  if (!device || !tx) return false;
+  const receivers: string[] = Array.isArray(tx.receivers) ? tx.receivers : [];
+  const ops: Op[] = receivers.includes(device) ? [] : [{ op: "set", path: [...txPath, "receivers"], value: [...receivers, device] }];
+  ops.push({ op: "remove", path: rxPath });
+  const ok = await actions.apply(ops);
+  if (ok) {
+    actions.select(txPath);
+    toast(t("{device} принимает кадр {frame}: устройство добавлено в получатели, своя копия кадра удалена",
+      { device, frame: tx.name }), "info");
+  }
+  return ok;
+}
+
+/** Устройство больше не принимает кадр: убрать его из receivers (пустой список — убрать ключ). */
+export function stopReceiving(framePath: Path, device: string): Promise<boolean> {
+  const receivers: string[] = getAt(data(), [...framePath, "receivers"]) ?? [];
+  const rest = receivers.filter((r) => r !== device);
+  return actions.apply([rest.length
+    ? { op: "set", path: [...framePath, "receivers"], value: rest }
+    : { op: "remove", path: [...framePath, "receivers"] }]);
+}
+
 export function canRemove(path: Path): boolean {
   return !["document", "history"].includes(nodeKind(path));
 }

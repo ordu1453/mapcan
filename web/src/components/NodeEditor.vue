@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
-import { addBus, addDevice, addFrame, addSdo, addSignal, canRename, duplicateNode, removeNode, renameNode } from "../edit";
+import { addBus, addDevice, addFrame, addSdo, addSignal, canRename, duplicateNode, receiveFrame, removeNode, renameNode,
+  stopReceiving } from "../edit";
 import { HELP } from "../help";
 import { FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
 import { getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath, startsWith, txt } from "../model";
@@ -48,10 +49,9 @@ const fields = computed(() => (FIELDS[kind.value] ?? [])
   .filter((f) => !f.when || f.when(node.value, fieldCtx.value) || fieldValue(f) != null
     || fieldDiags(f).some((d) => d.level !== "info"))
   .map((f) => {
-    const locked = !!f.locked?.(node.value, fieldCtx.value);
     const required = typeof f.required === "function" ? f.required(node.value, fieldCtx.value) : !!f.required;
-    return { ...f, locked: undefined, required: undefined, isLocked: locked, isRequired: required,
-      options: f.optionsFor ? f.optionsFor(fieldCtx.value) : f.options, hint: locked ? f.lockedHint : f.hint };
+    return { ...f, required: undefined, isRequired: required,
+      options: f.optionsFor ? f.optionsFor(fieldCtx.value) : f.options };
   }));
 const hasRequired = computed(() => fields.value.some((f) => f.isRequired));
 
@@ -63,9 +63,6 @@ function fieldValue(def: FieldDef) {
 function shownValue(def: FieldDef) {
   const v = fieldValue(def);
   if (v == null && kind.value === "signal" && def.key === "kind") return rsignal.value?.kind;
-  if (v == null && kind.value === "frame" && def.key === "type" && fieldCtx.value.protocol !== "canopen") return "raw";
-  // У TX-кадра отправитель — само устройство (поле заблокировано)
-  if (v == null && kind.value === "frame" && def.key === "sender" && fieldCtx.value.direction === "tx") return fieldCtx.value.owner;
   return v;
 }
 
@@ -209,6 +206,28 @@ function setCycle(e: Event) {
   else void actions.apply([{ op: "set", path: [...p, "cycle_ms"], value: n }]);
 }
 
+// RX-кадр устройства может оказаться кадром, который уже описан у отправителя: его можно выбрать вместо своей копии
+const rxSources = computed(() => {
+  const f = rframe.value;
+  if (kind.value !== "frame" || !f?.device || f.direction !== "rx") return [];
+  return (store.state?.resolved?.frames ?? [])
+    .filter((o) => o.path[1] === path.value[1] && o.sender && o.sender !== f.device && o.device !== f.device)
+    // Кадры с тем же CAN ID — первыми: скорее всего, это и есть описанный дважды кадр
+    .sort((a, b) => Number(b.can_id === f.can_id) - Number(a.can_id === f.can_id)
+      || a.sender!.localeCompare(b.sender!) || a.name.localeCompare(b.name))
+    .map((o) => ({
+      key: pathKey(o.path), path: o.path,
+      label: `${o.sender} · ${o.name}` + (o.can_id != null ? ` (${hex(o.can_id, o.extended ? 8 : 3)})` : ""),
+    }));
+});
+
+function setSource(e: Event) {
+  const el = e.target as HTMLSelectElement;
+  const src = rxSources.value.find((o) => o.key === el.value);
+  el.value = "";
+  if (src) void receiveFrame(path.value, src.path);
+}
+
 // ------------------------------------------------------------------ сигнал
 
 const rsignal = computed(() => {
@@ -295,7 +314,9 @@ const exchange = computed(() => {
     desc: txt(getAt(data.value, f.path)?.description, lang.value),
   });
   return {
-    receives: onBus.filter((f) => f.receivers.includes(name)).map((f) => row(f, label(f.sender))),
+    // Своё устройство из получателей чужого кадра можно убрать; свой RX-кадр — только удалить
+    receives: onBus.filter((f) => f.receivers.includes(name))
+      .map((f) => ({ ...row(f, label(f.sender)), foreign: f.device !== name })),
     sends: onBus.filter((f) => f.sender === name && f.device !== name)
       .map((f) => row(f, f.device ? label(f.device) : t("кадр шины"))),
   };
@@ -395,6 +416,16 @@ function onLayout(p: Path, start: number, length: number) {
           </label>
         </template>
 
+        <!-- RX-кадр: выбрать вместо него кадр другого устройства -->
+        <label v-if="rxSources.length && !readonly" class="field">
+          <span class="field-label"><HelpTip :text="HELP['layout.source']" />{{ t("Кадр другого устройства") }}</span>
+          <select value="" @change="setSource">
+            <option value="">{{ t("нет — кадр описан здесь") }}</option>
+            <option v-for="o in rxSources" :key="o.key" :value="o.key">{{ o.label }}</option>
+          </select>
+          <span class="field-hint">{{ t("устройство принимает кадр, описанный у отправителя") }}</span>
+        </label>
+
         <!-- режим передачи кадра -->
         <template v-if="kind === 'frame'">
           <label class="field" :class="txMode === 'cyclic' ? '' : worstLevel(txDiags)">
@@ -419,7 +450,7 @@ function onLayout(p: Path, start: number, length: number) {
 
         <FieldInput v-for="def in fields" :key="path.join('/') + def.key" :def="def" :value="shownValue(def)"
                     :path="fieldPath(def)" :required="def.isRequired"
-                    :diags="fieldDiags(def)" :readonly="readonly || def.isLocked"
+                    :diags="fieldDiags(def)" :readonly="readonly"
                     :placeholder="placeholderFor(def)"
                     @commit="commit(def, $event)" />
       </div>
@@ -482,10 +513,14 @@ function onLayout(p: Path, start: number, length: number) {
     <section v-if="exchange" class="card">
       <h3>{{ t("Принимает") }} <span class="muted">{{ exchange.receives.length }}</span></h3>
       <table v-if="exchange.receives.length" class="list">
-        <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Отправитель") }}</th><th>{{ t("Описание") }}</th></tr></thead>
+        <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Отправитель") }}</th><th>{{ t("Описание") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="f in exchange.receives" :key="f.name" class="clickable" @click="actions.select(f.path)">
             <td class="mono">{{ f.id }}</td><td class="mono">{{ f.name }}</td><td class="mono">{{ f.peer }}</td><td>{{ f.desc }}</td>
+            <td v-if="!readonly" class="act">
+              <button v-if="f.foreign" class="icon danger" :title="t('Не принимать (убрать из получателей)')"
+                      @click.stop="stopReceiving(f.path, node.name)">✕</button>
+            </td>
           </tr>
         </tbody>
       </table>

@@ -90,6 +90,8 @@ export interface TreeNode {
   children: TreeNode[];
   search: string;
   dir?: string | null;   // для кадров: tx / rx / null (широковещательный)
+  /** Ссылка на кадр другого устройства, который принимает устройство (path — путь оригинала); значение — отправитель. */
+  from?: string;
 }
 
 function frameSub(rf: ResolvedFrame | undefined): string {
@@ -176,6 +178,19 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
         search: [d.name, d.short ?? "", txt(d.title, lang)].join(" ").toLowerCase(),
       };
       list(d.frames).forEach((f: Data, fi: number) => dnode.children.push(frameNode(f, [...dp, "frames", fi])));
+      // Чужие кадры, в получателях которых указано устройство, — ссылками после своих кадров
+      for (const rf of frames.values()) {
+        if (rf.path[1] !== bi || rf.device === d.name || !rf.receivers.includes(d.name)) continue;
+        // Имя кадра может не содержать имени устройства — в подписи ссылки указываем отправителя
+        const sender = list(bus.devices).find((x: Data) => x.name === rf.sender);
+        const senderLabel = sender ? String(sender.short ?? sender.name) : "";
+        dnode.children.push({
+          key: `${pathKey(dp)}/received:${pathKey(rf.path)}`, path: rf.path, kind: "frame",
+          label: senderLabel ? `${senderLabel} · ${rf.name}` : rf.name,
+          sub: frameSub(rf), children: [], dir: "rx", from: rf.sender ?? "",
+          search: [rf.name, rf.sender ?? "", sender?.short ?? "", rf.can_id != null ? hex(rf.can_id) : ""].join(" ").toLowerCase(),
+        });
+      }
       bnode.children.push(dnode);
     });
     out.push(bnode);

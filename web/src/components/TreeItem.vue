@@ -47,7 +47,7 @@ const nodeData = computed(() => (store.state?.data ? getAt(store.state.data, pro
 const busTitle = computed(() => (props.node.kind === "bus" ? txt(nodeData.value?.title, lang.value) : ""));
 const partValue = (p: Part) => (p === "title" ? busTitle.value : nodeData.value?.[p] ?? "");
 function startRename(field: Part = "name") {
-  if (canRename(props.node.path)) renaming.value = field;
+  if (props.node.from === undefined && canRename(props.node.path)) renaming.value = field;
 }
 // Идентификатор шины с названием виден справа — поле правки открывается там же, а не на месте названия
 const renamingSub = computed(() => renaming.value === "name" && props.node.kind === "bus" && !!busTitle.value);
@@ -60,8 +60,11 @@ function click() {
 
 <template>
   <li>
-    <div class="tree-row" :class="{ selected, 'on-path': onPath, match }" :style="{ paddingLeft: depth * 14 + 6 + 'px' }"
-         :data-key="pathKey(node.path)" @click="click">
+    <!-- У ссылки на чужой кадр data-key свой: прокрутка к выбранному кадру идёт к оригиналу -->
+    <div class="tree-row" :class="{ selected, 'on-path': onPath, match, link: node.from !== undefined }"
+         :style="{ paddingLeft: depth * 14 + 6 + 'px' }"
+         :data-key="node.from !== undefined ? node.key : pathKey(node.path)" @click="click"
+         :title="node.from !== undefined ? t('Принимает кадр от {sender}', { sender: node.from || t('вне карты') }) : undefined">
       <span class="twisty" :class="{ hidden: !node.children.length }" @click.stop="emit('toggle', node.key)">
         {{ open ? "▾" : "▸" }}
       </span>
@@ -78,6 +81,7 @@ function click() {
                     @done="renaming = null" />
       <span v-else-if="node.sub && !(node.kind === 'bus' && !busTitle)" class="tsub mono"
             @dblclick.stop="node.kind === 'bus' && startRename('name')">{{ node.sub }}</span>
+      <span v-if="node.from !== undefined" class="tsub link-mark">↪</span>
       <span v-if="own" class="dot" :class="own" :title="own" />
       <span v-else-if="nested" class="dot ring" :class="nested" />
     </div>

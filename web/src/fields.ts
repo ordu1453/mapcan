@@ -37,10 +37,6 @@ export interface FieldDef {
   /** Показывать поле только если условие истинно (node — данные узла). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   when?: (node: any, ctx: FieldCtx) => boolean;
-  /** Поле видно, но недоступно для правки; lockedHint заменяет hint. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  locked?: (node: any, ctx: FieldCtx) => boolean;
-  lockedHint?: string;
   /** Обязательное поле: без значения карта не проходит проверку (звёздочка и подсветка пустого поля). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   required?: boolean | ((node: any, ctx: FieldCtx) => boolean);
@@ -68,6 +64,14 @@ const FRAME_TYPES: Array<[string, string]> = [
 // Вне CANopen тип кадра не используется: ID задаётся явно (CAN) или из PGN + SA (J1939)
 const frameTypes = (c: FieldCtx) => (c.protocol === "canopen" ? FRAME_TYPES : FRAME_TYPES.slice(0, 1));
 
+// Направление по типу кадра CANopen (как в canopen.py); у SYNC и TIME своего направления нет
+const TYPE_DIRECTION: Record<string, string> = {
+  nmt: "rx", emcy: "tx", sdo_tx: "tx", sdo_rx: "rx", heartbeat: "tx",
+  pdo_tx1: "tx", pdo_tx2: "tx", pdo_tx3: "tx", pdo_tx4: "tx", pdo_rx1: "rx", pdo_rx2: "rx", pdo_rx3: "rx", pdo_rx4: "rx",
+};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const frameType = (n: any): string => n?.type ?? "raw";
+
 // «По типу» — направление из типа кадра CANopen; в других протоколах просто не задано
 const directions = (c: FieldCtx): Array<[string, string]> =>
   [["", c.protocol === "canopen" ? N_("по типу") : N_("не задано")], ["tx", "TX"], ["rx", "RX"]];
@@ -78,6 +82,9 @@ const others = (c: FieldCtx): Array<[string, string]> =>
   (c.devices ?? []).filter((d) => d !== c.owner).map((d) => [d, d]);
 const senders = (c: FieldCtx): Array<[string, string]> => [["", N_("вне карты")], ...others(c)];
 const receivers = (c: FieldCtx): Array<[string, string]> => others(c).filter(([d]) => d !== c.sender);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const hasValue = (n: any): boolean => n?.value != null;
 
 const KINDS: Array<[string, string]> = [
   ["enum", N_("enum — перечисление")], ["flag", N_("flag — флаг")], ["bitfield", N_("bitfield — битовое поле")],
@@ -126,10 +133,8 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   frame: [
     { key: "name", label: N_("Идентификатор"), type: "text", required: true },
     { key: "title", label: N_("Заголовок в документах"), type: "loc", hint: N_("напр. СОСТОЯНИЯ") },
-    { key: "type", label: N_("Тип"), type: "select", optionsFor: frameTypes,
-      // Записанный в YAML тип CANopen на другой шине не блокируем — его нужно иметь возможность исправить на raw
-      locked: (n, c) => c.protocol !== "canopen" && (n?.type == null || n.type === "raw"),
-      lockedHint: N_("вне CANopen кадр задаётся явным ID (J1939 — PGN)") },
+    // Вне CANopen тип не используется (ID явный или из PGN); записанный в YAML тип виден, чтобы его исправить
+    { key: "type", label: N_("Тип"), type: "select", optionsFor: frameTypes, when: (_n, c) => c.protocol === "canopen" },
     { key: "id", label: "CAN ID", type: "hex", hint: N_("пусто — вычислить (CANopen: тип + node_id, J1939: PGN + SA)"),
       required: (n, c) => c.protocol === "can" || (c.protocol === "canopen" && (n?.type ?? "raw") === "raw") },
     { key: "pgn", label: "PGN", type: "hex", hint: N_("J1939, напр. 0xF004"), when: (_n, c) => c.protocol === "j1939",
@@ -138,15 +143,20 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "destination", label: N_("Получатель (DA)"), type: "hex", hint: N_("PDU1; пусто — 0xFF (всем)"),
       when: (n, c) => c.protocol === "j1939" && n?.pgn != null && ((n.pgn >> 8) & 0xff) < 240 },
     { key: "dlc", label: "DLC", type: "int" },
-    { key: "direction", label: N_("Направление"), type: "select", optionsFor: directions },
+    // Направление есть только у кадра устройства; у типа CANopen оно задано типом
+    { key: "direction", label: N_("Направление"), type: "select", optionsFor: directions,
+      when: (n, c) => !!c.owner && !(c.protocol === "canopen" && TYPE_DIRECTION[frameType(n)]) },
+    // Отправитель — у RX-кадра и кадра шины (TX-кадр передаёт само устройство), если на шине есть кого выбрать
     { key: "sender", label: N_("Отправитель"), type: "select", optionsFor: senders,
-      hint: N_("для RX-кадра и кадра шины; пусто — отправитель не описан в карте"),
-      // У TX-кадра отправитель — само устройство; записанный sender не блокируем, чтобы его можно было убрать
-      locked: (n, c) => !!c.owner && c.direction === "tx" && n?.sender == null,
-      lockedHint: N_("TX-кадр передаёт само устройство") },
+      hint: N_("пусто — отправитель не описан в карте"),
+      when: (_n, c) => (!c.owner || c.direction === "rx") && others(c).length > 0 },
+    // У RX-кадра получатель — само устройство
     { key: "receivers", label: N_("Получатели"), type: "devices", optionsFor: receivers, wide: true,
-      hint: N_("устройства шины, которые принимают кадр") },
-    { key: "extended", label: N_("29-битный ID"), type: "bool", when: (_n, c) => c.protocol !== "j1939" },
+      hint: N_("устройства шины, которые принимают кадр"),
+      when: (_n, c) => !(c.owner && c.direction === "rx") && receivers(c).length > 0 },
+    // CANopen вычисляет 11-битные ID; 29-битный бывает только у кадра с явным ID
+    { key: "extended", label: N_("29-битный ID"), type: "bool",
+      when: (n, c) => c.protocol === "can" || (c.protocol === "canopen" && frameType(n) === "raw") },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },
   ],
@@ -191,11 +201,12 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "index", label: N_("Индекс"), type: "hex", required: true },
     { key: "subindex", label: N_("Субиндекс"), type: "hex" },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
-    { key: "value.name", label: N_("Значение: идентификатор"), type: "text", required: (n) => n?.value != null },
+    // Остальные поля значения появляются, когда задан его идентификатор
+    { key: "value.name", label: N_("Значение: идентификатор"), type: "text", required: hasValue },
     { key: "value.bit_length", label: N_("Значение: бит"), type: "select",
-      options: [["8", "8"], ["16", "16"], ["24", "24"], ["32", "32"]] },
-    { key: "value.unit", label: N_("Значение: единица"), type: "text", suggest: "units" },
-    { key: "value.factor", label: N_("Значение: масштаб"), type: "float" },
+      options: [["8", "8"], ["16", "16"], ["24", "24"], ["32", "32"]], when: hasValue },
+    { key: "value.unit", label: N_("Значение: единица"), type: "text", suggest: "units", when: hasValue },
+    { key: "value.factor", label: N_("Значение: масштаб"), type: "float", when: hasValue },
   ],
   unknown: [],
 };
