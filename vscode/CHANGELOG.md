@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+* The **Node** panel has all the fields of the web editor: byte order of any signal longer than a
+  byte (not only on CAN buses), signed code, "no data" values, value format, multiplexer selector and
+  mux values, notes of frames and signals, the bus interface, the J1939 destination address and the
+  value of an SDO exchange.
+
 ## 0.2.0
 
 * The Map view shows names for people (titles, "abbreviation · full name" for devices, the sender

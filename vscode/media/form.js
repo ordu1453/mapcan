@@ -14,6 +14,8 @@
     ["sdo_tx", "SDO TX"], ["sdo_rx", "SDO RX"], ["heartbeat", "Heartbeat"],
   ];
   // Direction of CANopen frame types (as in canopen.py); SYNC and TIME have none
+  // Service frames of CANopen whose length the type fixes (CiA 301, as in canopen.py)
+  const FIXED_DLC = ["nmt", "time", "heartbeat", "sdo_tx", "sdo_rx"];
   const TYPE_DIRECTION = {
     nmt: "rx", emcy: "tx", sdo_tx: "tx", sdo_rx: "rx", heartbeat: "tx",
     pdo_tx1: "tx", pdo_tx2: "tx", pdo_tx3: "tx", pdo_tx4: "tx", pdo_rx1: "rx", pdo_rx2: "rx", pdo_rx3: "rx", pdo_rx4: "rx",
@@ -26,8 +28,10 @@
 
   /**
    * @typedef {{protocol: string, owner: string|null, devices: {name: string, label: string}[],
-   *   signalKind: string|null, values: Record<string, any>, units: string[][], lang: string}} Ctx
+   *   signalKind: string|null, bitLength: number|null, hasSelector: boolean, values: Record<string, any>,
+   *   units: string[][], lang: string}} Ctx
    * @typedef {{key: string, label: string, type: string, half?: boolean, mono?: boolean, required?: boolean,
+   *   numeric?: boolean,
    *   tip?: string, placeholder?: string | ((c: Ctx) => string), options?: (c: Ctx) => string[][],
    *   when?: (c: Ctx) => boolean}} Field
    * @typedef {{title?: string, fields: Field[]}} Section
@@ -42,15 +46,26 @@
   const signalKind = (/** @type {Ctx} */ c) => c.values.kind ?? c.signalKind ?? "raw";
   const numeric = (/** @type {Ctx} */ c) => ["metric", "raw", "float"].includes(signalKind(c));
   const byBytes = (/** @type {Ctx} */ c) => c.values.start_bit == null;
+  // Length as typed in the form, else as the server computed it from the map
+  const bitLength = (/** @type {Ctx} */ c) =>
+    c.values.bit_length ?? (c.values.byte_length != null ? c.values.byte_length * 8 : c.bitLength);
+  // Byte order matters for a value longer than a byte (any protocol: the format allows big-endian everywhere)
+  const multiByte = (/** @type {Ctx} */ c) => !["flag", "bytes"].includes(signalKind(c)) && (bitLength(c) ?? 0) > 8;
+  // The bit in the byte matters only for a value shorter than a byte
+  const subByte = (/** @type {Ctx} */ c) => signalKind(c) === "flag" || (bitLength(c) ?? 8) < 8;
+  // The SDO exchange's value: its other fields appear once it has an identifier
+  const hasValue = (/** @type {Ctx} */ c) => c.values["value.name"] != null;
 
   /** @type {Field} */
   const NAME = { key: "name", label: "Identifier", type: "text", required: true, mono: true,
     tip: "Latin letters, digits and _. Used in code, DBC and references." };
+  /** @type {Field} */
+  const DESCRIPTION = { key: "description", label: "Description", type: "textarea" };
   /** @type {Section} */
-  const NOTES = { title: "Notes", fields: [
-    { key: "description", label: "Description", type: "textarea" },
-    { key: "comment", label: "Note", type: "textarea", when: () => false },
-  ] };
+  const NOTES = { title: "Notes", fields: [DESCRIPTION] };
+  /** Frames and signals also have a note (a remark under the description in documents). */
+  /** @type {Section} */
+  const NOTES_COMMENT = { title: "Notes", fields: [DESCRIPTION, { key: "comment", label: "Note", type: "textarea" }] };
 
   /** @type {Record<string, Section[]>} */
   const FORMS = {
@@ -63,7 +78,8 @@
         { key: "protocol", label: "Protocol", type: "select", half: true,
           options: () => [["canopen", "CANopen"], ["j1939", "SAE J1939"], ["can", "CAN"]] },
         { key: "bitrate", label: "Bitrate", type: "int", half: true, placeholder: "500000", tip: "bit/s" },
-        { key: "fd", label: "CAN FD", type: "bool" },
+        { key: "interface", label: "Interface", type: "text", half: true, placeholder: "can0" },
+        { key: "fd", label: "CAN FD", type: "bool", half: true },
       ] },
       NOTES,
     ],
@@ -93,12 +109,16 @@
           tip: "Empty: computed from the type and node ID (CANopen) or from PGN and SA (J1939)",
           when: (c) => c.protocol !== "canopen" || frameType(c) === "raw" || c.values.id != null },
         { key: "pgn", label: "PGN", type: "hex", half: true, placeholder: "0xF004", when: (c) => c.protocol === "j1939" },
-        { key: "priority", label: "Priority", type: "int", half: true, placeholder: "6", when: (c) => c.protocol === "j1939" },
+        { key: "priority", label: "Priority", type: "int", half: true, placeholder: "6", tip: "0..7", when: (c) => c.protocol === "j1939" },
+        { key: "destination", label: "Destination (DA)", type: "hex", half: true, placeholder: "0xFF",
+          tip: "PDU1 PGN only; empty: 0xFF (global)",
+          when: (c) => c.protocol === "j1939" && c.values.pgn != null && ((c.values.pgn >> 8) & 0xff) < 240 },
         { key: "extended", label: "29-bit ID", type: "bool",
           when: (c) => c.protocol === "can" || (c.protocol === "canopen" && frameType(c) === "raw") },
       ] },
       { title: "Timing", fields: [
-        { key: "dlc", label: "DLC", type: "int", half: true, placeholder: "8", tip: "Data length, bytes" },
+        { key: "dlc", label: "DLC", type: "int", half: true, placeholder: "8", tip: "Data length, bytes",
+          when: (c) => !(c.protocol === "canopen" && FIXED_DLC.includes(frameType(c))) },
         { key: "cycle_ms", label: "Cycle, ms", type: "int", half: true, placeholder: "Event" },
       ] },
       { title: "Routing", fields: [
@@ -110,7 +130,7 @@
         { key: "receivers", label: "Receivers", type: "devices", options: receivers,
           when: (c) => !(c.owner && direction(c) === "rx") && receivers(c).length > 0 },
       ] },
-      NOTES,
+      NOTES_COMMENT,
     ],
     signal: [
       { fields: [
@@ -121,25 +141,40 @@
       ] },
       { title: "Position", fields: [
         { key: "byte", label: "Byte", type: "int", half: true, placeholder: "0", when: byBytes },
-        { key: "bit", label: "Bit", type: "int", half: true, placeholder: "0", tip: "Bit in the byte, 0..7", when: byBytes },
+        { key: "bit", label: "Bit", type: "int", half: true, placeholder: "0", tip: "Bit in the byte, 0..7",
+          when: (c) => byBytes(c) && subByte(c) },
         { key: "start_bit", label: "Start bit", type: "int", half: true, tip: "LSB, lsb0 numbering", when: (c) => !byBytes(c) },
         { key: "bit_length", label: "Length, bits", type: "int", half: true, placeholder: "8",
-          when: (c) => c.values.byte_length == null },
+          when: (c) => c.values.byte_length == null && signalKind(c) !== "flag" },
         { key: "byte_length", label: "Length, bytes", type: "int", half: true, when: (c) => c.values.byte_length != null },
         { key: "byte_order", label: "Byte order", type: "select",
-          options: () => [["", "Little-endian"], ["big_endian", "Big-endian"]], when: (c) => c.protocol === "can" },
+          options: () => [["", "Little-endian (Intel)"], ["big_endian", "Big-endian (Motorola)"]], when: multiByte },
       ] },
       { title: "Value", fields: [
         { key: "unit", label: "Unit", type: "unit", half: true, when: numeric },
         { key: "signed", label: "Signed", type: "bool", half: true, when: (c) => ["raw", "metric"].includes(signalKind(c)) },
+        { key: "signed_code", label: "Signed code", type: "select", half: true,
+          options: () => [["", "Two's complement"], ["ones_complement", "Ones' complement"], ["sign_magnitude", "Sign and magnitude"]],
+          when: (c) => !!c.values.signed },
         { key: "factor", label: "Factor", type: "float", half: true, placeholder: "1", tip: "phys = raw × factor + offset", when: numeric },
         { key: "offset", label: "Offset", type: "float", half: true, placeholder: "0", tip: "phys = raw × factor + offset", when: numeric },
         { key: "min", label: "Min", type: "float", half: true, when: numeric },
         { key: "max", label: "Max", type: "float", half: true, when: numeric },
         { key: "initial", label: "Default", type: "float", half: true, tip: "Physical value",
           when: (c) => !["bitfield", "bytes"].includes(signalKind(c)) },
+        { key: "invalid", label: "No data (raw)", type: "intlist", half: true, mono: true, placeholder: "0xFF",
+          tip: "Raw value(s) meaning \"no data\": 0xFF or 0xFE, 0xFF", when: (c) => ["raw", "metric", "enum"].includes(signalKind(c)) },
+        { key: "value_format", label: "Values in documents", type: "select", half: true,
+          options: () => [["", "Decimal"], ["hex", "Hex"]], when: (c) => signalKind(c) === "enum" },
       ] },
-      NOTES,
+      { title: "Multiplexing", fields: [
+        { key: "multiplexer", label: "Multiplexer selector", type: "bool",
+          tip: "The signal selects which multiplexed signals the frame carries",
+          when: (c) => ["raw", "enum"].includes(signalKind(c)) && !c.hasSelector },
+        { key: "mux", label: "Selector values", type: "intlist", mono: true, placeholder: "0 or 1, 2",
+          tip: "Values of the frame's selector at which the signal is present", when: (c) => c.hasSelector },
+      ] },
+      NOTES_COMMENT,
     ],
     flag: [
       { fields: [
@@ -156,6 +191,15 @@
         { key: "index", label: "Index", type: "hex", half: true, required: true, placeholder: "0x6040" },
         { key: "subindex", label: "Subindex", type: "hex", half: true, placeholder: "0x00" },
       ] },
+      { title: "Value", fields: [
+        { key: "value.name", label: "Identifier", type: "text", mono: true,
+          tip: "Empty: the exchange carries no value" },
+        { key: "value.bit_length", label: "Length, bits", type: "select", half: true, numeric: true,
+          options: () => [["", "32"], ["8", "8"], ["16", "16"], ["24", "24"]], when: hasValue },
+        { key: "value.unit", label: "Unit", type: "unit", half: true, when: hasValue },
+        { key: "value.factor", label: "Factor", type: "float", half: true, placeholder: "1", when: hasValue },
+        { key: "value.offset", label: "Offset", type: "float", half: true, placeholder: "0", when: hasValue },
+      ] },
       NOTES,
     ],
   };
@@ -163,6 +207,15 @@
   const INT_RE = /^[-+]?(0x[0-9a-f]+|[0-9]+)$/i;
 
   /** Text of a field → value for YAML; null removes the key. Throws on invalid input. */
+  function parseInt_(/** @type {string} */ s, /** @type {string} */ message) {
+    if (!INT_RE.test(s)) throw new Error(message);
+    const neg = s.startsWith("-");
+    const body = s.replace(/^[-+]/, "");
+    const v = /^0x/i.test(body) ? parseInt(body.slice(2), 16) : Number(body);
+    if (!Number.isSafeInteger(v)) throw new Error("Number too large");
+    return neg ? -v : v;
+  }
+
   function parse(/** @type {Field} */ f, /** @type {string} */ raw) {
     const s = raw.trim();
     if (s === "") {
@@ -171,13 +224,12 @@
     }
     switch (f.type) {
       case "int":
-      case "hex": {
-        if (!INT_RE.test(s)) throw new Error(f.type === "hex" ? "Number expected: 0x1A or 26" : "Integer expected");
-        const neg = s.startsWith("-");
-        const body = s.replace(/^[-+]/, "");
-        const v = /^0x/i.test(body) ? parseInt(body.slice(2), 16) : Number(body);
-        if (!Number.isSafeInteger(v)) throw new Error("Number too large");
-        return neg ? -v : v;
+      case "hex":
+        return parseInt_(s, f.type === "hex" ? "Number expected: 0x1A or 26" : "Integer expected");
+      case "intlist": {
+        // One value is written as a number, several as a list
+        const parts = s.split(/[\s,;]+/).filter(Boolean).map((x) => parseInt_(x, "Integers expected: 1 or 1, 2"));
+        return parts.length === 1 ? parts[0] : parts;
       }
       case "float": {
         const v = Number(s.replace(",", "."));
@@ -192,6 +244,7 @@
   function format(/** @type {Field} */ f, /** @type {any} */ v) {
     if (v === null || v === undefined) return "";
     if (f.type === "hex" && typeof v === "number") return "0x" + v.toString(16).toUpperCase().padStart(2, "0");
+    if (Array.isArray(v)) return v.join(", ");
     return String(v);
   }
 
@@ -210,6 +263,7 @@
 
   const ctx = () => /** @type {Ctx} */ ({
     protocol: node.protocol, owner: node.owner, devices: node.devices, signalKind: node.signalKind,
+    bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector,
     values: node.values, units: node.units ?? [], lang: node.lang,
   });
 
@@ -248,7 +302,7 @@
     r.row.classList.remove("invalid");
     r.error.hidden = true;
     const current = node.values[r.def.key] ?? null;
-    if (value !== current) send(r.def.key, value);
+    if (JSON.stringify(value) !== JSON.stringify(current)) send(r.def.key, value);
   }
 
   // ---------------------------------------------------------------- unit combobox
@@ -345,7 +399,10 @@
       r.input = el("input", { type: "checkbox", id, onchange: () => send(f.key, r.input.checked) });
       control = el("label", { class: "check", for: id, title: f.tip }, r.input, f.label);
     } else if (f.type === "select") {
-      r.input = el("select", { id, onchange: () => send(f.key, r.input.value || null) });
+      r.input = el("select", { id, onchange: () => {
+        const v = r.input.value;
+        send(f.key, v === "" ? null : f.numeric ? Number(v) : v);
+      } });
       control = r.input;
     } else if (f.type === "devices") {
       r.input = el("div", { class: "checks", id });

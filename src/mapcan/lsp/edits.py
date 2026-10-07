@@ -724,14 +724,26 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             values[k] = list(v)
         elif not isinstance(v, (dict, list)):
             values[k] = str(v)
+    # Значение SDO-обмена — вложенный словарь: его поля идут в форму под ключами «value.<поле>»
+    if kind == "sdo" and isinstance(raw.get("value"), dict):
+        for k, v in raw["value"].items():
+            if isinstance(v, dict) and k in TEXT_KEYS:
+                values[f"value.{k}"] = _txt(v, lang)
+            elif isinstance(v, (str, int, float, bool)):
+                values[f"value.{k}"] = v
     owner = raw_at(a, path[:4]) if len(path) >= 6 and path[2] == "devices" else None
     devices = [(d.get("name"), _txt(d.get("short"), lang) or _txt(d.get("title"), lang) or d.get("name"))
                for d in bus.get("devices") or [] if isinstance(d, dict) and isinstance(d.get("name"), str)]
     # Вычисленный тип сигнала (kind по умолчанию выводится из полей), если карта разобрана
     signal = _find(a.map, path) if a.map is not None and kind == "signal" else None
+    # Есть ли в кадре другой сигнал-селектор мультиплексора (тогда сигналу доступно поле mux)
+    siblings = raw_at(a, path[:-1]) if kind == "signal" else None
+    has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not raw for s in siblings or [])
     return {"kind": kind, "path": list(path), "lang": lang, "protocol": bus.get("protocol") or "canopen",
             "owner": owner.get("name") if isinstance(owner, dict) else None,
             "signalKind": signal.kind if isinstance(signal, M.Signal) else values.get("kind"),
+            "bitLength": signal.bit_length if isinstance(signal, M.Signal) else None,
+            "hasSelector": has_selector,
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
             # Справочник единиц (ru, en) для подсказок в поле «Единица»; свой текст тоже допустим
             "units": [list(u) for u in UNITS] if kind == "signal" else []}
@@ -743,9 +755,16 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
     Имя переименовывается вместе со ссылками на него; текст, записанный на нескольких языках,
     меняется только на языке документа.
     """
-    if not path or not isinstance(path[-1], str) or not isinstance(raw_at(a, path[:-1]), dict):
+    if not path or not isinstance(path[-1], str):
         return []
     key = path[-1]
+    if not isinstance(raw_at(a, path[:-1]), dict):
+        # Поле ещё не созданного вложенного словаря (value.name у SDO): словарь добавляется вместе с ним
+        parent = path[:-1]
+        if (value is None or value == "" or len(parent) < 2 or not isinstance(parent[-1], str)
+                or raw_at(a, parent) is not None or not isinstance(raw_at(a, parent[:-1]), dict)):
+            return []
+        return _insert_field(a, parent[:-1], parent[-1], f"{{{key}: {format_value(key, value)}}}")
     current = raw_at(a, path)
     if value is None or value == "":
         if current is None or path not in a.nodes:
@@ -753,8 +772,14 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
         if isinstance(current, dict) and key in TEXT_KEYS:
             lang = doc_language(a)
             return delete_key(a, path + (lang,)) if lang in current else []
+        # Последнее поле вложенного словаря «key: {поле: …}» удаляется вместе с ним, а не оставляет «{}»
+        parent, pn = path[:-1], a.nodes.get(path[:-1])
+        if (len(parent) >= 2 and isinstance(parent[-1], str) and list(raw_at(a, parent)) == [key]
+                and pn is not None and _is_flow(a, parent) and (close := a._closing(pn.start))
+                and close[0] == pn.start[0]):
+            return delete_key(a, parent)
         return delete_key(a, path)
-    if key == "name":
+    if key == "name" and current is not None:
         return rename_edits(a, path, str(value)) if value != current else []
     if isinstance(current, dict) and key in TEXT_KEYS:
         lang = doc_language(a)

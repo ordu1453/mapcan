@@ -175,6 +175,35 @@ def test_node_fields():
     assert E.node_fields(a, ("buses", 0))["values"]["title"] == "Demo bus"
     assert E.node_fields(a, FRAME + ("signals", 0))["units"][0] == ["В", "V"]
     assert E.node_fields(a, FRAME + ("signals",)) is None
+    # Длина сигнала из разобранной карты (для поля «Порядок байт») и наличие селектора mux в кадре
+    f = E.node_fields(a, FRAME + ("signals", 2))
+    assert (f["bitLength"], f["hasSelector"]) == (16, False)
+    pad = " " * 16
+    b = A.analyze(MINIMAL.replace(f"{pad}byte: 0\n", f"{pad}byte: 0\n{pad}multiplexer: true\n", 1), "m.yaml")
+    assert E.node_fields(b, FRAME + ("signals", 0))["hasSelector"] is False
+    assert E.node_fields(b, FRAME + ("signals", 1))["hasSelector"] is True
+
+
+def test_sdo_value_fields():
+    text = (ROOT / "tests" / "data" / "reference.yaml").read_text(encoding="utf-8")
+    a = A.analyze(text, "r.yaml")
+    sdo = next(p for p in a.nodes if E.node_kind(p) == "sdo")
+    f = E.node_fields(a, sdo)
+    assert f["values"]["value.name"] == "alarm_resistance"
+    assert (f["values"]["value.bit_length"], f["values"]["value.unit"]) == (16, "кОм")
+    # Поле существующего значения
+    out = apply(text, E.set_field(a, sdo + ("value", "factor"), 0.1))
+    assert "изоляции, factor: 0.1}" in out
+    assert errors(out) == errors(text)
+    # Значения ещё нет: словарь добавляется вместе с первым полем
+    bare = next(p for p in a.nodes if E.node_kind(p) == "sdo" and E.raw_at(a, p + ("value",)) is None)
+    out = apply(text, E.set_field(a, bare + ("value", "name"), "ack"))
+    assert "value: {name: ack}" in out
+    assert errors(out) == errors(text)
+    assert E.set_field(a, bare + ("value", "name"), None) == []
+    # Последнее поле значения удаляется вместе со словарём
+    b = A.analyze(out, "r.yaml")
+    assert apply(out, E.set_field(b, bare + ("value", "name"), None)) == text
 
 
 def test_set_field():

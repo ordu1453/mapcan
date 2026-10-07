@@ -19,6 +19,11 @@ interface NodeFields {
   owner: string | null;
   devices: { name: string; label: string }[];
   signalKind: string | null;
+  /** Signal length computed from the map (bits). */
+  bitLength: number | null;
+  /** Another signal of the frame is the multiplexer selector. */
+  hasSelector: boolean;
+  /** Fields; a nested one (the SDO exchange's value) is under "value.<field>". */
   values: Record<string, unknown>;
 }
 
@@ -136,7 +141,7 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
         break;
       case "set":
         if (this.path) {
-          const path = [...this.path, m.key];
+          const path = [...this.path, ...m.key.split(".")];
           this.queue = this.queue.then(() => this.set(path, m.value)).catch((err) => console.error(err));
         }
         break;
