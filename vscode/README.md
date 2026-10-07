@@ -5,6 +5,12 @@ file with a top-level `mapcan: 1` key. Other YAML files are left alone.
 
 ## Features
 
+* **Map view.** The mapcan icon in the Activity Bar opens the buses, devices, frames, signals and
+  flags of the active map, with computed CAN IDs and signal bits. Clicking a node jumps to it in
+  the editor. Moving the cursor selects the node under it.
+* **Export.** **mapcan: Export…** (also the button in the Map view) builds DBC, C and Python code,
+  Excel, PDF, Markdown and HTML from the current text of the map, unsaved edits included, into
+  `build/` next to the map. It refuses while the map has errors.
 * **Validation as you type.** mapcan reports errors and warnings in the editor and in the Problems
   panel, each with its rule code.
 * **Hovers.**
@@ -41,9 +47,11 @@ If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable.
 |---|---|---|
 | `mapcan.server.path` | `""` | Path to the `mapcan` executable; empty uses `PATH` |
 | `mapcan.server.args` | `["lsp"]` | Arguments for the executable |
+| `mapcan.export.outputDir` | `"build"` | Export folder, relative to the map's folder |
 
 ## Commands
 
+* **mapcan: Export…**
 * **mapcan: Restart Language Server**
 * **mapcan: Show Language Server Output**
 
@@ -57,4 +65,8 @@ npm run build
 
 Open the `vscode/` folder in VS Code and press F5. The Extension Development Host opens the
 `examples/` folder and runs the language server from the repository's `.venv`
-(`pip install -e ".[lsp]"`).
+(`uv sync --extra lsp`).
+
+`npm test` runs the integration tests in a separate VS Code that it downloads into `.vscode-test/`.
+To use an installed VS Code instead, set `VSCODE_PATH` to its executable; that VS Code must not be
+running.

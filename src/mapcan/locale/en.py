@@ -553,4 +553,8 @@ EN: dict[str, str] = {
     "Бит": "Bit",
     "Флаг": "Flag",
     "Байт": "Byte",
+    "Экспорт отменён: в карте есть ошибки ({errors}). Исправьте их и повторите.":
+        "Export canceled: the map has errors ({errors}). Fix them and try again.",
+    "Сохраните карту в файл перед экспортом.": "Save the map to a file before exporting.",
+    "Ошибка экспорта: {error}": "Export failed: {error}",
 }

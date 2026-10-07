@@ -1,11 +1,14 @@
-// mapcan for VS Code: starts the mapcan language server (`mapcan lsp`) for YAML files.
-// The server ignores YAML files without a top-level `mapcan:` key.
+// mapcan for VS Code: starts the mapcan language server (`mapcan lsp`) for YAML files and shows
+// the Map view. The server ignores YAML files without a top-level `mapcan:` key.
 
 import * as vscode from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
+import { exportMap } from "./export";
+import { isMap, MapTree, revealNode } from "./tree";
 
 let client: LanguageClient | undefined;
 let output: vscode.LogOutputChannel | undefined;
+let tree: MapTree | undefined;
 
 function serverOptions(): ServerOptions {
   const config = vscode.workspace.getConfiguration("mapcan.server");
@@ -42,6 +45,7 @@ async function start(): Promise<void> {
     client = undefined;
     console.error(err);
   }
+  await tree?.refresh();
 }
 
 async function stop(): Promise<void> {
@@ -52,15 +56,30 @@ async function stop(): Promise<void> {
   }
 }
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+/** The map to act on: the active editor if it is a map, else the one shown in the Map view. */
+function currentMap(): vscode.Uri | undefined {
+  const doc = vscode.window.activeTextEditor?.document;
+  return isMap(doc) ? doc.uri : tree?.mapUri;
+}
+
+/** The returned object is used by the integration tests. */
+export async function activate(context: vscode.ExtensionContext): Promise<{ tree: MapTree }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
+  tree = new MapTree(() => client);
+  const view = vscode.window.createTreeView("mapcan.map", { treeDataProvider: tree, showCollapseAll: true });
+  tree.attach(view);
   context.subscriptions.push(
     output,
+    tree,
+    view,
     vscode.commands.registerCommand("mapcan.restartServer", async () => {
       await stop();
       await start();
     }),
     vscode.commands.registerCommand("mapcan.showOutput", () => output?.show()),
+    vscode.commands.registerCommand("mapcan.export", () => exportMap(context, client, currentMap())),
+    vscode.commands.registerCommand("mapcan.revealNode", revealNode),
+    vscode.commands.registerCommand("mapcan.refreshMap", () => tree?.refresh()),
     vscode.workspace.onDidChangeConfiguration(async (e) => {
       if (e.affectsConfiguration("mapcan.server")) {
         await stop();
@@ -69,6 +88,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
   );
   await start();
+  return { tree };
 }
 
 export function deactivate(): Promise<void> {

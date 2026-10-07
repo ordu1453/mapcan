@@ -55,7 +55,8 @@ def test_symbols(minimal):
     (bus,) = A.symbols(minimal)
     assert (bus.kind, bus.name, bus.detail) == ("bus", "demo", "canopen")
     frame = bus.children[0].children[0]
-    assert (frame.kind, frame.name) == ("frame", "pump_state")
+    assert (frame.kind, frame.name, frame.detail) == ("frame", "pump_state", "0x1A1")
+    assert frame.children[2].detail == "metric · bits 16–31"
     assert [s.name for s in frame.children] == ["mode", "alarms", "pressure", "temperature", "speed", "counter"]
     assert [f.name for f in frame.children[1].children] == ["overheat", "dry_run", "sensor_state"]
     sel = frame.selection
@@ -124,6 +125,27 @@ def test_completions_block_receivers(minimal):
 
 def test_no_completion_for_free_text(minimal):
     assert A.completions("x:\n    description: ", (1, 17), minimal) is None
+
+
+def test_export_unsaved_text(tmp_path):
+    from mapcan.lsp.exports import export
+
+    text = MINIMAL.replace("title: Example map", "title: Edited in the editor")
+    files, warnings = export(text, str(tmp_path / "pump.yaml"), ["md", "dbc", "c"], tmp_path / "build")
+    names = sorted(f.relative_to(tmp_path / "build").as_posix() for f in files)
+    assert names == ["c/demo.c", "c/demo.h", "dbc/demo.dbc", "pump.md"]
+    assert "Edited in the editor" in (tmp_path / "build" / "pump.md").read_text(encoding="utf-8")
+    assert warnings == []
+
+
+def test_export_refuses_invalid_map(tmp_path):
+    from mapcan.lsp.exports import ExportError, export
+
+    with pytest.raises(ExportError, match="errors"):
+        export(MINIMAL.replace("byte: 4\n", "byte: 4\n                bit_length: 99\n"),
+               str(tmp_path / "m.yaml"), ["md"], tmp_path)
+    with pytest.raises(ExportError, match="unknown formats"):
+        export(MINIMAL, str(tmp_path / "m.yaml"), ["docx"], tmp_path)
 
 
 def _frame(payload: dict) -> bytes:

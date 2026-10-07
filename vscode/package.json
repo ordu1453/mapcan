@@ -29,7 +29,78 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mapcan",
+          "title": "mapcan",
+          "icon": "media/mapcan.svg"
+        }
+      ]
+    },
+    "views": {
+      "mapcan": [
+        {
+          "id": "mapcan.map",
+          "name": "Map",
+          "icon": "media/mapcan.svg",
+          "contextualTitle": "mapcan"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "mapcan.map",
+        "contents": "Open a mapcan map (a YAML file with a top-level `mapcan: 1` key) to see its buses, devices, frames and signals.",
+        "when": "!mapcan.mapOpen"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mapcan.export",
+          "when": "view == mapcan.map && mapcan.mapOpen",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mapcan.refreshMap",
+          "when": "view == mapcan.map",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mapcan.revealNode",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.refreshMap",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.export",
+          "when": "mapcan.mapOpen"
+        }
+      ]
+    },
     "commands": [
+      {
+        "command": "mapcan.export",
+        "title": "Export…",
+        "category": "mapcan",
+        "icon": "$(export)"
+      },
+      {
+        "command": "mapcan.refreshMap",
+        "title": "Refresh",
+        "category": "mapcan",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "mapcan.revealNode",
+        "title": "Reveal in Editor",
+        "category": "mapcan"
+      },
       {
         "command": "mapcan.restartServer",
         "title": "Restart Language Server",
@@ -60,6 +131,12 @@
           ],
           "description": "Arguments passed to the mapcan executable.",
           "scope": "machine-overridable"
+        },
+        "mapcan.export.outputDir": {
+          "type": "string",
+          "default": "build",
+          "markdownDescription": "Folder for **mapcan: Export…** results, relative to the map's folder (absolute paths also work).",
+          "scope": "resource"
         }
       }
     }
@@ -68,7 +145,8 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
-    "package": "vsce package --no-dependencies"
+    "package": "vsce package --no-dependencies",
+    "test": "npm run build && node test/runTest.mjs"
   },
   "dependencies": {
     "vscode-languageclient": "^10.1.0"
@@ -76,6 +154,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "~1.91.0",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.28.0",
     "typescript": "~5.9.0"

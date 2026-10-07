@@ -141,7 +141,7 @@ def symbols(a: Analysis) -> list[Symbol]:
         n = a.nodes[path]
         name_path = path + ("name",)
         sel_start = a.nodes[name_path].start if name_path in a.nodes else n.start
-        sym = Symbol(str(node.get("name", "?")), kind, _detail(node, kind),
+        sym = Symbol(str(node.get("name", "?")), kind, _detail(a, node, path, kind),
                      (n.start, n.end), (sel_start, a.token_end(sel_start)))
         for key, child_kind in _CHILDREN.get(kind, ()):
             items = node.get(key)
@@ -158,7 +158,13 @@ def symbols(a: Analysis) -> list[Symbol]:
     return [s for i, b in enumerate(buses) if (s := build(b, ("buses", i), "bus"))]
 
 
-def _detail(node: dict, kind: str) -> str:
+def _detail(a: Analysis, node: dict, path: Path_, kind: str) -> str:
+    """Подпись узла: по модели (вычисленный ID, биты), если карта разобрана, иначе по сырому YAML."""
+    obj = _find(a.map, path) if a.map is not None and kind in ("frame", "signal") else None
+    if isinstance(obj, M.Frame) and obj.can_id is not None:
+        return _hex(obj.can_id, obj.extended)
+    if isinstance(obj, M.Signal):
+        return f"{obj.kind} · {signal_bits(obj)}"
     if kind == "bus":
         return str(node.get("protocol", "canopen"))
     if kind == "frame":

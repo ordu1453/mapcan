@@ -11,6 +11,7 @@ from pygls.lsp.server import LanguageServer
 from pygls.uris import to_fs_path
 
 from .. import __version__
+from ..i18n import _
 from . import analysis as A
 
 SEVERITY = {"error": T.DiagnosticSeverity.Error, "warning": T.DiagnosticSeverity.Warning,
@@ -124,6 +125,28 @@ def completion(ls: MapcanServer, params: T.CompletionParams) -> T.CompletionList
     kind = T.CompletionItemKind.Reference if key in A.DEVICE_KEYS else T.CompletionItemKind.EnumMember
     return T.CompletionList(is_incomplete=False,
                             items=[T.CompletionItem(label=c, kind=kind, detail=key) for c in choices])
+
+
+@server.command("mapcan.lsp.export")
+@server.thread()
+def export_command(ls: MapcanServer, *args) -> dict:
+    """Аргумент: {uri, formats: [...], outDir}. Ответ: {files: [...], warnings: [...]} или {error}."""
+    from .exports import ExportError, export
+
+    params = args[0] if args and isinstance(args[0], dict) else {}
+    uri = params.get("uri", "")
+    path = to_fs_path(uri)
+    if not path or not uri.startswith("file:"):
+        return {"error": _("Сохраните карту в файл перед экспортом.")}
+    try:
+        files, warnings = export(ls.workspace.get_text_document(uri).source, path,
+                                 list(params.get("formats") or []), params.get("outDir") or "build")
+    except ExportError as e:
+        return {"error": str(e)}
+    except Exception as e:   # noqa: BLE001 — ошибку экспорта показываем пользователю, сервер продолжает работу
+        ls.window_log_message(T.LogMessageParams(type=T.MessageType.Error, message=repr(e)))
+        return {"error": _("Ошибка экспорта: {error}", error=e)}
+    return {"files": [str(f) for f in files], "warnings": warnings}
 
 
 def main() -> None:
