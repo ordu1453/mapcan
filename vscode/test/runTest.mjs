@@ -19,6 +19,7 @@ await runTests({
   vscodeExecutablePath: process.env.VSCODE_PATH || undefined,
   extensionDevelopmentPath: root,
   extensionTestsPath: join(here, "suite.cjs"),
-  launchArgs: [workspace, "--disable-extensions", "--user-data-dir", join(workspace, ".user-data")],
+  // --disable-gpu: under xvfb (CI) the window may hang on start with software GL
+  launchArgs: [workspace, "--disable-extensions", "--disable-gpu", "--user-data-dir", join(workspace, ".user-data")],
   extensionTestsEnv: { MAPCAN_SERVER: server, MAPCAN_TEST_WORKSPACE: workspace },
 });
