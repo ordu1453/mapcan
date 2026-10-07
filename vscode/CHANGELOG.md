@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 * New frames are made as in the web editor: a frame of a CANopen device gets the first free PDO
   type (`pdo_tx1`…`pdo_rx4`, its ID computed from the node ID), a J1939 frame a free PGN with
