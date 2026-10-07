@@ -7,10 +7,11 @@ import type { DiffResult, GitRevs } from "../types";
 import Modal from "./Modal.vue";
 import { t } from "../i18n";
 
+const props = defineProps<{ rev?: string }>();
 const emit = defineEmits<{ close: [] }>();
 
 const revs = ref<GitRevs | null>(null);
-const rev = ref("HEAD");
+const rev = ref(props.rev || "HEAD");
 const result = ref<DiffResult | null>(null);
 const loading = ref(false);
 const error = ref("");
@@ -25,7 +26,7 @@ onMounted(async () => {
     revs.value = await api.gitRevs();
     if (revs.value.available) await compareGit();
   } catch {
-    revs.value = { available: false, tags: [], commits: [] };
+    revs.value = { available: false, tags: [], all_tags: [], branches: [], commits: [] };
   }
 });
 
@@ -51,6 +52,10 @@ async function compareGit() {
   } finally {
     loading.value = false;
   }
+}
+
+async function openRevision() {
+  if (await actions.restoreRevision(rev.value)) emit("close");
 }
 
 async function compareFile(e: Event) {
@@ -120,12 +125,18 @@ async function addToHistory() {
             <optgroup v-if="revs.tags.length" :label="t('Теги')">
               <option v-for="t in revs.tags" :key="t" :value="t">{{ t }}</option>
             </optgroup>
+            <optgroup v-if="revs.branches.length" :label="t('Ветки')">
+              <option v-for="b in revs.branches" :key="b" :value="b">{{ b }}</option>
+            </optgroup>
             <optgroup v-if="revs.commits.length" :label="t('Коммиты с этим файлом')">
-              <option v-for="c in revs.commits" :key="c.rev" :value="c.rev">{{ c.rev }} · {{ c.date }} · {{ c.subject }}</option>
+              <option v-for="c in revs.commits" :key="c.rev" :value="c.rev">{{ c.rev }} · {{ c.date }} · {{ c.author }} · {{ c.subject }}</option>
             </optgroup>
           </select>
         </label>
         <button :disabled="loading" @click="compareGit">{{ t("Сравнить") }}</button>
+        <button v-if="!store.state?.readonly" :disabled="loading || store.busy"
+                :title="t('Загрузить эту версию в редактор вместо текущей (можно отменить)')"
+                @click="openRevision">{{ t("Открыть эту версию") }}</button>
         <span class="muted">{{ t("или") }}</span>
       </template>
       <label class="button">{{ t("Выбрать файл…") }} <input type="file" accept=".yaml,.yml" hidden @change="compareFile" /></label>

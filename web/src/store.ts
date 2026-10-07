@@ -12,7 +12,7 @@ interface Toast {
   text: string;
 }
 
-export type DialogKind = "open" | "new" | "saveas" | "example" | "profile" | "git-commit" | "git-tag" | "gh-publish" | null;
+export type DialogKind = "open" | "new" | "saveas" | "example" | "profile" | "git-commit" | "git-tag" | "git-log" | "gh-publish" | null;
 
 function savedTemplate(): string {
   try {
@@ -48,6 +48,8 @@ export const store = reactive({
   renameRequest: null as Path | null,          // узел, у которого в дереве сразу открыть правку названия
   update: null as UpdateInfo | null,           // доступная новая версия (плашка вверху)
   git: null as GitStatus | null,               // состояние git для файла карты (меню Git)
+  gitFetching: false,                          // идёт git fetch (проверка, что нового на сервере)
+  gitFetchError: "",                           // ошибка последнего fetch
 });
 
 let toastId = 0;
@@ -61,6 +63,7 @@ export function toast(text: string, kind: Toast["kind"] = "error"): void {
 }
 
 let ownVersion = -1;   // версия состояния, полученного в ответ на применение черновика YAML
+let lastFetch = 0;     // время последнего git fetch (actions.fetchGit)
 
 function accept(s: State): void {
   // Чужая правка (undo, перечитывание, другая вкладка браузера): черновик без неприменённого ввода
@@ -268,6 +271,33 @@ export const actions = {
       store.git = null;
     }
   },
+  /**
+   * Узнать у сервера, что нового (git fetch), для счётчика «не получено». Без `force` — не чаще раза в минуту;
+   * ошибки не всплывают, а показываются в меню Git.
+   */
+  fetchGit: async (force = false) => {
+    const g = store.git;
+    if (!g?.available || !g.upstream || store.gitFetching) return;
+    if (!force && Date.now() - lastFetch < 60_000) return;
+    lastFetch = Date.now();
+    store.gitFetching = true;
+    try {
+      store.git = await api.gitFetch();
+      store.gitFetchError = "";
+    } catch (e) {
+      store.gitFetchError = e instanceof Error ? e.message : String(e);
+    } finally {
+      store.gitFetching = false;
+    }
+  },
+  /** Загрузить версию карты из git в редактор как несохранённую правку (Ctrl+Z возвращает прежний текст). */
+  restoreRevision: (rev: string) =>
+    run(async () => {
+      const s = await api.gitRestore(rev);
+      ownVersion = s.version;
+      store.yaml = { draft: null, applied: null, diags: null };
+      return s;
+    }, t("Версия {rev} открыта в редакторе. Сохраните карту, чтобы оставить её, или отмените (Ctrl+Z).", { rev })),
   /** Операция git (коммит, тег, push, pull): обновляет состояние git, ошибки — во всплывающем сообщении. */
   git: async (fn: () => Promise<GitStatus>, okText: string): Promise<boolean> => {
     store.busy = true;

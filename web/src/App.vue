@@ -13,11 +13,18 @@ import StartScreen from "./components/StartScreen.vue";
 import TopBar from "./components/TopBar.vue";
 import GitDialog from "./components/GitDialog.vue";
 import GhPublishDialog from "./components/GhPublishDialog.vue";
+import GitLogDialog from "./components/GitLogDialog.vue";
 import YamlEditor from "./components/YamlEditor.vue";
 import { t } from "./i18n";
 
 const preview = ref<"html" | "pdf" | "md" | null>(null);
 const diffOpen = ref(false);
+const diffRev = ref("");               // ревизия, с которой сравнить сразу (из журнала версий)
+
+function openDiff(rev = "") {
+  diffRev.value = rev;
+  diffOpen.value = true;
+}
 
 onMounted(async () => {
   await actions.load();
@@ -71,7 +78,7 @@ function keepMine() {
 
 <template>
   <div class="app">
-    <TopBar @preview="preview = $event" @diff="diffOpen = true" />
+    <TopBar @preview="preview = $event" @diff="openDiff()" />
 
     <div v-if="store.update" class="update-banner">
       {{ t("Доступна новая версия mapcan {latest} (у вас {current}).",
@@ -101,13 +108,15 @@ function keepMine() {
     <DiagnosticsPanel v-if="store.state" />
 
     <PreviewDialog v-if="preview" :fmt="preview" @close="preview = null" />
-    <DiffDialog v-if="diffOpen" @close="diffOpen = false" />
+    <DiffDialog v-if="diffOpen" :rev="diffRev" @close="diffOpen = false" />
     <FileDialog v-if="store.dialog === 'open' || store.dialog === 'new' || store.dialog === 'saveas' || store.dialog === 'example'"
                 :key="store.dialog" :mode="store.dialog" @close="store.dialog = null" />
     <ProfileDialog v-if="store.dialog === 'profile'" @close="store.dialog = null" />
     <GitDialog v-if="store.dialog === 'git-commit' || store.dialog === 'git-tag'"
                :mode="store.dialog === 'git-commit' ? 'commit' : 'tag'" @close="store.dialog = null" />
     <GhPublishDialog v-if="store.dialog === 'gh-publish'" @close="store.dialog = null" />
+    <GitLogDialog v-if="store.dialog === 'git-log'" @close="store.dialog = null"
+                  @compare="store.dialog = null; openDiff($event)" />
 
     <div class="toasts">
       <div v-for="t in store.toasts" :key="t.id" class="toast" :class="t.kind">{{ t.text }}</div>

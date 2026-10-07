@@ -59,6 +59,8 @@ export const api = {
   gitTag: (name: string, message = "") => call<GitStatus>("POST", "/api/git/tag", { name, message }),
   gitPush: () => call<GitStatus>("POST", "/api/git/push"),
   gitPull: () => call<GitStatus>("POST", "/api/git/pull"),
+  gitFetch: () => call<GitStatus>("POST", "/api/git/fetch"),
+  gitRestore: (rev: string) => call<State>("POST", "/api/git/restore", { rev }),
   ghStatus: () => call<{ installed: boolean; user: string | null }>("GET", "/api/gh/status"),
   ghCreate: (b: { name: string; private: boolean; description: string }) =>
     call<GitStatus & { url: string | null }>("POST", "/api/gh/create", b),

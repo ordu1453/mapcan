@@ -327,17 +327,35 @@ def test_git_revs_reason(client, mapfile):
         subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
                        cwd=mapfile.parent, check=True, capture_output=True)
 
-    assert client.get("/api/git/revs").json() == {"available": False, "tags": [], "commits": [],
-                                                  "reason": "no-repo"}
+    assert client.get("/api/git/revs").json() == {"available": False, "tags": [], "all_tags": [], "branches": [],
+                                                  "commits": [], "reason": "no-repo"}
     git("init", "-q")
     assert client.get("/api/git/revs").json()["reason"] == "untracked"
+    # Тег до появления карты в репозитории: в списке для сравнения его нет
+    (mapfile.parent / "other.txt").write_text("x")
+    git("add", "other.txt")
+    git("commit", "-q", "-m", "other")
+    git("tag", "pre")
     git("add", mapfile.name)
     git("commit", "-q", "-m", "init")
+    git("tag", "-a", "v1", "-m", "v1")
+    git("branch", "side")
     r = client.get("/api/git/revs").json()
     assert r["available"] and [c["subject"] for c in r["commits"]] == ["init"]
+    assert r["commits"][0]["tags"] == ["v1"] and r["commits"][0]["author"] == "t"
+    assert r["tags"] == ["v1"] and sorted(r["all_tags"]) == ["pre", "v1"]
+    assert r["branches"] == ["side"]
     assert client.post("/api/diff/git", json={"rev": "HEAD"}).json()["lines"] == []
+    assert client.post("/api/diff/git", json={"rev": "pre"}).json()["code"] == "git-no-file"
     # Ревизия, похожая на ключ git (--output=…), отклоняется
     assert client.post("/api/diff/git", json={"rev": "--output=x"}).status_code == 400
+
+    # Версия из git открывается в редакторе как несохранённая правка
+    committed = mapfile.read_text(encoding="utf-8")
+    ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.5})
+    st = client.post("/api/git/restore", json={"rev": "v1"}).json()
+    assert st["text"] == committed
+    assert client.post("/api/undo").json()["text"] != committed
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
@@ -397,6 +415,76 @@ def test_git_commit_tag_pull(client, mapfile, tmp_path):
     st = client.post("/api/git/commit", json={"message": "локально"}).json()
     assert st["ahead"] == 1
     assert client.post("/api/git/push").json()["ahead"] == 0
+    # Лёгкие теги не уходят с push --follow-tags, поэтому тег всегда аннотированный
+    assert git("cat-file", "-t", "v1.0").strip() == "tag"
+    client.post("/api/git/tag", json={"name": "v2"})
+    assert git("cat-file", "-t", "v2").strip() == "tag"
+    client.post("/api/git/push")
+    assert "v2" in git("tag", cwd=remote).split()
+
+    # Сервер ушёл вперёд: fetch показывает отставание, push отклоняется понятным сообщением
+    git("pull", "-q", cwd=other)
+    p.write_text(p.read_text(encoding="utf-8").replace("factor: 0.03", "factor: 0.04"), encoding="utf-8")
+    git("commit", "-q", "-am", "remote 2", cwd=other)
+    git("push", "-q", cwd=other)
+    assert client.post("/api/git/fetch").json()["behind"] == 1
+    ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.05})
+    client.post("/api/save", json={})
+    client.post("/api/git/commit", json={"message": "параллельно"})
+    assert client.post("/api/git/push").json()["code"] == "git-push-rejected"
+    assert client.post("/api/git/pull").json()["code"] == "git-diverged"
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
+def test_git_logo_tag_identity(client, mapfile, monkeypatch):
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=mapfile.parent, check=True, capture_output=True,
+                              text=True).stdout
+
+    # Без глобальных настроек git автор берётся из профиля mapcan
+    empty = mapfile.parent / "empty.gitconfig"
+    empty.write_text("")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    git("init", "-q")
+    git("config", "user.useConfigOnly", "true")        # не угадывать адрес по имени компьютера
+    logo = mapfile.parent / "assets" / "logo.png"
+    logo.parent.mkdir()
+    logo.write_bytes(b"\x89PNG one")
+    ops(client, {"op": "set", "path": ["document", "logo"], "value": "assets/logo.png"})
+    client.post("/api/save", json={})
+    assert client.post("/api/git/commit", json={"message": "m"}).json()["code"] == "git-identity"
+    client.put("/api/user", json={"name": "Иван", "github": "ivan"})
+    st = client.post("/api/git/commit", json={"message": "m", "tag": "v1"}).json()
+    assert st["file"] == "clean"
+    assert git("log", "-1", "--format=%an <%ae>").strip() == "Иван <ivan@users.noreply.github.com>"
+    # Логотип из подпапки попадает в коммит
+    assert "assets/logo.png" in git("ls-files").split()
+
+    # Изменён только логотип — это тоже незакоммиченное изменение
+    logo.write_bytes(b"\x89PNG two")
+    assert client.get("/api/git/status").json()["file"] == "modified"
+    # Занятый тег отклоняется до коммита
+    head = git("rev-parse", "HEAD")
+    assert client.post("/api/git/commit", json={"message": "m2", "tag": "v1"}).json()["code"] == "git-tag-exists"
+    assert git("rev-parse", "HEAD") == head
+    assert client.post("/api/git/commit", json={"message": "m2"}).json()["file"] == "clean"
+
+    # Карта в .gitignore
+    other = mapfile.parent / "ignored.yaml"
+    other.write_text(mapfile.read_text(encoding="utf-8"), encoding="utf-8")
+    (mapfile.parent / ".gitignore").write_text("ignored.yaml\n")
+    with TestClient(create_app(EditorSession(other), poll_interval=0.05)) as c2:
+        assert c2.get("/api/git/status").json()["file"] == "ignored"
+        assert c2.post("/api/git/commit", json={"message": "m"}).json()["code"] == "git-ignored"
+
+
+def test_web_url():
+    from mapcan.web.app import _web_url
+    assert _web_url("git@github.com:owner/repo.git") == "https://github.com/owner/repo"
+    assert _web_url("ssh://git@gitlab.local/team/repo.git") == "https://gitlab.local/team/repo"
+    assert _web_url("https://user:token@github.com/owner/repo.git\n") == "https://github.com/owner/repo"
+    assert _web_url("/srv/git/repo.git") is None
 
 
 def test_websocket_notifications(client, mapfile):

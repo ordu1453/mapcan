@@ -312,12 +312,15 @@ def build_export(cmap: MapCan, fmt: str, stem: str, lang: str | None, template: 
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
-def _run_tool(cmd: list[str], cwd: Path, timeout: float) -> str:
+def _run_tool(cmd: list[str], cwd: Path, timeout: float, *, input: str | None = None,
+              env: dict[str, str] | None = None) -> str:
     # Запрос пароля в терминале повесил бы сервер: без окна его некому ввести.
-    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1"}
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1",
+           **(env or {})}
     try:
-        r = subprocess.run(cmd, cwd=cwd, stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                           encoding="utf-8", timeout=timeout, creationflags=_NO_WINDOW, env=env)
+        r = subprocess.run(cmd, cwd=cwd, input=input, stdin=None if input is not None else subprocess.DEVNULL,
+                           capture_output=True, text=True, encoding="utf-8", timeout=timeout,
+                           creationflags=_NO_WINDOW, env=env)
     except subprocess.TimeoutExpired as e:
         raise HTTPException(504, _("{tool} не ответил за {seconds} с", tool=cmd[0], seconds=int(timeout))) from e
     if r.returncode != 0:
@@ -325,8 +328,17 @@ def _run_tool(cmd: list[str], cwd: Path, timeout: float) -> str:
     return r.stdout
 
 
-def _git(args: list[str], cwd: Path, timeout: float = 15) -> str:
-    return _run_tool(["git", *args], cwd, timeout)
+def _git(args: list[str], cwd: Path, timeout: float = 15, **kw: Any) -> str:
+    return _run_tool(["git", *args], cwd, timeout, **kw)
+
+
+def _git_ok(args: list[str], cwd: Path) -> bool:
+    """Команда-проверка git: True при коде возврата 0."""
+    try:
+        _git(args, cwd)
+    except HTTPException:
+        return False
+    return True
 
 
 def _gh(args: list[str], cwd: Path, timeout: float = 15) -> str:
@@ -334,12 +346,13 @@ def _gh(args: list[str], cwd: Path, timeout: float = 15) -> str:
 
 
 def _git_remote(args: list[str], cwd: Path) -> str:
-    """push/pull: для github.com — учётные данные GitHub CLI (gh), если он установлен."""
+    """push/pull/fetch: для github.com — учётные данные GitHub CLI (gh), если он установлен."""
     auth: list[str] = []
     if shutil.which("gh"):
         auth = ["-c", "credential.https://github.com.helper=",
                 "-c", "credential.https://github.com.helper=!gh auth git-credential"]
-    return _git([*auth, *args], cwd, timeout=120)
+    # Сообщения git — по-английски, чтобы распознать типичные ошибки pull/push
+    return _git([*auth, *args], cwd, timeout=120, env={"LC_ALL": "C", "LANGUAGE": "C"})
 
 
 # Имя репозитория GitHub: «repo» или «owner/repo»
@@ -354,8 +367,29 @@ def _check_rev(rev: str) -> str:
     return rev
 
 
-def _git_status(path: Path) -> dict:
-    """Ветка, расхождение с upstream и состояние файла карты в git."""
+def _web_url(remote_url: str) -> str | None:
+    """Адрес репозитория для браузера: из https://… или git@host:owner/repo.git; иначе None."""
+    u = remote_url.strip()
+    m = re.match(r"^(?:ssh://)?git@([^:/]+)[:/](.+?)(?:\.git)?/?$", u)
+    if m:
+        return f"https://{m[1]}/{m[2]}"
+    parts = urlsplit(u)
+    if parts.scheme in ("http", "https") and parts.hostname:
+        port = f":{parts.port}" if parts.port else ""       # логин и токен из адреса не показываем
+        return f"{parts.scheme}://{parts.hostname}{port}{parts.path.rstrip('/').removesuffix('.git')}"
+    return None
+
+
+def _refs_with_file(cwd: Path, name: str, refs: list[str]) -> list[str]:
+    """Ссылки (теги, ветки), в которых есть файл карты, — одним запуском git cat-file."""
+    if not refs:
+        return []
+    out = _git(["cat-file", "--batch-check"], cwd, input="".join(f"{r}:./{name}\n" for r in refs))
+    return [r for r, line in zip(refs, out.splitlines(), strict=True) if not line.endswith(" missing")]
+
+
+def _git_status(path: Path, extra: Collection[str] = ()) -> dict:
+    """Ветка, расхождение с upstream и состояние в git файла карты и ``extra`` (логотипа)."""
     cwd = path.parent
     try:
         _git(["rev-parse", "--git-dir"], cwd)
@@ -363,9 +397,9 @@ def _git_status(path: Path) -> dict:
         return {"available": False, "reason": "no-git"}
     except HTTPException:
         return {"available": False, "reason": "no-repo"}
-    out = _git(["status", "--porcelain=v2", "--branch", "--untracked-files=all", "--", path.name], cwd)
+    out = _git(["status", "--porcelain=v2", "--branch", "--untracked-files=all", "--", path.name, *extra], cwd)
     st: dict[str, Any] = {"available": True, "branch": None, "upstream": None, "ahead": 0, "behind": 0,
-                          "file": "clean", "last": None, "remote": None}
+                          "file": "clean", "last": None, "remote": None, "remote_url": None}
     for line in out.splitlines():
         if line.startswith("# branch.head "):
             head = line.removeprefix("# branch.head ")
@@ -376,9 +410,12 @@ def _git_status(path: Path) -> dict:
             ahead, behind = line.removeprefix("# branch.ab ").split()
             st["ahead"], st["behind"] = int(ahead), -int(behind)
         elif line.startswith("? "):
-            st["file"] = "untracked"
+            if st["file"] == "clean":
+                st["file"] = "untracked"
         elif line[:2] in ("1 ", "2 ", "u "):
             st["file"] = "modified"
+    if st["file"] == "clean" and _git_ok(["check-ignore", "-q", "--", path.name], cwd):
+        st["file"] = "ignored"                      # не отслеживается и исключён через .gitignore
     try:
         log = _git(["log", "-1", "--format=%h%x09%s%x09%ad", "--date=short", "--", path.name], cwd)
     except HTTPException:
@@ -389,7 +426,25 @@ def _git_status(path: Path) -> dict:
     remotes = _git(["remote"], cwd).split()
     if remotes:
         st["remote"] = "origin" if "origin" in remotes else remotes[0]
+        with contextlib.suppress(HTTPException):
+            st["remote_url"] = _web_url(_git(["remote", "get-url", st["remote"]], cwd))
     return st
+
+
+def _remote_error(e: HTTPException, upstream: str | None) -> Exception:
+    """Понятное сообщение для типичных отказов pull/push (вывод git — на английском, см. _git_remote)."""
+    text = str(e.detail)
+    if "Not possible to fast-forward" in text or "diverging" in text or "divergent" in text:
+        return AppError(409, "git-diverged", _(
+            "ветка разошлась с {upstream}: и здесь, и на сервере есть свои коммиты. Объедините их в терминале "
+            "(git pull --rebase или git merge) и повторите.", upstream=upstream or "upstream"))
+    if "would be overwritten" in text or "commit your changes or stash them" in text:
+        return AppError(409, "git-local-changes", _(
+            "получение изменений перезапишет незакоммиченные правки: сначала закоммитьте их"))
+    if "[rejected]" in text or "non-fast-forward" in text or "fetch first" in text:
+        return AppError(409, "git-push-rejected", _(
+            "на сервере есть коммиты, которых нет здесь: сначала получите изменения (pull)"))
+    return e
 
 
 def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
@@ -758,11 +813,42 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         d = diff_maps(old.map, new)
         return {**d.to_dict(), "lines": changelog_lines(d, new.lang), "label": label}
 
+    # ---------------------------------------------------------------- git: версии карты
+
+    def git_extra(s: EditorSession) -> list[str]:
+        """Логотип карты внутри репозитория — путь для git относительно папки карты (или пусто)."""
+        logo = logo_file()
+        if logo is None or not logo.is_file():
+            return []
+        cwd = s.path.parent.resolve()
+        try:
+            top = Path(_git(["rev-parse", "--show-toplevel"], cwd).strip()).resolve()
+        except (HTTPException, OSError, subprocess.SubprocessError):
+            return []
+        logo = logo.resolve()
+        if not logo.is_relative_to(top):
+            return []
+        return [Path(os.path.relpath(logo, cwd)).as_posix()]
+
+    async def git_state(s: EditorSession) -> dict:
+        return await run_in_threadpool(lambda: _git_status(s.path, git_extra(s)))
+
+    def git_show(s: EditorSession, rev: str) -> str:
+        """Текст карты в ревизии ``rev``."""
+        cwd = s.path.parent
+        try:
+            return _git(["show", f"{rev}:./{s.path.name}"], cwd)
+        except HTTPException:
+            if _git_ok(["rev-parse", "-q", "--verify", f"{rev}^{{commit}}"], cwd):
+                raise AppError(404, "git-no-file", _("в ревизии {rev} нет файла карты", rev=rev)) from None
+            raise
+
     @app.get("/api/git/revs")
     async def git_revs() -> dict:
         s = wsp.require()
         cwd = s.path.parent
-        none = {"available": False, "tags": [], "commits": []}
+        name = s.path.name
+        none = {"available": False, "tags": [], "all_tags": [], "branches": [], "commits": []}
         try:
             _git(["rev-parse", "--git-dir"], cwd)
         except (OSError, subprocess.SubprocessError):
@@ -770,30 +856,50 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         except HTTPException:
             return {**none, "reason": "no-repo"}
         try:
-            tags = _git(["tag", "--sort=-creatordate"], cwd).split()
-            log = _git(["log", "-n", "20", "--format=%h%x09%s%x09%ad", "--date=short", "--",
-                        s.path.name], cwd)
+            log = _git(["log", "-n", "100", "--format=%h%x09%ad%x09%an%x09%D%x09%s", "--date=short", "--", name], cwd)
         except (HTTPException, OSError, subprocess.SubprocessError):
             return {**none, "reason": "untracked"}      # например, в репозитории ещё нет коммитов
         commits = []
         for line in log.splitlines():
-            parts = line.split("\t")
-            if len(parts) == 3:
-                commits.append({"rev": parts[0], "subject": parts[1], "date": parts[2]})
+            parts = line.split("\t", 4)
+            if len(parts) == 5:
+                rev, date, author, refs, subject = parts
+                tags = [r.removeprefix("tag: ") for r in refs.split(", ") if r.startswith("tag: ")]
+                commits.append({"rev": rev, "subject": subject, "date": date, "author": author, "tags": tags})
         if not commits:
             # Файл ещё не закоммичен — версий для сравнения в git нет
             return {**none, "reason": "untracked"}
-        return {"available": True, "tags": tags, "commits": commits}
+        all_tags = _git(["tag", "--sort=-creatordate"], cwd).split()
+        # Ветки, кроме текущей; upstream — первой (сравнить с тем, что придёт при pull)
+        current = _git(["branch", "--show-current"], cwd).strip()
+        try:
+            upstream = _git(["rev-parse", "--abbrev-ref", "@{upstream}"], cwd).strip()
+        except HTTPException:
+            upstream = ""
+        branches: list[str] = [upstream] if upstream else []
+        for ref in _git(["for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes"], cwd).split():
+            short = ref.removeprefix("refs/heads/").removeprefix("refs/remotes/")
+            if ref.endswith("/HEAD") or short in (current, upstream):
+                continue
+            branches.append(short)
+        return {"available": True, "tags": _refs_with_file(cwd, name, all_tags), "all_tags": all_tags,
+                "branches": _refs_with_file(cwd, name, branches[:50]), "commits": commits}
 
     @app.post("/api/diff/git")
     async def diff_git(body: GitDiffBody) -> dict:
         s = wsp.require()
-        cwd = s.path.parent
-        top = Path(_git(["rev-parse", "--show-toplevel"], cwd).strip())
-        rel = s.path.relative_to(top.resolve()).as_posix()
         rev = _check_rev(body.rev)
-        old_text = _git(["show", f"{rev}:{rel}"], cwd)
-        return _diff_against(old_text, rev)
+        return _diff_against(await run_in_threadpool(git_show, s, rev), rev)
+
+    @app.post("/api/git/restore")
+    async def git_restore(body: GitDiffBody) -> dict:
+        """Загрузить версию карты из git в редактор — как несохранённую правку (отменяется Ctrl+Z)."""
+        writable()
+        s = wsp.require()
+        text = await run_in_threadpool(git_show, s, _check_rev(body.rev))
+        async with lock:
+            s.set_text(text)
+            return await changed()
 
     # ---------------------------------------------------------------- git: коммит, тег, push/pull
 
@@ -809,23 +915,45 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         name = raw.strip()
         if not name or name.startswith("-"):
             raise AppError(400, "git-tag", _("недопустимое имя тега: {name}", name=name))
+        cwd = wsp.require().path.parent
         try:
-            _git(["check-ref-format", f"refs/tags/{name}"], wsp.require().path.parent)
+            _git(["check-ref-format", f"refs/tags/{name}"], cwd)
         except HTTPException as e:
             raise AppError(400, "git-tag", _("недопустимое имя тега: {name}", name=name)) from e
+        if _git_ok(["rev-parse", "-q", "--verify", f"refs/tags/{name}"], cwd):
+            raise AppError(409, "git-tag-exists", _("тег {name} уже существует", name=name))
         return name
 
+    def git_author(args: list[str], cwd: Path, timeout: float = 60) -> str:
+        """Команда, которой нужен автор (коммит, аннотированный тег).
+
+        Если в git не заданы user.name/user.email, берём их из профиля: имя и адрес
+        <логин>@users.noreply.github.com. Тайм-аут больше обычного — у коммита бывают хуки.
+        """
+        user = wsp.config.user
+        ident: list[str] = []
+        if user.name.strip() and not _git_ok(["config", "user.name"], cwd):
+            ident += ["-c", f"user.name={user.name.strip()}"]
+        if user.github and not _git_ok(["config", "user.email"], cwd):
+            ident += ["-c", f"user.email={user.github}@users.noreply.github.com"]
+        try:
+            return _git([*ident, *args], cwd, timeout)
+        except HTTPException as e:
+            if "user.email" in str(e.detail) or "user.name" in str(e.detail):
+                raise AppError(400, "git-identity", _(
+                    "git не знает автора коммита: укажите имя и GitHub в профиле mapcan "
+                    "или выполните git config --global user.name / user.email")) from e
+            raise
+
     def make_tag(cwd: Path, name: str, message: str) -> None:
-        if message.strip():
-            _git(["tag", "-a", name, "-m", message.strip()], cwd)
-        else:
-            _git(["tag", name], cwd)
+        # Всегда аннотированный: push --follow-tags отправляет только такие
+        git_author(["tag", "-a", name, "-m", message.strip() or name], cwd)
 
     @app.get("/api/git/status")
     async def git_status() -> dict:
         s = wsp.require()
         try:
-            return await run_in_threadpool(_git_status, s.path)
+            return await git_state(s)
         except HTTPException as e:
             return {"available": False, "reason": "error", "error": e.detail}
 
@@ -833,10 +961,10 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def git_init() -> dict:
         writable()
         s = wsp.require()
-        if (await run_in_threadpool(_git_status, s.path))["available"]:
+        if (await git_state(s))["available"]:
             raise AppError(409, "git-exists", _("папка уже в репозитории git"))
         _git(["init"], s.path.parent)
-        return await run_in_threadpool(_git_status, s.path)
+        return await git_state(s)
 
     @app.post("/api/git/commit")
     async def git_commit(body: GitCommitBody) -> dict:
@@ -846,50 +974,69 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         if not message:
             raise AppError(400, "git-message", _("укажите описание коммита"))
         tag = git_tag_name(body.tag) if body.tag.strip() else ""
+        st = await git_state(s)
+        if st.get("file") == "ignored":
+            raise AppError(409, "git-ignored", _("файл карты исключён через .gitignore — уберите его оттуда"))
         # Коммитим только карту и её логотип, не трогая остальные изменения в репозитории
-        files = [s.path.name]
-        logo = logo_file()
-        if logo is not None and logo.parent == cwd:
-            files.append(logo.name)
+        files = [s.path.name, *await run_in_threadpool(git_extra, s)]
         _git(["add", "--", *files], cwd)
         if not _git(["diff", "--cached", "--name-only", "--", *files], cwd).strip():
             raise AppError(400, "git-nothing", _("нет изменений для коммита"))
-        _git(["commit", "-m", message, "--", *files], cwd)
+        await run_in_threadpool(git_author, ["commit", "-m", message, "--", *files], cwd)
         if tag:
             make_tag(cwd, tag, message)
-        return await run_in_threadpool(_git_status, s.path)
+        return await git_state(s)
 
     @app.post("/api/git/tag")
     async def git_tag(body: GitTagBody) -> dict:
         s = git_session()
         make_tag(s.path.parent, git_tag_name(body.name), body.message)
-        return await run_in_threadpool(_git_status, s.path)
+        return await git_state(s)
+
+    @app.post("/api/git/fetch")
+    async def git_fetch() -> dict:
+        """Узнать, что нового на сервере (для счётчика «не получено»), ничего не меняя в рабочей копии."""
+        writable()
+        s = wsp.require()
+        if (await git_state(s)).get("remote"):
+            await run_in_threadpool(_git_remote, ["fetch", "--quiet"], s.path.parent)
+        return await git_state(s)
 
     @app.post("/api/git/push")
     async def git_push() -> dict:
         s = git_session()
-        st = await run_in_threadpool(_git_status, s.path)
+        st = await git_state(s)
         if not st["available"]:
             raise AppError(409, "no-repo", _("папка карты не в репозитории git"))
+        if not st["remote"]:
+            raise AppError(409, "no-remote", _("у репозитория нет удалённого репозитория (remote)"))
+        if not st["branch"]:
+            raise AppError(409, "git-detached",
+                           _("HEAD не на ветке: переключитесь на ветку, чтобы отправить изменения"))
         if st["upstream"]:
             args = ["push", "--follow-tags"]
-        elif st["remote"] and st["branch"]:
+        else:
             # Первая отправка ветки: заодно запоминаем upstream
             args = ["push", "--follow-tags", "-u", st["remote"], st["branch"]]
-        else:
-            raise AppError(409, "no-remote", _("у репозитория нет удалённого репозитория (remote)"))
-        await run_in_threadpool(_git_remote, args, s.path.parent)
-        return await run_in_threadpool(_git_status, s.path)
+        try:
+            await run_in_threadpool(_git_remote, args, s.path.parent)
+        except HTTPException as e:
+            raise _remote_error(e, st["upstream"]) from e
+        return await git_state(s)
 
     @app.post("/api/git/pull")
     async def git_pull() -> dict:
         s = git_session()
+        st = await git_state(s)
         async with lock:
-            await run_in_threadpool(_git_remote, ["pull", "--ff-only"], s.path.parent)
+            try:
+                await run_in_threadpool(_git_remote, ["pull", "--ff-only"], s.path.parent)
+            except HTTPException as e:
+                raise _remote_error(e, st.get("upstream")) from e
             if s.disk_changed():
                 s.reload()
                 await changed()
-        return await run_in_threadpool(_git_status, s.path)
+        return await git_state(s)
 
     # ---------------------------------------------------------------- GitHub CLI (gh)
 
@@ -914,7 +1061,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             raise AppError(400, "gh-name", _("недопустимое имя репозитория: {name}", name=name))
         if not shutil.which("gh"):
             raise AppError(400, "no-gh", _("GitHub CLI (gh) не установлен"))
-        st = await run_in_threadpool(_git_status, s.path)
+        st = await git_state(s)
         if not st["available"]:
             raise AppError(409, "no-repo", _("папка карты не в репозитории git"))
         if st["remote"]:
@@ -927,7 +1074,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         if body.description.strip():
             args += ["--description", body.description.strip()]
         out = await run_in_threadpool(_gh, args, Path(top), 120)
-        st = await run_in_threadpool(_git_status, s.path)
+        st = await git_state(s)
         url = next((w for w in out.split() if w.startswith("https://")), None)
         return {**st, "url": url}
 

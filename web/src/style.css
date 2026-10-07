@@ -423,6 +423,11 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .git-warn { color: var(--warning); }
 .git-dot { color: var(--warning); margin-left: 4px; font-size: 10px; }
 .git-count { margin-left: 4px; font-size: 11px; color: var(--muted); }
+.git-log { width: 100%; border-collapse: collapse; font-size: 13px; }
+.git-log td { padding: 4px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+.git-log td.nowrap { white-space: nowrap; }
+.git-log .git-log-subject { width: 100%; }
+.git-log .badge { margin-right: 4px; }
 .checkbox.wide { grid-column: 1 / -1; gap: 6px; }
 .user-chip { gap: 6px; padding: 2px 8px 2px 3px; border-radius: 16px; }
 .user-chip .avatar {

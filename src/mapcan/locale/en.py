@@ -468,6 +468,24 @@ EN: dict[str, str] = {
     "укажите описание коммита": "enter a commit message",
     "нет изменений для коммита": "nothing to commit",
     "папка уже в репозитории git": "the folder is already in a git repository",
+    "тег {name} уже существует": "the tag {name} already exists",
+    "в ревизии {rev} нет файла карты": "the map file does not exist in revision {rev}",
+    "файл карты исключён через .gitignore — уберите его оттуда":
+        "the map file is excluded by .gitignore; remove it from there",
+    "HEAD не на ветке: переключитесь на ветку, чтобы отправить изменения":
+        "HEAD is detached; switch to a branch to push changes",
+    "git не знает автора коммита: укажите имя и GitHub в профиле mapcan "
+    "или выполните git config --global user.name / user.email":
+        "git does not know the commit author: enter your name and GitHub in the mapcan profile "
+        "or run git config --global user.name / user.email",
+    "ветка разошлась с {upstream}: и здесь, и на сервере есть свои коммиты. Объедините их в терминале "
+    "(git pull --rebase или git merge) и повторите.":
+        "the branch has diverged from {upstream}: both this copy and the server have their own commits. "
+        "Combine them in a terminal (git pull --rebase or git merge) and try again.",
+    "получение изменений перезапишет незакоммиченные правки: сначала закоммитьте их":
+        "pulling would overwrite uncommitted changes; commit them first",
+    "на сервере есть коммиты, которых нет здесь: сначала получите изменения (pull)":
+        "the server has commits that are not here; pull the changes first",
     "редактор запущен в режиме только для чтения": "the editor is running in read-only mode",
     "неверный токен экземпляра": "invalid instance token",
     "{path}: символы {chars} не входят в кодировку {encoding} и записаны как «?»":

@@ -54,8 +54,10 @@ const git = computed(() => store.git);
 const unsaved = computed(() => !!store.state?.dirty);
 const FILE_STATE: Record<string, string> = {
   clean: N_("файл закоммичен"), modified: N_("есть незакоммиченные изменения"), untracked: N_("файл не добавлен в git"),
+  ignored: N_("файл исключён через .gitignore"),
 };
-const gitPending = computed(() => !!git.value?.available && git.value.file !== "clean");
+const gitPending = computed(() => !!git.value?.available && (git.value.file === "modified" || git.value.file === "untracked"));
+const remoteLabel = computed(() => git.value?.remote_url?.replace(/^https?:\/\//, "") ?? "");
 
 function gitAction(fn: () => Promise<unknown>) {
   menu.value = null;
@@ -64,6 +66,7 @@ function gitAction(fn: () => Promise<unknown>) {
 const gitInit = () => gitAction(() => actions.git(api.gitInit, t("Репозиторий создан")));
 const gitPull = () => gitAction(() => actions.git(api.gitPull, t("Изменения получены")));
 const gitPush = () => gitAction(() => actions.git(api.gitPush, t("Изменения отправлены")));
+const gitFetch = () => void actions.fetchGit(true);
 
 watch(() => [store.state?.session_id, store.state?.dirty, store.meta?.readonly], () => void actions.refreshGit(),
       { immediate: true });
@@ -75,9 +78,12 @@ const initials = computed(() => {
   return n.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 });
 
-function toggle(m: Menu) {
+async function toggle(m: Menu) {
   menu.value = menu.value === m ? null : m;
-  if (menu.value === "git") void actions.refreshGit();
+  if (menu.value === "git") {
+    await actions.refreshGit();
+    void actions.fetchGit();          // в фоне: счётчик «не получено» без fetch устаревает
+  }
 }
 function closeMenu(e: MouseEvent) {
   if (!(e.target as HTMLElement).closest(".menu")) menu.value = null;
@@ -139,7 +145,8 @@ onBeforeUnmount(() => {
         <button :title="git?.available ? t(FILE_STATE[git.file ?? 'clean'])
                   : git?.reason === 'no-repo' ? t('Папка карты не в репозитории git') : ''"
                 @click.stop="toggle('git')">
-          Git<span v-if="gitPending" class="git-dot">●</span><span v-if="git?.ahead" class="git-count">↑{{ git.ahead }}</span> ▾
+          Git<span v-if="gitPending" class="git-dot">●</span><span v-if="git?.ahead" class="git-count">↑{{ git.ahead }}</span><span
+            v-if="git?.behind" class="git-count">↓{{ git.behind }}</span> ▾
         </button>
         <div v-if="menu === 'git'" class="dropdown git-menu">
           <button @click="menu = null; emit('diff')">{{ t("Сравнить версии…") }}</button>
@@ -155,19 +162,27 @@ onBeforeUnmount(() => {
               <div v-if="git.last" class="muted dd-dir git-last" :title="git.last.subject">
                 <span class="mono">{{ git.last.rev }}</span> {{ git.last.subject }}
               </div>
+              <a v-if="git.remote_url" class="mono dd-dir git-last" :href="git.remote_url" target="_blank" rel="noopener"
+                 :title="t('Открыть репозиторий в браузере')">{{ remoteLabel }} ↗</a>
+              <div v-if="store.gitFetching" class="muted">{{ t("Проверка сервера…") }}</div>
+              <div v-else-if="store.gitFetchError" class="git-warn git-last" :title="store.gitFetchError">
+                {{ t("Не удалось связаться с сервером") }}
+              </div>
             </div>
             <div v-if="unsaved" class="dd-note">{{ t("Сохраните карту, чтобы закоммитить изменения.") }}</div>
             <div class="dd-sep" />
             <button :disabled="unsaved || !gitPending || store.busy" @click="menu = null; store.dialog = 'git-commit'">{{ t("Закоммитить…") }}</button>
             <button :disabled="unsaved || !git.last || store.busy" @click="menu = null; store.dialog = 'git-tag'">{{ t("Поставить тег…") }}</button>
+            <button :disabled="!git.last" @click="menu = null; store.dialog = 'git-log'">{{ t("Журнал версий…") }}</button>
             <div class="dd-sep" />
             <template v-if="git.remote">
               <button :disabled="unsaved || !git.upstream || store.busy"
                       :title="git.upstream ? '' : t('Ветка ещё не отправлена в {remote}', { remote: git.remote })"
-                      @click="gitPull">{{ t("Получить изменения (pull)") }}</button>
+                      @click="gitPull">{{ t("Получить изменения (pull)") }}<span v-if="git.behind" class="muted">↓{{ git.behind }}</span></button>
               <button :disabled="unsaved || !git.last || store.busy" @click="gitPush">
                 {{ t("Отправить в {remote} (push)", { remote: git.remote }) }}<span v-if="git.ahead" class="muted">↑{{ git.ahead }}</span>
               </button>
+              <button v-if="git.upstream" :disabled="store.gitFetching" @click="gitFetch">{{ t("Проверить сервер (fetch)") }}</button>
             </template>
             <button v-else :disabled="unsaved || !git.last || store.busy"
                     :title="git.last ? '' : t('Сначала закоммитьте карту')"

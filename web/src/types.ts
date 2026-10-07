@@ -164,8 +164,21 @@ export interface GitRevs {
   available: boolean;
   /** Почему сравнение с git недоступно */
   reason?: "no-git" | "no-repo" | "untracked";
+  /** Теги, в которых есть файл карты (новые первыми) */
   tags: string[];
-  commits: Array<{ rev: string; subject: string; date: string }>;
+  /** Все теги репозитория — чтобы не предлагать уже занятое имя */
+  all_tags: string[];
+  /** Ветки с файлом карты, кроме текущей; upstream — первой */
+  branches: string[];
+  commits: GitCommit[];
+}
+
+export interface GitCommit {
+  rev: string;
+  subject: string;
+  date: string;
+  author: string;
+  tags: string[];
 }
 
 /** Состояние git для файла карты (меню Git) */
@@ -177,8 +190,11 @@ export interface GitStatus {
   upstream?: string | null;
   ahead?: number;
   behind?: number;
-  file?: "clean" | "modified" | "untracked";
+  /** Состояние карты и её логотипа; ignored — карта исключена через .gitignore */
+  file?: "clean" | "modified" | "untracked" | "ignored";
   last?: { rev: string; subject: string; date: string } | null;
   /** Удалённый репозиторий (origin или первый из списка) */
   remote?: string | null;
+  /** Его адрес для браузера, если он известен (https или ssh-адрес вида git@host:owner/repo) */
+  remote_url?: string | null;
 }
