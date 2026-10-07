@@ -174,10 +174,11 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "title", label: N_("Название"), type: "loc", hint: N_("напр. Напряжение батареи; пусто — в дереве идентификатор") },
     { key: "kind", label: N_("Тип"), type: "select", options: KINDS },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
-    // CANopen и J1939 — только little-endian
+    // Порядок байт важен для значения длиннее байта; формат допускает big-endian в любом протоколе
+    // (CANopen-сигнал big-endian — в examples/minimal.yaml)
     { key: "byte_order", label: N_("Порядок байт"), type: "select",
       options: [["", "little-endian"], ["big_endian", "big-endian"]],
-      when: (_n, c) => c.protocol === "can" && (c.bitLength ?? 0) > 8 && c.kind !== "bytes" },
+      when: (_n, c) => (c.bitLength ?? 0) > 8 && c.kind !== "bytes" },
     { key: "signed", label: N_("Знаковое"), type: "bool", when: kindIn("raw", "metric") },
     { key: "signed_code", label: N_("Код знакового числа"), type: "select",
       options: [["", N_("дополнительный")], ["ones_complement", N_("обратный")], ["sign_magnitude", N_("прямой")]],
@@ -248,8 +249,9 @@ export function parseInput(type: FieldType, raw: string): unknown {
       return parseInteger(s);
     }
     case "hex": {
-      const v = /^0x/i.test(s) ? parseInt(s.slice(2), 16) : /^[0-9]+$/.test(s) ? Number(s) : NaN;
-      if (!Number.isInteger(v)) throw new ParseError(t("«{raw}» — ожидается число (0x1A или 26)", { raw }));
+      // Строго, как целое: «0x12 34» или «0x1G» — ошибка, а не 0x12 или 1 (ID не должен меняться молча)
+      const v = /^(0x[0-9a-f]+|[0-9]+)$/i.test(s) ? parseInteger(s) : NaN;
+      if (!Number.isSafeInteger(v)) throw new ParseError(t("«{raw}» — ожидается число (0x1A или 26)", { raw }));
       return v;
     }
     case "float": {

@@ -93,8 +93,10 @@ describe("прочие узлы", () => {
   it("поля сигнала — по его типу", () => {
     expect(visible("signal", {}, { protocol: "can", kind: "metric" })).toEqual(expect.arrayContaining(["factor", "unit"]));
     expect(visible("signal", {}, { protocol: "can", kind: "enum" })).not.toContain("factor");
-    expect(visible("signal", {}, { protocol: "canopen", kind: "raw", bitLength: 16 })).not.toContain("byte_order");
+    expect(visible("signal", {}, { protocol: "canopen", kind: "raw", bitLength: 16 })).toContain("byte_order");
     expect(visible("signal", {}, { protocol: "can", kind: "raw", bitLength: 16 })).toContain("byte_order");
+    expect(visible("signal", {}, { protocol: "can", kind: "raw", bitLength: 8 })).not.toContain("byte_order");
+    expect(visible("signal", {}, { protocol: "can", kind: "bytes", bitLength: 16 })).not.toContain("byte_order");
   });
 });
 
@@ -102,6 +104,11 @@ describe("разбор ввода", () => {
   it("целые и шестнадцатеричные", () => {
     expect(parseInteger("0x1A")).toBe(26);
     expect(parseInput("hex", "26")).toBe(26);
+    expect(parseInput("hex", "0x1a")).toBe(26);
+    // Опечатки не превращаются молча в другое число
+    for (const raw of ["0x12 34", "0x1G", "-5", "0x", "1.5", "0x20000000000001"]) {
+      expect(() => parseInput("hex", raw)).toThrow(ParseError);
+    }
     expect(parseInput("float", "1,5")).toBe(1.5);
     expect(parseInput("intlist", "1, 2")).toEqual([1, 2]);
     expect(parseInput("text", "  ")).toBeNull();
