@@ -318,6 +318,7 @@
   "напр. СОСТОЯНИЯ": "e.g. STATUS",
   "не отправлено: {ahead}, не получено: {behind}": "{ahead} to push, {behind} to pull",
   "не применено": "not applied",
+  "текст YAML не применён": "YAML text not applied",
   "не указан —": "not set —",
   "не указано": "not set",
   "нет связи": "offline",

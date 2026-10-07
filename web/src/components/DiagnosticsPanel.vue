@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { ownerPath } from "../model";
-import { actions, store } from "../store";
+import { actions, diagnostics, store, yamlLocal } from "../store";
 import type { Diagnostic, Level } from "../types";
 import { t } from "../i18n";
 
 const open = ref(true);
 const show = ref<Record<Level, boolean>>({ error: true, warning: true, info: false });
 
-const all = computed(() => store.state?.diagnostics ?? []);
+const all = diagnostics;
+// Сообщения относятся к черновику вкладки YAML, который ещё не применён (например, в нём синтаксическая ошибка).
+const draft = computed(() => yamlLocal.value && !!store.yaml.diags);
 const counts = computed(() => ({
   error: all.value.filter((d) => d.level === "error").length,
   warning: all.value.filter((d) => d.level === "warning").length,
@@ -17,6 +19,12 @@ const counts = computed(() => ({
 const items = computed(() => all.value.filter((d) => show.value[d.level]));
 
 function go(d: Diagnostic) {
+  // Пути черновика могут не совпадать с деревом — переходим только к строке.
+  if (draft.value) {
+    store.tab = "yaml";
+    store.revealLine = d.line;
+    return;
+  }
   if (!store.state?.data || !d.node.length) store.tab = "yaml";
   if (store.tab === "yaml") store.revealLine = d.line;
   if (d.node.length && store.state?.data) {
@@ -37,6 +45,7 @@ function go(d: Diagnostic) {
             @click.stop="show[lvl] = !show[lvl]">
         {{ { error: t("ошибки"), warning: t("предупреждения"), info: t("замечания") }[lvl] }}: {{ counts[lvl] }}
       </span>
+      <span v-if="draft" class="badge warning">{{ t("текст YAML не применён") }}</span>
       <span v-if="!counts.error && !counts.warning" class="ok">{{ t("✓ карта корректна") }}</span>
     </header>
     <ul v-if="open">

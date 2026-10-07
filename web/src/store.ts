@@ -4,7 +4,7 @@ import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
 import { t } from "./i18n";
 import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath } from "./model";
-import type { Meta, Op, Path, GitStatus, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
+import type { Diagnostic, Meta, Op, Path, GitStatus, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
 interface Toast {
   id: number;
@@ -39,8 +39,9 @@ export const store = reactive({
   muxView: {} as Record<string, number | null>, // выбранное значение селектора по кадру
   revealLine: null as number | null,           // строка для перехода во вкладке YAML
   // Текст вкладки YAML: null — показываем текст сервера; иначе черновик, который применяется по ходу ввода.
-  // applied — последний применённый черновик (сервер мог дописать в нём ссылки при переименовании).
-  yaml: { draft: null as string | null, applied: null as string | null },
+  // applied — последний применённый черновик (сервер мог дописать в нём ссылки при переименовании),
+  // diags — проверка неприменённого черновика (null — ещё не проверен).
+  yaml: { draft: null as string | null, applied: null as string | null, diags: null as Diagnostic[] | null },
   focusPath: null as Path | null,              // поле формы, к которому перейти (клик по сообщению проверки)
   update: null as UpdateInfo | null,           // доступная новая версия (плашка вверху)
   git: null as GitStatus | null,               // состояние git для файла карты (меню Git)
@@ -62,7 +63,7 @@ function accept(s: State): void {
   // Чужая правка (undo, перечитывание, другая вкладка браузера): черновик без неприменённого ввода
   // уступает новому тексту сервера; с неприменённым — остаётся, как и раньше.
   const y = store.yaml;
-  if (y.draft !== null && y.draft === y.applied && s.version !== ownVersion) y.draft = y.applied = null;
+  if (y.draft !== null && y.draft === y.applied && s.version !== ownVersion) store.yaml = { draft: null, applied: null, diags: null };
   store.state = s;
   if (s.disk_changed) store.fileChangedBanner = true;
   // Выбранный узел мог исчезнуть (удаление, undo) — поднимаемся к существующему предку.
@@ -96,7 +97,7 @@ function acceptSession(r: SessionResult): void {
   store.selected = ["document"];
   store.muxView = {};
   store.tab = "editor";
-  store.yaml = { draft: null, applied: null };
+  store.yaml = { draft: null, applied: null, diags: null };
   store.state = null;
   if (r.state) {
     accept(r.state);
@@ -189,7 +190,7 @@ export const actions = {
       const s = await api.text(text, live);
       ownVersion = s.version;
       if (live && store.yaml.draft !== null) store.yaml.applied = text;
-      else if (store.yaml.draft === text) store.yaml = { draft: null, applied: null };
+      else if (store.yaml.draft === text) store.yaml = { draft: null, applied: null, diags: null };
       return s;
     }),
   /** Применить черновик YAML перед уходом с вкладки или сохранением; false — в нём синтаксическая ошибка. */
@@ -292,6 +293,13 @@ export const resolvedFrames = computed(() => {
 });
 
 export const tree = computed(() => (store.state?.data ? buildTree(store.state.data, resolvedFrames.value, lang.value) : []));
+
+/** В поле YAML есть ввод, ещё не применённый на сервере. */
+export const yamlLocal = computed(() => store.yaml.draft !== null && store.yaml.draft !== store.yaml.applied);
+
+/** Сообщения проверки: для неприменённого черновика YAML — его проверка, иначе — состояния сервера. */
+export const diagnostics = computed(() =>
+  (yamlLocal.value && store.yaml.diags) || store.state?.diagnostics || []);
 
 export const diagsByNode = computed(() => diagIndex(store.state?.diagnostics ?? []));
 

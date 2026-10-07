@@ -3,8 +3,7 @@
 // обновляются сразу), Ctrl+Enter или кнопка — применить немедленно; проверка та же, что в CLI.
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { api } from "../api";
-import { actions, store, tree } from "../store";
-import type { Diagnostic } from "../types";
+import { actions, diagnostics as diags, store, tree, yamlLocal as local } from "../store";
 import { samePath, type TreeNode } from "../model";
 import { highlight, keyEdit, nodeAtLine, nodeLines, type TextEdit } from "../yamltext";
 import { t } from "../i18n";
@@ -19,9 +18,6 @@ const gutter = ref<HTMLDivElement | null>(null);
 const code = ref<HTMLPreElement | null>(null);
 const scrollTop = ref(0);
 const LINE = 20;
-
-// Есть ввод, ещё не применённый на сервере.
-const local = computed(() => store.yaml.draft !== null && store.yaml.draft !== store.yaml.applied);
 
 const lines = computed(() => text.value.split("\n").length);
 const html = computed(() => highlight(text.value).join("\n") + "\n");
@@ -65,14 +61,14 @@ function onKeyUp(e: KeyboardEvent) {
 }
 
 // Живая проверка: неприменённый текст проверяется на сервере с задержкой после ввода
-// и, если он разбирается, применяется (одним шагом отмены на всю серию ввода).
-const draftDiags = ref<Diagnostic[] | null>(null);
+// и, если он разбирается, применяется (одним шагом отмены на всю серию ввода). Результат проверки
+// лежит в store — его показывает и панель «Проверка».
 let checkTimer: ReturnType<typeof setTimeout> | undefined;
 let checkSeq = 0;
 watch(text, (value) => {
   clearTimeout(checkTimer);
   if (!local.value) {
-    draftDiags.value = null;
+    store.yaml.diags = null;
     return;
   }
   const seq = ++checkSeq;
@@ -80,7 +76,7 @@ watch(text, (value) => {
     try {
       const r = await api.check(value);
       if (seq !== checkSeq) return;
-      draftDiags.value = r.diagnostics;
+      if (store.yaml.draft === value) store.yaml.diags = r.diagnostics;
       if (!store.state?.readonly && !r.diagnostics.some((d) => d.code === "yaml")) await actions.setText(value, true);
     } catch {
       /* нет связи — пометки остаются прежними */
@@ -90,8 +86,7 @@ watch(text, (value) => {
 
 onBeforeUnmount(() => clearTimeout(checkTimer));
 
-const diags = computed(() => (local.value ? draftDiags.value ?? [] : store.state?.diagnostics ?? []));
-const draftErrors = computed(() => (local.value ? (draftDiags.value ?? []).filter((d) => d.level === "error") : []));
+const draftErrors = computed(() => (local.value ? (store.yaml.diags ?? []).filter((d) => d.level === "error") : []));
 
 const marks = computed(() => {
   const m = new Map<number, string>();
@@ -157,7 +152,7 @@ async function apply() {
 
 // Отменить ввод, ещё не применённый на сервере.
 function revert() {
-  store.yaml = { draft: null, applied: null };
+  store.yaml = { draft: null, applied: null, diags: null };
 }
 
 // Правка через execCommand попадает в историю отмены textarea (Ctrl+Z); присваивание text — нет.
