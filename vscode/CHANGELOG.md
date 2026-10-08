@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+
+* Follows the stricter map format of mapcan 0.19: every signal names its `encoding` (renamed from
+  `kind`, no automatic choice), its length is explicit, frames have `dlc`, transmission is
+  `cycle_ms` and `trigger`, and SDO values name their encoding and length. The **Node** panel edits
+  these fields and shows the computed frame direction.
+* New fields in the **Node** panel: J1939 `spn` and the CANopen dictionary object (`index`,
+  `subindex`) of a PDO signal. A signal that uses a named value table shows the table read-only.
+* **Export…** offers EDS: one file per CANopen device with its mapped objects and PDOs.
+* Diagnostics of included files are shown on the `include` line of the main map.
+
 ## 0.4.0
 
 * The **Node** panel shows the frame's bit layout for frames, signals, flags and SDO exchanges, as
