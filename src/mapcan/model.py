@@ -200,8 +200,8 @@ class Signal(_Base):
     signed: bool = False
     signed_code: SignedCode | None = Field(
         None, description=N_("Код знакового числа: twos_complement — дополнительный (по умолчанию), "
-                             "ones_complement — обратный, sign_magnitude — прямой. Пометка для документации: "
-                             "сгенерированный код и DBC работают в дополнительном коде."))
+                             "ones_complement — обратный, sign_magnitude — прямой. Сгенерированный код C/Python "
+                             "кодирует значение в заданном коде; DBC хранит только дополнительный."))
 
     values: ValueTable | None = None
     flags: list[Flag] | None = None

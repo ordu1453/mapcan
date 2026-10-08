@@ -61,6 +61,28 @@ static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
     return (int64_t)((value ^ sign) - sign);
 }
 
+/* Обратный код (signed_code: ones_complement): отрицательное — инверсия модуля. */
+static inline int64_t mapcan_ones_decode(uint64_t value, uint8_t length)
+{
+    uint64_t sign = (uint64_t)1u << (length - 1u);
+    return (value & sign) ? -(int64_t)(~value & (sign - 1u)) : (int64_t)value;
+}
+static inline uint64_t mapcan_ones_encode(int64_t value)
+{
+    return value < 0 ? ~(uint64_t)(-value) : (uint64_t)value;
+}
+
+/* Прямой код (signed_code: sign_magnitude): старший бит — знак, остальные — модуль. */
+static inline int64_t mapcan_sm_decode(uint64_t value, uint8_t length)
+{
+    uint64_t sign = (uint64_t)1u << (length - 1u);
+    return (value & sign) ? -(int64_t)(value & (sign - 1u)) : (int64_t)value;
+}
+static inline uint64_t mapcan_sm_encode(int64_t value, uint8_t length)
+{
+    return value < 0 ? (((uint64_t)1u << (length - 1u)) | (uint64_t)(-value)) : (uint64_t)value;
+}
+
 /* IEEE 754: float/double <-> сырые биты (через union, без memcpy и libc). */
 static inline uint32_t mapcan_f32_to_bits(float f)
 {

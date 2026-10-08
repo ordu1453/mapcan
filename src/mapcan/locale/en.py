@@ -194,8 +194,8 @@ EN: dict[str, str] = {
     "Неподдерживаемый формат логотипа": "Unsupported logo format",
     "Нет описания сигнала": "Signal has no description",
     "Нет полного названия шины или устройства": "Bus or device has no full name",
-    "Код знакового числа не поддерживается кодогенерацией или задан у беззнакового сигнала":
-        "Signed number code is not supported by code generation or is set on an unsigned signal",
+    "Код знакового числа не выражается в DBC или задан у беззнакового сигнала":
+        "Signed number code cannot be expressed in DBC or is set on an unsigned signal",
     "В кадре не описаны сигналы": "Frame has no signals",
 
     # ------------------------------------------------------------------ сообщения проверки
@@ -326,8 +326,12 @@ EN: dict[str, str] = {
     "у устройства {name!r} нет полного названия (title)": "device {name!r} has no full name (title)",
     "signed_code у беззнакового сигнала {name!r} не используется":
         "signed_code is ignored on unsigned signal {name!r}",
-    "{name!r}: сгенерированный код и DBC читают значение в дополнительном коде":
-        "{name!r}: generated code and DBC read the value as two's complement",
+    "{path}: DBC хранит знаковые значения только в дополнительном коде, сигналы в обратном "
+    "или прямом коде записаны как дополнительный: {names}":
+        "{path}: DBC stores signed values in two's complement only; signals in ones' complement or "
+        "sign and magnitude are written as two's complement: {names}",
+    "{name!r}: DBC хранит знаковые значения только в дополнительном коде, в DBC-файле сигнал будет прочитан иначе":
+        "{name!r}: DBC stores signed values in two's complement only, so the DBC file reads this signal differently",
     "имя {name!r} у значений {a} и {b}": "name {name!r} is used for values {a} and {b}",
     "флаг {name!r} (биты {first}..{last}) вне поля длиной {bits} бит":
         "flag {name!r} (bits {first}..{last}) is outside the {bits}-bit field",
@@ -431,10 +435,10 @@ EN: dict[str, str] = {
     "Первый байт сигнала.": "First byte of the signal.",
     "Смещение бита в байте.": "Bit offset within the byte.",
     "Код знакового числа: twos_complement — дополнительный (по умолчанию), "
-    "ones_complement — обратный, sign_magnitude — прямой. Пометка для документации: "
-    "сгенерированный код и DBC работают в дополнительном коде.":
+    "ones_complement — обратный, sign_magnitude — прямой. Сгенерированный код C/Python "
+    "кодирует значение в заданном коде; DBC хранит только дополнительный.":
         "Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. "
-        "A note for the documentation: generated code and DBC use two's complement.",
+        "Generated C/Python code encodes the value in this code; DBC stores two's complement only.",
     "Как показывать значения enum в документах.": "How enum values are shown in documents.",
     "Сигнал-селектор мультиплексора.": "Multiplexer selector signal.",
     "Значение(я) селектора, при которых сигнал присутствует.":

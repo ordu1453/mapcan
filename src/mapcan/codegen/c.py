@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .. import bits as B
 from ..model import Bus, Frame, MapCan, Signal, enum_entries, text
 from ..units import translate_unit
 from .common import code_text, frames_with_layout, is_byte_array, num, physical, selector_of, storage_bits
@@ -59,6 +60,28 @@ static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
 {
     uint64_t sign = (uint64_t)1u << (length - 1u);
     return (int64_t)((value ^ sign) - sign);
+}
+
+@ONES_NOTE@
+static inline int64_t mapcan_ones_decode(uint64_t value, uint8_t length)
+{
+    uint64_t sign = (uint64_t)1u << (length - 1u);
+    return (value & sign) ? -(int64_t)(~value & (sign - 1u)) : (int64_t)value;
+}
+static inline uint64_t mapcan_ones_encode(int64_t value)
+{
+    return value < 0 ? ~(uint64_t)(-value) : (uint64_t)value;
+}
+
+@SM_NOTE@
+static inline int64_t mapcan_sm_decode(uint64_t value, uint8_t length)
+{
+    uint64_t sign = (uint64_t)1u << (length - 1u);
+    return (value & sign) ? -(int64_t)(value & (sign - 1u)) : (int64_t)value;
+}
+static inline uint64_t mapcan_sm_encode(int64_t value, uint8_t length)
+{
+    return value < 0 ? (((uint64_t)1u << (length - 1u)) | (uint64_t)(-value)) : (uint64_t)value;
 }
 
 @IEEE_NOTE@
@@ -155,7 +178,8 @@ class CGen:
             "#ifdef __cplusplus",
             'extern "C" {',
             "#endif",
-            HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"]),
+            HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"])
+            .replace("@ONES_NOTE@", self.T["ones_c"]).replace("@SM_NOTE@", self.T["sm_c"]),
         ]
         if self.bus.bitrate:
             out.append(f"#define {self.P(self.bus.name, 'BITRATE')} {self.bus.bitrate}u")
@@ -222,8 +246,7 @@ class CGen:
                 ]
             elif physical(s) and not is_byte_array(s):
                 T = self.ctype(s)
-                lo = -(1 << (s.bit_length - 1)) if s.signed else 0
-                hi = (1 << (s.bit_length - 1)) - 1 if s.signed else (1 << s.bit_length) - 1
+                lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code)
                 # В float точно представимы целые до 2^24: длинные поля считаются в double.
                 # Верхняя граница сравнивается с hi + 1 (степень двойки, точна в любом типе),
                 # иначе hi округлилась бы вверх и выпала за разрядность поля.
@@ -362,9 +385,17 @@ class CGen:
                     f"{s.start_bit}u, {s.bit_length}u, {be(s)});"])
                 unpack += self._guard(s, sel, [f"    msg->{s.name} = mapcan_bits_to_f{w}((uint{w}_t){get});"])
                 continue
+            code = s.signed_code if s.signed else None
+            raw = (f"mapcan_ones_encode((int64_t)msg->{s.name})" if code == "ones_complement"
+                   else f"mapcan_sm_encode((int64_t)msg->{s.name}, {s.bit_length}u)" if code == "sign_magnitude"
+                   else f"(uint64_t)msg->{s.name}")
             pack += self._guard(s, sel, [
-                f"    mapcan_set_bits(data, (uint64_t)msg->{s.name}, {s.start_bit}u, {s.bit_length}u, {be(s)});"])
-            if s.signed:
+                f"    mapcan_set_bits(data, {raw}, {s.start_bit}u, {s.bit_length}u, {be(s)});"])
+            if code == "ones_complement":
+                get = f"mapcan_ones_decode({get}, {s.bit_length}u)"
+            elif code == "sign_magnitude":
+                get = f"mapcan_sm_decode({get}, {s.bit_length}u)"
+            elif s.signed:
                 get = f"mapcan_sign_extend({get}, {s.bit_length}u)"
             unpack += self._guard(s, sel, [f"    msg->{s.name} = ({T}){get};"])
         pack += [f"    return {f.dlc};", "}", ""]

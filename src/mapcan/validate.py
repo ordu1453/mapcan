@@ -114,7 +114,7 @@ RULES = {
     "invalid-overflow": ("error", N_("Значение invalid не помещается в разрядность сигнала")),
     "logo-missing": ("warning", N_("Файл логотипа не найден")),
     "logo-format": ("error", N_("Неподдерживаемый формат логотипа")),
-    "signed-code": ("info", N_("Код знакового числа не поддерживается кодогенерацией "
+    "signed-code": ("info", N_("Код знакового числа не выражается в DBC "
                                "или задан у беззнакового сигнала")),
     "missing-description": ("info", N_("Нет описания сигнала")),
     "missing-title": ("info", N_("Нет полного названия шины или устройства")),
@@ -471,7 +471,7 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                      _("сигнал {name!r} занимает байты {first}..{last}, а DLC = {dlc}",
                        name=s.name, first=first, last=last, dlc=frame.dlc), sp)
 
-        lo, hi = B.raw_range(s.bit_length, s.signed)
+        lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code)
         for v, ev in enum_entries(s.values):
             _ident(ctx, ev.name, _("имя значения"), sp + ("values", v), lint.value_name)
             if not lo <= v <= hi:
@@ -536,15 +536,15 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
             ctx.emit("signed-code", _("signed_code у беззнакового сигнала {name!r} не используется", name=s.name),
                      sp + ("signed_code",))
         elif s.signed and s.signed_code in ("ones_complement", "sign_magnitude"):
-            ctx.emit("signed-code", _("{name!r}: сгенерированный код и DBC читают значение в дополнительном коде",
-                                      name=s.name), sp + ("signed_code",))
+            ctx.emit("signed-code", _("{name!r}: DBC хранит знаковые значения только в дополнительном коде, "
+                                      "в DBC-файле сигнал будет прочитан иначе", name=s.name), sp + ("signed_code",))
 
         if s.mux is not None:
             if selector is None:
                 ctx.emit("mux-no-selector", _("у сигнала {name!r} задан mux, но в кадре нет multiplexer", name=s.name),
                          sp + ("mux",))
             else:
-                slo, shi = B.raw_range(selector.bit_length, selector.signed)
+                slo, shi = B.raw_range(selector.bit_length, selector.signed, selector.signed_code)
                 known = {v for v, _ in enum_entries(selector.values)}
                 for mv in s.mux_values:
                     if not slo <= mv <= shi:

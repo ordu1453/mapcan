@@ -67,7 +67,9 @@ def insert(buf: bytearray, value: int, start: int, length: int, big_endian: bool
         i += n
 
 
-def raw_range(length: int, signed: bool) -> tuple[int, int]:
+def raw_range(length: int, signed: bool, code: str | None = None) -> tuple[int, int]:
+    """Диапазон сырого значения; в обратном и прямом коде он симметричен (у нуля два представления)."""
     if signed:
-        return -(1 << (length - 1)), (1 << (length - 1)) - 1
+        lo = -(1 << (length - 1)) + (code in ("ones_complement", "sign_magnitude"))
+        return lo, (1 << (length - 1)) - 1
     return 0, (1 << length) - 1

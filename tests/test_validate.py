@@ -673,3 +673,12 @@ def test_missing_title():
     _, report = run(text)
     found = [(d.level, tuple(d.node)) for d in report.diagnostics if d.code == "missing-title"]
     assert found == [("info", ("buses", 0, "title")), ("info", ("buses", 0, "devices", 0, "title"))]
+
+
+def test_signed_code_range():
+    # В обратном и прямом коде у нуля два представления: −128 в 8 битах не выразить
+    text = one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, signed: true, signed_code: CODE,"
+                                     " values: {-128: MIN}}").replace("encoding: raw", "encoding: enum"))
+    assert "enum-overflow" in codes(text.replace("CODE", "ones_complement"))
+    assert "enum-overflow" in codes(text.replace("CODE", "sign_magnitude"))
+    assert "enum-overflow" not in codes(text.replace("CODE", "twos_complement"))

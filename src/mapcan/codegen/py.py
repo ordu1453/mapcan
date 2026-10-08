@@ -38,8 +38,23 @@ def _get(data, start, length, big_endian, signed=False):
         done += n
         pos = (byte - 1) * 8 if big_endian else (byte + 1) * 8
     if signed and value & (1 << (length - 1)):
-        value -= 1 << length
+        if signed == "ones_complement":
+            value -= (1 << length) - 1
+        elif signed == "sign_magnitude":
+            value = -(value & ((1 << (length - 1)) - 1))
+        else:
+            value -= 1 << length
     return value
+
+
+def _ones(value, length):
+    """@ONES_NOTE@"""
+    return value if value >= 0 else ((1 << length) - 1) + value
+
+
+def _sm(value, length):
+    """@SM_NOTE@"""
+    return value if value >= 0 else (1 << (length - 1)) | -value
 
 
 def _set(buf, value, start, length, big_endian):
@@ -53,6 +68,10 @@ def _set(buf, value, start, length, big_endian):
         done += n
         pos = (byte - 1) * 8 if big_endian else (byte + 1) * 8
 '''
+
+
+# Обратный и прямой код: функция кодирования в сгенерированном модуле (раскодирует _get)
+_SIGNED_ENCODERS = {"ones_complement": "_ones", "sign_magnitude": "_sm"}
 
 
 def _cls(name: str) -> str:
@@ -84,7 +103,8 @@ class PyGen:
             "import struct",
             "from dataclasses import dataclass, field",
             "from enum import IntEnum",
-            RUNTIME.replace("@F2B@", self.T["f2b"]).replace("@B2F@", self.T["b2f"]),
+            RUNTIME.replace("@F2B@", self.T["f2b"]).replace("@B2F@", self.T["b2f"])
+            .replace("@ONES_NOTE@", self.T["ones_py"]).replace("@SM_NOTE@", self.T["sm_py"]),
         ]
         frames = frames_with_layout(self.bus)
         for f in frames:
@@ -187,6 +207,9 @@ class PyGen:
             return [f"        buf[{b0}:{b0 + n}] = bytes(self.{s.name})[:{n}].ljust({n}, b'\\0')"]
         be = s.byte_order == "big_endian"
         value = f"_f2b(self.{s.name}, {s.bit_length})" if s.encoding == "float" else f"self.{s.name}"
+        enc = _SIGNED_ENCODERS.get(s.signed_code) if s.signed else None
+        if enc:
+            value = f"{enc}({value}, {s.bit_length})"
         return [f"        _set(buf, {value}, {s.start_bit}, {s.bit_length}, {be})"]
 
     @staticmethod
@@ -197,7 +220,8 @@ class PyGen:
         be = s.byte_order == "big_endian"
         if s.encoding == "float":
             return [f"        msg.{s.name} = _b2f(_get(data, {s.start_bit}, {s.bit_length}, {be}), {s.bit_length})"]
-        return [f"        msg.{s.name} = _get(data, {s.start_bit}, {s.bit_length}, {be}, {s.signed})"]
+        signed = repr(s.signed_code) if s.signed and s.signed_code in _SIGNED_ENCODERS else s.signed
+        return [f"        msg.{s.name} = _get(data, {s.start_bit}, {s.bit_length}, {be}, {signed})"]
 
 
 def generate_py(cmap: MapCan, out_dir: str | Path, buses: list[str] | None = None) -> list[Path]:

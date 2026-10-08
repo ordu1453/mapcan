@@ -141,7 +141,7 @@ CANopen ID computation:
 | `byte` [+ `bit`] + `byte_length` \| `bit_length` | Shorthand position (see below) |
 | `byte_order` | `little_endian` (default) or `big_endian` |
 | `signed` | Signed value |
-| `signed_code` | Signed number representation: `twos_complement` (default), `ones_complement` or `sign_magnitude`. This is a note for the documents only: generated code and DBC always use two's complement |
+| `signed_code` | Signed number representation: `twos_complement` (default), `ones_complement` or `sign_magnitude`. Generated C and Python code packs and unpacks the value in this code, and the value range is symmetric (−127…127 for 8 bits). DBC stores two's complement only, so the export warns about such signals |
 | `values` | Value table: `{0: NO_DATA, 1: {name: OK, description: "normal"}}` |
 | `value_format` | `dec` \| `hex`: how values are shown in documents |
 | `flags` | Bit field flags: `{bit, bit_length: 1, name, description, values}`; `bit` is the offset from the least significant bit of the field |
@@ -425,7 +425,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `initial-range` | warning | Default value outside the signal's range |
 | `invalid-overflow` | error | invalid value does not fit in the signal width |
 | `invalid-in-range` | warning | invalid value falls inside the min..max range |
-| `signed-code` | info | Signed number code is not supported by code generation or is set on an unsigned signal |
+| `signed-code` | info | Signed number code cannot be expressed in DBC, or is set on an unsigned signal |
 | `missing-unit` | info | Physical quantity without a unit |
 
 ### Bit fields

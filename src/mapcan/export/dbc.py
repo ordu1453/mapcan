@@ -161,6 +161,12 @@ def export_dbc(cmap: MapCan, out: str | Path, bus_name: str | None = None,
             path = base / f"{b.name}.dbc"
         path.parent.mkdir(parents=True, exist_ok=True)
         dbc = bus_database(cmap, b).as_dbc_string()
+        # DBC знает только дополнительный код: сигналы в обратном и прямом коде в нём читаются иначе
+        other = [f"{f.name}.{s.name}" for f in b.all_frames() for s in f.layout
+                 if s.signed and s.signed_code in ("ones_complement", "sign_magnitude")]
+        if warn is not None and other:
+            warn(_("{path}: DBC хранит знаковые значения только в дополнительном коде, сигналы в обратном "
+                   "или прямом коде записаны как дополнительный: {names}", path=path, names=", ".join(other)))
         if warn is not None and (lost := unencodable(dbc)):
             warn(_("{path}: символы {chars} не входят в кодировку {encoding} и записаны как «?»",
                    path=path, chars=" ".join(repr(c) for c in lost), encoding=DBC_ENCODING))

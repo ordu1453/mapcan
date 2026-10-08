@@ -1248,7 +1248,7 @@
             }
           ],
           "default": null,
-          "description": "Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. A note for the documentation: generated code and DBC use two's complement.",
+          "description": "Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. Generated C/Python code encodes the value in this code; DBC stores two's complement only.",
           "title": "Signed Code"
         },
         "values": {

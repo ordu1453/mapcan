@@ -353,3 +353,71 @@ def test_dbc_warns_about_unencodable_chars(tmp_path):
     assert len(warnings) == 1 and "'Δ'" in warnings[0] and "'≥'" in warnings[0]
     export_dbc(loads(BOUNDS_MAP, "t.yaml").map, tmp_path, warn=warnings.append)
     assert len(warnings) == 1
+
+
+SIGNED_CODES_MAP = """\
+mapcan: 1
+document: {title: Test}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: f
+        id: 0x100
+        signals:
+          - {name: o8, encoding: raw, byte: 0, byte_length: 1, signed: true, signed_code: ones_complement}
+          - {name: s8, encoding: raw, byte: 1, byte_length: 1, signed: true, signed_code: sign_magnitude}
+          - {name: o12, encoding: raw, start_bit: 16, bit_length: 12, signed: true, signed_code: ones_complement}
+          - {name: s16, encoding: raw, byte: 4, byte_length: 2, byte_order: big_endian, signed: true,
+             signed_code: sign_magnitude}
+"""
+# Байты рассчитаны вручную: обратный код −5 = 0xFA, прямой −5 = 0x85, 12 бит −100 = 0xF9B, −300 = 0x812C
+SIGNED_CASES = [
+    ({"o8": -5, "s8": -5, "o12": -100, "s16": -300}, "FA 85 9B 0F 81 2C 00 00"),
+    ({"o8": 5, "s8": 5, "o12": 100, "s16": 300}, "05 05 64 00 01 2C 00 00"),
+    ({"o8": -127, "s8": -127, "o12": -2047, "s16": -32767}, "80 FF 00 08 FF FF 00 00"),
+]
+
+
+def test_signed_codes_python(tmp_path):
+    from mapcan.loader import loads
+
+    mod = _import(generate_py(loads(SIGNED_CODES_MAP, "t.yaml").map, tmp_path)[0])
+    for vals, data in SIGNED_CASES:
+        packed = mod.F(**vals).pack()
+        assert packed.hex(" ").upper() == data
+        assert {k: getattr(mod.F.unpack(packed), k) for k in vals} == vals
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_signed_codes_c(tmp_path):
+    from mapcan.loader import loads
+
+    sources = [p for p in generate_c(loads(SIGNED_CODES_MAP, "t.yaml").map, tmp_path) if p.suffix == ".c"]
+    main = ["#include <stdio.h>", "#include <inttypes.h>", '#include "bus.h"', "int main(void) {",
+            "    uint8_t buf[8];", "    f_t m, u;"]
+    expected = []
+    for vals, data in SIGNED_CASES:
+        main += [f"    m.{k} = {v};" for k, v in vals.items()]
+        main += ["    f_pack(buf, sizeof buf, &m);",
+                 '    for (int i = 0; i < 8; i++) printf("%02X ", buf[i]);', '    printf("\\n");',
+                 "    f_unpack(&u, buf, sizeof buf);"]
+        main += [f'    printf("%" PRId64 "\\n", (int64_t)u.{k});' for k in vals]
+        expected += [data] + [str(v) for v in vals.values()]
+    main += ["    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.splitlines()
+    assert [line.strip() for line in out] == expected
+
+
+def test_dbc_warns_about_signed_codes(tmp_path):
+    from mapcan.export.dbc import export_dbc
+    from mapcan.loader import loads
+
+    warnings = []
+    export_dbc(loads(SIGNED_CODES_MAP, "t.yaml").map, tmp_path, warn=warnings.append)
+    assert len(warnings) == 1 and "f.o8, f.s8, f.o12, f.s16" in warnings[0]
