@@ -25,6 +25,10 @@ export interface FieldCtx {
   /** Вычисленное направление кадра, когда поле direction не задано (иначе null). */
   defaultDirection?: string | null;
   sender?: string | null;
+  /** The bus is CAN FD. */
+  fd?: boolean;
+  /** BRS of the frames as set on the bus (null: not set, on). */
+  busBrs?: boolean | null;
 }
 
 export interface FieldDef {
@@ -92,6 +96,11 @@ const directions = (c: FieldCtx): Array<[string, string]> => {
 // получателем не предлагается и отправитель кадра
 const others = (c: FieldCtx): Array<[string, string]> =>
   (c.devices ?? []).filter((d) => d !== c.owner).map((d) => [d, c.deviceLabels?.[d] ?? d]);
+// BRS: empty means the default (the bus value for a frame, on for a bus), shown in brackets
+const brsLabel = (on: boolean) => t(on ? N_("вкл.") : N_("выкл."));
+const brsOptions = (base: string, on: boolean): Array<[string, string]> =>
+  [["", `${t(base)} (${brsLabel(on)})`], ["true", N_("включено")], ["false", N_("выключено")]];
+
 const senders = (c: FieldCtx): Array<[string, string]> => [["", N_("вне карты")], ...others(c)];
 const receivers = (c: FieldCtx): Array<[string, string]> => others(c).filter(([d]) => d !== c.sender);
 
@@ -132,6 +141,8 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "bitrate", label: N_("Скорость, бит/с"), type: "int" },
     { key: "interface", label: N_("Интерфейс"), type: "text" },
     { key: "fd", label: "CAN FD", type: "bool" },
+    { key: "brs", label: N_("Переключение скорости (BRS)"), type: "select",
+      optionsFor: () => brsOptions(N_("по умолчанию"), true), when: (n) => !!n?.fd },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
   ],
   device: [
@@ -176,6 +187,8 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     // CANopen вычисляет 11-битные ID; 29-битный бывает только у кадра с явным ID
     { key: "extended", label: N_("29-битный ID"), type: "bool",
       when: (n, c) => c.protocol === "can" || (c.protocol === "canopen" && frameType(n) === "raw") },
+    { key: "brs", label: N_("Переключение скорости (BRS)"), type: "select",
+      optionsFor: (c) => brsOptions(N_("как у шины"), c.busBrs ?? true), when: (_n, c) => !!c.fd },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },
   ],

@@ -872,6 +872,8 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not raw for s in siblings or [])
     return {"kind": kind, "path": list(path), "file": file, "lang": lang,
             "protocol": bus.get("protocol") or "canopen",
+            # CAN FD bus and its BRS default: the frame's BRS field shows the inherited value
+            "fd": bus.get("fd") is True, "busBrs": bus.get("brs") if isinstance(bus.get("brs"), bool) else None,
             "owner": owner.get("name") if isinstance(owner, dict) else None,
             "signalEncoding": signal.encoding if isinstance(signal, M.Signal) else values.get("encoding"),
             "bitLength": signal.bit_length if isinstance(signal, M.Signal) else None,

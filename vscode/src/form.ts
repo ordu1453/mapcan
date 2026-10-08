@@ -20,6 +20,10 @@ interface NodeFields {
   path: Path;
   lang: string;
   protocol: string;
+  /** The bus is CAN FD. */
+  fd: boolean;
+  /** BRS of the frames as set on the bus (null: not set, on). */
+  busBrs: boolean | null;
   owner: string | null;
   devices: { name: string; label: string }[];
   signalEncoding: string | null;

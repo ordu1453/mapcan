@@ -39,6 +39,15 @@ def _attr(obj, name: str):
     return a.value
 
 
+def _brs(db, m) -> bool:
+    """BRS of a CAN FD frame: the CANFD_BRS attribute or its default ("1" without a definition)."""
+    v = _attr(m, "CANFD_BRS")
+    if v is None:
+        definition = (getattr(getattr(db, "dbc", None), "attribute_definitions", None) or {}).get("CANFD_BRS")
+        v = definition.default_value if definition is not None else "1"
+    return str(v).strip('"') != "0"
+
+
 def _ident(name: str) -> str:
     """Имя значения enum как идентификатор: «Not available» → NOT_AVAILABLE."""
     s = _IDENT.sub("_", name.strip()).strip("_").upper() or "VALUE"
@@ -150,6 +159,11 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
         bus["bitrate"] = int(bitrate)
     if fd:
         bus["fd"] = True
+    no_brs = {m.name for m in db.messages if m.is_fd and not _brs(db, m)}
+    # BRS off on every CAN FD frame: once on the bus instead of on each frame
+    bus_no_brs = bool(no_brs) and all(m.name in no_brs for m in db.messages if m.is_fd)
+    if bus_no_brs:
+        bus["brs"] = False
 
     # Адрес устройства J1939 — адрес отправителя его кадров
     addresses: dict[str, int] = {}
@@ -186,6 +200,8 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
             f["id"] = HexCapsInt(m.frame_id, width=8 if m.is_extended_frame else 3)
             if m.is_extended_frame and not j1939:
                 f["extended"] = True
+        if m.name in no_brs and not bus_no_brs:
+            f["brs"] = False
         f["dlc"] = m.length
         send = str(_attr(m, "GenMsgSendType") or "").replace(" ", "").lower()
         if m.cycle_time:

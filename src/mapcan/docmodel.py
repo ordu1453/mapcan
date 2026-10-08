@@ -292,7 +292,9 @@ class ViewBuilder:
         if f.bus.protocol == "j1939" and f.pgn is not None:
             return "J1939 PDU1" if j1939_is_pdu1(f.pgn) else "J1939 PDU2"
         bits = ("29" if f.extended else "11") + (" бит" if self.lang == "ru" else "-bit")
-        return f"CAN FD {bits}" if f.bus.fd and f.dlc > 8 else f"CAN {bits}"
+        if not (f.bus.fd and f.dlc > 8):
+            return f"CAN {bits}"
+        return f"CAN FD {bits}" + ("" if f.bit_rate_switch else ", без BRS" if self.lang == "ru" else ", no BRS")
 
     def _label(self, f: Frame, name: str) -> str:
         return next((self.device_label(d) for d in f.bus.devices if d.name == name), name)

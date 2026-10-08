@@ -351,6 +351,8 @@ class Frame(_Base):
         description=N_("Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN."),
     )
     extended: bool = False
+    brs: bool | None = Field(None, description=N_(
+        "CAN FD: переключение скорости (BRS) — данные на скорости фазы данных. Пусто — как у шины."))
     # J1939
     pgn: int | None = Field(None, ge=0, le=0x3FFFF, description=N_("J1939: номер группы параметров (PGN)."))
     priority: int | None = Field(None, ge=0, le=7, description=N_("J1939: приоритет 0..7 (по умолчанию 6)."))
@@ -397,6 +399,13 @@ class Frame(_Base):
         return self._bus
 
     @property
+    def bit_rate_switch(self) -> bool | None:
+        """BRS flag of a CAN FD frame: its own, else the bus default, else on (None: not a CAN FD bus)."""
+        if not self._bus.fd:
+            return None
+        return next((v for v in (self.brs, self._bus.brs) if v is not None), True)
+
+    @property
     def mode(self) -> TxMode | None:
         """Режим передачи: cyclic, если задан период, иначе trigger (None — не указан)."""
         return "cyclic" if self.cycle_ms is not None else self.trigger
@@ -435,6 +444,8 @@ class Bus(_Base):
     protocol: Protocol = Field(
         description=N_("Протокол: canopen — ID из типа кадра и node_id, j1939 — из PGN и адреса, can — явные ID."))
     fd: bool = False
+    brs: bool | None = Field(None, description=N_(
+        "CAN FD: переключение скорости (BRS) у кадров по умолчанию. Пусто — включено."))
     description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(
         default_factory=list,

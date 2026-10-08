@@ -66,6 +66,8 @@ function onSelect(e: Event) {
   const v = (e.target as HTMLSelectElement).value;
   let next: unknown = v === "" ? null : v;
   if (props.def.key.endsWith("bit_length") && v) next = Number(v);
+  // A yes/no select (brs): empty is the default, so it cannot be a checkbox
+  if (v === "true" || v === "false") next = v === "true";
   emit("commit", next);
 }
 

@@ -48,6 +48,8 @@ const fieldCtx = computed<FieldCtx>(() => {
     direction: frame?.direction ?? null,
     defaultDirection: node.value?.direction == null ? frame?.direction ?? null : null,
     sender: frame?.sender ?? null,
+    fd: !!bus?.fd,
+    busBrs: typeof bus?.brs === "boolean" ? bus.brs : null,
   };
 });
 // Поле с ошибкой или предупреждением показываем, даже если оно не относится к текущему типу/протоколу — иначе ошибку не найти

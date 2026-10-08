@@ -750,3 +750,12 @@ def test_signed_code_range():
     assert "enum-overflow" in codes(text.replace("CODE", "ones_complement"))
     assert "enum-overflow" in codes(text.replace("CODE", "sign_magnitude"))
     assert "enum-overflow" not in codes(text.replace("CODE", "twos_complement"))
+
+
+def test_brs_without_fd():
+    frame_brs = one_bus(OK_SIGNAL.replace("          dlc: 8\n", "          dlc: 8\n          brs: true\n"))
+    assert "brs-without-fd" in codes(frame_brs)
+    bus_brs = one_bus(OK_SIGNAL).replace("    protocol: canopen\n", "    protocol: canopen\n    brs: false\n")
+    assert "brs-without-fd" in codes(bus_brs)
+    fd = frame_brs.replace("    protocol: canopen\n", "    protocol: canopen\n    fd: true\n    brs: false\n")
+    assert "brs-without-fd" not in codes(fd)

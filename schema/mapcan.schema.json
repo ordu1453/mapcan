@@ -63,6 +63,19 @@
           "title": "Fd",
           "type": "boolean"
         },
+        "brs": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CAN FD: bit rate switch (BRS) of the frames by default. Empty: on.",
+          "title": "Brs"
+        },
         "description": {
           "anyOf": [
             {
@@ -563,6 +576,19 @@
           "default": false,
           "title": "Extended",
           "type": "boolean"
+        },
+        "brs": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CAN FD: bit rate switch (BRS), the data phase is sent at the data bit rate. Empty: as set on the bus.",
+          "title": "Brs"
         },
         "pgn": {
           "anyOf": [

@@ -7,6 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from mapcan.cli import app
+from mapcan.docmodel import ViewBuilder
 from mapcan.export.dbc import export_dbc
 from mapcan.importers.dbc import import_dbc
 from mapcan.loader import load, loads
@@ -110,3 +111,64 @@ def test_import_cli(tmp_path):
     assert run(app, ["import", "dbc", str(p), "-o", str(out)]).exit_code == 1      # не перезаписывает
     assert run(app, ["import", "dbc", str(p), "-o", str(out), "--force", "--lang", "de"]).exit_code == 0
     assert "language: de" in out.read_text(encoding="utf-8")
+
+
+FD_MAP = """mapcan: 1
+document: {title: FD, language: en}
+buses:
+  - name: fd
+    title: FD bus
+    protocol: can
+    fd: true
+BUS_BRS    devices:
+      - name: ecu
+        title: ECU
+        frames:
+          - name: fast
+            id: 0x100
+            dlc: 64
+FAST_BRS          - name: slow
+            id: 0x101
+            dlc: 12
+            brs: false
+"""
+
+
+def _fd_map(bus_brs: str = "", fast_brs: str = "") -> str:
+    return FD_MAP.replace("BUS_BRS", bus_brs).replace("FAST_BRS", fast_brs)
+
+
+def _brs(dbc) -> dict[str, str]:
+    db = cantools.database.load_file(str(dbc))
+    return {m.name: m.dbc.attributes["CANFD_BRS"].value if "CANFD_BRS" in m.dbc.attributes else None
+            for m in db.messages}
+
+
+def test_brs_dbc_roundtrip(tmp_path):
+    # BRS off on one frame: CANFD_BRS = 0 on it, the other one keeps the default (on)
+    (dbc,) = export_dbc(loads(_fd_map(), "fd.yaml").map, tmp_path / "frame")
+    assert _brs(dbc) == {"fast": None, "slow": 0}
+    assert 'BA_DEF_DEF_  "CANFD_BRS" "1";' in dbc.read_text(encoding="utf-8")
+    text, _ = import_dbc(dbc)
+    fast, slow = loads(text, "imported.yaml").map.buses[0].devices[0].frames
+    assert (fast.brs, slow.brs, fast.bit_rate_switch, slow.bit_rate_switch) == (None, False, True, False)
+
+    # BRS off on the bus: every frame inherits it, import writes it once on the bus
+    (dbc,) = export_dbc(loads(_fd_map("    brs: false\n"), "fd.yaml").map, tmp_path / "bus")
+    assert _brs(dbc) == {"fast": 0, "slow": 0}
+    text, _ = import_dbc(dbc)
+    bus = loads(text, "imported.yaml").map.buses[0]
+    assert bus.brs is False and all(f.brs is None and f.bit_rate_switch is False for f in bus.all_frames())
+
+    # The frame overrides the bus default
+    (dbc,) = export_dbc(loads(_fd_map("    brs: false\n", "            brs: true\n"), "fd.yaml").map,
+                        tmp_path / "override")
+    assert _brs(dbc) == {"fast": None, "slow": 0}
+
+
+def test_brs_frame_type_in_documents():
+    cmap = loads(_fd_map(), "fd.yaml").map
+    fast, slow = cmap.buses[0].all_frames()
+    assert ViewBuilder(cmap, "en").raw_type(fast) == "CAN FD 11-bit"
+    assert ViewBuilder(cmap, "en").raw_type(slow) == "CAN FD 11-bit, no BRS"
+    assert ViewBuilder(cmap, "ru").raw_type(slow) == "CAN FD 11 бит, без BRS"

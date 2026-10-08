@@ -480,5 +480,13 @@
   "Запись версии {version} уже есть в истории изменений — новая не добавится.": "The revision history already has an entry for version {version}; no new entry is added.",
   "Тег: {tag}": "Tag: {tag}",
   "с {base}": "since {base}",
-  "Выпустить": "Release"
+  "Выпустить": "Release",
+  "Переключение скорости (BRS)": "Bit rate switch (BRS)",
+  "вкл.": "on",
+  "выкл.": "off",
+  "включено": "on",
+  "выключено": "off",
+  "как у шины": "as on the bus",
+  "Переключение скорости (BRS) у кадров CAN FD по умолчанию: поле данных передаётся на скорости фазы данных. Выключите, если узлы или проводка шины не держат высокую скорость. Кадр может задать своё значение.": "Default bit rate switch (BRS) of CAN FD frames: the data field is sent at the data phase bit rate. Turn it off if the nodes or the wiring of the bus cannot handle the higher rate. A frame can set its own value.",
+  "Переключение скорости (BRS) кадра CAN FD: поле данных передаётся на скорости фазы данных. Пусто — как у шины. Попадает в DBC (атрибут CANFD_BRS).": "Bit rate switch (BRS) of a CAN FD frame: the data field is sent at the data phase bit rate. Empty: as set on the bus. Written to DBC (the CANFD_BRS attribute)."
 }

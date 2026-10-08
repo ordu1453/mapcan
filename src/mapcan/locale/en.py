@@ -222,6 +222,13 @@ EN: dict[str, str] = {
         "CAN ID {can_id:#05x} of frame {name!r} matches frame {other!r}",
     "CAN ID {can_id:#x} > 0x7FF": "CAN ID {can_id:#x} > 0x7FF",
     "DLC {dlc} недопустим для CAN FD": "DLC {dlc} is not valid for CAN FD",
+    "brs задан на шине не CAN FD и не используется": "brs is set on a bus that is not CAN FD and is not used",
+    "brs у шины без fd: true не используется": "brs on a bus without fd: true is not used",
+    "brs у кадра на шине без fd: true не используется": "brs of a frame on a bus without fd: true is not used",
+    "CAN FD: переключение скорости (BRS) — данные на скорости фазы данных. Пусто — как у шины.":
+        "CAN FD: bit rate switch (BRS), the data phase is sent at the data bit rate. Empty: as set on the bus.",
+    "CAN FD: переключение скорости (BRS) у кадров по умолчанию. Пусто — включено.":
+        "CAN FD: bit rate switch (BRS) of the frames by default. Empty: on.",
     "DLC {dlc} > 8 (для CAN FD укажите fd: true у шины)": "DLC {dlc} > 8 (for CAN FD set fd: true on the bus)",
     "получатель {name!r} не описан на шине {bus!r}": "receiver {name!r} is not defined on bus {bus!r}",
     "отправитель {name!r} не описан на шине {bus!r}": "sender {name!r} is not defined on bus {bus!r}",

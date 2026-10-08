@@ -69,6 +69,7 @@ RULES = {
     "value-table": ("error", N_("Таблица значений с таким именем не описана в value_tables")),
     "canopen-dlc": ("warning", N_("DLC служебного кадра CANopen не соответствует CiA 301")),
     "bitrate-nonstandard": ("warning", N_("Нестандартная скорость шины")),
+    "brs-without-fd": ("warning", N_("brs задан на шине не CAN FD и не используется")),
     "bus-load": ("warning", N_("Расчётная загрузка шины циклическими кадрами выше 70 %")),
     "duplicate-signal-name": ("error", N_("Повтор имени сигнала/флага в кадре")),
     "reserved-identifier": ("error", N_("Имя совпадает с ключевым словом C/Python или членом "
@@ -203,6 +204,8 @@ def _check_bus(ctx: _Ctx, bus) -> None:
         ctx.emit("bitrate-nonstandard", _("скорость {bitrate} бит/с не входит в стандартный ряд "
                                           "(125000, 250000, 500000, 1000000…)", bitrate=bus.bitrate),
                  bus._path + ("bitrate",))
+    if bus.brs is not None and not bus.fd:
+        ctx.emit("brs-without-fd", _("brs у шины без fd: true не используется"), bus._path + ("brs",))
     if bus.title is None:
         ctx.emit("missing-title", _("у шины {name!r} нет названия (title)", name=bus.name), bus._path + ("title",))
     names, nodes, addrs, shorts = {}, {}, {}, {}
@@ -410,6 +413,8 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
             ctx.emit("dlc-range", _("DLC {dlc} недопустим для CAN FD", dlc=frame.dlc), p + ("dlc",))
     elif frame.dlc > 8:
         ctx.emit("dlc-range", _("DLC {dlc} > 8 (для CAN FD укажите fd: true у шины)", dlc=frame.dlc), p + ("dlc",))
+    if frame.brs is not None and not bus.fd:
+        ctx.emit("brs-without-fd", _("brs у кадра на шине без fd: true не используется"), p + ("brs",))
 
     fc = FUNCTION_CODES.get(frame.type)
     allowed = CANOPEN_DLC.get(frame.type)

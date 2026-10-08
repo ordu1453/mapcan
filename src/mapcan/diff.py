@@ -48,8 +48,8 @@ class MapDiff:
 
 
 DEVICE_FIELDS = ("node_id", "address", "short", "title")
-FRAME_FIELDS = ("can_id", "type", "dlc", "direction", "mode", "cycle_ms", "extended", "device",
-                "pgn", "priority", "sender", "receivers", "description")
+FRAME_FIELDS = ("can_id", "type", "dlc", "direction", "mode", "cycle_ms", "extended", "brs",
+                "device", "pgn", "priority", "sender", "receivers", "description")
 SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "signed", "signed_code", "encoding", "factor", "offset",
                  "unit",
                  "min", "max", "initial", "invalid", "multiplexer", "mux", "description")
@@ -60,7 +60,7 @@ def _frame_attrs(f: Frame, lang: str) -> dict:
     return {
         "can_id": f.can_id, "type": f.type, "dlc": f.dlc, "direction": f.direction,
         "mode": f.mode, "cycle_ms": f.cycle_ms,
-        "extended": f.extended, "device": f.device.name if f.device else None,
+        "extended": f.extended, "brs": f.bit_rate_switch, "device": f.device.name if f.device else None,
         "pgn": f.pgn, "priority": f.priority, "sender": f.sender_name, "receivers": list(f.receivers),
         "description": text(f.description, lang),
     }

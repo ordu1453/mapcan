@@ -94,6 +94,7 @@ lint:
 | `bitrate` | Bit rate, bit/s |
 | `protocol` | Required. `canopen`: IDs are computed from the function code and `node_id`; `j1939`: from the PGN, priority and device address; `can`: IDs are set explicitly |
 | `fd` | `true` for CAN FD (DLC up to 64) |
+| `brs` | CAN FD: bit rate switch (BRS) of the frames by default, `true` if omitted. Set `false` when the nodes or the wiring cannot handle the data phase bit rate |
 | `frames` | Broadcast frames with no owning device (`nmt`, `sync`, `time`) |
 | `devices` | Devices |
 
@@ -122,6 +123,7 @@ lint:
 | `receivers` | Names of the bus devices that receive the frame |
 | `sender` | Name of the bus device that transmits the frame when it is not the owner: an RX frame (a node's PDO RX sent by the master) or a bus frame (NMT, SYNC). If omitted, the sender is outside the map |
 | `extended` | 29-bit ID |
+| `brs` | CAN FD: bit rate switch (BRS), the data field is sent at the data phase bit rate. If omitted, the bus `brs` applies. Written to DBC as the `CANFD_BRS` attribute |
 | `dlc` | Data length, bytes. Required, except for CANopen service frames, which take the CiA 301 length of the type when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8. On a J1939 bus up to 1785 bytes (see [Transport protocol](#transport-protocol)) |
 | `direction` | `tx` / `rx` relative to the owning device. Defaults from the type: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen type whose `sender` is another device → `rx`; otherwise `tx` |
 | `cycle_ms` | Cyclic transmission period, ms |
@@ -483,6 +485,7 @@ turned off with `--disable CODE` or `lint.disable`.
 |---|---|---|
 | `bitrate-nonstandard` | warning | Non-standard bus bit rate |
 | `bus-load` | warning | Estimated bus load from cyclic frames above 70% |
+| `brs-without-fd` | warning | brs is set on a bus that is not CAN FD and is not used |
 | `duplicate-node-id` | error | Duplicate node_id on the bus |
 | `node-id-range` | error | CANopen node_id outside 1..127 |
 | `frame-id-missing` | error | Cannot determine the frame's CAN ID |

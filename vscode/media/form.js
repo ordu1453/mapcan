@@ -20,7 +20,7 @@
   ];
 
   /**
-   * @typedef {{protocol: string, owner: string|null, devices: {name: string, label: string}[],
+   * @typedef {{protocol: string, fd: boolean, busBrs: boolean|null, owner: string|null, devices: {name: string, label: string}[],
    *   signalEncoding: string|null, frameDirection: string|null, bitLength: number|null, hasSelector: boolean, values: Record<string, any>,
    *   units: string[][], lang: string, frameTypes: {type: string, label: string, taken: string|null}[]}} Ctx
    * @typedef {{key: string, label: string, type: string, half?: boolean, mono?: boolean, required?: boolean,
@@ -41,6 +41,9 @@
   // Sender and receivers are devices of the bus other than the frame's owner
   const others = (/** @type {Ctx} */ c) => c.devices.filter((d) => d.name !== c.owner).map((d) => [d.name, d.label]);
   const receivers = (/** @type {Ctx} */ c) => others(c).filter(([d]) => d !== c.values.sender);
+  // BRS: empty means the default (the bus value for a frame, on for a bus), shown in brackets
+  const brsOptions = (/** @type {string} */ base, /** @type {boolean} */ on) =>
+    [["", `${base} (${on ? "on" : "off"})`], ["true", "On"], ["false", "Off"]];
   const signalEncoding = (/** @type {Ctx} */ c) => c.values.encoding ?? c.signalEncoding ?? "raw";
   const numeric = (/** @type {Ctx} */ c) => ["scaled", "raw", "float"].includes(signalEncoding(c));
   const byBytes = (/** @type {Ctx} */ c) => c.values.start_bit == null;
@@ -78,6 +81,9 @@
         { key: "bitrate", label: "Bitrate", type: "int", half: true, placeholder: "500000", tip: "bit/s" },
         { key: "interface", label: "Interface", type: "text", half: true, placeholder: "can0" },
         { key: "fd", label: "CAN FD", type: "bool", half: true },
+        { key: "brs", label: "Bit rate switch (BRS)", type: "select", half: true, when: (c) => !!c.values.fd,
+          tip: "Default BRS of CAN FD frames: the data field is sent at the data phase bit rate",
+          options: () => brsOptions("Default", true) },
       ] },
       NOTES,
     ],
@@ -116,6 +122,9 @@
           when: (c) => c.protocol === "j1939" && c.values.pgn != null && ((c.values.pgn >> 8) & 0xff) < 240 },
         { key: "extended", label: "29-bit ID", type: "bool",
           when: (c) => c.protocol === "can" || (c.protocol === "canopen" && frameType(c) === "raw") },
+        { key: "brs", label: "Bit rate switch (BRS)", type: "select", half: true, when: (c) => c.fd,
+          tip: "CAN FD: the data field is sent at the data phase bit rate; empty: as set on the bus",
+          options: (c) => brsOptions("As on the bus", c.busBrs ?? true) },
       ] },
       { title: "Timing", fields: [
         { key: "dlc", label: "DLC", type: "int", half: true, required: true, tip: "Data length, bytes",
@@ -276,7 +285,7 @@
   let shownPath = "";
 
   const ctx = () => /** @type {Ctx} */ ({
-    protocol: node.protocol, owner: node.owner, devices: node.devices, signalEncoding: node.signalEncoding, frameDirection: node.frameDirection,
+    protocol: node.protocol, fd: !!node.fd, busBrs: node.busBrs ?? null, owner: node.owner, devices: node.devices, signalEncoding: node.signalEncoding, frameDirection: node.frameDirection,
     bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector,
     values: node.values, units: node.units ?? [], lang: node.lang, frameTypes: node.frameTypes ?? [],
   });
@@ -420,7 +429,8 @@
     } else if (f.type === "select") {
       r.input = el("select", { id, onchange: () => {
         const v = r.input.value;
-        send(f.key, v === "" ? null : f.numeric ? Number(v) : v);
+        // A yes/no select (brs): empty is the default, so it cannot be a checkbox
+        send(f.key, v === "" ? null : f.numeric ? Number(v) : v === "true" || v === "false" ? v === "true" : v);
       } });
       control = r.input;
     } else if (f.type === "devices") {

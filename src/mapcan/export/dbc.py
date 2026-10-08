@@ -14,6 +14,7 @@ from cantools.database.can.formats.dbc.dbc_attribute import DbcAttribute
 from cantools.database.can.formats.dbc.dbc_attribute_definition import DbcAttributeDefinition
 from cantools.database.can.formats.dbc.dbc_loader import ATTRIBUTE_DEFINITION_VFRAMEFORMAT
 from cantools.database.can.formats.dbc.dbc_specifics import DbcSpecifics
+from cantools.database.can.formats.dbc.dbc_writer import ATTRIBUTE_DEFINITION_CANFD_BRS
 from cantools.database.conversion import BaseConversion
 
 from .. import bits as B
@@ -102,11 +103,16 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         for sg in sigs:
             sg.receivers = list(receivers)
         cycle = f.cycle_ms if f.mode == "cyclic" else None
-        msg_specifics = None
+        msg_attributes = OrderedDict()
         if f.mode is not None:
-            msg_specifics = DbcSpecifics(attributes=OrderedDict(GenMsgSendType=DbcAttribute(
+            msg_attributes["GenMsgSendType"] = DbcAttribute(
                 value=ATTRIBUTE_DEFINITION_SENDTYPE.choices.index(SEND_TYPES[f.mode]),
-                definition=ATTRIBUTE_DEFINITION_SENDTYPE)))
+                definition=ATTRIBUTE_DEFINITION_SENDTYPE)
+        if f.bit_rate_switch is False:
+            # The attribute defaults to "1" (BRS on): only frames without BRS need it
+            msg_attributes["CANFD_BRS"] = DbcAttribute(
+                value=ATTRIBUTE_DEFINITION_CANFD_BRS.choices.index("0"), definition=ATTRIBUTE_DEFINITION_CANFD_BRS)
+        msg_specifics = DbcSpecifics(attributes=msg_attributes) if msg_attributes else None
         messages.append(Message(
             frame_id=f.can_id,
             name=f.name,
@@ -131,6 +137,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         # без определения атрибута cantools его не записывает.
         definitions["VFrameFormat"] = ATTRIBUTE_DEFINITION_VFRAMEFORMAT
     if bus.fd:
+        definitions["CANFD_BRS"] = ATTRIBUTE_DEFINITION_CANFD_BRS
         definitions["BusType"] = ATTRIBUTE_DEFINITION_BUSTYPE
         attributes["BusType"] = DbcAttribute(value="CAN FD", definition=ATTRIBUTE_DEFINITION_BUSTYPE)
     if any(f.mode is not None for f in bus.all_frames() if f.can_id is not None):
