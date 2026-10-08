@@ -36,7 +36,16 @@ mapcan = "mapcan.cli:main"
 mapcan-app = "mapcan.launcher:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.5", "jsonschema>=4", "httpx>=0.27", "canopen>=2.3"]
+# The project itself with the lsp and desktop extras: a plain `uv sync` would otherwise uninstall them.
+dev = [
+    "mapcan[lsp,desktop]",
+    "pytest>=8",
+    "ruff>=0.5",
+    "pre-commit>=4",
+    "jsonschema>=4",
+    "httpx>=0.27",
+    "canopen>=2.3",
+]
 # Сборка mapcan.exe и установщика (packaging/, .github/workflows/release.yml).
 package = ["pyinstaller>=6.10"]
 

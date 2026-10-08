@@ -273,7 +273,8 @@ needed.
 ## Development
 
 ```sh
-uv sync                           # environment from uv.lock
+uv sync                           # environment from uv.lock (with the lsp and desktop extras)
+uv run pre-commit install         # run ruff before every commit
 uv run mapcan --help
 uv run pytest
 UPDATE_GOLDEN=1 uv run pytest     # refresh reference files after intentional changes

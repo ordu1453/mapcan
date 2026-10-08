@@ -116,7 +116,7 @@ npm run build
 
 Open the `vscode/` folder in VS Code and press F5. The Extension Development Host opens the
 `examples/` folder and runs the language server from the repository's `.venv`
-(`uv sync --extra lsp`).
+(`uv sync`).
 
 `npm test` runs the integration tests in a separate VS Code that it downloads into `.vscode-test/`.
 To use an installed VS Code instead, set `VSCODE_PATH` to its executable; that VS Code must not be
