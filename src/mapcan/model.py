@@ -24,7 +24,7 @@ FORMAT_VERSION = 1
 
 ByteOrder = Literal["little_endian", "big_endian"]
 SignedCode = Literal["twos_complement", "ones_complement", "sign_magnitude"]
-SignalKind = Literal["enum", "flag", "bitfield", "metric", "raw", "bytes", "float"]
+SignalEncoding = Literal["enum", "flag", "bitfield", "metric", "raw", "bytes", "float"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
 Protocol = Literal["canopen", "j1939", "can"]
@@ -181,11 +181,8 @@ class Signal(_Base):
     name: str
     title: Text | None = Field(None, description=N_("Название сигнала для людей, напр. «Напряжение батареи»."))
     description: Text | None = None
-    kind: SignalKind | None = Field(
-        None,
-        description=N_("Тип сигнала. Если не задан: values → enum, flags → bitfield, "
-                       "factor/unit → metric, иначе raw."),
-    )
+    encoding: SignalEncoding = Field(
+        description=N_("Кодирование сигнала: enum, flag, bitfield, metric, raw, float, bytes."))
 
     # Позиция: каноническая запись
     start_bit: int | None = Field(
@@ -238,20 +235,10 @@ class Signal(_Base):
         if self.initial is None or self.factor == 0:
             return None
         raw = (self.initial - self.offset) / self.factor
-        return raw if self.kind == "float" else round(raw)
+        return raw if self.encoding == "float" else round(raw)
 
     @model_validator(mode="after")
     def _resolve_layout(self) -> Signal:
-        if self.kind is None:
-            if self.flags:
-                self.kind = "bitfield"
-            elif self.values:
-                self.kind = "enum"
-            elif self.unit is not None or self.factor != 1 or self.offset != 0:
-                self.kind = "metric"
-            else:
-                self.kind = "raw"
-
         sugar = self.byte is not None or self.bit is not None or self.byte_length is not None
         if self.start_bit is not None and sugar:
             raise ValueError(N_("укажите либо start_bit, либо byte/bit, но не оба способа"))
@@ -261,9 +248,9 @@ class Signal(_Base):
         if self.byte_length is not None:
             self.bit_length = self.byte_length * 8
         if self.bit_length is None:
-            if self.kind == "float":
+            if self.encoding == "float":
                 self.bit_length = 32
-            elif self.kind == "flag" or (self.bit is not None and self.byte_length is None):
+            elif self.encoding == "flag" or (self.bit is not None and self.byte_length is None):
                 self.bit_length = 1
             else:
                 self.bit_length = 8
@@ -295,6 +282,7 @@ class Signal(_Base):
 
 class SdoValue(_Base):
     name: str
+    encoding: Literal["enum", "metric", "raw"] = Field(description=N_("Кодирование значения: enum, metric, raw."))
     description: Text | None = None
     bit_length: Literal[8, 16, 24, 32] = 32
     signed: bool = False

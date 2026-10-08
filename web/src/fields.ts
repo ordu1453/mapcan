@@ -14,7 +14,7 @@ export type FieldType = "text" | "loc" | "int" | "hex" | "float" | "bool" | "sel
  */
 export interface FieldCtx {
   protocol: string;
-  kind?: string;
+  encoding?: string;
   bitLength?: number;
   hasSelector?: boolean;
   devices?: string[];
@@ -47,8 +47,8 @@ export interface FieldDef {
 }
 
 // Поля сигнала, применимые к его типу (заполненные поля показываются всегда — см. NodeEditor)
-const kindIn = (...kinds: string[]) => (_n: unknown, c: FieldCtx) => kinds.includes(c.kind ?? "");
-const numeric = kindIn("metric", "raw", "float");
+const encodingIn = (...encodings: string[]) => (_n: unknown, c: FieldCtx) => encodings.includes(c.encoding ?? "");
+const numeric = encodingIn("metric", "raw", "float");
 
 /** Устройству нужен адрес, если ID какого-то его кадра вычисляется из адреса (кадр без явного id). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,7 +93,11 @@ const receivers = (c: FieldCtx): Array<[string, string]> => others(c).filter(([d
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const hasValue = (n: any): boolean => n?.value != null;
 
-const KINDS: Array<[string, string]> = [
+const SDO_ENCODINGS: Array<[string, string]> = [
+  ["enum", N_("enum — перечисление")], ["metric", N_("metric — величина")], ["raw", N_("raw — целое")],
+];
+
+const ENCODINGS: Array<[string, string]> = [
   ["enum", N_("enum — перечисление")], ["flag", N_("flag — флаг")], ["bitfield", N_("bitfield — битовое поле")],
   ["metric", N_("metric — величина")], ["raw", N_("raw — целое")], ["float", N_("float — IEEE 754 (32/64 бит)")],
   ["bytes", N_("bytes — байты")],
@@ -172,14 +176,14 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
   signal: [
     { key: "name", label: N_("Идентификатор"), type: "text", required: true },
     { key: "title", label: N_("Название"), type: "loc", hint: N_("напр. Напряжение батареи; пусто — в дереве идентификатор") },
-    { key: "kind", label: N_("Тип"), type: "select", options: KINDS },
+    { key: "encoding", label: N_("Кодирование"), type: "select", options: ENCODINGS },
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
     // Порядок байт важен для значения длиннее байта; формат допускает big-endian в любом протоколе
     // (CANopen-сигнал big-endian — в examples/minimal.yaml)
     { key: "byte_order", label: N_("Порядок байт"), type: "select",
       options: [["", "little-endian"], ["big_endian", "big-endian"]],
-      when: (_n, c) => (c.bitLength ?? 0) > 8 && c.kind !== "bytes" },
-    { key: "signed", label: N_("Знаковое"), type: "bool", when: kindIn("raw", "metric") },
+      when: (_n, c) => (c.bitLength ?? 0) > 8 && c.encoding !== "bytes" },
+    { key: "signed", label: N_("Знаковое"), type: "bool", when: encodingIn("raw", "metric") },
     { key: "signed_code", label: N_("Код знакового числа"), type: "select",
       options: [["", N_("дополнительный")], ["ones_complement", N_("обратный")], ["sign_magnitude", N_("прямой")]],
       when: (n) => !!n?.signed || n?.signed_code != null },
@@ -189,13 +193,13 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "min", label: N_("Минимум (min)"), type: "float", when: numeric },
     { key: "max", label: N_("Максимум (max)"), type: "float", when: numeric },
     { key: "multiplexer", label: N_("Селектор mux"), type: "bool",
-      when: (_n, c) => ["raw", "enum"].includes(c.kind ?? "") && !c.hasSelector },
+      when: (_n, c) => ["raw", "enum"].includes(c.encoding ?? "") && !c.hasSelector },
     { key: "mux", label: N_("mux (значения селектора)"), type: "intlist", hint: N_("напр. 0 или 1, 2"),
       when: (_n, c) => !!c.hasSelector },
     { key: "initial", label: N_("По умолчанию"), type: "float", hint: N_("физическое значение"),
-      when: (_n, c) => !["bitfield", "bytes"].includes(c.kind ?? "") },
+      when: (_n, c) => !["bitfield", "bytes"].includes(c.encoding ?? "") },
     { key: "invalid", label: N_("Нет данных (raw)"), type: "intlist", hint: N_("напр. 0xFF или 0xFE, 0xFF"),
-      when: kindIn("raw", "metric", "enum") },
+      when: encodingIn("raw", "metric", "enum") },
     { key: "value_format", label: N_("Значения в документах"), type: "select", options: [["", N_("десятичные")], ["hex", "hex"]],
       when: (n) => n?.values != null },
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },
@@ -214,6 +218,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
     { key: "description", label: N_("Описание"), type: "loc", wide: true },
     // Остальные поля значения появляются, когда задан его идентификатор
     { key: "value.name", label: N_("Значение: идентификатор"), type: "text", required: hasValue },
+    { key: "value.encoding", label: N_("Значение: кодирование"), type: "select", options: SDO_ENCODINGS, when: hasValue },
     { key: "value.bit_length", label: N_("Значение: бит"), type: "select",
       options: [["8", "8"], ["16", "16"], ["24", "24"], ["32", "32"]], when: hasValue },
     { key: "value.unit", label: N_("Значение: единица"), type: "text", suggest: "units", when: hasValue },

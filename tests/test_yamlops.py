@@ -54,8 +54,8 @@ def test_layout_keys(start, length, be, expected):
     assert layout_keys(start, length, be, None) == expected
 
 
-def test_layout_keys_flag_kind_needs_explicit_length():
-    # для kind: flag запись `byte: 1` означала бы 1 бит — нужна явная длина
+def test_layout_keys_flag_encoding_needs_explicit_length():
+    # для encoding: flag запись `byte: 1` означала бы 1 бит — нужна явная длина
     assert layout_keys(8, 8, False, "flag") != {"byte": 1}
 
 

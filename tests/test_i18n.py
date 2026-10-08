@@ -82,8 +82,8 @@ def test_english_validation_messages():
           id: 0x100
           dlc: 1
           signals:
-            - {name: a, byte: 0}
-            - {name: b, byte: 0, description: x}
+            - {name: a, encoding: raw, byte: 0}
+            - {name: b, encoding: raw, byte: 0, description: x}
     """))
     msgs = {d.code: d.message for d in report.diagnostics}
     assert msgs["bit-overlap"] == "signal 'b' overlaps 'a': bits 0..7 (byte 0)"

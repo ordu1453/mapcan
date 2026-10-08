@@ -237,7 +237,7 @@ def _detail(a: Analysis, node: dict, path: Path_, kind: str) -> str:
     if isinstance(obj, M.Frame) and obj.can_id is not None:
         return _hex(obj.can_id, obj.extended)
     if isinstance(obj, M.Signal):
-        return f"{obj.kind} · {signal_bits(obj)}"
+        return f"{obj.encoding} · {signal_bits(obj)}"
     if kind == "bus":
         return str(node.get("protocol", "canopen"))
     if kind == "frame":
@@ -246,7 +246,7 @@ def _detail(a: Analysis, node: dict, path: Path_, kind: str) -> str:
                 return f"{key} 0x{node[key]:X}" if key == "pgn" else f"0x{node[key]:X}"
         return str(node.get("type", ""))
     if kind == "signal":
-        return str(node.get("kind", ""))
+        return str(node.get("encoding", ""))
     return ""
 
 
@@ -539,7 +539,7 @@ def signal_bits(sig: M.Signal) -> str:
 
 
 def signal_markdown(sig: M.Signal) -> str:
-    out = [f"**{sig.name}** · `{sig.kind}` · {signal_bits(sig)} · {sig.bit_length} bit"]
+    out = [f"**{sig.name}** · `{sig.encoding}` · {signal_bits(sig)} · {sig.bit_length} bit"]
     desc = M.text(sig.description, "en")
     if desc:
         out.append(desc)

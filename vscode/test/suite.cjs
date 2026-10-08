@@ -90,7 +90,7 @@ const tests = {
     const frame = () => tree.getChildren(tree.getChildren(tree.getChildren()[0])[0])[0];
     const before = ctx.doc.getText();
     await vscode.commands.executeCommand("mapcan.addSignal", frame());
-    assert.match(ctx.doc.getText(), /\n {14}- name: signal\n {16}start_bit: 60\n {16}bit_length: 1\n/);
+    assert.match(ctx.doc.getText(), /\n {14}- name: signal\n {16}encoding: raw\n {16}start_bit: 60\n {16}bit_length: 1\n/);
     assert.equal(vscode.window.activeTextEditor.document.getText(vscode.window.activeTextEditor.selection), "signal");
     await until("tree with the new signal", () => frame().children.some((s) => s.raw.label === "signal"));
     const added = frame().children.find((s) => s.raw.label === "signal");
@@ -131,7 +131,7 @@ const tests = {
     const edit = new vscode.WorkspaceEdit();
     for (const e of result.edits) edit.replace(ctx.doc.uri, new vscode.Range(...e.range), e.text);
     await vscode.workspace.applyEdit(edit);
-    assert.match(ctx.doc.getText(), /- name: signal\n {16}start_bit: 60\n {16}bit_length: 1\n {16}title: Battery voltage\n/);
+    assert.match(ctx.doc.getText(), /- name: signal\n {16}encoding: raw\n {16}start_bit: 60\n {16}bit_length: 1\n {16}title: Battery voltage\n/);
     await until("tree with the title", () => frame().children.some((s) => s.raw.label === "Battery voltage"));
     await vscode.commands.executeCommand("mapcan.deleteNode", frame().children.find((s) => s.raw.ident === "signal"));
     assert.equal(form.openPath, undefined);

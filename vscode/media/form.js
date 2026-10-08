@@ -14,15 +14,14 @@
     nmt: "rx", emcy: "tx", sdo_tx: "tx", sdo_rx: "rx", heartbeat: "tx",
     pdo_tx1: "tx", pdo_tx2: "tx", pdo_tx3: "tx", pdo_tx4: "tx", pdo_rx1: "rx", pdo_rx2: "rx", pdo_rx3: "rx", pdo_rx4: "rx",
   };
-  const KINDS = [
+  const ENCODINGS = [
     ["enum", "Enum"], ["flag", "Flag"], ["bitfield", "Bit field"], ["metric", "Quantity"],
     ["raw", "Integer"], ["float", "Float (IEEE 754)"], ["bytes", "Bytes"],
   ];
-  const KIND_LABEL = Object.fromEntries(KINDS);
 
   /**
    * @typedef {{protocol: string, owner: string|null, devices: {name: string, label: string}[],
-   *   signalKind: string|null, bitLength: number|null, hasSelector: boolean, values: Record<string, any>,
+   *   signalEncoding: string|null, bitLength: number|null, hasSelector: boolean, values: Record<string, any>,
    *   units: string[][], lang: string, frameTypes: {type: string, label: string, taken: string|null}[]}} Ctx
    * @typedef {{key: string, label: string, type: string, half?: boolean, mono?: boolean, required?: boolean,
    *   numeric?: boolean,
@@ -37,16 +36,16 @@
   // Sender and receivers are devices of the bus other than the frame's owner
   const others = (/** @type {Ctx} */ c) => c.devices.filter((d) => d.name !== c.owner).map((d) => [d.name, d.label]);
   const receivers = (/** @type {Ctx} */ c) => others(c).filter(([d]) => d !== c.values.sender);
-  const signalKind = (/** @type {Ctx} */ c) => c.values.kind ?? c.signalKind ?? "raw";
-  const numeric = (/** @type {Ctx} */ c) => ["metric", "raw", "float"].includes(signalKind(c));
+  const signalEncoding = (/** @type {Ctx} */ c) => c.values.encoding ?? c.signalEncoding ?? "raw";
+  const numeric = (/** @type {Ctx} */ c) => ["metric", "raw", "float"].includes(signalEncoding(c));
   const byBytes = (/** @type {Ctx} */ c) => c.values.start_bit == null;
   // Length as typed in the form, else as the server computed it from the map
   const bitLength = (/** @type {Ctx} */ c) =>
     c.values.bit_length ?? (c.values.byte_length != null ? c.values.byte_length * 8 : c.bitLength);
   // Byte order matters for a value longer than a byte (any protocol: the format allows big-endian everywhere)
-  const multiByte = (/** @type {Ctx} */ c) => !["flag", "bytes"].includes(signalKind(c)) && (bitLength(c) ?? 0) > 8;
+  const multiByte = (/** @type {Ctx} */ c) => !["flag", "bytes"].includes(signalEncoding(c)) && (bitLength(c) ?? 0) > 8;
   // The bit in the byte matters only for a value shorter than a byte
-  const subByte = (/** @type {Ctx} */ c) => signalKind(c) === "flag" || (bitLength(c) ?? 8) < 8;
+  const subByte = (/** @type {Ctx} */ c) => signalEncoding(c) === "flag" || (bitLength(c) ?? 8) < 8;
   // The SDO exchange's value: its other fields appear once it has an identifier
   const hasValue = (/** @type {Ctx} */ c) => c.values["value.name"] != null;
 
@@ -133,8 +132,8 @@
       { fields: [
         { key: "title", label: "Name", type: "text", placeholder: "Same as identifier" },
         NAME,
-        { key: "kind", label: "Kind", type: "select",
-          options: (c) => [["", c.values.kind == null && c.signalKind ? `Auto (${KIND_LABEL[c.signalKind] ?? c.signalKind})` : "Auto"], ...KINDS] },
+        { key: "encoding", label: "Encoding", type: "select",
+          options: (c) => (c.values.encoding == null ? [["", "Not set"], ...ENCODINGS] : ENCODINGS) },
       ] },
       { title: "Position", fields: [
         { key: "byte", label: "Byte", type: "int", half: true, placeholder: "0", when: byBytes },
@@ -142,14 +141,14 @@
           when: (c) => byBytes(c) && subByte(c) },
         { key: "start_bit", label: "Start bit", type: "int", half: true, tip: "LSB, lsb0 numbering", when: (c) => !byBytes(c) },
         { key: "bit_length", label: "Length, bits", type: "int", half: true, placeholder: "8",
-          when: (c) => c.values.byte_length == null && signalKind(c) !== "flag" },
+          when: (c) => c.values.byte_length == null && signalEncoding(c) !== "flag" },
         { key: "byte_length", label: "Length, bytes", type: "int", half: true, when: (c) => c.values.byte_length != null },
         { key: "byte_order", label: "Byte order", type: "select",
           options: () => [["", "Little-endian (Intel)"], ["big_endian", "Big-endian (Motorola)"]], when: multiByte },
       ] },
       { title: "Value", fields: [
         { key: "unit", label: "Unit", type: "unit", half: true, when: numeric },
-        { key: "signed", label: "Signed", type: "bool", half: true, when: (c) => ["raw", "metric"].includes(signalKind(c)) },
+        { key: "signed", label: "Signed", type: "bool", half: true, when: (c) => ["raw", "metric"].includes(signalEncoding(c)) },
         { key: "signed_code", label: "Signed code", type: "select", half: true,
           options: () => [["", "Two's complement"], ["ones_complement", "Ones' complement"], ["sign_magnitude", "Sign and magnitude"]],
           when: (c) => !!c.values.signed },
@@ -158,16 +157,16 @@
         { key: "min", label: "Min", type: "float", half: true, when: numeric },
         { key: "max", label: "Max", type: "float", half: true, when: numeric },
         { key: "initial", label: "Default", type: "float", half: true, tip: "Physical value",
-          when: (c) => !["bitfield", "bytes"].includes(signalKind(c)) },
+          when: (c) => !["bitfield", "bytes"].includes(signalEncoding(c)) },
         { key: "invalid", label: "No data (raw)", type: "intlist", half: true, mono: true, placeholder: "0xFF",
-          tip: "Raw value(s) meaning \"no data\": 0xFF or 0xFE, 0xFF", when: (c) => ["raw", "metric", "enum"].includes(signalKind(c)) },
+          tip: "Raw value(s) meaning \"no data\": 0xFF or 0xFE, 0xFF", when: (c) => ["raw", "metric", "enum"].includes(signalEncoding(c)) },
         { key: "value_format", label: "Values in documents", type: "select", half: true,
-          options: () => [["", "Decimal"], ["hex", "Hex"]], when: (c) => signalKind(c) === "enum" },
+          options: () => [["", "Decimal"], ["hex", "Hex"]], when: (c) => signalEncoding(c) === "enum" },
       ] },
       { title: "Multiplexing", fields: [
         { key: "multiplexer", label: "Multiplexer selector", type: "bool",
           tip: "The signal selects which multiplexed signals the frame carries",
-          when: (c) => ["raw", "enum"].includes(signalKind(c)) && !c.hasSelector },
+          when: (c) => ["raw", "enum"].includes(signalEncoding(c)) && !c.hasSelector },
         { key: "mux", label: "Selector values", type: "intlist", mono: true, placeholder: "0 or 1, 2",
           tip: "Values of the frame's selector at which the signal is present", when: (c) => c.hasSelector },
       ] },
@@ -191,6 +190,9 @@
       { title: "Value", fields: [
         { key: "value.name", label: "Identifier", type: "text", mono: true,
           tip: "Empty: the exchange carries no value" },
+        { key: "value.encoding", label: "Encoding", type: "select", when: hasValue,
+          options: (c) => [...(c.values["value.encoding"] == null ? [["", "Not set"]] : []),
+            ["enum", "Enum"], ["metric", "Quantity"], ["raw", "Integer"]] },
         { key: "value.bit_length", label: "Length, bits", type: "select", half: true, numeric: true,
           options: () => [["", "32"], ["8", "8"], ["16", "16"], ["24", "24"]], when: hasValue },
         { key: "value.unit", label: "Unit", type: "unit", half: true, when: hasValue },
@@ -259,7 +261,7 @@
   let shownPath = "";
 
   const ctx = () => /** @type {Ctx} */ ({
-    protocol: node.protocol, owner: node.owner, devices: node.devices, signalKind: node.signalKind,
+    protocol: node.protocol, owner: node.owner, devices: node.devices, signalEncoding: node.signalEncoding,
     bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector,
     values: node.values, units: node.units ?? [], lang: node.lang, frameTypes: node.frameTypes ?? [],
   });
@@ -796,7 +798,7 @@
 
   function valueTable() {
     const rowsData = node.valueTable;
-    const show = rowsData != null || node.kind === "flag" || ["enum", "flag"].includes(signalKind(ctx()));
+    const show = rowsData != null || node.kind === "flag" || ["enum", "flag"].includes(signalEncoding(ctx()));
     if (!show || !["signal", "flag"].includes(node.kind)) return null;
     const p = node.path;
     const hex = node.values.value_format === "hex";
@@ -856,7 +858,7 @@
   }
 
   function flagsTable() {
-    if (node.kind !== "signal" || (node.flags == null && signalKind(ctx()) !== "bitfield")) return null;
+    if (node.kind !== "signal" || (node.flags == null && signalEncoding(ctx()) !== "bitfield")) return null;
     const p = node.path;
     const list = node.flags ?? [];
     const add = () => {

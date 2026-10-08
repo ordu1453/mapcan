@@ -76,7 +76,7 @@ RULES = {
     "bit-overlap": ("error", N_("Пересечение сигналов по битам (с учётом мультиплексирования)")),
     "enum-overflow": ("error", N_("Значение enum не помещается в разрядность поля")),
     "duplicate-enum-name": ("warning", N_("Одинаковое имя у разных значений enum")),
-    "flags-kind": ("error", N_("flags задан у сигнала не типа bitfield")),
+    "flags-encoding": ("error", N_("flags задан у сигнала с кодированием не bitfield")),
     "flag-out-of-field": ("error", N_("Флаг выходит за пределы битового поля")),
     "flag-overlap": ("error", N_("Пересечение флагов внутри битового поля")),
     "flag-length": ("warning", N_("Сигнал типа flag длиной больше 1 бита")),
@@ -423,7 +423,7 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
     # Имена
     names: dict[str, tuple] = {}
     upper: dict[str, str] = {}
-    phys = {s.name + "_phys": s.name for s in sigs if s.factor != 1 or s.offset != 0 or s.kind == "metric"}
+    phys = {s.name + "_phys": s.name for s in sigs if s.factor != 1 or s.offset != 0 or s.encoding == "metric"}
     for s in sigs:
         if s.name in C_KEYWORDS or s.name in PY_KEYWORDS:
             ctx.emit("reserved-identifier", _("имя сигнала {name!r} — ключевое слово C/Python: "
@@ -486,16 +486,16 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                          sp + ("values", v))
         _dup_enum_names(ctx, s.values, sp)
 
-        if s.flags and s.kind != "bitfield":
-            ctx.emit("flags-kind", _("flags у сигнала типа {kind}", kind=s.kind), sp + ("flags",))
-        if s.kind == "flag" and s.bit_length != 1:
+        if s.flags and s.encoding != "bitfield":
+            ctx.emit("flags-encoding", _("flags у сигнала с кодированием {encoding}", encoding=s.encoding), sp + ("flags",))
+        if s.encoding == "flag" and s.bit_length != 1:
             ctx.emit("flag-length", _("сигнал-флаг {name!r} длиной {bits} бит", name=s.name, bits=s.bit_length),
                      sp + ("bit_length",))
         _check_flags(ctx, s)
 
         if s.factor == 0:
             ctx.emit("metric-factor", "factor = 0", sp + ("factor",))
-        elif s.kind == "metric":
+        elif s.encoding == "metric":
             phys = sorted((lo * s.factor + s.offset, hi * s.factor + s.offset))
             if s.min is not None and s.max is not None and s.min > s.max:
                 ctx.emit("min-max", _("min {min} > max {max}", min=s.min, max=s.max), sp + ("min",))
@@ -506,13 +506,13 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                              _("{key} = {value:g} вне представимого диапазона {lo:g}..{hi:g} {unit}",
                                key=k, value=val, lo=phys[0], hi=phys[1], unit=s.unit or "").rstrip(), sp + (k,))
 
-        if s.kind == "float" and s.bit_length not in (32, 64):
+        if s.encoding == "float" and s.bit_length not in (32, 64):
             ctx.emit("float-length", _("сигнал {name!r}: float — 32 или 64 бита, задано {bits}",
                                        name=s.name, bits=s.bit_length), sp + ("bit_length",))
-        if s.kind == "metric" and not s.unit and (s.factor != 1 or s.offset != 0):
+        if s.encoding == "metric" and not s.unit and (s.factor != 1 or s.offset != 0):
             ctx.emit("missing-unit", _("у физической величины {name!r} не указана единица (unit)", name=s.name),
                      sp + ("unit",))
-        raw_lo, raw_hi = (lo, hi) if s.kind != "float" else (None, None)
+        raw_lo, raw_hi = (lo, hi) if s.encoding != "float" else (None, None)
         for v in s.invalid_values:
             if raw_lo is not None and not raw_lo <= v <= raw_hi:
                 ctx.emit("invalid-overflow", _("invalid = {value} не помещается в {bits} бит ({lo}..{hi})",

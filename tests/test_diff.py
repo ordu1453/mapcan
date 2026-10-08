@@ -45,6 +45,7 @@ def test_enum_value_added_and_renamed():
 
 def test_signal_added_removed():
     new = BASE.replace("              - name: frame_request\n"
+                       "                encoding: raw\n"
                        "                description: Номер повторно запрашиваемого кадра\n"
                        "                byte: 1\n", "")
     d = _diff(new)
@@ -96,6 +97,7 @@ def test_changed_paths():
                            _path_of(m, "cmu_state", "cmu_status"): "modified"}
     # Удалённый сигнал помечает свой кадр
     new = BASE.replace("              - name: frame_request\n"
+                       "                encoding: raw\n"
                        "                description: Номер повторно запрашиваемого кадра\n"
                        "                byte: 1\n", "")
     m = _map(new)

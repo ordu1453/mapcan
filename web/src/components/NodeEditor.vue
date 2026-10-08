@@ -36,7 +36,7 @@ const fieldCtx = computed<FieldCtx>(() => {
   const frame = kind.value === "frame" ? rframe.value : undefined;
   return {
     protocol: bus ? bus.protocol ?? "canopen" : "",
-    kind: s?.kind, bitLength: s?.bit_length,
+    encoding: s?.encoding, bitLength: s?.bit_length,
     hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
     devices: (bus?.devices ?? []).map((d: any) => d?.name).filter(Boolean),
     deviceLabels: Object.fromEntries((bus?.devices ?? []).filter((d: any) => d?.name)
@@ -61,11 +61,8 @@ function fieldValue(def: FieldDef) {
   return getAt(node.value, def.key.split("."));
 }
 
-/** Значение для формы: у сигнала без явного kind показываем вычисленный тип, а не пустое «авто». */
 function shownValue(def: FieldDef) {
-  const v = fieldValue(def);
-  if (v == null && kind.value === "signal" && def.key === "kind") return rsignal.value?.kind;
-  return v;
+  return fieldValue(def);
 }
 
 function fieldPath(def: FieldDef): Path {
@@ -100,6 +97,13 @@ function commit(def: FieldDef, value: unknown) {
   // Смена типа CANopen: записанный DLC, недопустимый для нового типа, убираем — берётся длина типа
   const allowed = kind.value === "frame" && def.key === "type" ? CANOPEN_DLC[String(value ?? "raw")] : undefined;
   const dlc = node.value?.dlc;
+  // У значения SDO encoding обязателен: новое значение создаётся сразу с encoding: raw
+  // Без идентификатора у SDO-обмена нет значения: словарь value удаляется целиком
+  if (kind.value === "sdo" && def.key === "value.name" && (node.value?.value == null || !value)) {
+    if (value) void actions.apply([{ op: "set", path: [...path.value, "value"], value: { name: value, encoding: "raw" } }]);
+    else if (node.value?.value != null) void actions.apply([{ op: "remove", path: [...path.value, "value"] }]);
+    return;
+  }
   void actions.apply([{ op: "set", path: [...path.value, ...def.key.split(".")], value },
     ...(allowed && dlc != null && !allowed.includes(dlc) ? [{ op: "remove" as const, path: [...path.value, "dlc"] }] : [])]);
 }
@@ -287,7 +291,7 @@ const showValues = computed(() => {
   if (!n) return false;
   if (kind.value === "flag") return true;
   if (kind.value !== "signal") return false;
-  return n.values != null || ["enum", "flag"].includes(rsignal.value?.kind ?? "");
+  return n.values != null || ["enum", "flag"].includes(rsignal.value?.encoding ?? "");
 });
 const showFlags = computed(() => kind.value === "signal" && (node.value?.flags != null || node.value?.kind === "bitfield"));
 
@@ -508,7 +512,7 @@ function onLayout(p: Path, start: number, length: number) {
             <td>{{ r.label }}<span v-if="r.label !== r.s.name" class="ident">{{ r.s.name }}</span><span
               v-if="r.s.synthetic" class="muted"> (SDO)</span></td>
             <td class="mono">{{ r.bits }}</td>
-            <td>{{ r.s.kind }}<span v-if="r.s.mux" class="muted"> · mux {{ r.s.mux.join(", ") }}</span></td>
+            <td>{{ r.s.encoding }}<span v-if="r.s.mux" class="muted"> · mux {{ r.s.mux.join(", ") }}</span></td>
             <td>{{ r.desc }}</td>
           </tr>
         </tbody>

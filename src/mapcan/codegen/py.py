@@ -129,7 +129,7 @@ class PyGen:
             init = s.initial_raw
             if is_byte_array(s):
                 out.append(f"    {s.name}: bytes = field(default=bytes({s.bit_length // 8}))")
-            elif s.kind == "float":
+            elif s.encoding == "float":
                 out.append(f"    {s.name}: float = {num(init if init is not None else 0.0)}")
             else:
                 out.append(f"    {s.name}: int = {init if init is not None else 0}")
@@ -167,7 +167,7 @@ class PyGen:
                     "",
                     f"    @{s.name}_phys.setter",
                     f"    def {s.name}_phys(self, value: float) -> None:",
-                    (f"        self.{s.name} = (value - {num(s.offset)}) / {num(s.factor)}" if s.kind == "float"
+                    (f"        self.{s.name} = (value - {num(s.offset)}) / {num(s.factor)}" if s.encoding == "float"
                      else f"        self.{s.name} = round((value - {num(s.offset)}) / {num(s.factor)})"),
                 ]
         out.append("")
@@ -186,7 +186,7 @@ class PyGen:
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        buf[{b0}:{b0 + n}] = bytes(self.{s.name})[:{n}].ljust({n}, b'\\0')"]
         be = s.byte_order == "big_endian"
-        value = f"_f2b(self.{s.name}, {s.bit_length})" if s.kind == "float" else f"self.{s.name}"
+        value = f"_f2b(self.{s.name}, {s.bit_length})" if s.encoding == "float" else f"self.{s.name}"
         return [f"        _set(buf, {value}, {s.start_bit}, {s.bit_length}, {be})"]
 
     @staticmethod
@@ -195,7 +195,7 @@ class PyGen:
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        msg.{s.name} = bytes(data[{b0}:{b0 + n}])"]
         be = s.byte_order == "big_endian"
-        if s.kind == "float":
+        if s.encoding == "float":
             return [f"        msg.{s.name} = _b2f(_get(data, {s.start_bit}, {s.bit_length}, {be}), {s.bit_length})"]
         return [f"        msg.{s.name} = _get(data, {s.start_bit}, {s.bit_length}, {be}, {s.signed})"]
 

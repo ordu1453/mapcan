@@ -52,8 +52,8 @@ def code_text(lang: str) -> dict[str, str]:
 
 
 def is_byte_array(s: Signal) -> bool:
-    """Сигнал kind=bytes, выровненный по байтам, представляется массивом."""
-    return s.kind == "bytes" and s.start_bit % 8 == 0 and s.bit_length % 8 == 0 \
+    """Сигнал encoding=bytes, выровненный по байтам, представляется массивом."""
+    return s.encoding == "bytes" and s.start_bit % 8 == 0 and s.bit_length % 8 == 0 \
         and s.byte_order == "little_endian"
 
 
@@ -73,7 +73,7 @@ def selector_of(frame: Frame) -> Signal | None:
 
 
 def physical(s: Signal) -> bool:
-    return s.factor != 1 or s.offset != 0 or s.kind == "metric"
+    return s.factor != 1 or s.offset != 0 or s.encoding == "metric"
 
 
 def num(x: float) -> str:

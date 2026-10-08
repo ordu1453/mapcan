@@ -347,7 +347,7 @@ def op_rename_key(doc, path: list, new_key: Any) -> None:
     parent.insert(pos, new, value)
 
 
-def layout_keys(start: int, length: int, big_endian: bool, kind: str | None) -> dict:
+def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None) -> dict:
     """Самая читаемая запись позиции, которая разбирается обратно в те же start/length."""
     candidates: list[dict] = []
     byte, bit = divmod(start, 8)
@@ -367,7 +367,7 @@ def layout_keys(start: int, length: int, big_endian: bool, kind: str | None) -> 
     candidates.append({"start_bit": start, "bit_length": length})
     for c in candidates:
         try:
-            s = Signal(name="x", kind=kind, byte_order="big_endian" if big_endian else "little_endian", **c)
+            s = Signal(name="x", encoding=encoding or "raw", byte_order="big_endian" if big_endian else "little_endian", **c)
         except ValueError:
             continue
         if (s.start_bit, s.bit_length) == (start, length):
@@ -387,14 +387,14 @@ def op_set_layout(doc, path: list, start_bit: int, bit_length: int) -> None:
     keys = list(sig.keys())
     pos = min((keys.index(k) for k in LAYOUT_KEYS if k in sig), default=None)
     if pos is None:
-        pos = keys.index("description") + 1 if "description" in sig else (1 if "name" in sig else 0)
+        pos = max((keys.index(k) for k in ("name", "encoding", "description") if k in sig), default=-1) + 1
     for k in LAYOUT_KEYS:
         if k in sig:
             del sig[k]
     if used_canonical:
         new = {"start_bit": start_bit, "bit_length": bit_length}
     else:
-        new = layout_keys(start_bit, bit_length, big, sig.get("kind"))
+        new = layout_keys(start_bit, bit_length, big, sig.get("encoding"))
     for i, (k, v) in enumerate(new.items()):
         sig.insert(pos + i, k, v)
 

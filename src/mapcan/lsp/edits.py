@@ -652,12 +652,13 @@ def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
         signals = raw_at(a, path + ("signals",)) or []
         frame = _find(a.map, path) if a.map else None
         name = ("name", _unique("signal", _names(signals)))
+        encoding = ("encoding", "raw")
         byte = free_start(frame, 8, 8) if isinstance(frame, M.Frame) else 0
         if byte is not None:
-            return append_item(a, path, "signals", [name, ("byte", str(byte // 8))])
+            return append_item(a, path, "signals", [name, encoding, ("byte", str(byte // 8))])
         # Целого свободного байта нет — однобитный сигнал на первом свободном бите
         bit = free_start(frame, 1, 1)
-        return append_item(a, path, "signals", [name, ("start_bit", str(bit or 0)), ("bit_length", "1")])
+        return append_item(a, path, "signals", [name, encoding, ("start_bit", str(bit or 0)), ("bit_length", "1")])
     return None
 
 
@@ -852,14 +853,14 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     owner = raw_at(a, path[:4]) if len(path) >= 6 and path[2] == "devices" else None
     devices = [(d.get("name"), _txt(d.get("short"), lang) or _txt(d.get("title"), lang) or d.get("name"))
                for d in bus.get("devices") or [] if isinstance(d, dict) and isinstance(d.get("name"), str)]
-    # Вычисленный тип сигнала (kind по умолчанию выводится из полей), если карта разобрана
+    # Сигнал из разобранной карты: длина в битах вычисляется из byte_length и encoding
     signal = _find(a.map, path) if a.map is not None and kind == "signal" else None
     # Есть ли в кадре другой сигнал-селектор мультиплексора (тогда сигналу доступно поле mux)
     siblings = raw_at(a, path[:-1]) if kind == "signal" else None
     has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not raw for s in siblings or [])
     return {"kind": kind, "path": list(path), "lang": lang, "protocol": bus.get("protocol") or "canopen",
             "owner": owner.get("name") if isinstance(owner, dict) else None,
-            "signalKind": signal.kind if isinstance(signal, M.Signal) else values.get("kind"),
+            "signalEncoding": signal.encoding if isinstance(signal, M.Signal) else values.get("encoding"),
             "bitLength": signal.bit_length if isinstance(signal, M.Signal) else None,
             "hasSelector": has_selector,
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
@@ -933,7 +934,9 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
         if (value is None or value == "" or len(parent) < 2 or not isinstance(parent[-1], str)
                 or raw_at(a, parent) is not None or not isinstance(raw_at(a, parent[:-1]), dict)):
             return []
-        return _insert_field(a, parent[:-1], parent[-1], f"{{{key}: {format_value(key, value)}}}")
+        # У значения SDO encoding обязателен: новый словарь создаётся сразу с encoding: raw
+        extra = ", encoding: raw" if parent[-1] == "value" and key == "name" else ""
+        return _insert_field(a, parent[:-1], parent[-1], f"{{{key}: {format_value(key, value)}{extra}}}")
     current = raw_at(a, path)
     if value is None or value == "":
         if current is None or path not in a.nodes:
@@ -941,6 +944,9 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
         if isinstance(current, dict) and key in TEXT_KEYS:
             lang = doc_language(a)
             return delete_key(a, path + (lang,)) if lang in current else []
+        # Без идентификатора у SDO-обмена нет значения: словарь value удаляется целиком
+        if key == "name" and len(path) >= 2 and path[-2] == "value" and node_kind(path[:-2]) == "sdo":
+            return delete_key(a, path[:-1])
         # Последнее поле вложенного словаря «key: {поле: …}» удаляется вместе с ним, а не оставляет «{}»
         parent, pn = path[:-1], a.nodes.get(path[:-1])
         if (len(parent) >= 2 and isinstance(parent[-1], str) and list(raw_at(a, parent)) == [key]

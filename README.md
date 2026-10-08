@@ -71,8 +71,8 @@ buses:
             cycle_ms: 100
             receivers: [vcu]
             signals:
-              - {name: pack_voltage, byte: 0, kind: float, unit: V, min: 0, max: 1000}
-              - {name: pack_current, byte: 4, kind: float, unit: A, initial: 0}
+              - {name: pack_voltage, byte: 0, encoding: float, unit: V, min: 0, max: 1000}
+              - {name: pack_current, byte: 4, encoding: float, unit: A, initial: 0}
       - name: vcu
 ```
 

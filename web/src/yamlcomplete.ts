@@ -358,7 +358,7 @@ export function complete(text: string, pos: number, root: Schema, force = false)
     return result(items, from);
   }
 
-  // Значение: «  kind: me|»
+  // Значение: «  encoding: me|»
   const inf = info(before);
   const vm = inf.key !== null ? /^(\s*)([\w.-]*)$/.exec(inf.rest) : null;
   if (vm) {

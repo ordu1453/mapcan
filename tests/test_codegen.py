@@ -38,7 +38,7 @@ def sample(frame) -> dict:
         if is_byte_array(s):
             vals[s.name] = bytes((0x11 * (k + 1) + i) & 0xFF for k in range(s.bit_length // 8))
         else:
-            vals[s.name] = 1.5 + 0.25 * i if s.kind == "float" else _value(s, i)
+            vals[s.name] = 1.5 + 0.25 * i if s.encoding == "float" else _value(s, i)
     if sel is not None:
         muxed = [s for s in frame.layout if s.mux is not None]
         if muxed:
@@ -132,7 +132,7 @@ def test_dbc_matches_python(cmap, py_modules):
             msg = dbc.get_message_by_frame_id(f.can_id)
             decoded = msg.decode(ours, decode_choices=False, scaling=False)
             for s in present(f, vals):
-                if s.kind == "bitfield" and s.flags:
+                if s.encoding == "bitfield" and s.flags:
                     for fl in s.flags:
                         expect = (vals[s.name] >> fl.bit) & ((1 << fl.bit_length) - 1)
                         assert decoded[fl.name] == expect, (f.name, fl.name)
@@ -159,7 +159,7 @@ GCC = shutil.which("gcc") or shutil.which("cc")
 def _c_lit(s, v) -> str:
     if isinstance(v, bytes):
         return "{" + ", ".join(f"0x{b:02X}" for b in v) + "}"
-    if s.kind == "float":
+    if s.encoding == "float":
         return repr(float(v)) + ("" if s.bit_length == 64 else "f")
     if s.signed:
         return f"({v}LL)"
@@ -198,7 +198,7 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
                 if is_byte_array(s):
                     main.append(f'        hex("{f.name}.{s.name}", u.{s.name}, {s.bit_length // 8});')
                     expected.append(f"{f.name}.{s.name}" + "".join(f" {b:02X}" for b in vals[s.name]))
-                elif s.kind == "float":
+                elif s.encoding == "float":
                     # Сравнение по точным битам IEEE 754.
                     w = 64 if s.bit_length == 64 else 32
                     main.append(f'        printf("{f.name}.{s.name} %" PRIu64 "\\n", '
@@ -249,20 +249,20 @@ buses:
           - name: f1
             id: 0x101
             signals:
-              - {name: u28, start_bit: 0, bit_length: 28, unit: ms}
-              - {name: s32, start_bit: 28, bit_length: 32, signed: true, factor: 0.5}
+              - {name: u28, encoding: metric, start_bit: 0, bit_length: 28, unit: ms}
+              - {name: s32, encoding: metric, start_bit: 28, bit_length: 32, signed: true, factor: 0.5}
           - name: f2
             id: 0x102
             signals:
-              - {name: u64, start_bit: 0, bit_length: 64, factor: 2}
+              - {name: u64, encoding: metric, start_bit: 0, bit_length: 64, factor: 2}
           - name: f3
             id: 0x103
             signals:
-              - {name: s64, start_bit: 0, bit_length: 64, signed: true, factor: 2}
+              - {name: s64, encoding: metric, start_bit: 0, bit_length: 64, signed: true, factor: 2}
           - name: f4
             id: 0x104
             signals:
-              - {name: s8, start_bit: 0, bit_length: 8, signed: true, factor: 0.5}
+              - {name: s8, encoding: metric, start_bit: 0, bit_length: 8, signed: true, factor: 0.5}
 """
 
 
@@ -333,6 +333,7 @@ def test_dbc_flag_comment_in_document_language():
             id: 0x105
             signals:
               - name: st
+                encoding: bitfield
                 start_bit: 0
                 bit_length: 8
                 flags: [{name: ready, bit: 3}]

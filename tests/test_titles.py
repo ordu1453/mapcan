@@ -26,11 +26,13 @@ TITLED = one_bus(f"""
       dlc: 2
       signals:
         - name: volts
+          encoding: metric
           title: '{TRICKY}'
           byte: 0
           factor: 0.5
           unit: V
         - name: state
+          encoding: enum
           title: Состояние
           description: Режим работы
           byte: 1

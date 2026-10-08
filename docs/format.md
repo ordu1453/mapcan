@@ -136,7 +136,7 @@ CANopen ID computation:
 | `name` | Identifier (unique within the frame, together with flag names) |
 | `title` | Human-readable name ("Battery voltage"); the editor tree shows it instead of the identifier |
 | `description` | Description |
-| `kind` | `enum`, `flag`, `bitfield`, `metric`, `raw`, `float`, `bytes`. If omitted: `flags` present → `bitfield`, `values` present → `enum`, `factor`/`offset`/`unit` present → `metric`, otherwise `raw` |
+| `encoding` | Required: `enum`, `flag`, `bitfield`, `metric`, `raw`, `float`, `bytes` |
 | `start_bit` + `bit_length` | Canonical position |
 | `byte` [+ `bit`] [+ `byte_length` \| `bit_length`] | Shorthand position (see below) |
 | `byte_order` | `little_endian` (default) or `big_endian` |
@@ -157,13 +157,13 @@ If no length is given, a signal is 8 bits long; a `float` is 32 bits, and a `fla
 
 #### Floating point
 
-`kind: float` is IEEE 754, 32 bits (default) or 64 bits (`bit_length: 64`), in either byte order.
+`encoding: float` is IEEE 754, 32 bits (default) or 64 bits (`bit_length: 64`), in either byte order.
 `factor` and `offset` are allowed. In C the field is a `float` or `double`; in DBC the signal is
 marked as float.
 
 ```yaml
-- {name: pack_voltage, byte: 0, kind: float, unit: V}
-- {name: timestamp, byte: 0, kind: float, bit_length: 64, unit: s}
+- {name: pack_voltage, byte: 0, encoding: float, unit: V}
+- {name: timestamp, byte: 0, encoding: float, bit_length: 64, unit: s}
 ```
 
 #### Shorthand position
@@ -191,12 +191,13 @@ byte of the field, the way it is usually read in a table.
 ```yaml
 signals:
   - name: parse_type
+    encoding: enum
     byte: 0
     bit: 0
     multiplexer: true
     values: {0: VOLTAGES, 1: TEMPERATURES}
-  - {name: voltage_data,     byte: 1, byte_length: 7, kind: bytes, mux: 0}
-  - {name: temperature_data, byte: 1, byte_length: 7, kind: bytes, mux: 1}
+  - {name: voltage_data,     byte: 1, byte_length: 7, encoding: bytes, mux: 0}
+  - {name: temperature_data, byte: 1, byte_length: 7, encoding: bytes, mux: 1}
 ```
 
 Signals with different `mux` values may occupy the same bits; this is not an overlap. A signal
@@ -227,7 +228,7 @@ buses:
             cycle_ms: 20
             receivers: [cluster]
             signals:
-              - {name: engine_speed, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid: 0xFFFF}
+              - {name: engine_speed, encoding: metric, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid: 0xFFFF}
       - name: cluster
         address: 0x17
       - name: diag
@@ -252,7 +253,7 @@ For `sdo_rx`/`sdo_tx` frames you can describe expedited SDO exchanges instead of
       command: 0x2B          # CCS: write 2 bytes
       index: 0x4010
       subindex: 0x01
-      value: {name: alarm_resistance, bit_length: 16, unit: kOhm}
+      value: {name: alarm_resistance, encoding: metric, bit_length: 16, unit: kOhm}
 ```
 
 mapcan builds the frame layout itself: byte 0 is the command, bytes 1–2 the index
@@ -413,7 +414,7 @@ turned off with `--disable CODE` or `lint.disable`.
 
 | Code | Severity | What is checked |
 |---|---|---|
-| `flags-kind` | error | flags set on a signal that is not a bitfield |
+| `flags-encoding` | error | flags set on a signal whose encoding is not `bitfield` |
 | `flag-out-of-field` | error | Flag extends beyond the bit field |
 | `flag-overlap` | error | Flags overlap inside the bit field |
 | `flag-length` | warning | Flag signal longer than 1 bit |

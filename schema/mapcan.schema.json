@@ -970,6 +970,16 @@
           "title": "Name",
           "type": "string"
         },
+        "encoding": {
+          "description": "Value encoding: enum, metric, raw.",
+          "enum": [
+            "enum",
+            "metric",
+            "raw"
+          ],
+          "title": "Encoding",
+          "type": "string"
+        },
         "description": {
           "anyOf": [
             {
@@ -1074,7 +1084,8 @@
         }
       },
       "required": [
-        "name"
+        "name",
+        "encoding"
       ],
       "title": "SdoValue",
       "type": "object"
@@ -1117,27 +1128,19 @@
           "default": null,
           "title": "Description"
         },
-        "kind": {
-          "anyOf": [
-            {
-              "enum": [
-                "enum",
-                "flag",
-                "bitfield",
-                "metric",
-                "raw",
-                "bytes",
-                "float"
-              ],
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
+        "encoding": {
+          "description": "Signal encoding: enum, flag, bitfield, metric, raw, float, bytes.",
+          "enum": [
+            "enum",
+            "flag",
+            "bitfield",
+            "metric",
+            "raw",
+            "bytes",
+            "float"
           ],
-          "default": null,
-          "description": "Signal kind. If not set: values → enum, flags → bitfield, factor/unit → metric, otherwise raw.",
-          "title": "Kind"
+          "title": "Encoding",
+          "type": "string"
         },
         "start_bit": {
           "anyOf": [
@@ -1412,7 +1415,8 @@
         }
       },
       "required": [
-        "name"
+        "name",
+        "encoding"
       ],
       "title": "Signal",
       "type": "object"

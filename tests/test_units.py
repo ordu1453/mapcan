@@ -47,6 +47,7 @@ def _signal_view(lang: str) -> dict:
           id: 0x181
           signals:
             - name: voltage
+              encoding: metric
               start_bit: 0
               bit_length: 16
               factor: 0.1
@@ -75,10 +76,12 @@ def test_dbc_export_writes_ascii_units(tmp_path):
           id: 0x181
           signals:
             - name: resistance
+              encoding: metric
               start_bit: 0
               bit_length: 16
               unit: Ом
             - name: temperature
+              encoding: metric
               start_bit: 16
               bit_length: 8
               unit: "\u2103"

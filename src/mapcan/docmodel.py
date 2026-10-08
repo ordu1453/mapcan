@@ -372,7 +372,7 @@ class ViewBuilder:
         bits_label = _range(lo, hi)
 
         enc = []
-        if s.kind in ("enum", "raw", "metric", "flag") or s.kind is None:
+        if s.encoding in ("enum", "raw", "metric", "flag"):
             if s.bit_length in (8, 16, 32, 64) and whole_bytes:
                 enc.append(("int" if s.signed else "uint") + str(s.bit_length))
             else:
@@ -381,20 +381,20 @@ class ViewBuilder:
                     enc[-1] += f", {L['signed']}"
             if s.signed and s.signed_code in ("ones_complement", "sign_magnitude"):
                 enc[-1] += f", {L[s.signed_code]}"
-        elif s.kind == "float":
+        elif s.encoding == "float":
             enc.append(f"float{s.bit_length}" if s.bit_length in (32, 64) else f"{s.bit_length} {L['bit']}")
-        elif s.kind == "bitfield":
+        elif s.encoding == "bitfield":
             enc.append(L["bitfield"])
-        elif s.kind == "bytes":
+        elif s.encoding == "bytes":
             enc.append(f"{s.bit_length // 8} {L['bytes']}" if whole_bytes else f"{s.bit_length} {L['bit']}")
         unit = self.unit(s.unit)
-        if s.kind == "metric" or s.factor != 1 or s.offset != 0:
+        if s.encoding == "metric" or s.factor != 1 or s.offset != 0:
             enc.append(f"{fmt_num(s.factor)} {unit}{L['per_bit']}".replace(" /", "/"))
             if s.offset:
                 enc.append(f"{L['offset']} {fmt_num(s.offset)} {unit}".strip())
         elif unit:
             enc.append(unit)
-        if b1 > b0 and s.kind != "bytes":
+        if b1 > b0 and s.encoding != "bytes":
             enc.append(L[s.byte_order])
         if s.multiplexer:
             enc.append(L["selector"])
@@ -435,8 +435,8 @@ class ViewBuilder:
             # Как у кадра: без описания в документах выводится название
             "description": self.t(s.description) or self.t(s.title),
             "title": self.t(s.title),
-            "kind": s.kind,
-            "kind_label": L.get(s.kind, s.kind),
+            "kind": s.encoding,
+            "kind_label": L.get(s.encoding, s.encoding),
             "start_bit": s.start_bit,
             "bit_length": s.bit_length,
             "bytes": bytes_label,

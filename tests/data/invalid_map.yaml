@@ -15,6 +15,7 @@ buses:
             cycle_ms: 100
             signals:
               - name: bus_voltage
+                encoding: metric
                 description: Напряжение
                 byte: 6
                 byte_length: 2
@@ -27,6 +28,7 @@ buses:
             cycle_ms: 100
             signals:
               - name: cmu_status
+                encoding: enum
                 description: Статус
                 byte: 0
                 values:
@@ -34,10 +36,12 @@ buses:
                   1: OK
                   2: NO_DATA_X
               - name: wide
+                encoding: raw
                 description: Слишком широкий
                 byte: 1
                 byte_length: 2
               - name: tiny
+                encoding: enum
                 description: Маленький
                 byte: 0
                 bit: 7
@@ -52,10 +56,12 @@ buses:
             cycle_ms: 100
             signals:
               - name: dc_status
+                encoding: enum
                 description: Состояние
                 byte: 0
                 values: {0: DC_INIT, 1: NO_DATA}
               - name: error_code
+                encoding: bitfield
                 description: Ошибки
                 byte: 1
                 flags:
@@ -66,6 +72,7 @@ buses:
             transmission: {mode: cyclic}
             signals:
               - name: muxed
+                encoding: raw
                 description: x
                 byte: 0
                 mux: 1

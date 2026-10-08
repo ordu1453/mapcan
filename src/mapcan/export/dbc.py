@@ -47,9 +47,9 @@ def _signal(name: str, s: Signal, start: int, length: int, lang: str, comment: s
         start=dbc_start,
         length=length,
         byte_order="big_endian" if be else "little_endian",
-        is_signed=s.signed and s.kind != "float",
+        is_signed=s.signed and s.encoding != "float",
         conversion=BaseConversion.factory(scale=s.factor, offset=s.offset, choices=choices,
-                                          is_float=s.kind == "float"),
+                                          is_float=s.encoding == "float"),
         raw_initial=s.initial_raw,
         raw_invalid=s.invalid_values[0] if s.invalid_values else None,
         minimum=s.min,
@@ -74,7 +74,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         sigs = []
         for s in f.layout:
             desc = _comment(text(s.description, lang) or text(s.title, lang), text(s.comment, lang))
-            if s.kind == "bitfield" and s.flags:
+            if s.encoding == "bitfield" and s.flags:
                 occ = B.occupied_bits(s.start_bit, s.bit_length, s.byte_order == "big_endian")
                 for fl in s.flags:
                     if fl.bit + fl.bit_length > len(occ):

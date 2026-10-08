@@ -77,7 +77,7 @@ def test_flow_mapping_untouched_when_neighbour_changes(client):
     st = ops(client, {"op": "set", "path": ["buses", 0, "devices", 0, "frames", 3, "description"],
                       "value": "Настройка"})
     assert len(_changed_lines(before, st["text"])) == 2
-    assert "                value: {name: alarm_resistance, bit_length: 16, unit: кОм,\n" in st["text"]
+    assert "                value: {name: alarm_resistance, encoding: metric, bit_length: 16, unit: кОм,\n" in st["text"]
 
 
 def test_hex_kept(client):
@@ -113,7 +113,7 @@ def test_set_layout_rejects_bad_position(client, start, length):
 def test_insert_signal_and_remove(client):
     path = ["buses", 0, "devices", 1, "frames", 0, "signals"]
     st = ops(client,
-             {"op": "insert", "path": path, "value": {"name": "spare", "description": "Резерв", "byte": 2}},
+             {"op": "insert", "path": path, "value": {"name": "spare", "encoding": "raw", "description": "Резерв", "byte": 2}},
              {"op": "set", "path": ["buses", 0, "devices", 1, "frames", 0, "dlc"], "value": 3})
     assert "- name: spare" in st["text"]
     assert not [d for d in st["diagnostics"] if d["level"] == "error"]
@@ -123,7 +123,7 @@ def test_insert_signal_and_remove(client):
 
 def test_insert_into_missing_list(client):
     st = ops(client, {"op": "insert", "path": ["buses", 0, "devices", 3, "frames", 0, "signals"],
-                      "value": {"name": "mode", "description": "Режим", "byte": 0}})
+                      "value": {"name": "mode", "encoding": "raw", "description": "Режим", "byte": 0}})
     f = next(f for f in st["resolved"]["frames"] if f["name"] == "bypass_command")
     assert f["signals"][0]["name"] == "mode"
 

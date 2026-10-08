@@ -91,12 +91,12 @@ describe("прочие узлы", () => {
   });
 
   it("поля сигнала — по его типу", () => {
-    expect(visible("signal", {}, { protocol: "can", kind: "metric" })).toEqual(expect.arrayContaining(["factor", "unit"]));
-    expect(visible("signal", {}, { protocol: "can", kind: "enum" })).not.toContain("factor");
-    expect(visible("signal", {}, { protocol: "canopen", kind: "raw", bitLength: 16 })).toContain("byte_order");
-    expect(visible("signal", {}, { protocol: "can", kind: "raw", bitLength: 16 })).toContain("byte_order");
-    expect(visible("signal", {}, { protocol: "can", kind: "raw", bitLength: 8 })).not.toContain("byte_order");
-    expect(visible("signal", {}, { protocol: "can", kind: "bytes", bitLength: 16 })).not.toContain("byte_order");
+    expect(visible("signal", {}, { protocol: "can", encoding: "metric" })).toEqual(expect.arrayContaining(["factor", "unit"]));
+    expect(visible("signal", {}, { protocol: "can", encoding: "enum" })).not.toContain("factor");
+    expect(visible("signal", {}, { protocol: "canopen", encoding: "raw", bitLength: 16 })).toContain("byte_order");
+    expect(visible("signal", {}, { protocol: "can", encoding: "raw", bitLength: 16 })).toContain("byte_order");
+    expect(visible("signal", {}, { protocol: "can", encoding: "raw", bitLength: 8 })).not.toContain("byte_order");
+    expect(visible("signal", {}, { protocol: "can", encoding: "bytes", bitLength: 16 })).not.toContain("byte_order");
   });
 });
 

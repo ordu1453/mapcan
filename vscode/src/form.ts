@@ -22,7 +22,7 @@ interface NodeFields {
   protocol: string;
   owner: string | null;
   devices: { name: string; label: string }[];
-  signalKind: string | null;
+  signalEncoding: string | null;
   /** Signal length computed from the map (bits). */
   bitLength: number | null;
   /** Another signal of the frame is the multiplexer selector. */

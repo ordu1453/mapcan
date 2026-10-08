@@ -32,7 +32,7 @@ export interface ResolvedSignal {
   index: number | null;
   path: Path;
   name: string;
-  kind: string;
+  encoding: string;
   start_bit: number;
   bit_length: number;
   byte_order: "little_endian" | "big_endian";

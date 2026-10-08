@@ -30,14 +30,14 @@ buses:
               - name: pack_voltage
                 description: Pack voltage
                 byte: 0
-                kind: float
+                encoding: float
                 unit: V
                 min: 0
                 max: 1000
               - name: pack_current
                 description: Pack current (negative while charging)
                 byte: 4
-                kind: float
+                encoding: float
                 unit: A
                 initial: 0
 
@@ -49,23 +49,24 @@ buses:
             receivers: [vcu]
             signals:
               - name: cell_group
+                encoding: enum
                 description: Cell group
                 byte: 0
                 multiplexer: true
                 values:
                   0: {name: CELLS_1_3, description: cells 1–3}
                   1: {name: CELLS_4_6, description: cells 4–6}
-              - {name: cell_1, description: Cell 1, byte: 1, byte_length: 2, byte_order: big_endian,
+              - {name: cell_1, encoding: metric, description: Cell 1, byte: 1, byte_length: 2, byte_order: big_endian,
                  factor: 0.001, unit: V, invalid: 0xFFFF, mux: 0}
-              - {name: cell_2, description: Cell 2, byte: 3, byte_length: 2, byte_order: big_endian,
+              - {name: cell_2, encoding: metric, description: Cell 2, byte: 3, byte_length: 2, byte_order: big_endian,
                  factor: 0.001, unit: V, invalid: 0xFFFF, mux: 0}
-              - {name: cell_3, description: Cell 3, byte: 5, byte_length: 2, byte_order: big_endian,
+              - {name: cell_3, encoding: metric, description: Cell 3, byte: 5, byte_length: 2, byte_order: big_endian,
                  factor: 0.001, unit: V, invalid: 0xFFFF, mux: 0}
-              - {name: cell_4, description: Cell 4, byte: 1, byte_length: 2, byte_order: big_endian,
+              - {name: cell_4, encoding: metric, description: Cell 4, byte: 1, byte_length: 2, byte_order: big_endian,
                  factor: 0.001, unit: V, invalid: 0xFFFF, mux: 1}
-              - {name: cell_5, description: Cell 5, byte: 3, byte_length: 2, byte_order: big_endian,
+              - {name: cell_5, encoding: metric, description: Cell 5, byte: 3, byte_length: 2, byte_order: big_endian,
                  factor: 0.001, unit: V, invalid: 0xFFFF, mux: 1}
-              - {name: cell_6, description: Cell 6, byte: 5, byte_length: 2, byte_order: big_endian,
+              - {name: cell_6, encoding: metric, description: Cell 6, byte: 5, byte_length: 2, byte_order: big_endian,
                  factor: 0.001, unit: V, invalid: 0xFFFF, mux: 1}
 
       - name: vcu
@@ -79,6 +80,7 @@ buses:
             receivers: [bms]
             signals:
               - name: contactor_request
+                encoding: enum
                 description: Requested contactor state
                 byte: 0
                 initial: 0
@@ -87,6 +89,7 @@ buses:
                   1: {name: PRECHARGE, description: precharge}
                   2: {name: CLOSE, description: close}
               - name: torque_request
+                encoding: metric
                 description: Torque request
                 byte: 1
                 byte_length: 2
@@ -99,7 +102,7 @@ buses:
               - name: max_charge_current
                 description: Maximum charge current
                 byte: 3
-                kind: float
+                encoding: float
                 byte_order: big_endian
                 unit: A
 
@@ -127,11 +130,11 @@ buses:
               - name: timestamp
                 description: Record time
                 byte: 0
-                kind: float
+                encoding: float
                 bit_length: 64
                 unit: s
               - name: payload
                 description: Record data
                 byte: 8
                 byte_length: 8
-                kind: bytes
+                encoding: bytes

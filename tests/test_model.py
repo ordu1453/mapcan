@@ -8,7 +8,7 @@ from .conftest import one_bus, run
 
 
 def sig(**kw) -> Signal:
-    return Signal(name="s", **kw)
+    return Signal(name="s", **{"encoding": "raw", **kw})
 
 
 @pytest.mark.parametrize(
@@ -63,12 +63,9 @@ def test_signed_extract():
     assert B.extract(buf, 0, 16, False, signed=True) == -2
 
 
-def test_kind_inference():
-    assert sig(byte=0, values={0: "A"}).kind == "enum"
-    assert sig(byte=0, flags=[{"name": "f", "bit": 0}]).kind == "bitfield"
-    assert sig(byte=0, factor=0.1).kind == "metric"
-    assert sig(byte=0, unit="В").kind == "metric"
-    assert sig(byte=0).kind == "raw"
+def test_encoding_required():
+    with pytest.raises(ValueError):
+        Signal(name="s", byte=0, values={0: "A"})
 
 
 def test_both_position_forms_rejected():

@@ -263,7 +263,7 @@ def frame_view(f: Frame) -> dict:
             "index": i if explicit else None,
             "path": list(s._path),
             "name": s.name,
-            "kind": s.kind,
+            "encoding": s.encoding,
             "start_bit": s.start_bit,
             "bit_length": s.bit_length,
             "byte_order": s.byte_order,

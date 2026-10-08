@@ -133,7 +133,7 @@ class CGen:
 
     @staticmethod
     def ctype(s: Signal) -> str:
-        if s.kind == "float":
+        if s.encoding == "float":
             return "double" if s.bit_length == 64 else "float"
         return ("int" if s.signed else "uint") + f"{storage_bits(s)}_t"
 
@@ -203,7 +203,7 @@ class CGen:
             if s.flags:
                 out.append("")
             out += self.default_defines(F, s)
-            if physical(s) and s.kind == "float":
+            if physical(s) and s.encoding == "float":
                 T = self.ctype(s)
                 sfx = "" if T == "double" else "f"
                 fn = self.p(F, S)
@@ -277,7 +277,7 @@ class CGen:
         out = []
         init = s.initial_raw
         if init is not None and not is_byte_array(s):
-            if s.kind == "float":
+            if s.encoding == "float":
                 sfx = "" if s.bit_length == 64 else "f"
                 out.append(f"#define {self.P(F, s.name, 'INITIAL')} ({num(init)}{sfx})")
             else:
@@ -355,7 +355,7 @@ class CGen:
                 continue
             T = self.ctype(s)
             get = f"mapcan_get_bits(data, {s.start_bit}u, {s.bit_length}u, {be(s)})"
-            if s.kind == "float":
+            if s.encoding == "float":
                 w = 64 if s.bit_length == 64 else 32
                 pack += self._guard(s, sel, [
                     f"    mapcan_set_bits(data, (uint64_t)mapcan_f{w}_to_bits(msg->{s.name}), "

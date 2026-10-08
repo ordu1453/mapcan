@@ -59,11 +59,13 @@ buses:
         transmission: {mode: event}
         signals:
           - name: ms_after_midnight
+            encoding: metric
             description: Миллисекунды с начала суток
             start_bit: 0
             bit_length: 28
             unit: мс
           - name: days_since_1984
+            encoding: metric
             description: Дни с 1 января 1984 г.
             byte: 4
             byte_length: 2
@@ -85,6 +87,7 @@ buses:
             cycle_ms: 100
             signals:
               - name: insulation_status
+                encoding: enum
                 description: Статус изоляции
                 byte: 0
                 values:
@@ -100,6 +103,7 @@ buses:
                     description: аварийно-низкое сопротивление изоляции, меньше ALARM_RESISTANCE
 
               - name: internal_error
+                encoding: bitfield
                 description: Статус внутренней ошибки
                 byte: 1
                 flags:
@@ -113,6 +117,7 @@ buses:
                   - {bit: 3, name: self_test_error, description: ошибка самопроверки}
 
               - name: imd_state
+                encoding: enum
                 description: Состояние работы
                 byte: 2
                 values:
@@ -127,12 +132,14 @@ buses:
             cycle_ms: 100
             signals:
               - name: resistance_calculated
+                encoding: enum
                 description: Флаг расчёта сопротивления изоляции
                 byte: 0
                 values:
                   0: {name: NOT_CALCULATED, description: значения сопротивлений изоляции не рассчитаны}
                   1: {name: CALCULATED, description: значения сопротивлений изоляции рассчитаны}
               - name: resistance_plus
+                encoding: metric
                 description: Изоляция между «плюсом» шины питания и корпусом
                 byte: 1
                 byte_length: 2
@@ -141,6 +148,7 @@ buses:
                 min: 0
                 max: 10000
               - name: resistance_minus
+                encoding: metric
                 description: Изоляция между «минусом» шины питания и корпусом
                 byte: 3
                 byte_length: 2
@@ -149,12 +157,14 @@ buses:
                 min: 0
                 max: 10000
               - name: bus_voltage_calculated
+                encoding: enum
                 description: Флаг расчёта напряжения шины питания
                 byte: 5
                 values:
                   0: {name: NOT_CALCULATED, description: значение напряжения не рассчитано}
                   1: {name: CALCULATED, description: значение напряжения рассчитано}
               - name: bus_voltage
+                encoding: metric
                 description: Напряжение шины питания
                 byte: 6
                 byte_length: 2
@@ -169,12 +179,14 @@ buses:
             cycle_ms: 100
             signals:
               - name: allow_work
+                encoding: enum
                 description: Команда разрешения работы устройства
                 byte: 0
                 values:
                   0: {name: FORBID, description: запрет работы}
                   1: {name: ALLOW, description: разрешение работы}
               - name: force_selftest
+                encoding: enum
                 description: Команда принудительной самодиагностики
                 byte: 1
                 values:
@@ -196,14 +208,14 @@ buses:
                 command: 0x2B
                 index: 0x4010
                 subindex: 0x01
-                value: {name: alarm_resistance, bit_length: 16, unit: кОм,
+                value: {name: alarm_resistance, encoding: metric, bit_length: 16, unit: кОм,
                         description: Порог аварийного сопротивления изоляции}
               - name: set_warning_resistance
                 description: Установка WARNING_RESISTANCE
                 command: 0x2B
                 index: 0x4010
                 subindex: 0x02
-                value: {name: warning_resistance, bit_length: 16, unit: кОм,
+                value: {name: warning_resistance, encoding: metric, bit_length: 16, unit: кОм,
                         description: Порог предупредительного сопротивления изоляции}
 
           - name: imd_sdo_response
@@ -237,6 +249,7 @@ buses:
             cycle_ms: 50
             signals:
               - name: cmu_status
+                encoding: enum
                 description: Состояние работы устройства
                 byte: 0
                 values:
@@ -245,6 +258,7 @@ buses:
                   2: WARNING
                   3: ALARM
               - name: systems_status
+                encoding: bitfield
                 description: Код состояния систем
                 byte: 1
                 flags:
@@ -264,6 +278,7 @@ buses:
             transmission: {mode: event}
             signals:
               - name: event_type
+                encoding: enum
                 description: Код события
                 byte: 0
                 values:
@@ -275,12 +290,14 @@ buses:
                   6: {name: CELL_OVERCOOLING, description: переохлаждение ячеек}
                   7: {name: TEMPERATURE_SENSOR_LOST, description: нет связи с датчиком температуры}
               - name: event_source
+                encoding: enum
                 description: Источник события
                 byte: 1
                 values:
                   0: {name: VOLTAGE_MODULES, description: модули напряжения}
                   1: {name: TEMPERATURE_SENSORS, description: датчики температур}
               - name: event_object
+                encoding: raw
                 description: Объект события — номер модуля или датчика
                 byte: 2
 
@@ -291,6 +308,7 @@ buses:
             transmission: {mode: on_request}
             signals:
               - name: parse_type
+                encoding: enum
                 description: Тип парсинга (селектор мультиплексора)
                 byte: 0
                 bit: 0
@@ -299,6 +317,7 @@ buses:
                   0: {name: VOLTAGES, description: парсинг напряжений}
                   1: {name: TEMPERATURES, description: парсинг температур}
               - name: parse_index
+                encoding: raw
                 description: Номер кадра парсинга
                 start_bit: 1
                 bit_length: 7
@@ -306,13 +325,13 @@ buses:
                 description: Данные парсинга напряжений
                 byte: 1
                 byte_length: 7
-                kind: bytes
+                encoding: bytes
                 mux: 0
               - name: temperature_data
                 description: Данные парсинга температур
                 byte: 1
                 byte_length: 7
-                kind: bytes
+                encoding: bytes
                 mux: 1
 
           - name: cmu_request
@@ -323,6 +342,7 @@ buses:
             transmission: {mode: event}
             signals:
               - name: data_request
+                encoding: enum
                 description: Запрос на отправку данных
                 byte: 0
                 values:
@@ -331,6 +351,7 @@ buses:
                   2: {name: REPEAT_VOLTAGE_FRAME, description: повтор определённого кадра парсинга напряжения}
                   3: {name: REPEAT_TEMPERATURE_FRAME, description: повтор определённого кадра парсинга температуры}
               - name: frame_request
+                encoding: raw
                 description: Номер повторно запрашиваемого кадра
                 byte: 1
 
@@ -348,6 +369,7 @@ buses:
             cycle_ms: 100
             signals:
               - name: dc_state
+                encoding: enum
                 description: Состояние работы
                 byte: 0
                 values: &dc_states
@@ -363,6 +385,7 @@ buses:
                   5: {name: STATE_DIRECT_CHARGE, description: батарея напрямую подключена к источнику для заряда}
                   6: {name: STATE_DIRECT_DISCHARGE, description: батарея напрямую подключена к нагрузке}
               - name: error_code
+                encoding: bitfield
                 description: Код ошибки преобразователя
                 byte: 1
                 flags:
@@ -378,10 +401,10 @@ buses:
             description: Данные о работе
             cycle_ms: 100
             signals:
-              - {name: dc_output_voltage, description: Выходное напряжение, byte: 0, byte_length: 2, factor: 10, unit: В}
-              - {name: dc_input_voltage, description: Входное напряжение, byte: 2, byte_length: 2, factor: 10, unit: В}
-              - {name: dc_output_current, description: Выходной ток, byte: 4, byte_length: 2, factor: 10, unit: А}
-              - {name: dc_input_current, description: Входной ток, byte: 6, byte_length: 2, factor: 10, unit: А}
+              - {name: dc_output_voltage, encoding: metric, description: Выходное напряжение, byte: 0, byte_length: 2, factor: 10, unit: В}
+              - {name: dc_input_voltage, encoding: metric, description: Входное напряжение, byte: 2, byte_length: 2, factor: 10, unit: В}
+              - {name: dc_output_current, encoding: metric, description: Выходной ток, byte: 4, byte_length: 2, factor: 10, unit: А}
+              - {name: dc_input_current, encoding: metric, description: Входной ток, byte: 6, byte_length: 2, factor: 10, unit: А}
 
           - name: pcu_command
             type: pdo_rx1
@@ -391,10 +414,12 @@ buses:
             cycle_ms: 50
             signals:
               - name: requested_mode
+                encoding: enum
                 description: Запрашиваемый режим работы
                 byte: 0
                 values: *dc_states
               - name: target_voltage
+                encoding: metric
                 description: Целевое значение напряжения
                 byte: 1
                 factor: 10
@@ -447,6 +472,7 @@ buses:
             cycle_ms: 100
             signals:
               - name: power_mode
+                encoding: enum
                 description: Режим системы питания
                 byte: 0
                 values:
@@ -454,6 +480,7 @@ buses:
                   2: {name: COMBINED, description: совместное питание}
                   3: {name: BATTERY_BOOST, description: питание от батареи с форсированием}
               - name: site_location
+                encoding: enum
                 description: Место установки
                 byte: 1
                 values:
@@ -461,6 +488,7 @@ buses:
                   2: {name: INDOOR, description: в помещении}
                   3: {name: OUTDOOR, description: на улице}
               - name: run_mode
+                encoding: enum
                 description: Режим работы установки
                 byte: 3
                 comment: Байт 2 зарезервирован.
@@ -470,6 +498,7 @@ buses:
                   3: {name: BRAKE, description: торможение}
                   4: {name: EMERGENCY_STOP, description: аварийный останов}
               - name: load_setpoint
+                encoding: raw
                 description: Уставка нагрузки (0 — ноль, 255 — максимум)
                 byte: 4
                 min: 0
@@ -487,6 +516,7 @@ buses:
             cycle_ms: 250
             signals:
               - name: system_status
+                encoding: enum
                 description: Статус всей системы
                 byte: 0
                 values:
@@ -495,6 +525,7 @@ buses:
                   2: SYS_WARNING
                   3: SYS_ALARM
               - name: subsystems_states
+                encoding: bitfield
                 description: Состояния подсистем
                 byte: 1
                 byte_length: 4
