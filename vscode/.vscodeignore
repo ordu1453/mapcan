@@ -1,5 +1,6 @@
 .vscode/**
 src/**
+webview/**
 node_modules/**
 **/*.map
 esbuild.mjs

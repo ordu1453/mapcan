@@ -3,7 +3,7 @@
 // «УТВЕРЖДАЮ» / «СОГЛАСОВАНО».
 import { computed, ref } from "vue";
 import { api } from "../api";
-import type { FieldDef } from "../fields";
+import type { FieldDef } from "../form/spec";
 import { getAt, startsWith } from "../model";
 import { actions, store, toast } from "../store";
 import type { State } from "../types";

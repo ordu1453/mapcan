@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Одно поле формы. Значение фиксируется по Enter / потере фокуса (событие change) — одна правка = один шаг undo.
 import { computed, nextTick, ref, watch } from "vue";
-import { formatValue, parseInput, ParseError, type FieldDef } from "../fields";
+import { formatValue, parseInput, ParseError, selectValue } from "../form/input";
+import type { FieldDef, Option } from "../form/spec";
 import { samePath, startsWith } from "../model";
 import type { Diagnostic, Path } from "../types";
 import { t } from "../i18n";
@@ -11,6 +12,8 @@ import HelpTip from "./HelpTip.vue";
 const props = defineProps<{
   def: FieldDef;
   value: unknown;
+  /** Options of a select or a set of devices, computed for the node. */
+  options?: Option[];
   diags?: Diagnostic[];
   readonly?: boolean;
   placeholder?: string;
@@ -63,18 +66,13 @@ function commit() {
 }
 
 function onSelect(e: Event) {
-  const v = (e.target as HTMLSelectElement).value;
-  let next: unknown = v === "" ? null : v;
-  if (props.def.key.endsWith("bit_length") && v) next = Number(v);
-  // A yes/no select (brs): empty is the default, so it cannot be a checkbox
-  if (v === "true" || v === "false") next = v === "true";
-  emit("commit", next);
+  emit("commit", selectValue((e.target as HTMLSelectElement).value, props.def.numeric));
 }
 
 // Набор устройств: варианты в порядке options, неизвестные имена из карты — в конце (их можно снять)
 const chosen = computed<string[]>(() => (Array.isArray(props.value) ? props.value.map(String) : []));
 const chips = computed<Array<[string, string, boolean]>>(() => {
-  const opts = props.def.options ?? [];
+  const opts = props.options ?? [];
   const known = new Set(opts.map(([v]) => v));
   return [...opts.map(([v, l]) => [v, l, true] as [string, string, boolean]),
     ...chosen.value.filter((v) => !known.has(v)).map((v) => [v, v, false] as [string, string, boolean])];
@@ -94,7 +92,7 @@ function onBool(e: Event) {
 // Подсказки единиц: обозначение на языке документов карты, перевод — во всплывающей подписи.
 // Свой список вместо <datalist>: тот не стилизуется (слишком высокий) и при заполненном поле показывает только совпадения.
 const suggestions = computed<Array<[string, string]>>(() => {
-  if (props.def.suggest !== "units") return [];
+  if (props.def.type !== "unit") return [];
   const en = docLang.value === "en";
   return (store.state?.units ?? []).map(([ru, e]) => (en ? [e, ru] : [ru, e]) as [string, string]);
 });
@@ -165,8 +163,8 @@ watch(() => store.focusPath, async (fp) => {
       v-if="required" class="req" :title="t('Required field')">*</span></span>
 
     <select v-if="def.type === 'select'" :value="value ?? ''" :disabled="readonly" @change="onSelect">
-      <option v-for="[v, l] in def.options" :key="v" :value="v">{{ t(l) }}</option>
-      <option v-if="value != null && !def.options?.some(([v]) => v === String(value))" :value="String(value)">
+      <option v-for="[v, l, off] in options" :key="v" :value="v" :disabled="!!off && v !== String(value ?? '')">{{ l }}</option>
+      <option v-if="value != null && !options?.some(([v]) => v === String(value))" :value="String(value)">
         {{ value }}
       </option>
     </select>
@@ -197,7 +195,7 @@ watch(() => store.focusPath, async (fp) => {
     </span>
 
     <input v-else :type="def.type === 'date' ? 'date' : 'text'" v-model="draft" :readonly="readonly"
-           :placeholder="placeholder" :class="{ mono: ['hex', 'int', 'float', 'intlist', 'strlist'].includes(def.type) }"
+           :placeholder="placeholder" :class="{ mono: def.mono || ['hex', 'int', 'float', 'intlist', 'strlist'].includes(def.type) }"
            @change="commit" />
 
     <span v-if="error" class="field-msg error">{{ error }}</span>

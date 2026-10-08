@@ -1,11 +1,13 @@
 // HTML of the side bar panels (node form, export): a script and the shared stylesheet from media/,
-// colors from the VS Code theme.
+// colors from the VS Code theme. The script is a path in the extension: media/export.js, or
+// dist/webview/form.js bundled by esbuild.mjs from webview/form.js and the forms shared with the web editor.
 
 import { randomBytes } from "crypto";
 import * as vscode from "vscode";
 
 export function webviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri, script: string, title: string): string {
-  const media = (file: string) => webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "media", file));
+  const asset = (file: string) => webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, ...file.split("/")));
+  const media = (file: string) => asset(`media/${file}`);
   const nonce = randomBytes(16).toString("base64");
   const csp = [
     "default-src 'none'",
@@ -24,7 +26,7 @@ export function webviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri, s
 </head>
 <body>
 <main id="app"></main>
-<script nonce="${nonce}" src="${media(`${script}.js`)}"></script>
+<script nonce="${nonce}" src="${asset(script)}"></script>
 </body>
 </html>`;
 }

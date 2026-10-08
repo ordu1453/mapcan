@@ -191,6 +191,8 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; }
 .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .field.wide { grid-column: 1 / -1; }
+.form-section { grid-column: 1 / -1; margin: 6px 0 -4px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted); }
 .field-label { font-size: 11px; color: var(--muted); }
 .field input, .field select, .field textarea { width: 100%; }
 .field.error input, .field.error select { border-color: var(--error); background: var(--error-soft); }

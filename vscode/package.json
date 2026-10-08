@@ -619,7 +619,7 @@
   "scripts": {
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p webview",
     "package": "vsce package --no-dependencies",
     "test": "npm run build && node test/runTest.mjs"
   },

@@ -2,7 +2,7 @@
 // История изменений (document.history): список записей или изменения одной записи.
 import { computed, ref } from "vue";
 import { addRevision } from "../edit";
-import type { FieldDef } from "../fields";
+import type { FieldDef } from "../form/spec";
 import { getAt, HISTORY_PATH, txt } from "../model";
 import { actions, lang, store } from "../store";
 import type { Path } from "../types";

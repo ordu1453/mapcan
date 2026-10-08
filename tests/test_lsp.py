@@ -135,7 +135,8 @@ def test_symbols_survive_model_errors():
 
 
 def test_hover_field_description(minimal):
-    assert A.hover(minimal, at("node_id")) == "**node_id** — CANopen: node address 1..127."
+    assert A.hover(minimal, at("node_id")) == ("**node_id** — CANopen node address 1..127 (0x01..0x7F). Added to the "
+                                               "base ID of PDO, SDO, EMCY and Heartbeat frames.")
     assert A.hover(minimal, at("start_bit")).startswith("**start_bit** — ")
 
 

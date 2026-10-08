@@ -193,58 +193,102 @@ def enum_entries(values: ValueTable | None) -> list[tuple[int, EnumValue]]:
 class Flag(_Base):
     """A flag inside a bit field. ``bit`` is the offset from the field's least significant bit."""
 
-    name: str
-    bit: int = Field(ge=0)
-    bit_length: int = Field(1, ge=1)
+    name: str = Field(
+        description=N_("Flag identifier: Latin letters, digits and _. Used in generated code and DBC. Required, "
+                       "unique within the frame."))
+    bit: int = Field(
+        ge=0,
+        description=N_("Flag offset from the least significant bit of the bit field: 0 is the field's LSB."))
+    bit_length: int = Field(
+        1, ge=1,
+        description=N_("Flag width in bits, 1 by default. A width above 1 makes a multi-bit value inside the field."))
     description: Text | None = Field(None, description=DESCRIPTION)
     values: ValueTableRef | None = Field(None, description=VALUES)
 
 
 class Signal(_Base):
-    name: str
-    title: Text | None = Field(None, description=TITLE)
+    name: str = Field(
+        description=N_("Signal identifier: Latin letters, digits and _. Used in generated code and DBC. Required, "
+                       "unique within the frame."))
+    title: Text | None = Field(
+        None,
+        description=N_("Human-readable signal name, e.g. “Battery voltage”: its label in the map tree. Optional; "
+                       "without it, the tree shows the identifier."))
     description: Text | None = Field(None, description=DESCRIPTION)
     encoding: SignalEncoding = Field(
-        description=N_("Signal encoding: enum, flag, bitfield, scaled, raw, float, bytes."))
+        description=N_("How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — "
+                       "a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; "
+                       "float — IEEE 754; bytes — a byte array."))
 
     # Позиция: каноническая запись
     start_bit: int | None = Field(
         None, ge=0,
-        description=N_("Position of the signal's least significant bit (LSB) in lsb0 numbering."),
-    )
+        description=N_("Position of the signal's least significant bit (LSB) in the frame, counting from 0. Bit N "
+                       "is in byte N div 8 at position N mod 8."))
     # Длиннее 64 бит — только массив байт (encoding: bytes) в кадре CAN FD или PGN по транспортному протоколу
-    bit_length: int | None = Field(None, ge=1, le=J1939_TP_MAX * 8)
+    bit_length: int | None = Field(
+        None, ge=1, le=J1939_TP_MAX * 8,
+        description=N_("Signal width in bits: 1..64; longer only for a byte array (encoding: bytes)."))
     # Позиция: синтаксический сахар
     byte: int | None = Field(None, ge=0, description=N_("First byte of the signal."))
     bit: int | None = Field(None, ge=0, le=7, description=N_("Bit offset within the byte."))
-    byte_length: int | None = Field(None, ge=1, le=J1939_TP_MAX)
+    byte_length: int | None = Field(
+        None, ge=1, le=J1939_TP_MAX,
+        description=N_("Signal length in bytes, instead of bit_length."))
 
-    byte_order: ByteOrder = "little_endian"
-    signed: bool = False
+    byte_order: ByteOrder = Field(
+        "little_endian",
+        description=N_("Byte order of a multi-byte signal. little-endian (Intel): least significant byte first, "
+                       "typical for CANopen and J1939. big-endian (Motorola): most significant byte first."))
+    signed: bool = Field(
+        False,
+        description=N_("The value can be negative; signed_code sets how the sign is encoded."))
     signed_code: SignedCode | None = Field(
-        None, description=N_("Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. "
-                             "Generated C/Python code encodes the value in this code; DBC stores two's complement "
-                             "only."))
+        None,
+        description=N_("How negative numbers are encoded. Two's complement is the standard (−1 = all ones). Ones' "
+                       "complement inverts all bits (−1 = 1…10). Sign-magnitude uses the top bit for the sign and "
+                       "the rest for the magnitude (−1 = 10…01). Generated C and Python code use this code; DBC "
+                       "stores two's complement only, so the export warns about such signals."))
 
     values: ValueTableRef | None = Field(None, description=VALUES)
     flags: list[Flag] | None = None
 
-    factor: float = 1.0
-    offset: float = 0.0
-    unit: str | None = None
-    min: float | None = None
-    max: float | None = None
+    factor: float = Field(
+        1.0,
+        description=N_("Multiplier: physical value = raw × factor + offset. E.g. 0.1 for voltage in 0.1 V steps."))
+    offset: float = Field(
+        0.0,
+        description=N_("Offset: physical value = raw × factor + offset. E.g. −40 for temperature."))
+    unit: str | None = Field(
+        None,
+        description=N_("Unit of the physical quantity: a standard unit or your own text. Standard units appear in "
+                       "documents in the document language (V ↔ В)."))
+    min: float | None = Field(
+        None,
+        description=N_("Allowed minimum in physical units. Leave empty to use the limit of the signal width."))
+    max: float | None = Field(
+        None,
+        description=N_("Allowed maximum in physical units. Leave empty to use the limit of the signal width."))
 
     value_format: Literal["dec", "hex"] = Field(
-        "dec", description=N_("How enum values are shown in documents."))
-    multiplexer: bool = Field(False, description=N_("Multiplexer selector signal."))
+        "dec",
+        description=N_("How enum table values are shown in documents: decimal or hex."))
+    multiplexer: bool = Field(
+        False,
+        description=N_("Multiplexer selector signal. Multiplexing lets one frame carry different sets of signals: "
+                       "the selector value tells which signals the frame currently contains. A frame can have only "
+                       "one selector."))
     mux: int | list[int] | None = Field(
-        None, description=N_("Selector value(s) for which the signal is present.")
-    )
+        None,
+        description=N_("Selector values for which this signal is in the frame, e.g. 0 or 1, 2. Leave empty if the "
+                       "signal is always present. Requires a selector signal in the frame."))
     initial: float | None = Field(
-        None, description=N_("Default value (in physical units)."))
+        None,
+        description=N_("Value after power-up or before the first message is received, in physical units. In C: "
+                       "…_INITIAL_RAW; in DBC: GenSigStartValue."))
     invalid: int | list[int] | None = Field(
-        None, description=N_("Raw value (or values) meaning \"no data / invalid\"."))
+        None,
+        description=N_("Raw values that mean “no data / not valid”, e.g. 0xFF or 0xFE, 0xFF."))
     comment: Text | None = Field(None, description=COMMENT)
     spn: int | None = Field(None, ge=0, le=0x7FFFF,
                             description=N_("J1939: suspect parameter number (SPN) per SAE J1939-71."))
@@ -328,11 +372,18 @@ class SdoValue(_Base):
 class SdoExchange(_Base):
     """One SDO transfer (expedited): command, index, subindex, value."""
 
-    name: str
+    name: str = Field(
+        description=N_("SDO exchange identifier: Latin letters, digits and _. Used in generated code. Required."))
     description: Text | None = Field(None, description=DESCRIPTION)
-    command: int = Field(ge=0, le=0xFF, description=N_("Command byte (CCS/SCS), e.g. 0x2B."))
-    index: int = Field(ge=0, le=0xFFFF)
-    subindex: int = Field(0, ge=0, le=0xFF)
+    command: int = Field(
+        ge=0, le=0xFF,
+        description=N_("SDO command byte (CCS/SCS), e.g. 0x2B — write 2 bytes, 0x23 — write 4 bytes, 0x40 — read."))
+    index: int = Field(
+        ge=0, le=0xFFFF,
+        description=N_("CANopen object dictionary index, 0x0000..0xFFFF."))
+    subindex: int = Field(
+        0, ge=0, le=0xFF,
+        description=N_("Object dictionary subindex, 0x00..0xFF."))
     value: SdoValue | None = None
 
 
@@ -342,33 +393,64 @@ class SdoExchange(_Base):
 
 
 class Frame(_Base):
-    name: str
-    title: Text | None = Field(None, description=TITLE)
+    name: str = Field(
+        description=N_("Frame identifier: Latin letters, digits and _. Used in generated code and DBC. Required, "
+                       "unique on the bus."))
+    title: Text | None = Field(
+        None,
+        description=N_("Human-readable frame name, e.g. “Status”: the frame heading in documents and its label in "
+                       "the map tree. Optional; without it, the tree shows the identifier."))
     description: Text | None = Field(None, description=DESCRIPTION)
-    type: FrameType = "raw"
+    type: FrameType = Field(
+        "raw",
+        description=N_("CANopen frame type. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id) and the default "
+                       "direction. raw means the ID is set explicitly."))
     id: int | None = Field(
         None, ge=0, le=0x1FFFFFFF,
-        description=N_("Explicit CAN ID. For CANopen it is computed from node_id, for J1939 from the PGN."),
-    )
-    extended: bool = False
-    brs: bool | None = Field(None, description=N_(
-        "CAN FD: bit rate switch (BRS), the data phase is sent at the data bit rate. Empty: as set on the bus."))
+        description=N_("Frame CAN ID: 11-bit (0x000..0x7FF) or 29-bit (up to 0x1FFFFFFF). Leave empty to compute "
+                       "it: for CANopen from the type and node_id, for J1939 from the PGN, priority and address."))
+    extended: bool = Field(
+        False,
+        description=N_("Use a 29-bit (extended) identifier instead of an 11-bit one."))
+    brs: bool | None = Field(
+        None,
+        description=N_("Bit rate switch (BRS) of a CAN FD frame: the data field is sent at the data phase bit rate. "
+                       "Empty: as set on the bus. Written to DBC (the CANFD_BRS attribute)."))
     # J1939
-    pgn: int | None = Field(None, ge=0, le=0x3FFFF, description=N_("J1939: parameter group number (PGN)."))
-    priority: int | None = Field(None, ge=0, le=7, description=N_("J1939: priority 0..7 (6 by default)."))
+    pgn: int | None = Field(
+        None, ge=0, le=0x3FFFF,
+        description=N_("J1939 parameter group number, 0..0x3FFFF. PF < 240 (0xF0) means PDU1, a "
+                       "destination-specific frame: the low byte of the PGN must be 0 and the destination is set "
+                       "separately. PF ≥ 240 means PDU2, broadcast."))
+    priority: int | None = Field(
+        None, ge=0, le=7,
+        description=N_("J1939 priority 0..7: the top 3 bits of the ID. Lower values mean higher priority. Default 6."))
     destination: int | None = Field(
-        None, ge=0, le=0xFF, description=N_("J1939: destination address for PDU1 (0xFF, global, by default)."))
+        None, ge=0, le=0xFF,
+        description=N_("Destination address for a J1939 PDU1 frame, 0..255. 0xFF means all nodes."))
     receivers: list[str] = Field(
-        default_factory=list, description=N_("Bus devices that receive the frame (names)."))
+        default_factory=list,
+        description=N_("Devices on this bus that receive the frame. The owner of an RX frame is a receiver even "
+                       "without this list. Used in documents, DBC and each device's \"Receives\" summary."))
     sender: str | None = Field(
-        None, description=N_("Bus device that transmits the frame when it is not the frame's owner: for RX frames "
-                             "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC)."))
+        None,
+        description=N_("Device on this bus that sends the frame when it is not the frame's owner: an RX frame (e.g. "
+                       "a node's RPDO sent by the master) or a bus frame (NMT, SYNC). Empty — the sender is not in "
+                       "the map. A frame sent by one of your devices is best described at the sender, with the "
+                       "receiving devices listed in \"Receivers\"."))
     dlc: int | None = Field(
-        None, ge=0, le=J1939_TP_MAX, description=N_(
-            "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose "
-            "length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol."))
-    direction: Direction | None = None
-    cycle_ms: int | None = Field(None, gt=0, description=N_("Cyclic transmission period, ms."))
+        None, ge=0, le=J1939_TP_MAX,
+        description=N_("Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). "
+                       "Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length "
+                       "is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol."))
+    direction: Direction | None = Field(
+        None,
+        description=N_("tx — the owning device sends the frame, rx — it receives it. If omitted: from the CANopen "
+                       "frame type (PDO TX is sent, etc.); a frame without a type whose sender is another device is "
+                       "rx, otherwise tx."))
+    cycle_ms: int | None = Field(
+        None, gt=0,
+        description=N_("Cyclic transmission period in milliseconds."))
     trigger: Trigger | None = Field(
         None, description=N_("Non-cyclic transmission: event — on event, on_request — on request."))
     signals: list[Signal] = Field(default_factory=list)
@@ -427,26 +509,54 @@ class Frame(_Base):
 
 
 class Device(_Base):
-    name: str
-    short: str | None = Field(None, description=SHORT)
-    title: Text | None = Field(None, description=TITLE)
-    node_id: int | None = Field(None, ge=0, le=0x7F, description=N_("CANopen: node address 1..127."))
-    address: int | None = Field(None, ge=0, le=0xFF, description=N_("J1939: source address 0..253."))
+    name: str = Field(
+        description=N_("Device identifier: Latin letters, digits and _. Used in generated code, DBC, and frame "
+                       "senders and receivers. Required."))
+    short: str | None = Field(
+        None,
+        description=N_("Short device abbreviation for tables and headings in documents, e.g. BMS. If set, the map "
+                       "tree shows it before the full name. If empty, documents use the identifier in uppercase."))
+    title: Text | None = Field(
+        None,
+        description=N_("Full human-readable device name, e.g. “Battery management system”. Shown in the device "
+                       "section heading in documents and in the map tree. Required."))
+    node_id: int | None = Field(
+        None, ge=0, le=0x7F,
+        description=N_("CANopen node address 1..127 (0x01..0x7F). Added to the base ID of PDO, SDO, EMCY and "
+                       "Heartbeat frames."))
+    address: int | None = Field(
+        None, ge=0, le=0xFF,
+        description=N_("J1939 source address 0..253 (0x00..0xFD). Forms the low byte of every frame ID the device "
+                       "sends; 254 and 255 are reserved."))
     description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(default_factory=list)
 
 
 class Bus(_Base):
-    name: str
-    title: Text | None = Field(None, description=TITLE)
-    interface: str | None = None
-    bitrate: int | None = Field(None, gt=0)
+    name: str = Field(
+        description=N_("Bus identifier: Latin letters, digits and _, no spaces. Used in DBC and C file names and as "
+                       "an anchor in documents. Required."))
+    title: Text | None = Field(
+        None,
+        description=N_("Human-readable bus name, e.g. “Bus 1” or “Powertrain CAN”. Used as the section heading in "
+                       "documents and as the bus label in the map tree. Required."))
+    interface: str | None = Field(
+        None,
+        description=N_("Physical interface or connector, e.g. “CAN1, X3”. Used in documents only."))
+    bitrate: int | None = Field(
+        None, gt=0,
+        description=N_("Bus bitrate in bit/s, e.g. 250000 or 500000. Shown in documents and DBC."))
     protocol: Protocol = Field(
-        description=N_("Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, can "
-                       "— explicit IDs."))
-    fd: bool = False
-    brs: bool | None = Field(None, description=N_(
-        "CAN FD: bit rate switch (BRS) of the frames by default. Empty: on."))
+        description=N_("Higher-layer protocol. CANopen: the frame ID is computed from the frame type and node_id; "
+                       "SAE J1939: from PGN, priority and the device address; CAN: each frame has an explicit ID."))
+    fd: bool = Field(
+        False,
+        description=N_("CAN FD bus: frames up to 64 bytes (DLC 0..8, 12, 16, 20, 24, 32, 48, 64)."))
+    brs: bool | None = Field(
+        None,
+        description=N_("Default bit rate switch (BRS) of CAN FD frames: the data field is sent at the data phase "
+                       "bit rate. Turn it off if the nodes or the wiring of the bus cannot handle the higher rate. "
+                       "A frame can set its own value."))
     description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(
         default_factory=list,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Флаги битового поля: бит, длина, имя, описание.
 import { actions } from "../store";
-import { parseInteger } from "../fields";
+import { parseInteger } from "../form/input";
 import { addFlag } from "../edit";
 import { startsWith, txt } from "../model";
 import type { Diagnostic, Path } from "../types";

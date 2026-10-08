@@ -1,274 +1,25 @@
 // Node form (see src/form.ts). Fields are written to the YAML as they are typed: after a short
 // pause, on Enter and when a field loses focus. Values from the server never overwrite the field
-// being typed in.
+// being typed in. Which fields a node has, when they apply and how their text is parsed is shared
+// with the web editor (web/src/form); esbuild.mjs bundles it into dist/webview/form.js.
 // @ts-check
+import { fieldHelp } from "../../web/src/form/help";
+import { formatValue, parseInput, parseInteger, selectValue } from "../../web/src/form/input";
+import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } from "../../web/src/form/spec";
+
 (function () {
-  // eslint-disable-next-line no-undef
   const vscode = acquireVsCodeApi();
   const app = /** @type {HTMLElement} */ (document.getElementById("app"));
 
-  // Direction of CANopen frame types (as in canopen.py); SYNC and TIME have none
-  // Service frames of CANopen whose length the type fixes (CiA 301, as in canopen.py)
-  const FIXED_DLC = ["nmt", "time", "heartbeat", "sdo_tx", "sdo_rx"];
-  const TYPE_DIRECTION = {
-    nmt: "rx", emcy: "tx", sdo_tx: "tx", sdo_rx: "rx", heartbeat: "tx",
-    pdo_tx1: "tx", pdo_tx2: "tx", pdo_tx3: "tx", pdo_tx4: "tx", pdo_rx1: "rx", pdo_rx2: "rx", pdo_rx3: "rx", pdo_rx4: "rx",
-  };
-  const ENCODINGS = [
-    ["enum", "Enum"], ["flag", "Flag"], ["bitfield", "Bit field"], ["scaled", "Scaled"],
-    ["raw", "Integer"], ["float", "Float (IEEE 754)"], ["bytes", "Bytes"],
-  ];
-
   /**
-   * @typedef {{protocol: string, fd: boolean, busBrs: boolean|null, owner: string|null, devices: {name: string, label: string}[],
-   *   signalEncoding: string|null, frameDirection: string|null, bitLength: number|null, hasSelector: boolean, values: Record<string, any>,
-   *   units: string[][], lang: string, frameTypes: {type: string, label: string, taken: string|null}[]}} Ctx
-   * @typedef {{key: string, label: string, type: string, half?: boolean, mono?: boolean, required?: boolean,
-   *   numeric?: boolean,
-   *   tip?: string, placeholder?: string | ((c: Ctx) => string), options?: (c: Ctx) => string[][],
-   *   when?: (c: Ctx) => boolean}} Field
-   * @typedef {{title?: string, fields: Field[]}} Section
+   * @typedef {import("../../web/src/form/spec").FieldDef} Field
+   * @typedef {import("../../web/src/form/spec").FormContext} Ctx
    */
 
-  const frameType = (/** @type {Ctx} */ c) => c.values.type ?? "raw";
-  const direction = (/** @type {Ctx} */ c) =>
-    c.values.direction ?? (c.protocol === "canopen" ? TYPE_DIRECTION[frameType(c)] : undefined) ?? null;
-  // Empty direction: the one computed from the type (CANopen) or from sender, shown in brackets
-  const defaultDirection = (/** @type {Ctx} */ c) => {
-    const base = c.protocol === "canopen" && TYPE_DIRECTION[frameType(c)] ? "By type" : "Default";
-    return c.values.direction == null && c.frameDirection ? `${base} (${c.frameDirection.toUpperCase()})` : base;
-  };
-  // Sender and receivers are devices of the bus other than the frame's owner
-  const others = (/** @type {Ctx} */ c) => c.devices.filter((d) => d.name !== c.owner).map((d) => [d.name, d.label]);
-  const receivers = (/** @type {Ctx} */ c) => others(c).filter(([d]) => d !== c.values.sender);
-  // BRS: empty means the default (the bus value for a frame, on for a bus), shown in brackets
-  const brsOptions = (/** @type {string} */ base, /** @type {boolean} */ on) =>
-    [["", `${base} (${on ? "on" : "off"})`], ["true", "On"], ["false", "Off"]];
-  const signalEncoding = (/** @type {Ctx} */ c) => c.values.encoding ?? c.signalEncoding ?? "raw";
-  const numeric = (/** @type {Ctx} */ c) => ["scaled", "raw", "float"].includes(signalEncoding(c));
-  const byBytes = (/** @type {Ctx} */ c) => c.values.start_bit == null;
-  // Length as typed in the form, else as the server computed it from the map
-  const bitLength = (/** @type {Ctx} */ c) =>
-    c.values.bit_length ?? (c.values.byte_length != null ? c.values.byte_length * 8 : c.bitLength);
-  // Byte order matters for a value longer than a byte (any protocol: the format allows big-endian everywhere)
-  const multiByte = (/** @type {Ctx} */ c) => !["flag", "bytes"].includes(signalEncoding(c)) && (bitLength(c) ?? 0) > 8;
-  // The bit in the byte matters only for a value shorter than a byte
-  const subByte = (/** @type {Ctx} */ c) => signalEncoding(c) === "flag" || (bitLength(c) ?? 8) < 8;
-  // The SDO exchange's value: its other fields appear once it has an identifier
-  const hasValue = (/** @type {Ctx} */ c) => c.values["value.name"] != null;
-
-  /** @type {Field} */
-  const NAME = { key: "name", label: "Identifier", type: "text", required: true, mono: true,
-    tip: "Latin letters, digits and _. Used in code, DBC and references." };
-  /** @type {Field} */
-  const DESCRIPTION = { key: "description", label: "Description", type: "textarea" };
-  /** @type {Section} */
-  const NOTES = { title: "Notes", fields: [DESCRIPTION] };
-  /** Frames and signals also have a note (a remark under the description in documents). */
-  /** @type {Section} */
-  const NOTES_COMMENT = { title: "Notes", fields: [DESCRIPTION, { key: "comment", label: "Note", type: "textarea" }] };
-
-  /** @type {Record<string, Section[]>} */
-  const FORMS = {
-    bus: [
-      { fields: [
-        { key: "title", label: "Name", type: "text", required: true, placeholder: "Body CAN" },
-        NAME,
-      ] },
-      { title: "Bus", fields: [
-        { key: "protocol", label: "Protocol", type: "select", half: true,
-          options: () => [["canopen", "CANopen"], ["j1939", "SAE J1939"], ["can", "CAN"]] },
-        { key: "bitrate", label: "Bitrate", type: "int", half: true, placeholder: "500000", tip: "bit/s" },
-        { key: "interface", label: "Interface", type: "text", half: true, placeholder: "can0" },
-        { key: "fd", label: "CAN FD", type: "bool", half: true },
-        { key: "brs", label: "Bit rate switch (BRS)", type: "select", half: true, when: (c) => !!c.values.fd,
-          tip: "Default BRS of CAN FD frames: the data field is sent at the data phase bit rate",
-          options: () => brsOptions("Default", true) },
-      ] },
-      NOTES,
-    ],
-    device: [
-      { fields: [
-        { key: "title", label: "Full name", type: "text", required: true, placeholder: "Battery management system" },
-        { key: "short", label: "Abbreviation", type: "text", half: true, placeholder: "BMS" },
-        { ...NAME, half: true },
-      ] },
-      { title: "Address", fields: [
-        { key: "node_id", label: "Node ID", type: "hex", half: true, placeholder: "0x01", tip: "CANopen node ID, 1..127",
-          when: (c) => c.protocol === "canopen" },
-        { key: "address", label: "Source address", type: "hex", half: true, placeholder: "0x00", tip: "J1939 address, 0..253",
-          when: (c) => c.protocol === "j1939" },
-      ] },
-      NOTES,
-    ],
-    frame: [
-      { fields: [
-        { key: "title", label: "Name", type: "text", placeholder: "Same as identifier" },
-        NAME,
-      ] },
-      { title: "Identification", fields: [
-        // Types from the server: a frame of the bus has no node-specific types; a type whose CAN ID
-        // another frame already has is disabled and names that frame
-        { key: "type", label: "Type", type: "select", when: (c) => c.protocol === "canopen",
-          options: (c) => c.frameTypes.map((t) => [t.type, t.taken ? `${t.label} — ${t.taken}` : t.label, !!t.taken]) },
-        { key: "id", label: "CAN ID", type: "hex", half: true,
-          placeholder: (c) => (c.protocol === "can" ? "0x123" : "Auto"),
-          tip: "Empty: computed from the type and node ID (CANopen) or from PGN and SA (J1939)",
-          when: (c) => c.protocol !== "canopen" || frameType(c) === "raw" || c.values.id != null },
-        { key: "pgn", label: "PGN", type: "hex", half: true, placeholder: "0xF004", when: (c) => c.protocol === "j1939" },
-        { key: "priority", label: "Priority", type: "int", half: true, placeholder: "6", tip: "0..7", when: (c) => c.protocol === "j1939" },
-        { key: "destination", label: "Destination (DA)", type: "hex", half: true, placeholder: "0xFF",
-          tip: "PDU1 PGN only; empty: 0xFF (global)",
-          when: (c) => c.protocol === "j1939" && c.values.pgn != null && ((c.values.pgn >> 8) & 0xff) < 240 },
-        { key: "extended", label: "29-bit ID", type: "bool",
-          when: (c) => c.protocol === "can" || (c.protocol === "canopen" && frameType(c) === "raw") },
-        { key: "brs", label: "Bit rate switch (BRS)", type: "select", half: true, when: (c) => c.fd,
-          tip: "CAN FD: the data field is sent at the data phase bit rate; empty: as set on the bus",
-          options: (c) => brsOptions("As on the bus", c.busBrs ?? true) },
-      ] },
-      { title: "Timing", fields: [
-        { key: "dlc", label: "DLC", type: "int", half: true, required: true, tip: "Data length, bytes",
-          when: (c) => !(c.protocol === "canopen" && FIXED_DLC.includes(frameType(c))) },
-        { key: "cycle_ms", label: "Cycle, ms", type: "int", half: true, placeholder: "Not cyclic",
-          tip: "Cyclic transmission period", when: (c) => c.values.trigger == null },
-        { key: "trigger", label: "Trigger", type: "select", half: true, when: (c) => c.values.cycle_ms == null,
-          options: () => [["", "Not set"], ["event", "On event"], ["on_request", "On request"]] },
-      ] },
-      { title: "Routing", fields: [
-        { key: "direction", label: "Direction", type: "select",
-          options: (c) => [["", defaultDirection(c)], ["tx", "TX (sent by the device)"], ["rx", "RX (received by the device)"]],
-          when: (c) => !!c.owner && !(c.protocol === "canopen" && TYPE_DIRECTION[frameType(c)]) },
-        { key: "sender", label: "Sender", type: "select", options: (c) => [["", "Outside the map"], ...others(c)],
-          when: (c) => (!c.owner || direction(c) === "rx") && others(c).length > 0 },
-        { key: "receivers", label: "Receivers", type: "devices", options: receivers,
-          when: (c) => !(c.owner && direction(c) === "rx") && receivers(c).length > 0 },
-      ] },
-      NOTES_COMMENT,
-    ],
-    signal: [
-      { fields: [
-        { key: "title", label: "Name", type: "text", placeholder: "Same as identifier" },
-        NAME,
-        { key: "encoding", label: "Encoding", type: "select",
-          options: (c) => (c.values.encoding == null ? [["", "Not set"], ...ENCODINGS] : ENCODINGS) },
-      ] },
-      { title: "Position", fields: [
-        { key: "byte", label: "Byte", type: "int", half: true, placeholder: "0", when: byBytes },
-        { key: "bit", label: "Bit", type: "int", half: true, placeholder: "0", tip: "Bit in the byte, 0..7",
-          when: (c) => byBytes(c) && subByte(c) },
-        { key: "start_bit", label: "Start bit", type: "int", half: true, tip: "LSB, lsb0 numbering", when: (c) => !byBytes(c) },
-        { key: "bit_length", label: "Length, bits", type: "int", half: true,
-          when: (c) => c.values.byte_length == null && signalEncoding(c) !== "flag" },
-        { key: "byte_length", label: "Length, bytes", type: "int", half: true, when: (c) => c.values.byte_length != null },
-        { key: "byte_order", label: "Byte order", type: "select",
-          options: () => [["", "Little-endian (Intel)"], ["big_endian", "Big-endian (Motorola)"]], when: multiByte },
-      ] },
-      { title: "Value", fields: [
-        { key: "unit", label: "Unit", type: "unit", half: true, when: numeric },
-        { key: "signed", label: "Signed", type: "bool", half: true, when: (c) => ["raw", "scaled"].includes(signalEncoding(c)) },
-        { key: "signed_code", label: "Signed code", type: "select", half: true,
-          options: () => [["", "Two's complement"], ["ones_complement", "Ones' complement"], ["sign_magnitude", "Sign and magnitude"]],
-          when: (c) => !!c.values.signed },
-        { key: "factor", label: "Factor", type: "float", half: true, placeholder: "1", tip: "phys = raw × factor + offset", when: numeric },
-        { key: "offset", label: "Offset", type: "float", half: true, placeholder: "0", tip: "phys = raw × factor + offset", when: numeric },
-        { key: "min", label: "Min", type: "float", half: true, when: numeric },
-        { key: "max", label: "Max", type: "float", half: true, when: numeric },
-        { key: "initial", label: "Initial value", type: "float", half: true, tip: "Physical value",
-          when: (c) => !["bitfield", "bytes"].includes(signalEncoding(c)) },
-        { key: "invalid", label: "Invalid (raw)", type: "intlist", half: true, mono: true, placeholder: "0xFF",
-          tip: "Raw value(s) meaning \"no data\": 0xFF or 0xFE, 0xFF", when: (c) => ["raw", "scaled", "enum"].includes(signalEncoding(c)) },
-        { key: "index", label: "OD index", type: "hex", half: true, placeholder: "0x2000",
-          tip: "CANopen dictionary object mapped into the PDO", when: (c) => c.protocol === "canopen" || c.values.index != null },
-        { key: "subindex", label: "OD subindex", type: "hex", half: true, placeholder: "0x00",
-          when: (c) => c.protocol === "canopen" || c.values.subindex != null },
-        { key: "spn", label: "SPN", type: "int", half: true, tip: "J1939 suspect parameter number",
-          when: (c) => c.protocol === "j1939" || c.values.spn != null },
-        { key: "value_format", label: "Values in documents", type: "select", half: true,
-          options: () => [["", "Decimal"], ["hex", "Hex"]], when: (c) => signalEncoding(c) === "enum" },
-      ] },
-      { title: "Multiplexing", fields: [
-        { key: "multiplexer", label: "Multiplexer selector", type: "bool",
-          tip: "The signal selects which multiplexed signals the frame carries",
-          when: (c) => ["raw", "enum"].includes(signalEncoding(c)) && !c.hasSelector },
-        { key: "mux", label: "Selector values", type: "intlist", mono: true, placeholder: "0 or 1, 2",
-          tip: "Values of the frame's selector at which the signal is present", when: (c) => c.hasSelector },
-      ] },
-      NOTES_COMMENT,
-    ],
-    flag: [
-      { fields: [
-        NAME,
-        { key: "bit", label: "Bit", type: "int", half: true, required: true, tip: "Offset from the field's LSB" },
-        { key: "bit_length", label: "Length, bits", type: "int", half: true, placeholder: "1" },
-      ] },
-      NOTES,
-    ],
-    sdo: [
-      { fields: [
-        NAME,
-        { key: "command", label: "Command", type: "hex", required: true, placeholder: "0x2B" },
-        { key: "index", label: "Index", type: "hex", half: true, required: true, placeholder: "0x6040" },
-        { key: "subindex", label: "Subindex", type: "hex", half: true, placeholder: "0x00" },
-      ] },
-      { title: "Value", fields: [
-        { key: "value.name", label: "Identifier", type: "text", mono: true,
-          tip: "Empty: the exchange carries no value" },
-        { key: "value.encoding", label: "Encoding", type: "select", when: hasValue,
-          options: (c) => [...(c.values["value.encoding"] == null ? [["", "Not set"]] : []),
-            ["enum", "Enum"], ["scaled", "Scaled"], ["raw", "Integer"]] },
-        { key: "value.bit_length", label: "Length, bits", type: "select", half: true, numeric: true,
-          options: (c) => [...(c.values["value.bit_length"] == null ? [["", "Not set"]] : []),
-            ["8", "8"], ["16", "16"], ["24", "24"], ["32", "32"]], when: hasValue },
-        { key: "value.unit", label: "Unit", type: "unit", half: true, when: hasValue },
-        { key: "value.factor", label: "Factor", type: "float", half: true, placeholder: "1", when: hasValue },
-        { key: "value.offset", label: "Offset", type: "float", half: true, placeholder: "0", when: hasValue },
-      ] },
-      NOTES,
-    ],
-  };
-
-  const INT_RE = /^[-+]?(0x[0-9a-f]+|[0-9]+)$/i;
-
-  /** Text of a field → value for YAML; null removes the key. Throws on invalid input. */
-  function parseInt_(/** @type {string} */ s, /** @type {string} */ message) {
-    if (!INT_RE.test(s)) throw new Error(message);
-    const neg = s.startsWith("-");
-    const body = s.replace(/^[-+]/, "");
-    const v = /^0x/i.test(body) ? parseInt(body.slice(2), 16) : Number(body);
-    if (!Number.isSafeInteger(v)) throw new Error("Number too large");
-    return neg ? -v : v;
-  }
-
+  /** Text of a field → value for the YAML; null removes the key. Throws on invalid input. */
   function parse(/** @type {Field} */ f, /** @type {string} */ raw) {
-    const s = raw.trim();
-    if (s === "") {
-      if (f.required) throw new Error("Required");
-      return null;
-    }
-    switch (f.type) {
-      case "int":
-      case "hex":
-        return parseInt_(s, f.type === "hex" ? "Number expected: 0x1A or 26" : "Integer expected");
-      case "intlist": {
-        // One value is written as a number, several as a list
-        const parts = s.split(/[\s,;]+/).filter(Boolean).map((x) => parseInt_(x, "Integers expected: 1 or 1, 2"));
-        return parts.length === 1 ? parts[0] : parts;
-      }
-      case "float": {
-        const v = Number(s.replace(",", "."));
-        if (!Number.isFinite(v)) throw new Error("Number expected");
-        return v;
-      }
-      default:
-        return s;
-    }
-  }
-
-  function format(/** @type {Field} */ f, /** @type {any} */ v) {
-    if (v === null || v === undefined) return "";
-    if (f.type === "hex" && typeof v === "number") return "0x" + v.toString(16).toUpperCase().padStart(2, "0");
-    if (Array.isArray(v)) return v.join(", ");
-    return String(v);
+    if (raw.trim() === "" && isRequired(f, ctx())) throw new Error("Required");
+    return parseInput(f.type, raw);
   }
 
   // ---------------------------------------------------------------- state
@@ -284,10 +35,11 @@
   let shownKind = "";
   let shownPath = "";
 
+  /** What the form's conditions know about the node (FormContext in web/src/form/spec.ts), from the server. */
   const ctx = () => /** @type {Ctx} */ ({
-    protocol: node.protocol, fd: !!node.fd, busBrs: node.busBrs ?? null, owner: node.owner, devices: node.devices, signalEncoding: node.signalEncoding, frameDirection: node.frameDirection,
-    bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector,
-    values: node.values, units: node.units ?? [], lang: node.lang, frameTypes: node.frameTypes ?? [],
+    values: node.values, protocol: node.protocol, fd: !!node.fd, busBrs: node.busBrs ?? null, owner: node.owner,
+    devices: node.devices, frameDirection: node.frameDirection, signalEncoding: node.signalEncoding,
+    bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector, frameTypes: node.frameTypes ?? [],
   });
 
   function el(/** @type {string} */ tag, /** @type {Record<string, any>} */ props = {}, ...children) {
@@ -421,17 +173,14 @@
 
   function buildField(/** @type {Field} */ f) {
     const id = `f-${f.key}`;
+    const tip = fieldHelp(node.kind, f);
     const r = { def: f, row: null, input: null, error: el("div", { class: "error", hidden: true }), timer: undefined };
     let control;
     if (f.type === "bool") {
       r.input = el("input", { type: "checkbox", id, onchange: () => send(f.key, r.input.checked) });
-      control = el("label", { class: "check", for: id, title: f.tip }, r.input, f.label);
+      control = el("label", { class: "check", for: id, title: tip }, r.input, f.label);
     } else if (f.type === "select") {
-      r.input = el("select", { id, onchange: () => {
-        const v = r.input.value;
-        // A yes/no select (brs): empty is the default, so it cannot be a checkbox
-        send(f.key, v === "" ? null : f.numeric ? Number(v) : v === "true" || v === "false" ? v === "true" : v);
-      } });
+      r.input = el("select", { id, onchange: () => send(f.key, selectValue(r.input.value, f.numeric)) });
       control = r.input;
     } else if (f.type === "devices") {
       r.input = el("div", { class: "checks", id });
@@ -439,11 +188,12 @@
     } else if (f.type === "unit") {
       control = unitCombo(r, id);
     } else {
-      const textarea = f.type === "textarea";
+      // Text with translations is edited in the document language
+      const textarea = !!f.multiline;
       r.input = el(textarea ? "textarea" : "input", {
         id, type: textarea ? undefined : "text", rows: textarea ? "2" : undefined,
         class: f.mono || f.type === "hex" ? "mono" : undefined,
-        spellcheck: textarea || (f.type === "text" && !f.mono) ? undefined : "false",
+        spellcheck: textarea || (["text", "loc"].includes(f.type) && !f.mono) ? undefined : "false",
         oninput: () => {
           clearTimeout(r.timer);
           r.timer = setTimeout(() => commit(r), 400);
@@ -458,7 +208,8 @@
     // A checkbox carries its own label; for the others the label is above the control
     const label = f.type === "bool" ? el("div", { class: "label" }, " ")
       : el(f.type === "devices" ? "div" : "label", { class: f.type === "devices" ? "label" : undefined,
-        for: f.type === "devices" ? undefined : id, title: f.tip }, f.label, f.required ? el("span", { class: "req" }, "*") : null);
+        for: f.type === "devices" ? undefined : id, title: tip }, f.label,
+        isRequired(f, ctx()) ? el("span", { class: "req" }, "*") : null);
     r.row = el("div", { class: "field" + (f.half ? " half" : "") }, f.type === "bool" && !f.half ? null : label, control, r.error);
     return r;
   }
@@ -860,7 +611,7 @@
       cell(r.value != null ? fmt(r.value) : r.key, "mono num", (v, input) => {
         let n;
         try {
-          n = parseInt_(v, "");
+          n = parseInteger(v);
         } catch {
           input.value = r.value != null ? fmt(r.value) : r.key;
           return;
@@ -902,7 +653,7 @@
     const setInt = (/** @type {number} */ i, /** @type {string} */ key, /** @type {string} */ v, /** @type {HTMLInputElement} */ input) => {
       let n = null;
       try {
-        n = v === "" ? null : parseInt_(v, "");
+        n = v === "" ? null : parseInteger(v);
         if (n !== null && (key === "bit_length" ? n < 1 || n > 64 : n < 0 || n > 63)) throw new Error();
       } catch {
         input.value = String(list[i]?.[key] ?? (key === "bit_length" ? 1 : ""));
@@ -1003,7 +754,7 @@
       if (f.type === "bool") {
         r.input.checked = !!v;
       } else if (f.type === "select") {
-        const opts = f.options(c);
+        const opts = optionsOf(f, c);
         const value = v == null ? "" : String(v);
         // A value from YAML that is not among the options stays visible, so it can be changed
         if (value && !opts.some(([o]) => o === value)) opts.push([value, value]);
@@ -1013,8 +764,8 @@
         r.input.value = value;
       } else if (f.type === "devices") {
         const picked = new Set(Array.isArray(v) ? v : v ? [v] : []);
-        r.input.replaceChildren(...f.options(c).map(([name, label]) => {
-          const box = el("input", { type: "checkbox", value: name });
+        r.input.replaceChildren(...optionsOf(f, c).map(([name, label]) => {
+          const box = /** @type {HTMLInputElement} */ (el("input", { type: "checkbox", value: name }));
           box.checked = picked.has(name);
           box.addEventListener("change", () => {
             send(f.key, [...r.input.querySelectorAll("input:checked")].map((b) => b.value));
@@ -1022,9 +773,8 @@
           return el("label", { class: "check", title: name }, box, el("span", { class: "sub" }, label));
         }));
       } else {
-        if (!busy) r.input.value = format(f, v);
-        const ph = typeof f.placeholder === "function" ? f.placeholder(c) : f.placeholder;
-        if (ph) r.input.placeholder = ph;
+        if (!busy) r.input.value = formatValue(f.type, v);
+        r.input.placeholder = placeholderOf(f, c);
       }
     }
     updateVisibility();
@@ -1038,7 +788,7 @@
     for (const s of sections) {
       let any = false;
       for (const r of s.fields) {
-        r.row.hidden = !(!r.def.when || r.def.when(c) || node.values[r.def.key] != null);
+        r.row.hidden = !(applies(r.def, c) || node.values[r.def.key] != null);
         any ||= !r.row.hidden;
       }
       s.el.hidden = !any;

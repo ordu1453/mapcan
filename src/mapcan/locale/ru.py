@@ -218,10 +218,6 @@ RU: dict[str, str] = {
     "brs is set on a bus that is not CAN FD and is not used": "brs задан на шине не CAN FD и не используется",
     "brs on a bus without fd: true is not used": "brs у шины без fd: true не используется",
     "brs of a frame on a bus without fd: true is not used": "brs у кадра на шине без fd: true не используется",
-    "CAN FD: bit rate switch (BRS), the data phase is sent at the data bit rate. Empty: as set on the bus.":
-        "CAN FD: переключение скорости (BRS) — данные на скорости фазы данных. Пусто — как у шины.",
-    "CAN FD: bit rate switch (BRS) of the frames by default. Empty: on.":
-        "CAN FD: переключение скорости (BRS) у кадров по умолчанию. Пусто — включено.",
     "DLC {dlc} > 8 (for CAN FD set fd: true on the bus)": "DLC {dlc} > 8 (для CAN FD укажите fd: true у шины)",
     "receiver {name!r} is not defined on bus {bus!r}": "получатель {name!r} не описан на шине {bus!r}",
     "sender {name!r} is not defined on bus {bus!r}": "отправитель {name!r} не описан на шине {bus!r}",
@@ -377,8 +373,6 @@ RU: dict[str, str] = {
     "mapcan — CAN signal map (format v1)": "mapcan — карта сигналов CAN (формат v1)",
     "Broadcast frames without an owning device (NMT, SYNC, TIME).":
         "Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME).",
-    "CANopen: node address 1..127.": "CANopen: адрес узла 1..127.",
-    "J1939: source address 0..253.": "J1939: адрес источника 0..253.",
     "Bit numbering: lsb0 — bit 0 is the least significant bit of byte 0. The field states the convention explicitly "
     "and is shown in every document.":
         "Нумерация бит: lsb0 — бит 0 это младший бит байта 0. Поле фиксирует соглашение явно и выводится во всех "
@@ -391,18 +385,6 @@ RU: dict[str, str] = {
     "City for the title page.": "Город для титульного листа.",
     "The \"APPROVED\" block of the title page.": "Блок «УТВЕРЖДАЮ» титульного листа.",
     "The \"AGREED\" blocks.": "Блоки «СОГЛАСОВАНО».",
-    "Explicit CAN ID. For CANopen it is computed from node_id, for J1939 from the PGN.":
-        "Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN.",
-    "J1939: parameter group number (PGN).": "J1939: номер группы параметров (PGN).",
-    "J1939: priority 0..7 (6 by default).": "J1939: приоритет 0..7 (по умолчанию 6).",
-    "J1939: destination address for PDU1 (0xFF, global, by default).":
-        "J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем).",
-    "Bus devices that receive the frame (names).": "Устройства шины, принимающие кадр (имена).",
-    "Bus device that transmits the frame when it is not the frame's owner: for RX frames (e.g. a node's RPDO sent by "
-    "the master) and bus frames (NMT, SYNC).":
-        "Устройство шины, передающее кадр, если это не его владелец: для RX-кадров (напр. PDO RX узла от мастера) и "
-        "кадров шины (NMT, SYNC).",
-    "Cyclic transmission period, ms.": "Период циклической передачи, мс.",
     "Default document language: ISO 639-1 code (ru, en, de…).":
         "Язык документов по умолчанию: код ISO 639-1 (ru, en, de…).",
     "a translation key must be an ISO 639-1 language code (de, fr…)":
@@ -436,10 +418,6 @@ RU: dict[str, str] = {
     "spn on a signal of a {protocol} bus": "spn у сигнала на шине {protocol}",
     "SPN {spn} is already used by signal {other}": "SPN {spn} уже у сигнала {other}",
     "J1939: suspect parameter number (SPN) per SAE J1939-71.": "J1939: номер параметра (SPN) по SAE J1939-71.",
-    "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length "
-    "is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol.":
-        "Длина данных, байт. Обязательна, кроме служебных кадров CANopen (NMT, SYNC, TIME, Heartbeat, SDO): их длина "
-        "задана CiA 301. На шине J1939 до 1785 байт — транспортным протоколом.",
     "Import a map from other tools' formats.": "Импорт карты из форматов других инструментов.",
     "EDS (CiA 306) for every device of the CANopen buses: PDO objects and their mapping.":
         "EDS (CiA 306) на каждое устройство шин CANopen: объекты PDO и их отображение.",
@@ -491,31 +469,13 @@ RU: dict[str, str] = {
         "Примечание или оговорка: в документах — «Примечание:», в DBC — после описания.",
     "Device abbreviation, e.g. \"BMS\": in document tables and before the name in the tree.":
         "Сокращение устройства, напр. «BMS»: в таблицах документов и в дереве перед названием.",
-    "Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, can — explicit IDs.":
-        "Протокол: canopen — ID из типа кадра и node_id, j1939 — из PGN и адреса, can — явные ID.",
     "Non-cyclic transmission: event — on event, on_request — on request.":
         "Нециклическая передача: event — по событию, on_request — по запросу.",
     "GitHub username of the change's author.": "Имя пользователя GitHub автора изменения.",
     "Codes of the rules to disable.": "Коды правил, которые нужно отключить.",
-    "Command byte (CCS/SCS), e.g. 0x2B.": "Байт команды (CCS/SCS), напр. 0x2B.",
     "Value encoding: enum, scaled, raw.": "Кодирование значения: enum, scaled, raw.",
-    "Signal encoding: enum, flag, bitfield, scaled, raw, float, bytes.":
-        "Кодирование сигнала: enum, flag, bitfield, scaled, raw, float, bytes.",
-    "Position of the signal's least significant bit (LSB) in lsb0 numbering.":
-        "Позиция младшего бита (LSB) сигнала в нумерации lsb0.",
     "First byte of the signal.": "Первый байт сигнала.",
     "Bit offset within the byte.": "Смещение бита в байте.",
-    "Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. Generated C/Python code "
-    "encodes the value in this code; DBC stores two's complement only.":
-        "Код знакового числа: twos_complement — дополнительный (по умолчанию), ones_complement — обратный, "
-        "sign_magnitude — прямой. Сгенерированный код C/Python кодирует значение в заданном коде; DBC хранит только "
-        "дополнительный.",
-    "How enum values are shown in documents.": "Как показывать значения enum в документах.",
-    "Multiplexer selector signal.": "Сигнал-селектор мультиплексора.",
-    "Selector value(s) for which the signal is present.": "Значение(я) селектора, при которых сигнал присутствует.",
-    "Default value (in physical units).": "Значение по умолчанию (в физических единицах).",
-    "Raw value (or values) meaning \"no data / invalid\".":
-        "Сырое значение (или значения), означающее «нет данных / недостоверно».",
     "Developed by (Разраб.)": "Разраб.",
     "Checked by (Пров.)": "Пров.",
     "Technical control (Т. контр.)": "Т. контр.",
@@ -670,4 +630,169 @@ RU: dict[str, str] = {
     "the YAML has a syntax error": "в YAML синтаксическая ошибка",
     "Version {version}": "Версия {version}",
     "enter a version": "укажите версию",
+    # ------------------------------------------------------------------ format fields (model descriptions)
+    "Signal length in bytes, instead of bit_length.": "Длина сигнала в байтах, вместо bit_length.",
+    "Flag identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique within the frame.":
+        "Идентификатор флага: латинские буквы, цифры и _. Используется в сгенерированном коде и DBC. Обязателен, "
+        "уникален в кадре.",
+    "SDO exchange identifier: Latin letters, digits and _. Used in generated code. Required.":
+        "Идентификатор SDO-обмена: латинские буквы, цифры и _. Используется в сгенерированном коде. Обязателен.",
+    "Flag offset from the least significant bit of the bit field: 0 is the field's LSB.":
+        "Смещение флага от младшего бита битового поля: 0 — младший бит поля.",
+    "Flag width in bits, 1 by default. A width above 1 makes a multi-bit value inside the field.":
+        "Ширина флага в битах, по умолчанию 1. Больше 1 — многобитовое значение внутри поля.",
+    "Signal identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique within the "
+    "frame.":
+        "Идентификатор сигнала: латинские буквы, цифры и _. Используется в сгенерированном коде и DBC. Обязателен, "
+        "уникален в кадре.",
+    "Human-readable signal name, e.g. “Battery voltage”: its label in the map tree. Optional; without it, the tree "
+    "shows the identifier.":
+        "Название сигнала для людей, напр. «Напряжение батареи»: подпись в дереве карты. Необязательно — без него в "
+        "дереве выводится идентификатор.",
+    "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; "
+    "scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array.":
+        "Как трактуется значение. enum — таблица значений; flag — один бит да/нет; bitfield — набор флагов; scaled — "
+        "масштабированное значение: raw × factor + offset; raw — целое как есть; float — IEEE 754; bytes — массив "
+        "байт.",
+    "Position of the signal's least significant bit (LSB) in the frame, counting from 0. Bit N is in byte N div 8 at "
+    "position N mod 8.":
+        "Номер младшего бита (LSB) сигнала в кадре, от 0. Бит N находится в байте N div 8 на позиции N mod 8.",
+    "Signal width in bits: 1..64; longer only for a byte array (encoding: bytes).":
+        "Длина сигнала в битах: 1..64; длиннее — только у массива байт (encoding: bytes).",
+    "Byte order of a multi-byte signal. little-endian (Intel): least significant byte first, typical for CANopen and "
+    "J1939. big-endian (Motorola): most significant byte first.":
+        "Порядок байт многобайтового сигнала. little-endian (Intel) — младший байт первым, обычно для CANopen и "
+        "J1939. big-endian (Motorola) — старший байт первым.",
+    "The value can be negative; signed_code sets how the sign is encoded.":
+        "Значение может быть отрицательным; способ кодирования знака задаёт signed_code.",
+    "How negative numbers are encoded. Two's complement is the standard (−1 = all ones). Ones' complement inverts all "
+    "bits (−1 = 1…10). Sign-magnitude uses the top bit for the sign and the rest for the magnitude (−1 = 10…01). "
+    "Generated C and Python code use this code; DBC stores two's complement only, so the export warns about such "
+    "signals.":
+        "Как кодируются отрицательные числа. Дополнительный код — стандарт (−1 = все единицы). Обратный код "
+        "инвертирует все биты (−1 = 1…10). Прямой код: старший бит — знак, остальные — модуль (−1 = 10…01). "
+        "Сгенерированный код на C и Python использует этот код; DBC хранит только дополнительный, поэтому экспорт "
+        "предупреждает о таких сигналах.",
+    "Multiplier: physical value = raw × factor + offset. E.g. 0.1 for voltage in 0.1 V steps.":
+        "Множитель: физическое значение = raw × масштаб + смещение. Напр. 0.1 для напряжения с шагом 0,1 В.",
+    "Offset: physical value = raw × factor + offset. E.g. −40 for temperature.":
+        "Смещение: физическое значение = raw × масштаб + смещение. Напр. −40 для температуры.",
+    "Unit of the physical quantity: a standard unit or your own text. Standard units appear in documents in the "
+    "document language (V ↔ В).":
+        "Единица физической величины: стандартная или свой текст. Стандартные единицы выводятся в документах на языке "
+        "документа (V ↔ В).",
+    "Allowed minimum in physical units. Leave empty to use the limit of the signal width.":
+        "Допустимый минимум в физических единицах. Пусто — по разрядности сигнала.",
+    "Allowed maximum in physical units. Leave empty to use the limit of the signal width.":
+        "Допустимый максимум в физических единицах. Пусто — по разрядности сигнала.",
+    "How enum table values are shown in documents: decimal or hex.":
+        "Как показывать значения таблицы enum в документах: десятичными или hex.",
+    "Multiplexer selector signal. Multiplexing lets one frame carry different sets of signals: the selector value "
+    "tells which signals the frame currently contains. A frame can have only one selector.":
+        "Сигнал-селектор мультиплексора. Мультиплексирование позволяет передавать разные наборы сигналов в одном "
+        "кадре: значение селектора показывает, какие сигналы сейчас в кадре. В кадре может быть только один селектор.",
+    "Selector values for which this signal is in the frame, e.g. 0 or 1, 2. Leave empty if the signal is always "
+    "present. Requires a selector signal in the frame.":
+        "Значения селектора, при которых этот сигнал есть в кадре, напр. 0 или 1, 2. Пусто — сигнал присутствует "
+        "всегда. Требует сигнал-селектор в кадре.",
+    "Value after power-up or before the first message is received, in physical units. In C: …_INITIAL_RAW; in DBC: "
+    "GenSigStartValue.":
+        "Значение после включения или до первого приёма, в физических единицах. В C — …_INITIAL_RAW, в DBC — "
+        "GenSigStartValue.",
+    "Raw values that mean “no data / not valid”, e.g. 0xFF or 0xFE, 0xFF.":
+        "Сырые значения, означающие «нет данных / недостоверно», напр. 0xFF или 0xFE, 0xFF.",
+    "SDO command byte (CCS/SCS), e.g. 0x2B — write 2 bytes, 0x23 — write 4 bytes, 0x40 — read.":
+        "Байт команды SDO (CCS/SCS), напр. 0x2B — запись 2 байт, 0x23 — запись 4 байт, 0x40 — чтение.",
+    "CANopen object dictionary index, 0x0000..0xFFFF.": "Индекс объекта словаря CANopen, 0x0000..0xFFFF.",
+    "Object dictionary subindex, 0x00..0xFF.": "Субиндекс объекта словаря, 0x00..0xFF.",
+    "Frame identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique on the bus.":
+        "Идентификатор кадра: латинские буквы, цифры и _. Используется в сгенерированном коде и DBC. Обязателен, "
+        "уникален на шине.",
+    "Human-readable frame name, e.g. “Status”: the frame heading in documents and its label in the map tree. "
+    "Optional; without it, the tree shows the identifier.":
+        "Название кадра для людей, напр. «Состояния»: заголовок кадра в документах и подпись в дереве карты. "
+        "Необязательно — без него в дереве выводится идентификатор.",
+    "CANopen frame type. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id) and the default direction. raw means the "
+    "ID is set explicitly.":
+        "Тип кадра CANopen. Задаёт базовый ID (напр. PDO TX 1 = 0x180 + node_id) и направление по умолчанию. raw — ID "
+        "задаётся явно.",
+    "Frame CAN ID: 11-bit (0x000..0x7FF) or 29-bit (up to 0x1FFFFFFF). Leave empty to compute it: for CANopen from "
+    "the type and node_id, for J1939 from the PGN, priority and address.":
+        "CAN ID кадра: 11 бит (0x000..0x7FF) или 29 бит (до 0x1FFFFFFF). Пусто — вычисляется: CANopen — из типа и "
+        "node_id, J1939 — из PGN, приоритета и адреса.",
+    "Use a 29-bit (extended) identifier instead of an 11-bit one.":
+        "29-битный (расширенный) идентификатор вместо 11-битного.",
+    "Bit rate switch (BRS) of a CAN FD frame: the data field is sent at the data phase bit rate. Empty: as set on the "
+    "bus. Written to DBC (the CANFD_BRS attribute).":
+        "Переключение скорости (BRS) кадра CAN FD: поле данных передаётся на скорости фазы данных. Пусто — как у "
+        "шины. Попадает в DBC (атрибут CANFD_BRS).",
+    "J1939 parameter group number, 0..0x3FFFF. PF < 240 (0xF0) means PDU1, a destination-specific frame: the low byte "
+    "of the PGN must be 0 and the destination is set separately. PF ≥ 240 means PDU2, broadcast.":
+        "Номер группы параметров J1939, 0..0x3FFFF. PF < 240 (0xF0) — PDU1, адресный кадр: младший байт PGN должен "
+        "быть 0, получатель задаётся отдельно. PF ≥ 240 — PDU2, широковещательный.",
+    "J1939 priority 0..7: the top 3 bits of the ID. Lower values mean higher priority. Default 6.":
+        "Приоритет J1939 0..7: старшие 3 бита ID. Меньше — важнее. По умолчанию 6.",
+    "Destination address for a J1939 PDU1 frame, 0..255. 0xFF means all nodes.":
+        "Адрес получателя для PDU1-кадра J1939, 0..255. 0xFF — всем узлам.",
+    "Devices on this bus that receive the frame. The owner of an RX frame is a receiver even without this list. Used "
+    "in documents, DBC and each device's \"Receives\" summary.":
+        "Устройства этой шины, которые принимают кадр. Владелец RX-кадра — получатель и без этого списка. Попадают в "
+        "документы, DBC и сводку «Принимает» у устройств.",
+    "Device on this bus that sends the frame when it is not the frame's owner: an RX frame (e.g. a node's RPDO sent "
+    "by the master) or a bus frame (NMT, SYNC). Empty — the sender is not in the map. A frame sent by one of your "
+    "devices is best described at the sender, with the receiving devices listed in \"Receivers\".":
+        "Устройство этой шины, которое передаёт кадр, если это не его владелец: RX-кадр (напр. PDO RX узла, который "
+        "шлёт мастер) или кадр шины (NMT, SYNC). Пусто — отправитель не описан в карте. Кадр, который передаёт своё "
+        "устройство, лучше описывать у отправителя, а принимающих указать в «Получатели».",
+    "Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). Required except for CANopen "
+    "service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 "
+    "bus, with the transport protocol.":
+        "Длина данных кадра в байтах: 0..8, для CAN FD — до 64 (12, 16, 20, 24, 32, 48, 64). Обязательна, кроме "
+        "служебных кадров CANopen (NMT, SYNC, TIME, Heartbeat, SDO): их длину задаёт CiA 301. На шине J1939 — до 1785 "
+        "байт, с транспортным протоколом.",
+    "tx — the owning device sends the frame, rx — it receives it. If omitted: from the CANopen frame type (PDO TX is "
+    "sent, etc.); a frame without a type whose sender is another device is rx, otherwise tx.":
+        "tx — кадр передаёт устройство-владелец, rx — принимает. Если не задано: по типу кадра CANopen (PDO TX — "
+        "передача и т. д.); кадр без типа с чужим отправителем — rx, иначе tx.",
+    "Cyclic transmission period in milliseconds.": "Период циклической передачи в миллисекундах.",
+    "Device identifier: Latin letters, digits and _. Used in generated code, DBC, and frame senders and receivers. "
+    "Required.":
+        "Идентификатор устройства: латинские буквы, цифры и _. Используется в сгенерированном коде, DBC, в "
+        "отправителях и получателях кадров. Обязателен.",
+    "Short device abbreviation for tables and headings in documents, e.g. BMS. If set, the map tree shows it before "
+    "the full name. If empty, documents use the identifier in uppercase.":
+        "Короткое обозначение устройства в таблицах и заголовках документов, напр. BMS. Если задано, в дереве карты "
+        "выводится перед полным названием. Пусто — в документах идентификатор прописными буквами.",
+    "Full human-readable device name, e.g. “Battery management system”. Shown in the device section heading in "
+    "documents and in the map tree. Required.":
+        "Полное название устройства для людей, напр. «Система управления батареей». Выводится в заголовке раздела "
+        "устройства в документах и в дереве карты. Обязательно.",
+    "CANopen node address 1..127 (0x01..0x7F). Added to the base ID of PDO, SDO, EMCY and Heartbeat frames.":
+        "Адрес узла CANopen 1..127 (0x01..0x7F). Прибавляется к базовому ID кадров PDO, SDO, EMCY, Heartbeat.",
+    "J1939 source address 0..253 (0x00..0xFD). Forms the low byte of every frame ID the device sends; 254 and 255 are "
+    "reserved.":
+        "Адрес источника J1939 (Source Address) 0..253 (0x00..0xFD). Младший байт ID всех кадров устройства; 254 и "
+        "255 — служебные.",
+    "Bus identifier: Latin letters, digits and _, no spaces. Used in DBC and C file names and as an anchor in "
+    "documents. Required.":
+        "Идентификатор шины: латинские буквы, цифры и _, без пробелов. Используется в именах файлов DBC и C и как "
+        "якорь в документах. Обязателен.",
+    "Human-readable bus name, e.g. “Bus 1” or “Powertrain CAN”. Used as the section heading in documents and as the "
+    "bus label in the map tree. Required.":
+        "Название шины для людей, напр. «Шина 1» или «CAN силовой части». Заголовок раздела в документах и подпись "
+        "шины в дереве карты. Обязательно.",
+    "Physical interface or connector, e.g. “CAN1, X3”. Used in documents only.":
+        "Физический интерфейс или разъём, напр. «CAN1, X3». Только для документов.",
+    "Bus bitrate in bit/s, e.g. 250000 or 500000. Shown in documents and DBC.":
+        "Скорость шины в бит/с, напр. 250000 или 500000. Попадает в документы и DBC.",
+    "Higher-layer protocol. CANopen: the frame ID is computed from the frame type and node_id; SAE J1939: from PGN, "
+    "priority and the device address; CAN: each frame has an explicit ID.":
+        "Протокол верхнего уровня. CANopen — ID кадра вычисляется из типа кадра и node_id; SAE J1939 — из PGN, "
+        "приоритета и адреса устройства; CAN — ID задаётся явно у каждого кадра.",
+    "CAN FD bus: frames up to 64 bytes (DLC 0..8, 12, 16, 20, 24, 32, 48, 64).":
+        "Шина CAN FD: кадры до 64 байт (DLC 0..8, 12, 16, 20, 24, 32, 48, 64).",
+    "Default bit rate switch (BRS) of CAN FD frames: the data field is sent at the data phase bit rate. Turn it off "
+    "if the nodes or the wiring of the bus cannot handle the higher rate. A frame can set its own value.":
+        "Переключение скорости (BRS) у кадров CAN FD по умолчанию: поле данных передаётся на скорости фазы данных. "
+        "Выключите, если узлы или проводка шины не держат высокую скорость. Кадр может задать своё значение.",
 }

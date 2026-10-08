@@ -2,7 +2,7 @@
 // Таблица значений enum: значение, имя, описание. Пишет values[ключ] операциями set/rename_key.
 import { computed } from "vue";
 import { actions } from "../store";
-import { parseInteger } from "../fields";
+import { parseInteger } from "../form/input";
 import { nextFreeKey, startsWith, txt } from "../model";
 import type { Diagnostic, Op, Path } from "../types";
 import { t } from "../i18n";

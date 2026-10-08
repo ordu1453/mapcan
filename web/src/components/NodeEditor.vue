@@ -3,8 +3,10 @@ import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
 import { addBus, addDevice, addFrame, addSdo, addSignal, canRename, duplicateNode, receiveFrame, removeNode, removeSelected,
   renameNode, stopReceiving } from "../edit";
-import { HELP } from "../help";
-import { CANOPEN_DLC, FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
+import { describe, fieldHelp, UI_HELP } from "../form/help";
+import { parseInteger, ParseError } from "../form/input";
+import { applies, CANOPEN_DLC, FORMS, isRequired, optionsOf, placeholderOf, type FieldDef, type FormContext,
+  type FormKind } from "../form/spec";
 import { deviceLabel, displayName, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath, startsWith, txt } from "../model";
 import { actions, includedPath, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast, viewData }
   from "../store";
@@ -33,34 +35,44 @@ const includedFile = computed(() => includedPath(path.value));
 const readonly = computed(() => !!store.state?.readonly || !!includedFile.value);
 const diags = computed(() => store.state?.diagnostics ?? []);
 
-const fieldCtx = computed<FieldCtx>(() => {
+// What the form's conditions know about the node (see FormContext in form/spec.ts)
+const formCtx = computed<FormContext>(() => {
   const s = kind.value === "signal" ? rsignal.value : null;
   const bus = path.value[0] === "buses" ? getAt(data.value, path.value.slice(0, 2)) : null;
   const frame = kind.value === "frame" ? rframe.value : undefined;
+  const form = FORMS[kind.value as FormKind] ?? [];
   return {
+    values: Object.fromEntries(form.flatMap((sec) => sec.fields).map((f) => [f.key, fieldValue(f)])),
     protocol: bus ? bus.protocol ?? "canopen" : "",
-    encoding: s?.encoding, bitLength: s?.bit_length,
-    hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
-    devices: (bus?.devices ?? []).map((d: any) => d?.name).filter(Boolean),
-    deviceLabels: Object.fromEntries((bus?.devices ?? []).filter((d: any) => d?.name)
-      .map((d: any) => [d.name, deviceLabel(d, lang.value)])),
-    owner: frame?.device ?? null,
-    direction: frame?.direction ?? null,
-    defaultDirection: node.value?.direction == null ? frame?.direction ?? null : null,
-    sender: frame?.sender ?? null,
     fd: !!bus?.fd,
     busBrs: typeof bus?.brs === "boolean" ? bus.brs : null,
+    owner: frame?.device ?? null,
+    devices: (bus?.devices ?? []).filter((d: any) => d?.name)
+      .map((d: any) => ({ name: d.name, label: deviceLabel(d, lang.value) })),
+    frameDirection: frame?.direction ?? null,
+    signalEncoding: s?.encoding ?? null,
+    bitLength: s?.bit_length ?? null,
+    hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
+    frames: kind.value === "device" ? node.value?.frames ?? [] : undefined,
   };
 });
-// Поле с ошибкой или предупреждением показываем, даже если оно не относится к текущему типу/протоколу — иначе ошибку не найти
-const fields = computed(() => (FIELDS[kind.value] ?? [])
-  .filter((f) => !f.when || f.when(node.value, fieldCtx.value) || fieldValue(f) != null
-    || fieldDiags(f).some((d) => d.level !== "info"))
-  .map((f) => {
-    const required = typeof f.required === "function" ? f.required(node.value, fieldCtx.value) : !!f.required;
-    return { ...f, required: undefined, isRequired: required,
-      options: f.optionsFor ? f.optionsFor(fieldCtx.value) : f.options };
-  }));
+// Sections of the form with the fields that apply. A field with a value, an error or a warning is shown even if it
+// does not apply to the node's type or protocol, otherwise the problem could not be found. Position and
+// transmission fields have their own controls above the form.
+const sections = computed(() => (FORMS[kind.value as FormKind] ?? [])
+  .map((sec) => ({
+    title: sec.title,
+    fields: sec.fields
+      .filter((f) => !f.layout && (applies(f, formCtx.value) || fieldValue(f) != null
+        || fieldDiags(f).some((d) => d.level !== "info")))
+      .map((f) => ({ ...f, help: fieldHelp(kind.value as FormKind, f), isRequired: isRequired(f, formCtx.value),
+        shownOptions: optionsOf(f, formCtx.value) })),
+  }))
+  .filter((sec) => sec.fields.length));
+const fields = computed(() => sections.value.flatMap((sec) => sec.fields));
+// The receiving device a frame of another device is shown under
+const viaLabel = computed(() =>
+  formCtx.value.devices.find((d) => d.name === store.selectedVia)?.label ?? store.selectedVia);
 const hasRequired = computed(() => fields.value.some((f) => f.isRequired));
 
 function fieldValue(def: FieldDef) {
@@ -80,22 +92,12 @@ function fieldDiags(def: FieldDef) {
   return diags.value.filter((d) => startsWith(d.node, p));
 }
 
-const DEFAULTS: Record<string, string> = {
-  factor: "1", offset: "0", bit_length: "1", protocol: "canopen",
-};
-
 function placeholderFor(def: FieldDef): string {
+  // The computed CAN ID of the frame is known here
   if (kind.value === "frame" && def.key === "id" && rframe.value) {
     return hex(rframe.value.can_id, rframe.value.extended ? 8 : 3) + " " + t("(computed)");
   }
-  if (def.key === "priority" && fieldCtx.value.protocol === "j1939") return "6";
-  // DLC по умолчанию: 8, у служебного кадра CANopen — из типа
-  // DLC обязателен; без него обходится только служебный кадр CANopen — его длина из CiA 301
-  if (kind.value === "frame" && def.key === "dlc") {
-    const fixed = fieldCtx.value.protocol === "canopen" ? CANOPEN_DLC[node.value?.type ?? ""] : undefined;
-    return fixed ? t("{n} (CiA 301)", { n: Math.min(...fixed) }) : "";
-  }
-  return t(DEFAULTS[def.key] ?? "");
+  return placeholderOf(def, formCtx.value);
 }
 
 function commit(def: FieldDef, value: unknown) {
@@ -417,7 +419,7 @@ function onLayout(p: Path, start: number, length: number) {
     </div>
     <div v-if="kind === 'frame' && store.selectedVia" class="banner info">
       {{ t("The frame is described at its sender; {device} receives it. Delete or ✕ stops receiving it and keeps the frame.",
-           { device: fieldCtx.deviceLabels?.[store.selectedVia] ?? store.selectedVia }) }}
+           { device: viaLabel }) }}
     </div>
 
     <!-- Битовая карта для кадра, сигнала, флага -->
@@ -434,13 +436,13 @@ function onLayout(p: Path, start: number, length: number) {
         <!-- позиция сигнала -->
         <template v-if="kind === 'signal' && rsignal">
           <label class="field" :class="worstLevel([...wholeDiags, ...startDiags])">
-            <span class="field-label"><HelpTip :text="HELP['layout.start_bit']" />{{ t("Start bit (LSB)") }}</span>
+            <span class="field-label"><HelpTip :text="describe('signal', 'start_bit') ?? ''" />{{ t("Start bit (LSB)") }}</span>
             <input class="mono" :value="rsignal.start_bit" :readonly="readonly || rsignal.synthetic" @change="setLayout('start_bit', $event)" />
             <span v-if="inputErrors.start_bit" class="field-msg error">{{ inputErrors.start_bit }}</span>
             <span v-for="d in startDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
           </label>
           <label class="field" :class="worstLevel([...wholeDiags, ...lengthDiags])">
-            <span class="field-label"><HelpTip :text="HELP['layout.bit_length']" />{{ t("Length, bits") }}</span>
+            <span class="field-label"><HelpTip :text="describe('signal', 'bit_length') ?? ''" />{{ t("Length, bits") }}</span>
             <input class="mono" :value="rsignal.bit_length" :readonly="readonly || rsignal.synthetic" @change="setLayout('bit_length', $event)" />
             <span v-if="inputErrors.bit_length" class="field-msg error">{{ inputErrors.bit_length }}</span>
             <span class="field-hint">
@@ -454,7 +456,7 @@ function onLayout(p: Path, start: number, length: number) {
 
         <!-- RX-кадр: выбрать вместо него кадр другого устройства -->
         <label v-if="rxSources.length && !readonly" class="field">
-          <span class="field-label"><HelpTip :text="HELP['layout.source']" />{{ t("Frame of another device") }}</span>
+          <span class="field-label"><HelpTip :text="UI_HELP.source" />{{ t("Frame of another device") }}</span>
           <select value="" @change="setSource">
             <option value="">{{ t("none — the frame is described here") }}</option>
             <option v-for="o in rxSources" :key="o.key" :value="o.key">{{ o.label }}</option>
@@ -465,7 +467,7 @@ function onLayout(p: Path, start: number, length: number) {
         <!-- режим передачи кадра -->
         <template v-if="kind === 'frame'">
           <label class="field" :class="txMode === 'cyclic' ? '' : worstLevel(txDiags)">
-            <span class="field-label"><HelpTip :text="HELP['layout.mode']" />{{ t("Transmission") }}</span>
+            <span class="field-label"><HelpTip :text="UI_HELP.mode" />{{ t("Transmission") }}</span>
             <select :value="txMode" :disabled="readonly" @change="setMode">
               <option value="">{{ t("not set") }}</option>
               <option value="cyclic">{{ t("cyclic") }}</option>
@@ -477,18 +479,21 @@ function onLayout(p: Path, start: number, length: number) {
             </template>
           </label>
           <label v-if="txMode === 'cyclic'" class="field" :class="worstLevel(txDiags)">
-            <span class="field-label"><HelpTip :text="HELP['layout.cycle_ms']" />{{ t("Period, ms") }}</span>
+            <span class="field-label"><HelpTip :text="describe('frame', 'cycle_ms') ?? ''" />{{ t("Period, ms") }}</span>
             <input class="mono" :value="txCycle ?? ''" :readonly="readonly" @change="setCycle" />
             <span v-if="inputErrors.cycle_ms" class="field-msg error">{{ inputErrors.cycle_ms }}</span>
             <span v-for="d in txDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
           </label>
         </template>
 
-        <FieldInput v-for="def in fields" :key="path.join('/') + def.key" :def="def" :value="shownValue(def)"
-                    :path="fieldPath(def)" :required="def.isRequired"
-                    :diags="fieldDiags(def)" :readonly="readonly"
-                    :placeholder="placeholderFor(def)"
-                    @commit="commit(def, $event)" />
+        <template v-for="sec in sections" :key="sec.title ?? ''">
+          <h4 v-if="sec.title" class="form-section">{{ t(sec.title) }}</h4>
+          <FieldInput v-for="def in sec.fields" :key="path.join('/') + def.key" :def="def" :value="shownValue(def)"
+                      :options="def.shownOptions" :path="fieldPath(def)" :required="def.isRequired"
+                      :diags="fieldDiags(def)" :readonly="readonly"
+                      :placeholder="placeholderFor(def)"
+                      @commit="commit(def, $event)" />
+        </template>
       </div>
     </section>
 

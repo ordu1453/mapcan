@@ -12,6 +12,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // The forms take field help from the format's schema (../schema/mapcan.schema.json)
+    fs: { allow: [".."] },
     proxy: {
       "/api": "http://127.0.0.1:8765",
       "/ws": { target: "ws://127.0.0.1:8765", ws: true },

@@ -350,6 +350,8 @@ src/mapcan/
   templates/                document templates (pdf/ — Typst)
   fonts/                    PT Sans, PT Serif (OFL)
 web/                        UI sources (Vue 3 + TypeScript + Vite)
+  src/form/                 node forms shared with the VS Code form: fields, conditions, help from the schema
+vscode/                     VS Code extension (language server client, map tree, node form in webview/)
 packaging/                  Windows build: PyInstaller, Inno Setup installer, icon and logo
 tests/                      tests; data/ — fixtures, golden/ — reference files
 ```

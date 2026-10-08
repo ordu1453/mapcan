@@ -56,7 +56,7 @@ export class ExportView implements vscode.WebviewViewProvider, vscode.Disposable
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, "media")],
     };
-    view.webview.html = webviewHtml(view.webview, this.context.extensionUri, "export", "mapcan: export");
+    view.webview.html = webviewHtml(view.webview, this.context.extensionUri, "media/export.js", "mapcan: export");
     view.webview.onDidReceiveMessage((m: Message) => this.onMessage(m));
     view.onDidDispose(() => (this.view = undefined));
   }

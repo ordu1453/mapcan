@@ -4,6 +4,7 @@
       "additionalProperties": false,
       "properties": {
         "name": {
+          "description": "Bus identifier: Latin letters, digits and _, no spaces. Used in DBC and C file names and as an anchor in documents. Required.",
           "title": "Name",
           "type": "string"
         },
@@ -20,7 +21,7 @@
             }
           ],
           "default": null,
-          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
+          "description": "Human-readable bus name, e.g. “Bus 1” or “Powertrain CAN”. Used as the section heading in documents and as the bus label in the map tree. Required.",
           "title": "Title"
         },
         "interface": {
@@ -33,6 +34,7 @@
             }
           ],
           "default": null,
+          "description": "Physical interface or connector, e.g. “CAN1, X3”. Used in documents only.",
           "title": "Interface"
         },
         "bitrate": {
@@ -46,10 +48,11 @@
             }
           ],
           "default": null,
+          "description": "Bus bitrate in bit/s, e.g. 250000 or 500000. Shown in documents and DBC.",
           "title": "Bitrate"
         },
         "protocol": {
-          "description": "Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, can — explicit IDs.",
+          "description": "Higher-layer protocol. CANopen: the frame ID is computed from the frame type and node_id; SAE J1939: from PGN, priority and the device address; CAN: each frame has an explicit ID.",
           "enum": [
             "canopen",
             "j1939",
@@ -60,6 +63,7 @@
         },
         "fd": {
           "default": false,
+          "description": "CAN FD bus: frames up to 64 bytes (DLC 0..8, 12, 16, 20, 24, 32, 48, 64).",
           "title": "Fd",
           "type": "boolean"
         },
@@ -73,7 +77,7 @@
             }
           ],
           "default": null,
-          "description": "CAN FD: bit rate switch (BRS) of the frames by default. Empty: on.",
+          "description": "Default bit rate switch (BRS) of CAN FD frames: the data field is sent at the data phase bit rate. Turn it off if the nodes or the wiring of the bus cannot handle the higher rate. A frame can set its own value.",
           "title": "Brs"
         },
         "description": {
@@ -119,6 +123,7 @@
       "additionalProperties": false,
       "properties": {
         "name": {
+          "description": "Device identifier: Latin letters, digits and _. Used in generated code, DBC, and frame senders and receivers. Required.",
           "title": "Name",
           "type": "string"
         },
@@ -132,7 +137,7 @@
             }
           ],
           "default": null,
-          "description": "Device abbreviation, e.g. \"BMS\": in document tables and before the name in the tree.",
+          "description": "Short device abbreviation for tables and headings in documents, e.g. BMS. If set, the map tree shows it before the full name. If empty, documents use the identifier in uppercase.",
           "title": "Short"
         },
         "title": {
@@ -148,7 +153,7 @@
             }
           ],
           "default": null,
-          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
+          "description": "Full human-readable device name, e.g. “Battery management system”. Shown in the device section heading in documents and in the map tree. Required.",
           "title": "Title"
         },
         "node_id": {
@@ -163,7 +168,7 @@
             }
           ],
           "default": null,
-          "description": "CANopen: node address 1..127.",
+          "description": "CANopen node address 1..127 (0x01..0x7F). Added to the base ID of PDO, SDO, EMCY and Heartbeat frames.",
           "title": "Node Id"
         },
         "address": {
@@ -178,7 +183,7 @@
             }
           ],
           "default": null,
-          "description": "J1939: source address 0..253.",
+          "description": "J1939 source address 0..253 (0x00..0xFD). Forms the low byte of every frame ID the device sends; 254 and 255 are reserved.",
           "title": "Address"
         },
         "description": {
@@ -428,16 +433,19 @@
       "description": "A flag inside a bit field. ``bit`` is the offset from the field's least significant bit.",
       "properties": {
         "name": {
+          "description": "Flag identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique within the frame.",
           "title": "Name",
           "type": "string"
         },
         "bit": {
+          "description": "Flag offset from the least significant bit of the bit field: 0 is the field's LSB.",
           "minimum": 0,
           "title": "Bit",
           "type": "integer"
         },
         "bit_length": {
           "default": 1,
+          "description": "Flag width in bits, 1 by default. A width above 1 makes a multi-bit value inside the field.",
           "minimum": 1,
           "title": "Bit Length",
           "type": "integer"
@@ -499,6 +507,7 @@
       "additionalProperties": false,
       "properties": {
         "name": {
+          "description": "Frame identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique on the bus.",
           "title": "Name",
           "type": "string"
         },
@@ -515,7 +524,7 @@
             }
           ],
           "default": null,
-          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
+          "description": "Human-readable frame name, e.g. “Status”: the frame heading in documents and its label in the map tree. Optional; without it, the tree shows the identifier.",
           "title": "Title"
         },
         "description": {
@@ -536,6 +545,7 @@
         },
         "type": {
           "default": "raw",
+          "description": "CANopen frame type. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id) and the default direction. raw means the ID is set explicitly.",
           "enum": [
             "nmt",
             "sync",
@@ -569,11 +579,12 @@
             }
           ],
           "default": null,
-          "description": "Explicit CAN ID. For CANopen it is computed from node_id, for J1939 from the PGN.",
+          "description": "Frame CAN ID: 11-bit (0x000..0x7FF) or 29-bit (up to 0x1FFFFFFF). Leave empty to compute it: for CANopen from the type and node_id, for J1939 from the PGN, priority and address.",
           "title": "Id"
         },
         "extended": {
           "default": false,
+          "description": "Use a 29-bit (extended) identifier instead of an 11-bit one.",
           "title": "Extended",
           "type": "boolean"
         },
@@ -587,7 +598,7 @@
             }
           ],
           "default": null,
-          "description": "CAN FD: bit rate switch (BRS), the data phase is sent at the data bit rate. Empty: as set on the bus.",
+          "description": "Bit rate switch (BRS) of a CAN FD frame: the data field is sent at the data phase bit rate. Empty: as set on the bus. Written to DBC (the CANFD_BRS attribute).",
           "title": "Brs"
         },
         "pgn": {
@@ -602,7 +613,7 @@
             }
           ],
           "default": null,
-          "description": "J1939: parameter group number (PGN).",
+          "description": "J1939 parameter group number, 0..0x3FFFF. PF < 240 (0xF0) means PDU1, a destination-specific frame: the low byte of the PGN must be 0 and the destination is set separately. PF ≥ 240 means PDU2, broadcast.",
           "title": "Pgn"
         },
         "priority": {
@@ -617,7 +628,7 @@
             }
           ],
           "default": null,
-          "description": "J1939: priority 0..7 (6 by default).",
+          "description": "J1939 priority 0..7: the top 3 bits of the ID. Lower values mean higher priority. Default 6.",
           "title": "Priority"
         },
         "destination": {
@@ -632,11 +643,11 @@
             }
           ],
           "default": null,
-          "description": "J1939: destination address for PDU1 (0xFF, global, by default).",
+          "description": "Destination address for a J1939 PDU1 frame, 0..255. 0xFF means all nodes.",
           "title": "Destination"
         },
         "receivers": {
-          "description": "Bus devices that receive the frame (names).",
+          "description": "Devices on this bus that receive the frame. The owner of an RX frame is a receiver even without this list. Used in documents, DBC and each device's \"Receives\" summary.",
           "items": {
             "type": "string"
           },
@@ -653,7 +664,7 @@
             }
           ],
           "default": null,
-          "description": "Bus device that transmits the frame when it is not the frame's owner: for RX frames (e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
+          "description": "Device on this bus that sends the frame when it is not the frame's owner: an RX frame (e.g. a node's RPDO sent by the master) or a bus frame (NMT, SYNC). Empty — the sender is not in the map. A frame sent by one of your devices is best described at the sender, with the receiving devices listed in \"Receivers\".",
           "title": "Sender"
         },
         "dlc": {
@@ -668,7 +679,7 @@
             }
           ],
           "default": null,
-          "description": "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol.",
+          "description": "Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol.",
           "title": "Dlc"
         },
         "direction": {
@@ -685,6 +696,7 @@
             }
           ],
           "default": null,
+          "description": "tx — the owning device sends the frame, rx — it receives it. If omitted: from the CANopen frame type (PDO TX is sent, etc.); a frame without a type whose sender is another device is rx, otherwise tx.",
           "title": "Direction"
         },
         "cycle_ms": {
@@ -698,7 +710,7 @@
             }
           ],
           "default": null,
-          "description": "Cyclic transmission period, ms.",
+          "description": "Cyclic transmission period in milliseconds.",
           "title": "Cycle Ms"
         },
         "trigger": {
@@ -956,6 +968,7 @@
       "description": "One SDO transfer (expedited): command, index, subindex, value.",
       "properties": {
         "name": {
+          "description": "SDO exchange identifier: Latin letters, digits and _. Used in generated code. Required.",
           "title": "Name",
           "type": "string"
         },
@@ -976,13 +989,14 @@
           "title": "Description"
         },
         "command": {
-          "description": "Command byte (CCS/SCS), e.g. 0x2B.",
+          "description": "SDO command byte (CCS/SCS), e.g. 0x2B — write 2 bytes, 0x23 — write 4 bytes, 0x40 — read.",
           "maximum": 255,
           "minimum": 0,
           "title": "Command",
           "type": "integer"
         },
         "index": {
+          "description": "CANopen object dictionary index, 0x0000..0xFFFF.",
           "maximum": 65535,
           "minimum": 0,
           "title": "Index",
@@ -990,6 +1004,7 @@
         },
         "subindex": {
           "default": 0,
+          "description": "Object dictionary subindex, 0x00..0xFF.",
           "maximum": 255,
           "minimum": 0,
           "title": "Subindex",
@@ -1151,6 +1166,7 @@
       "additionalProperties": false,
       "properties": {
         "name": {
+          "description": "Signal identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique within the frame.",
           "title": "Name",
           "type": "string"
         },
@@ -1167,7 +1183,7 @@
             }
           ],
           "default": null,
-          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
+          "description": "Human-readable signal name, e.g. “Battery voltage”: its label in the map tree. Optional; without it, the tree shows the identifier.",
           "title": "Title"
         },
         "description": {
@@ -1187,7 +1203,7 @@
           "title": "Description"
         },
         "encoding": {
-          "description": "Signal encoding: enum, flag, bitfield, scaled, raw, float, bytes.",
+          "description": "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array.",
           "enum": [
             "enum",
             "flag",
@@ -1211,7 +1227,7 @@
             }
           ],
           "default": null,
-          "description": "Position of the signal's least significant bit (LSB) in lsb0 numbering.",
+          "description": "Position of the signal's least significant bit (LSB) in the frame, counting from 0. Bit N is in byte N div 8 at position N mod 8.",
           "title": "Start Bit"
         },
         "bit_length": {
@@ -1226,6 +1242,7 @@
             }
           ],
           "default": null,
+          "description": "Signal width in bits: 1..64; longer only for a byte array (encoding: bytes).",
           "title": "Bit Length"
         },
         "byte": {
@@ -1269,10 +1286,12 @@
             }
           ],
           "default": null,
+          "description": "Signal length in bytes, instead of bit_length.",
           "title": "Byte Length"
         },
         "byte_order": {
           "default": "little_endian",
+          "description": "Byte order of a multi-byte signal. little-endian (Intel): least significant byte first, typical for CANopen and J1939. big-endian (Motorola): most significant byte first.",
           "enum": [
             "little_endian",
             "big_endian"
@@ -1282,6 +1301,7 @@
         },
         "signed": {
           "default": false,
+          "description": "The value can be negative; signed_code sets how the sign is encoded.",
           "title": "Signed",
           "type": "boolean"
         },
@@ -1300,7 +1320,7 @@
             }
           ],
           "default": null,
-          "description": "Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. Generated C/Python code encodes the value in this code; DBC stores two's complement only.",
+          "description": "How negative numbers are encoded. Two's complement is the standard (−1 = all ones). Ones' complement inverts all bits (−1 = 1…10). Sign-magnitude uses the top bit for the sign and the rest for the magnitude (−1 = 10…01). Generated C and Python code use this code; DBC stores two's complement only, so the export warns about such signals.",
           "title": "Signed Code"
         },
         "values": {
@@ -1349,11 +1369,13 @@
         },
         "factor": {
           "default": 1.0,
+          "description": "Multiplier: physical value = raw × factor + offset. E.g. 0.1 for voltage in 0.1 V steps.",
           "title": "Factor",
           "type": "number"
         },
         "offset": {
           "default": 0.0,
+          "description": "Offset: physical value = raw × factor + offset. E.g. −40 for temperature.",
           "title": "Offset",
           "type": "number"
         },
@@ -1367,6 +1389,7 @@
             }
           ],
           "default": null,
+          "description": "Unit of the physical quantity: a standard unit or your own text. Standard units appear in documents in the document language (V ↔ В).",
           "title": "Unit"
         },
         "min": {
@@ -1379,6 +1402,7 @@
             }
           ],
           "default": null,
+          "description": "Allowed minimum in physical units. Leave empty to use the limit of the signal width.",
           "title": "Min"
         },
         "max": {
@@ -1391,11 +1415,12 @@
             }
           ],
           "default": null,
+          "description": "Allowed maximum in physical units. Leave empty to use the limit of the signal width.",
           "title": "Max"
         },
         "value_format": {
           "default": "dec",
-          "description": "How enum values are shown in documents.",
+          "description": "How enum table values are shown in documents: decimal or hex.",
           "enum": [
             "dec",
             "hex"
@@ -1405,7 +1430,7 @@
         },
         "multiplexer": {
           "default": false,
-          "description": "Multiplexer selector signal.",
+          "description": "Multiplexer selector signal. Multiplexing lets one frame carry different sets of signals: the selector value tells which signals the frame currently contains. A frame can have only one selector.",
           "title": "Multiplexer",
           "type": "boolean"
         },
@@ -1425,7 +1450,7 @@
             }
           ],
           "default": null,
-          "description": "Selector value(s) for which the signal is present.",
+          "description": "Selector values for which this signal is in the frame, e.g. 0 or 1, 2. Leave empty if the signal is always present. Requires a selector signal in the frame.",
           "title": "Mux"
         },
         "initial": {
@@ -1438,7 +1463,7 @@
             }
           ],
           "default": null,
-          "description": "Default value (in physical units).",
+          "description": "Value after power-up or before the first message is received, in physical units. In C: …_INITIAL_RAW; in DBC: GenSigStartValue.",
           "title": "Initial"
         },
         "invalid": {
@@ -1457,7 +1482,7 @@
             }
           ],
           "default": null,
-          "description": "Raw value (or values) meaning \"no data / invalid\".",
+          "description": "Raw values that mean “no data / not valid”, e.g. 0xFF or 0xFE, 0xFF.",
           "title": "Invalid"
         },
         "comment": {
