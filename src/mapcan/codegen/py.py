@@ -130,6 +130,8 @@ class PyGen:
         if f.mode == "cyclic":
             out.append(f"{U}_CYCLE_MS = {f.cycle_ms}")
         for s in f.layout:
+            if s.spn is not None:
+                out.append(f"{U}_{s.name.upper()}_SPN = {s.spn}")
             entries = enum_entries(s.values)
             if entries:
                 out += ["", "", f"class {C}{_cls(s.name)}(IntEnum):"]

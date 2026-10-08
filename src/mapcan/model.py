@@ -28,6 +28,8 @@ SignedCode = Literal["twos_complement", "ones_complement", "sign_magnitude"]
 SignalEncoding = Literal["enum", "flag", "bitfield", "scaled", "raw", "bytes", "float"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
+# Наибольшая длина PGN, передаваемого транспортным протоколом J1939-21 (255 пакетов по 7 байт)
+J1939_TP_MAX = 1785
 Trigger = Literal["event", "on_request"]
 Protocol = Literal["canopen", "j1939", "can"]
 NameStyle = Literal["snake_case", "UPPER_SNAKE", "camelCase", "PascalCase", "any"]
@@ -210,11 +212,12 @@ class Signal(_Base):
         None, ge=0,
         description=N_("Позиция младшего бита (LSB) сигнала в нумерации lsb0."),
     )
-    bit_length: int | None = Field(None, ge=1, le=64)
+    # Длиннее 64 бит — только массив байт (encoding: bytes) в кадре CAN FD или PGN по транспортному протоколу
+    bit_length: int | None = Field(None, ge=1, le=J1939_TP_MAX * 8)
     # Позиция: синтаксический сахар
     byte: int | None = Field(None, ge=0, description=N_("Первый байт сигнала."))
     bit: int | None = Field(None, ge=0, le=7, description=N_("Смещение бита в байте."))
-    byte_length: int | None = Field(None, ge=1, le=8)
+    byte_length: int | None = Field(None, ge=1, le=J1939_TP_MAX)
 
     byte_order: ByteOrder = "little_endian"
     signed: bool = False
@@ -243,6 +246,8 @@ class Signal(_Base):
     invalid: int | list[int] | None = Field(
         None, description=N_("Сырое значение (или значения), означающее «нет данных / недостоверно»."))
     comment: Text | None = Field(None, description=COMMENT)
+    spn: int | None = Field(None, ge=0, le=0x7FFFF,
+                            description=N_("J1939: номер параметра (SPN) по SAE J1939-71."))
 
     @property
     def invalid_values(self) -> list[int]:
@@ -353,8 +358,9 @@ class Frame(_Base):
         None, description=N_("Устройство шины, передающее кадр, если это не его владелец: "
                              "для RX-кадров (напр. PDO RX узла от мастера) и кадров шины (NMT, SYNC)."))
     dlc: int | None = Field(
-        None, ge=0, le=64, description=N_("Длина данных, байт. Обязательна, кроме служебных кадров CANopen "
-                                          "(NMT, SYNC, TIME, Heartbeat, SDO): их длина задана CiA 301."))
+        None, ge=0, le=J1939_TP_MAX, description=N_(
+            "Длина данных, байт. Обязательна, кроме служебных кадров CANopen (NMT, SYNC, TIME, Heartbeat, "
+            "SDO): их длина задана CiA 301. На шине J1939 до 1785 байт — транспортным протоколом."))
     direction: Direction | None = None
     cycle_ms: int | None = Field(None, gt=0, description=N_("Период циклической передачи, мс."))
     trigger: Trigger | None = Field(

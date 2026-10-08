@@ -206,6 +206,8 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
       when: (_n, c) => !["bitfield", "bytes"].includes(c.encoding ?? "") },
     { key: "invalid", label: N_("Недостоверное (raw)"), type: "intlist", hint: N_("напр. 0xFF или 0xFE, 0xFF"),
       when: encodingIn("raw", "scaled", "enum") },
+    { key: "spn", label: "SPN", type: "int", hint: N_("номер параметра J1939"),
+      when: (_n, c) => c.protocol === "j1939" },
     { key: "value_format", label: N_("Значения в документах"), type: "select", options: [["", N_("десятичные")], ["hex", "hex"]],
       when: (n) => n?.values != null },
     { key: "comment", label: N_("Примечание"), type: "loc", wide: true },

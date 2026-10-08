@@ -32,6 +32,9 @@ ATTRIBUTE_DEFINITION_SENDTYPE = DbcAttributeDefinition(
 # Тип шины: по "CAN FD" инструменты (и cantools) понимают, что кадры нужно помечать
 # VFrameFormat = StandardCAN_FD / ExtendedCAN_FD.
 ATTRIBUTE_DEFINITION_BUSTYPE = DbcAttributeDefinition(name="BusType", default_value="", type_name="STRING")
+# SPN сигнала J1939 — атрибут сигнала, как в J1939-шаблонах Vector
+ATTRIBUTE_DEFINITION_SPN = DbcAttributeDefinition(name="SPN", default_value=0, kind="SG_", type_name="INT",
+                                                  minimum=0, maximum=0x7FFFF)
 
 
 def _comment(*parts: str) -> str | None:
@@ -59,6 +62,8 @@ def _signal(name: str, s: Signal, start: int, length: int, lang: str, comment: s
         is_multiplexer=s.multiplexer and mux_signal is not None,
         multiplexer_ids=s.mux_values,
         multiplexer_signal=mux_signal if s.mux is not None else None,
+        dbc_specifics=DbcSpecifics(attributes=OrderedDict(SPN=DbcAttribute(
+            value=s.spn, definition=ATTRIBUTE_DEFINITION_SPN))) if s.spn is not None else None,
     )
 
 
@@ -81,7 +86,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
                         continue
                     choices = {v: ev.name for v, ev in enum_entries(fl.values)} or None
                     flag_sig = s.model_copy(update={"factor": 1.0, "offset": 0.0, "min": None,
-                                                    "max": None, "unit": None, "signed": False})
+                                                    "max": None, "unit": None, "signed": False, "spn": None})
                     flag_sig._path = s._path
                     sigs.append(_signal(
                         fl.name, flag_sig, occ[fl.bit], fl.bit_length, lang,
@@ -130,6 +135,8 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         attributes["BusType"] = DbcAttribute(value="CAN FD", definition=ATTRIBUTE_DEFINITION_BUSTYPE)
     if any(f.mode is not None for f in bus.all_frames() if f.can_id is not None):
         definitions["GenMsgSendType"] = ATTRIBUTE_DEFINITION_SENDTYPE
+    if any(s.spn is not None for f in bus.all_frames() if f.can_id is not None for s in f.layout):
+        definitions["SPN"] = ATTRIBUTE_DEFINITION_SPN
     return cantools.database.Database(
         messages=messages, nodes=nodes, version=cmap.document.version,
         buses=[DbcBus(name=bus.name, baudrate=bus.bitrate)],

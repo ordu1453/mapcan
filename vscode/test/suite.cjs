@@ -404,14 +404,14 @@ const tests = {
     const editor = await vscode.window.showTextDocument(ctx.doc);
     await editor.edit((e) => e.replace(
       new vscode.Range(positionOf(ctx.doc, "byte: 4", 0), positionOf(ctx.doc, "byte: 4", 7)),
-      "byte: 4\n                bit_length: 99"));
+      "byte: 4\n                bit_length: 99999"));
     const diags = await until("diagnostics", () => {
       const d = vscode.languages.getDiagnostics(ctx.doc.uri);
       return d.length ? d : undefined;
     });
     assert.equal(diags[0].source, "mapcan");
     assert.equal(diags[0].code, "schema");
-    assert.equal(ctx.doc.getText(diags[0].range), "99");
+    assert.equal(ctx.doc.getText(diags[0].range), "99999");
     const result = await vscode.commands.executeCommand("mapcan.lsp.export",
       { uri: ctx.doc.uri.toString(), formats: ["md"], outDir: path.join(workspace, "build2") });
     assert.match(result.error, /errors/);

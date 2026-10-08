@@ -181,6 +181,7 @@
   "Перечитать файл с диска? Несохранённые изменения будут потеряны.": "Reload the file from disk? Unsaved changes will be lost.",
   "Период, мс": "Period, ms",
   "Начальное значение": "Initial value",
+  "номер параметра J1939": "J1939 parameter number",
   "Таблица «{name}» из value_tables — правится там.": "Table \"{name}\" from value_tables; edit it there.",
   "Повторить (Ctrl+Y)": "Redo (Ctrl+Y)",
   "Подзаголовок": "Subtitle",

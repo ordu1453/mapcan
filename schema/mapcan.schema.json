@@ -633,7 +633,7 @@
         "dlc": {
           "anyOf": [
             {
-              "maximum": 64,
+              "maximum": 1785,
               "minimum": 0,
               "type": "integer"
             },
@@ -642,7 +642,7 @@
             }
           ],
           "default": null,
-          "description": "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301.",
+          "description": "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol.",
           "title": "Dlc"
         },
         "direction": {
@@ -1191,7 +1191,7 @@
         "bit_length": {
           "anyOf": [
             {
-              "maximum": 64,
+              "maximum": 14280,
               "minimum": 1,
               "type": "integer"
             },
@@ -1234,7 +1234,7 @@
         "byte_length": {
           "anyOf": [
             {
-              "maximum": 8,
+              "maximum": 1785,
               "minimum": 1,
               "type": "integer"
             },
@@ -1449,6 +1449,21 @@
           "default": null,
           "description": "A note or caveat: \"Note:\" in documents, after the description in DBC.",
           "title": "Comment"
+        },
+        "spn": {
+          "anyOf": [
+            {
+              "maximum": 524287,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939: suspect parameter number (SPN) per SAE J1939-71.",
+          "title": "Spn"
         }
       },
       "required": [

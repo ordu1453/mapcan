@@ -103,7 +103,9 @@ RULES = {
     "j1939-address": ("error", N_("Адрес J1939 вне 0..253 или повторяется на шине")),
     "j1939-pdu1-pgn": ("warning", N_("PDU1-PGN (PF < 240) с ненулевым младшим байтом")),
     "j1939-destination": ("warning", N_("destination задан для PDU2-PGN (PF ≥ 240) и не используется")),
-    "j1939-field-protocol": ("warning", N_("pgn/priority/destination/address на шине не J1939")),
+    "j1939-field-protocol": ("warning", N_("pgn/priority/destination/address/spn на шине не J1939")),
+    "j1939-spn-duplicate": ("warning", N_("Один и тот же SPN у нескольких сигналов шины")),
+    "j1939-tp": ("info", N_("PGN длиннее 8 байт передаётся транспортным протоколом J1939-21")),
     "unknown-receiver": ("error", N_("Получатель кадра не описан на шине")),
     "unknown-sender": ("error", N_("Отправитель кадра не описан на шине")),
     "sender-mismatch": ("warning", N_("sender противоречит направлению кадра или совпадает с получателем")),
@@ -113,6 +115,7 @@ RULES = {
     "duplicate-short": ("warning", N_("Повтор короткого обозначения устройства на шине")),
     "history-version": ("warning", N_("Версия документа не совпадает с последней записью истории")),
     "float-length": ("error", N_("Сигнал float должен быть 32 или 64 бита")),
+    "signal-length": ("error", N_("Сигнал длиннее 64 бит, но не выровненный массив байт")),
     "initial-range": ("warning", N_("Значение по умолчанию вне диапазона сигнала")),
     "invalid-overflow": ("error", N_("Значение invalid не помещается в разрядность сигнала")),
     "logo-missing": ("warning", N_("Файл логотипа не найден")),
@@ -287,7 +290,42 @@ def _check_bus(ctx: _Ctx, bus) -> None:
             ids[frame.can_id] = frame
         if frame.can_id > 0x7FF and not frame.extended:
             ctx.emit("can-id-range", _("CAN ID {can_id:#x} > 0x7FF", can_id=frame.can_id), p + ("id",))
+    _check_spn(ctx, bus)
     _check_bus_load(ctx, bus)
+
+
+def _check_spn(ctx: _Ctx, bus) -> None:
+    seen: dict[int, str] = {}
+    for frame in bus.all_frames():
+        for s in frame.layout:
+            if s.spn is None:
+                continue
+            if bus.protocol != "j1939":
+                ctx.emit("j1939-field-protocol", _("spn у сигнала на шине {protocol}", protocol=bus.protocol),
+                         s._path + ("spn",))
+            elif s.spn in seen:
+                ctx.emit("j1939-spn-duplicate", _("SPN {spn} уже у сигнала {other}", spn=s.spn, other=seen[s.spn]),
+                         s._path + ("spn",))
+            else:
+                seen[s.spn] = f"{frame.name}.{s.name}"
+
+
+def _is_tp(frame: Frame) -> bool:
+    """PGN, который передаётся транспортным протоколом J1939-21: длиннее одного кадра шины."""
+    return frame.bus.protocol == "j1939" and frame.dlc > (64 if frame.bus.fd else 8)
+
+
+def _tp_mode(frame: Frame) -> str:
+    """BAM — всем (PDU2 или PDU1 с адресом 0xFF), RTS/CTS — одному получателю."""
+    dest = frame.destination if frame.destination is not None else 0xFF
+    return "RTS/CTS" if frame.pgn is not None and j1939_is_pdu1(frame.pgn) and dest != 0xFF else "BAM"
+
+
+def _tp_bits(frame: Frame) -> int:
+    """Биты на шине для PGN по транспортному протоколу: пакеты TP.DT по 7 байт и служебные TP.CM."""
+    packets = -(-frame.dlc // 7)
+    control = 1 if _tp_mode(frame) == "BAM" else 3      # BAM; RTS, CTS, EndOfMsgAck
+    return (packets + control) * _frame_bits(8, True)
 
 
 def _frame_bits(dlc: int, extended: bool) -> int:
@@ -302,7 +340,8 @@ def _check_bus_load(ctx: _Ctx, bus) -> None:
         return
     cyclic = [f for f in bus.all_frames()
               if f.can_id is not None and f.cycle_ms and f.trigger is None]
-    bits_per_s = sum(_frame_bits(f.dlc, f.extended) * 1000 / f.cycle_ms for f in cyclic)
+    bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.dlc, f.extended)) * 1000 / f.cycle_ms
+                     for f in cyclic)
     load = 100 * bits_per_s / bus.bitrate
     if load > BUS_LOAD_LIMIT:
         ctx.emit("bus-load", _("расчётная загрузка шины {bus!r} — {load:.0f} % (циклических кадров: {count}, "
@@ -327,7 +366,10 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
 
     if frame._dlc_missing:
         ctx.emit("dlc-missing", _("кадр {name!r}: не задан dlc (длина данных, байт)", name=frame.name), p)
-    if bus.fd:
+    if _is_tp(frame):
+        ctx.emit("j1939-tp", _("PGN {dlc} байт: передаётся транспортным протоколом J1939-21 ({mode})",
+                               dlc=frame.dlc, mode=_tp_mode(frame)), p + ("dlc",))
+    elif bus.fd:
         if frame.dlc not in FD_DLC:
             ctx.emit("dlc-range", _("DLC {dlc} недопустим для CAN FD", dlc=frame.dlc), p + ("dlc",))
     elif frame.dlc > 8:
@@ -507,6 +549,11 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                              _("{key} = {value:g} вне представимого диапазона {lo:g}..{hi:g} {unit}",
                                key=k, value=val, lo=phys[0], hi=phys[1], unit=s.unit or "").rstrip(), sp + (k,))
 
+        if s.bit_length > 64 and not (s.encoding == "bytes" and s.start_bit % 8 == 0 and s.bit_length % 8 == 0
+                                      and s.byte_order == "little_endian"):
+            ctx.emit("signal-length", _("сигнал {name!r} длиной {bits} бит: длиннее 64 бит может быть только "
+                                        "массив байт (encoding: bytes, little-endian, с границы байта)",
+                                        name=s.name, bits=s.bit_length), sp + ("bit_length",))
         if s.encoding == "float" and s.bit_length not in (32, 64):
             ctx.emit("float-length", _("сигнал {name!r}: float — 32 или 64 бита, задано {bits}",
                                        name=s.name, bits=s.bit_length), sp + ("bit_length",))

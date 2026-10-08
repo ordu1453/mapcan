@@ -296,8 +296,10 @@ class CGen:
         return out
 
     def default_defines(self, F: str, s: Signal) -> list[str]:
-        """#define для значения по умолчанию и «нет данных»."""
+        """#define для значения по умолчанию, «нет данных» и SPN (J1939)."""
         out = []
+        if s.spn is not None:
+            out.append(f"#define {self.P(F, s.name, 'SPN')} {s.spn}u")
         init = s.initial_raw
         if init is not None and not is_byte_array(s):
             if s.encoding == "float":

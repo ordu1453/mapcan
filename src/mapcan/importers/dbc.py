@@ -63,7 +63,9 @@ def _num(x: float):
 def _signal(s, warnings: list[str], where: str) -> CommentedMap:
     choices = dict(s.choices or {})
     scaled = s.scale != 1 or s.offset != 0
-    if s.is_float:
+    if s.length > 64:
+        encoding = "bytes"            # длиннее 64 бит — только массив байт (DBC такого вида не знает)
+    elif s.is_float:
         encoding = "float"
     elif choices:
         encoding = "enum"
@@ -110,6 +112,9 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
         # initial в карте — физическое значение (у сигнала с таблицей cantools отдаёт имя значения)
         raw = float(s.raw_initial)
         out["initial"] = _num(raw if encoding in ("enum", "flag", "raw") else raw * s.scale + s.offset)
+    spn = _attr(s, "SPN")
+    if spn:
+        out["spn"] = int(spn)
     if s.is_multiplexer:
         out["multiplexer"] = True
     if s.multiplexer_ids:

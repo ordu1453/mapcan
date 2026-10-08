@@ -122,7 +122,7 @@ lint:
 | `receivers` | Names of the bus devices that receive the frame |
 | `sender` | Name of the bus device that transmits the frame when it is not the owner: an RX frame (a node's PDO RX sent by the master) or a bus frame (NMT, SYNC). If omitted, the sender is outside the map |
 | `extended` | 29-bit ID |
-| `dlc` | Data length, bytes. Required, except for CANopen service frames, which take the CiA 301 length of the type when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8 |
+| `dlc` | Data length, bytes. Required, except for CANopen service frames, which take the CiA 301 length of the type when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8. On a J1939 bus up to 1785 bytes (see [Transport protocol](#transport-protocol)) |
 | `direction` | `tx` / `rx` relative to the owning device. Defaults from the type: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen type whose `sender` is another device → `rx`; otherwise `tx` |
 | `cycle_ms` | Cyclic transmission period, ms |
 | `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
@@ -166,6 +166,7 @@ CANopen ID computation:
 | `mux` | Selector value (or list of values) for which the signal is present |
 | `initial` | Default value in physical units (`…_INITIAL_RAW` in C, `GenSigStartValue` in DBC) |
 | `invalid` | Raw value (or list) meaning "not available / invalid", e.g. `0xFF` |
+| `spn` | J1939 suspect parameter number (SAE J1939-71), 0..524287. Shown in documents, written to DBC as the `SPN` signal attribute and to code as `<FRAME>_<SIGNAL>_SPN` |
 | `comment` | A note or caveat (see [Text fields](#text-fields)) |
 
 #### Encodings
@@ -273,6 +274,26 @@ buses:
             destination: 0x00    # → ID 0x18EA00F9
             dlc: 3
 ```
+
+#### Transport protocol
+
+A PGN longer than one frame (8 bytes, or 64 on CAN FD) is sent with the J1939-21 transport
+protocol: give its full length in `dlc`, up to 1785 bytes. mapcan reports it as a note
+(`j1939-tp`): BAM when it goes to everyone (a PDU2 PGN, or `destination` 0xFF), RTS/CTS when it
+goes to one device. The bus load counts its TP.DT packets and TP.CM frames. Generated code packs
+and unpacks the whole payload; splitting it into packets is the job of the J1939 stack.
+
+```yaml
+- name: soft
+  pgn: 0xFEDA            # Software identification
+  dlc: 20                # 3 TP.DT packets + BAM
+  trigger: on_request
+  signals:
+    - {name: software_id, encoding: bytes, spn: 234, byte: 0, byte_length: 20}
+```
+
+A signal longer than 64 bits can only be a byte array (`encoding: bytes`, little-endian, starting
+at a byte boundary).
 
 ### SDO (`sdo[]`)
 
@@ -449,7 +470,9 @@ turned off with `--disable CODE` or `lint.disable`.
 | `j1939-address` | error | J1939 address outside 0..253 or repeated on the bus |
 | `j1939-pdu1-pgn` | warning | PDU1 PGN (PF < 240) with a non-zero low byte |
 | `j1939-destination` | warning | destination set for a PDU2 PGN (PF ≥ 240) and unused |
-| `j1939-field-protocol` | warning | pgn/priority/destination/address on a non-J1939 bus |
+| `j1939-field-protocol` | warning | pgn/priority/destination/address/spn on a non-J1939 bus |
+| `j1939-spn-duplicate` | warning | The same SPN on several signals of the bus |
+| `j1939-tp` | info | A PGN longer than 8 bytes is sent with the J1939-21 transport protocol |
 
 ### Sender and receivers
 
@@ -475,6 +498,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `signal-out-of-frame` | error | Signal extends beyond the DLC |
 | `bit-overlap` | error | Overlapping signals (multiplexing-aware) |
 | `float-length` | error | A float signal must be 32 or 64 bits |
+| `signal-length` | error | A signal longer than 64 bits that is not an aligned byte array |
 
 ### Values and conversion
 

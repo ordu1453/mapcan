@@ -38,12 +38,12 @@ def test_diagnostics_have_ranges():
           type: pdo_tx1
           dlc: 8
           signals:
-            - {name: a, encoding: raw, byte: 0, bit_length: 99}
+            - {name: a, encoding: raw, byte: 0, bit_length: 99999}
     """)
     a = A.analyze(text, "t.yaml")
     d = next(d for d in a.diagnostics if d.code == "schema")
     start, end = A.diagnostic_range(a, d)
-    assert a.lines[start[0]][start[1]:end[1]] == "99"
+    assert a.lines[start[0]][start[1]:end[1]] == "99999"
 
 
 def test_yaml_error_is_reported():

@@ -168,6 +168,8 @@
           when: (c) => !["bitfield", "bytes"].includes(signalEncoding(c)) },
         { key: "invalid", label: "Invalid (raw)", type: "intlist", half: true, mono: true, placeholder: "0xFF",
           tip: "Raw value(s) meaning \"no data\": 0xFF or 0xFE, 0xFF", when: (c) => ["raw", "scaled", "enum"].includes(signalEncoding(c)) },
+        { key: "spn", label: "SPN", type: "int", half: true, tip: "J1939 suspect parameter number",
+          when: (c) => c.protocol === "j1939" || c.values.spn != null },
         { key: "value_format", label: "Values in documents", type: "select", half: true,
           options: () => [["", "Decimal"], ["hex", "Hex"]], when: (c) => signalEncoding(c) === "enum" },
       ] },

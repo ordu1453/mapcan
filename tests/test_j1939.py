@@ -168,3 +168,96 @@ def test_document_float_encoding():
     v = build_view(m)
     fr = v["buses"][1]["devices"][0]["frames"][0]
     assert fr["signals"][0]["encoding"][0] == "float64"
+
+
+def _sig(extra: str, dlc: int = 8, frame_extra: str = "", protocol: str = "j1939") -> str:
+    return _bus(f"""
+        - name: f
+          pgn: 0xFF10
+          dlc: {dlc}{frame_extra}
+          signals:
+            - {{name: a, encoding: raw, description: x, byte: 0, byte_length: 1, {extra}}}
+    """, protocol=protocol)
+
+
+def test_spn_rules():
+    assert not {"j1939-field-protocol", "j1939-spn-duplicate"} & codes(_sig("spn: 190"))
+    assert "j1939-field-protocol" in codes(_sig("spn: 190", protocol="can").replace("pgn: 0xFF10", "id: 0x100"))
+    two = _bus("""
+        - name: f
+          pgn: 0xFF10
+          dlc: 2
+          signals:
+            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1, spn: 190}
+            - {name: b, encoding: raw, description: x, byte: 1, byte_length: 1, spn: 190}
+    """)
+    assert "j1939-spn-duplicate" in codes(two)
+    res, _ = run(_sig("spn: 600000"))     # больше 19 бит
+    assert res.map is None
+
+
+def test_spn_in_outputs(tmp_path):
+    m = load(J1939).map
+    eec1 = next(f for f in m.buses[0].all_frames() if f.name == "eec1")
+    speed = next(s for s in eec1.signals if s.name == "engine_speed")
+    assert speed.spn == 190
+    # Документы: SPN первой строкой кодирования
+    view = build_view(m)
+    sig = next(s for d in view["buses"][0]["devices"] for f in d["frames"] if f["name"] == "eec1"
+               for s in f["signals"] if s["name"] == "engine_speed")
+    assert sig["encoding"][0] == "SPN 190" and sig["spn"] == 190
+    # DBC: атрибут SPN сигнала
+    db = cantools.database.load_string(bus_database(m, m.buses[0]).as_dbc_string(), database_format="dbc")
+    attr = db.get_message_by_name("eec1").get_signal_by_name("engine_speed").dbc.attributes["SPN"]
+    assert attr.value == 190
+    # Код: константы
+    from mapcan.codegen.c import generate_c
+    from mapcan.codegen.py import generate_py
+
+    header = next(p for p in generate_c(m, tmp_path / "c") if p.suffix == ".h").read_text(encoding="utf-8")
+    assert "#define EEC1_ENGINE_SPEED_SPN 190u" in header
+    module = generate_py(m, tmp_path / "py")[0].read_text(encoding="utf-8")
+    assert "EEC1_ENGINE_SPEED_SPN = 190" in module
+
+
+def test_spn_survives_dbc_import(tmp_path):
+    from mapcan.export.dbc import export_dbc
+    from mapcan.importers.dbc import import_dbc
+    from mapcan.loader import loads
+
+    (dbc,) = export_dbc(load(J1939).map, tmp_path)
+    m = loads(import_dbc(dbc)[0], "x.yaml").map
+    spns = {s.name: s.spn for f in m.buses[0].all_frames() for s in f.signals}
+    assert spns["engine_speed"] == 190 and spns["software_id"] == 234
+
+
+def test_transport_protocol():
+    c = codes(_sig("spn: 1", dlc=20))
+    assert "j1939-tp" in c and "dlc-range" not in c
+    assert "dlc-range" in codes(_sig("spn: 1", dlc=20, protocol="can").replace("pgn: 0xFF10", "id: 0x100")
+                                .replace(", spn: 1", ""))
+    res, rep = run(_bus("""
+        - name: f
+          pgn: 0xEF00
+          destination: 0x17
+          dlc: 30
+    """))
+    tp = next(d for d in rep.diagnostics if d.code == "j1939-tp")
+    assert "RTS/CTS" in tp.message
+    res, _ = run(_sig("spn: 1", dlc=1786))   # больше 255 пакетов
+    assert res.map is None
+
+
+def test_transport_protocol_bus_load():
+    from mapcan.validate import _frame_bits, _tp_bits
+
+    m = load(J1939).map
+    soft = next(f for f in m.buses[0].all_frames() if f.name == "soft")
+    # 20 байт: 3 пакета TP.DT и TP.CM BAM — 4 кадра по 8 байт
+    assert _tp_bits(soft) == 4 * _frame_bits(8, True)
+
+
+def test_long_signals_only_byte_arrays():
+    raw = _sig("spn: 1", dlc=20).replace("encoding: raw", "encoding: raw").replace("byte_length: 1", "byte_length: 12")
+    assert "signal-length" in codes(raw)
+    assert "signal-length" not in codes(raw.replace("encoding: raw", "encoding: bytes"))

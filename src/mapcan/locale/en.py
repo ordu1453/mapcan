@@ -179,7 +179,7 @@ EN: dict[str, str] = {
     "PDU1-PGN (PF < 240) с ненулевым младшим байтом": "PDU1 PGN (PF < 240) with a non-zero low byte",
     "destination задан для PDU2-PGN (PF ≥ 240) и не используется":
         "destination set for a PDU2 PGN (PF ≥ 240) and unused",
-    "pgn/priority/destination/address на шине не J1939": "pgn/priority/destination/address on a non-J1939 bus",
+    "pgn/priority/destination/address/spn на шине не J1939": "pgn/priority/destination/address/spn on a non-J1939 bus",
     "Получатель кадра не описан на шине": "Frame receiver is not defined on the bus",
     "Отправитель кадра не описан на шине": "Frame sender is not defined on the bus",
     "sender противоречит направлению кадра или совпадает с получателем":
@@ -415,6 +415,23 @@ EN: dict[str, str] = {
     "Язык документов по умолчанию: код ISO 639-1 (ru, en, de…).": "Default document language: ISO 639-1 code (ru, en, de…).",
     "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)": "a translation key must be an ISO 639-1 language code (de, fr…)",
     "Не задан DLC кадра": "Frame DLC is not set",
+    "Один и тот же SPN у нескольких сигналов шины": "The same SPN on several signals of the bus",
+    "Сигнал длиннее 64 бит, но не выровненный массив байт": "Signal longer than 64 bits that is not an aligned byte array",
+    "сигнал {name!r} длиной {bits} бит: длиннее 64 бит может быть только "
+    "массив байт (encoding: bytes, little-endian, с границы байта)":
+        "signal {name!r} is {bits} bits long: only a byte array (encoding: bytes, little-endian, "
+        "starting at a byte boundary) can be longer than 64 bits",
+    "PGN длиннее 8 байт передаётся транспортным протоколом J1939-21":
+        "A PGN longer than 8 bytes is sent with the J1939-21 transport protocol",
+    "PGN {dlc} байт: передаётся транспортным протоколом J1939-21 ({mode})":
+        "{dlc}-byte PGN: sent with the J1939-21 transport protocol ({mode})",
+    "spn у сигнала на шине {protocol}": "spn on a signal of a {protocol} bus",
+    "SPN {spn} уже у сигнала {other}": "SPN {spn} is already used by signal {other}",
+    "J1939: номер параметра (SPN) по SAE J1939-71.": "J1939: suspect parameter number (SPN) per SAE J1939-71.",
+    "Длина данных, байт. Обязательна, кроме служебных кадров CANopen (NMT, SYNC, TIME, Heartbeat, "
+    "SDO): их длина задана CiA 301. На шине J1939 до 1785 байт — транспортным протоколом.":
+        "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, "
+        "SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol.",
     "Импорт карты из форматов других инструментов.": "Import a map from other tools' formats.",
     "DBC → YAML-карта: узлы, кадры, сигналы, таблицы значений, режимы передачи.":
         "DBC → YAML map: nodes, frames, signals, value tables, transmission modes.",
@@ -448,10 +465,6 @@ EN: dict[str, str] = {
         "are added to the map.",
     "Именованные таблицы значений: в сигнале — values: <имя>.": "Named value tables: in a signal, values: <name>.",
     "кадр {name!r}: не задан dlc (длина данных, байт)": "frame {name!r}: dlc (data length, bytes) is not set",
-    "Длина данных, байт. Обязательна, кроме служебных кадров CANopen "
-    "(NMT, SYNC, TIME, Heartbeat, SDO): их длина задана CiA 301.":
-        "Data length, bytes. Required except for CANopen service frames "
-        "(NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301.",
     "Название для людей, напр. «Состояния»: подпись в дереве карты и заголовок в документах.":
         "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
     "Что это и зачем: выводится в документах, комментариях сгенерированного кода и DBC.":

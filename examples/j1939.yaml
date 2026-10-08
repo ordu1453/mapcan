@@ -35,6 +35,7 @@ buses:
               - name: torque_mode
                 encoding: enum
                 description: Engine torque mode
+                spn: 899
                 start_bit: 0
                 bit_length: 4
                 values:
@@ -45,6 +46,7 @@ buses:
               - name: demand_torque
                 encoding: scaled
                 description: Driver's demand torque
+                spn: 512
                 byte: 1
                 byte_length: 1
                 unit: "%"
@@ -55,6 +57,7 @@ buses:
               - name: actual_torque
                 encoding: scaled
                 description: Actual engine torque
+                spn: 513
                 byte: 2
                 byte_length: 1
                 unit: "%"
@@ -65,6 +68,7 @@ buses:
               - name: engine_speed
                 encoding: scaled
                 description: Engine speed
+                spn: 190
                 byte: 3
                 byte_length: 2
                 factor: 0.125
@@ -76,6 +80,7 @@ buses:
               - name: controlling_address
                 encoding: raw
                 description: Address of the device controlling the engine
+                spn: 1483
                 byte: 5
                 byte_length: 1
                 value_format: hex
@@ -91,6 +96,7 @@ buses:
               - name: coolant_temp
                 encoding: scaled
                 description: Coolant temperature
+                spn: 110
                 byte: 0
                 byte_length: 1
                 offset: -40
@@ -101,6 +107,7 @@ buses:
               - name: fuel_temp
                 encoding: scaled
                 description: Fuel temperature
+                spn: 174
                 byte: 1
                 byte_length: 1
                 offset: -40
@@ -109,12 +116,28 @@ buses:
               - name: oil_temp
                 encoding: scaled
                 description: Oil temperature
+                spn: 175
                 byte: 2
                 byte_length: 2
                 factor: 0.03125
                 offset: -273
                 unit: °C
                 invalid: 0xFFFF
+
+          - name: soft
+            title: SOFT
+            description: Software identification (longer than 8 bytes, sent with the transport protocol)
+            pgn: 0xFEDA
+            dlc: 20
+            trigger: on_request
+            receivers: [diag]
+            signals:
+              - name: software_id
+                encoding: bytes
+                description: Software identification fields, separated by '*'
+                spn: 234
+                byte: 0
+                byte_length: 20
 
       - name: cluster
         short: IC
@@ -132,6 +155,7 @@ buses:
               - name: fuel_level
                 encoding: scaled
                 description: Fuel level
+                spn: 96
                 byte: 1
                 byte_length: 1
                 factor: 0.4
@@ -157,6 +181,7 @@ buses:
               - name: requested_pgn
                 encoding: enum
                 description: Requested PGN
+                spn: 2540
                 start_bit: 0
                 bit_length: 24
                 value_format: hex
