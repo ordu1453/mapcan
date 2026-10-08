@@ -335,7 +335,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     }
     const found = this.nodeAt(editor.selection.active);
     if (found && this.view.selection[0]?.id !== found.id) {
-      await this.view.reveal(found, { select: true, focus: false, expand: true });
+      await revealInView(this.view, found);
     }
   }
 
@@ -351,6 +351,22 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     this.refreshed.dispose();
     this.decorationsChanged.dispose();
     this.subscriptions.forEach((d) => d.dispose());
+  }
+}
+
+/**
+ * Select a node in the tree view. Right after a refresh VS Code may not have fetched the new
+ * children yet and reveal() fails with "Cannot resolve tree item": retry a few times, then give up
+ * quietly (selecting the node is a convenience, not part of the edit).
+ */
+export async function revealInView(view: vscode.TreeView<MapNode>, node: MapNode): Promise<void> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      await view.reveal(node, { select: true, focus: false, expand: true });
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
   }
 }
 

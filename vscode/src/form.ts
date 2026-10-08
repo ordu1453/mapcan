@@ -9,7 +9,7 @@
 
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
-import { KIND_TITLE, Kind, MapNode, MapTree } from "./tree";
+import { KIND_TITLE, Kind, MapNode, MapTree, revealInView } from "./tree";
 import { webviewHtml } from "./webview";
 
 type Path = (string | number)[];
@@ -235,7 +235,7 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
     this.path = path;
     await this.refresh();
     const node = this.tree.nodeByPath(path);
-    if (node && this.treeView.visible) await this.treeView.reveal(node, { select: true, focus: false, expand: true });
+    if (node && this.treeView.visible) await revealInView(this.treeView, node);
   }
 
   private async discard(): Promise<void> {
