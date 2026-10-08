@@ -146,7 +146,10 @@ class PyGen:
         out += ["", "", "@dataclass", f"class {C}:"]
         doc = self.t(f.description) or self.t(f.title)
         out.append(f'    """0x{f.can_id:03X} {f.name}: {doc}"""' if doc else f'    """0x{f.can_id:03X} {f.name}"""')
-        out += ["", f"    ID = 0x{f.can_id:03X}", f"    DLC = {f.dlc}", ""]
+        out += ["", f"    ID = 0x{f.can_id:03X}", f"    DLC = {f.dlc}",
+                # How to send the frame, named as the arguments of python-can's can.Message
+                f"    IS_EXTENDED = {f.extended}", f"    IS_FD = {f.bus.fd}",
+                f"    BITRATE_SWITCH = {bool(f.bit_rate_switch)}", ""]
         for s in f.layout:
             init = s.initial_raw
             if is_byte_array(s):

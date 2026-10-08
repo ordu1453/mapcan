@@ -202,6 +202,10 @@ class CGen:
         ]
         if f.extended:
             out.append(f"#define {self.P(F, 'IS_EXTENDED')} 1")
+        if f.bit_rate_switch is not None:
+            # How the CAN driver sends the frame: CAN FD, with or without the bit rate switch
+            out.append(f"#define {self.P(F, 'IS_FD')} 1")
+            out.append(f"#define {self.P(F, 'BRS')} {int(f.bit_rate_switch)}")
         if f.mode == "cyclic":
             out.append(f"#define {self.P(F, 'CYCLE_MS')} {f.cycle_ms}u")
         out.append("")

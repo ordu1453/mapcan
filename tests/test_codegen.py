@@ -428,3 +428,25 @@ def test_dbc_warns_about_signed_codes(tmp_path):
     warnings = []
     export_dbc(loads(SIGNED_CODES_MAP, "t.yaml").map, tmp_path, warn=warnings.append)
     assert len(warnings) == 1 and "f.o8, f.s8, f.o12, f.s16" in warnings[0]
+
+
+def test_fd_and_brs_flags(tmp_path):
+    from mapcan.loader import loads
+
+    from .test_import import _fd_map
+
+    cmap = loads(_fd_map(), "fd.yaml").map
+    header = next(p for p in generate_c(cmap, tmp_path / "c") if p.suffix == ".h").read_text(encoding="utf-8")
+    assert "#define FAST_IS_FD 1\n#define FAST_BRS 1\n" in header
+    assert "#define SLOW_IS_FD 1\n#define SLOW_BRS 0\n" in header
+    mod = _import(generate_py(cmap, tmp_path / "py")[0])
+    assert (mod.Fast.IS_EXTENDED, mod.Fast.IS_FD, mod.Fast.BITRATE_SWITCH) == (False, True, True)
+    assert (mod.Slow.IS_FD, mod.Slow.BITRATE_SWITCH) == (True, False)
+
+
+def test_classic_can_has_no_fd_flags(ref_map, tmp_path):
+    header = next(p for p in generate_c(ref_map, tmp_path / "c") if p.suffix == ".h").read_text(encoding="utf-8")
+    assert "_IS_FD" not in header and "_BRS" not in header
+    mod = _import(generate_py(ref_map, tmp_path / "py")[0])
+    frame = next(v for v in vars(mod).values() if isinstance(v, type) and hasattr(v, "BITRATE_SWITCH"))
+    assert (frame.IS_FD, frame.BITRATE_SWITCH) == (False, False)

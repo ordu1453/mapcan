@@ -184,6 +184,16 @@ bms_status_t st;
 if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { ... }
 ```
 
+Next to `<FRAME>_ID` and `<FRAME>_DLC`, the header tells the CAN driver how to send the frame:
+`<FRAME>_IS_EXTENDED` for a 29-bit ID, and on a CAN FD bus `<FRAME>_IS_FD` and `<FRAME>_BRS`
+(bit rate switch, `0` or `1`). The classes of the Python module carry the same as `IS_EXTENDED`,
+`IS_FD` and `BITRATE_SWITCH`, named after the arguments of python-can's `can.Message`:
+
+```python
+msg = can.Message(arbitration_id=VcuCommand.ID, data=cmd.pack(), is_extended_id=VcuCommand.IS_EXTENDED,
+                  is_fd=VcuCommand.IS_FD, bitrate_switch=VcuCommand.BITRATE_SWITCH)
+```
+
 ### Validation
 
 Export and generation validate the map first and stop on errors (`--force` generates anyway).

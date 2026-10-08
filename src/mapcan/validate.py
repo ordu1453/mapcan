@@ -38,7 +38,7 @@ C_KEYWORDS = frozenset("""
 """.split())
 PY_KEYWORDS = frozenset(keyword.kwlist)
 # Члены сгенерированного класса кадра в Python-модуле.
-PY_FRAME_MEMBERS = frozenset({"ID", "DLC", "pack", "unpack"})
+PY_FRAME_MEMBERS = frozenset({"ID", "DLC", "IS_EXTENDED", "IS_FD", "BITRATE_SWITCH", "pack", "unpack"})
 # Стандартные скорости классического CAN, бит/с (33,3 и 83,3 кбит/с — GMLAN и низкоскоростные шины).
 STANDARD_BITRATES = frozenset({10_000, 20_000, 33_333, 50_000, 83_333, 100_000, 125_000, 250_000,
                                500_000, 800_000, 1_000_000})
