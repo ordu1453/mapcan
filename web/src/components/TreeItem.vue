@@ -16,7 +16,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ toggle: [key: string] }>();
 
-const DIR_TITLE: Record<string, string> = { tx: N_("TX — передаёт устройство"), rx: N_("RX — команда/приём устройством") };
+const DIR_TITLE: Record<string, string> = { tx: N_("TX — sent by the device"), rx: N_("RX — received by the device (command)") };
 
 const open = computed(() => props.query !== "" || props.expanded.has(props.node.key));
 const kids = computed(() =>
@@ -74,12 +74,12 @@ function click() {
     <div class="tree-row" :class="{ selected, 'on-path': onPath, match, link: node.from !== undefined, included: !!node.file }"
          :style="{ paddingLeft: depth * 14 + 6 + 'px' }"
          :data-key="node.from !== undefined ? node.key : pathKey(node.path)" @click="click"
-         :title="node.from !== undefined ? t('Принимает кадр от {sender}', { sender: node.from || t('вне карты') }) : undefined">
+         :title="node.from !== undefined ? t('Receives the frame from {sender}', { sender: node.from || t('outside the map') }) : undefined">
       <span class="twisty" :class="{ hidden: !node.children.length }" @click.stop="emit('toggle', node.key)">
         {{ open ? "▾" : "▸" }}
       </span>
       <TreeIcon :kind="node.kind" :dir="node.dir"
-                :hint="node.kind === 'frame' ? (node.dir ? t(DIR_TITLE[node.dir]) : t('широковещательный')) : undefined" />
+                :hint="node.kind === 'frame' ? (node.dir ? t(DIR_TITLE[node.dir]) : t('broadcast')) : undefined" />
       <InlineRename v-if="renaming" :path="node.path" :field="renaming" :value="partValue(renaming)"
                     @done="renaming = null" />
       <span v-else-if="node.kind === 'device' && nodeData?.short" class="tlabel">
@@ -90,7 +90,7 @@ function click() {
       <span v-if="node.sub" class="tsub mono">{{ node.sub }}</span>
       <span v-if="node.from !== undefined" class="tsub link-mark">↪</span>
       <span v-if="node.fileRoot" class="tsub include-mark"
-            :title="t('Из подключённого файла {file} — только для просмотра', { file: node.file })">🔗 {{ node.file }}</span>
+            :title="t('From the included file {file}, read-only', { file: node.file })">🔗 {{ node.file }}</span>
       <span v-if="own" class="dot" :class="own" :title="own" />
       <span v-else-if="nested" class="dot ring" :class="nested" />
     </div>

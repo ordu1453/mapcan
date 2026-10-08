@@ -184,8 +184,9 @@ npm run dev                               # http://localhost:5173 with hot reloa
 npm run build                             # type check + build into src/mapcan/web/static
 ```
 
-UI strings are written in Russian in the source and translated through
-[web/src/locale/en.json](../web/src/locale/en.json); `tests/test_i18n.py` fails if a string has no
-translation or a translation is no longer used.
+UI strings are written in English in the source (`t("…")`, `N_("…")`) and serve as keys of the
+Russian translation in [web/src/locale/ru.json](../web/src/locale/ru.json) (backend messages:
+[src/mapcan/locale/ru.py](../src/mapcan/locale/ru.py)); `tests/test_i18n.py` fails if a string has
+no translation or a translation is no longer used.
 After changing `web/src`, rebuild the bundle and commit `src/mapcan/web/static`: CI checks that
 the bundle matches the sources.

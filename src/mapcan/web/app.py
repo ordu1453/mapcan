@@ -178,11 +178,11 @@ class RequestGuard:
             headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
             host = headers.get("host", "")
             if self.allowed is not None and _hostname(host) not in self.allowed:
-                return await self._reject(scope, receive, send, _("недопустимый заголовок Host"))
+                return await self._reject(scope, receive, send, _("invalid Host header"))
             origin = headers.get("origin")
             unsafe = scope["type"] == "websocket" or scope["method"] not in self.SAFE_METHODS
             if unsafe and origin is not None and urlsplit(origin).netloc.lower() != host.lower():
-                return await self._reject(scope, receive, send, _("запрос с чужой страницы отклонён"))
+                return await self._reject(scope, receive, send, _("request from another site rejected"))
         await self.app(scope, receive, send)
 
     @staticmethod
@@ -207,7 +207,7 @@ class Workspace:
 
     def require(self) -> EditorSession:
         if self.session is None:
-            raise AppError(409, "no-session", _("карта не открыта"))
+            raise AppError(409, "no-session", _("no map is open"))
         return self.session
 
     def resolve(self, raw: str) -> Path:
@@ -217,7 +217,7 @@ class Workspace:
     def check_unsaved(self, force: bool) -> None:
         s = self.session
         if s is not None and not force and s.text != s.saved_text:
-            raise AppError(409, "unsaved", _("в «{name}» есть несохранённые изменения", name=s.path.name))
+            raise AppError(409, "unsaved", _("“{name}” has unsaved changes", name=s.path.name))
 
     def remember(self, path: Path) -> None:
         self.config.touch_recent(path)
@@ -254,11 +254,11 @@ class Workspace:
 def list_dir(d: Path) -> dict:
     """Содержимое папки для диалога файлов: подпапки и YAML-файлы."""
     if not d.is_dir():
-        raise AppError(404, "not-found", _("папка не найдена: {path}", path=d))
+        raise AppError(404, "not-found", _("folder not found: {path}", path=d))
     try:
         items = list(d.iterdir())
     except PermissionError as e:
-        raise AppError(403, "denied", _("нет доступа к папке: {path}", path=d)) from e
+        raise AppError(403, "denied", _("access denied to folder: {path}", path=d)) from e
     entries = []
     for it in items:
         if it.name.startswith(".") or it.name in ("node_modules", "__pycache__"):
@@ -332,9 +332,10 @@ def _run_tool(cmd: list[str], cwd: Path, timeout: float, *, input: str | None = 
                            capture_output=True, text=True, encoding="utf-8", timeout=timeout,
                            creationflags=_NO_WINDOW, env=env)
     except subprocess.TimeoutExpired as e:
-        raise HTTPException(504, _("{tool} не ответил за {seconds} с", tool=cmd[0], seconds=int(timeout))) from e
+        raise HTTPException(504, _(
+            "{tool} did not respond within {seconds} s", tool=cmd[0], seconds=int(timeout))) from e
     if r.returncode != 0:
-        raise HTTPException(400, (r.stderr.strip() or r.stdout.strip()) or _("ошибка {tool}", tool=cmd[0]))
+        raise HTTPException(400, (r.stderr.strip() or r.stdout.strip()) or _("{tool} error", tool=cmd[0]))
     return r.stdout
 
 
@@ -373,7 +374,7 @@ def _check_rev(rev: str) -> str:
     """Ревизия из запроса: не пустая и не начинается с «-» (иначе git примет её за ключ)."""
     rev = rev.strip()
     if not rev or rev.startswith("-") or any(c.isspace() for c in rev):
-        raise AppError(400, "git-rev", _("недопустимая ревизия: {rev}", rev=rev))
+        raise AppError(400, "git-rev", _("invalid revision: {rev}", rev=rev))
     return rev
 
 
@@ -446,14 +447,14 @@ def _remote_error(e: HTTPException, upstream: str | None) -> Exception:
     text = str(e.detail)
     if "Not possible to fast-forward" in text or "diverging" in text or "divergent" in text:
         return AppError(409, "git-diverged", _(
-            "ветка разошлась с {upstream}: и здесь, и на сервере есть свои коммиты. Объедините их в терминале "
-            "(git pull --rebase или git merge) и повторите.", upstream=upstream or "upstream"))
+            "the branch has diverged from {upstream}: both this copy and the server have their own commits. Combine "
+            "them in a terminal (git pull --rebase or git merge) and try again.", upstream=upstream or "upstream"))
     if "would be overwritten" in text or "commit your changes or stash them" in text:
         return AppError(409, "git-local-changes", _(
-            "получение изменений перезапишет незакоммиченные правки: сначала закоммитьте их"))
+            "pulling would overwrite uncommitted changes; commit them first"))
     if "[rejected]" in text or "non-fast-forward" in text or "fetch first" in text:
         return AppError(409, "git-push-rejected", _(
-            "на сервере есть коммиты, которых нет здесь: сначала получите изменения (pull)"))
+            "the server has commits that are not here; pull the changes first"))
     return e
 
 
@@ -538,7 +539,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     def writable() -> None:
         if wsp.readonly:
-            raise AppError(403, "readonly", _("редактор запущен в режиме только для чтения"))
+            raise AppError(403, "readonly", _("the editor is running in read-only mode"))
 
     # ---------------------------------------------------------------- метаданные, профиль
 
@@ -556,7 +557,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     @app.post("/api/instance/activate")
     async def activate(body: ActivateBody) -> dict:
         if not instance_token or body.token != instance_token:
-            raise AppError(403, "token", _("неверный токен экземпляра"))
+            raise AppError(403, "token", _("invalid instance token"))
         if on_activate is not None:
             await run_in_threadpool(on_activate)
         if body.path:
@@ -572,7 +573,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                         wsp.open(path)
                     except (OSError, UnicodeDecodeError) as e:
                         raise AppError(400, "read",
-                                       _("не удалось прочитать {name}: {error}", name=path.name, error=e)) from e
+                                       _("could not read {name}: {error}", name=path.name, error=e)) from e
                     await session_changed()
         return {"ok": True}
 
@@ -591,7 +592,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         try:
             wsp.config.save()
         except OSError as e:
-            raise AppError(500, "config", _("не удалось сохранить настройки: {error}", error=e)) from e
+            raise AppError(500, "config", _("could not save settings: {error}", error=e)) from e
         return wsp.config.user.to_dict()
 
     # ---------------------------------------------------------------- файлы
@@ -611,13 +612,13 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         async with lock:
             path = wsp.resolve(body.path)
             if not path.is_file():
-                raise AppError(404, "not-found", _("файл не найден: {path}", path=path))
+                raise AppError(404, "not-found", _("file not found: {path}", path=path))
             wsp.check_unsaved(body.force)
             try:
                 wsp.open(path)
             except (OSError, UnicodeDecodeError) as e:
                 raise AppError(400, "read",
-                               _("не удалось прочитать {name}: {error}", name=path.name, error=e)) from e
+                               _("could not read {name}: {error}", name=path.name, error=e)) from e
             return await session_changed()
 
     async def create_file(raw_path: str, force: bool, overwrite: bool, make_text: Callable[[Path], str],
@@ -629,7 +630,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             others = {(path.parent / name).resolve(): text for name, text in (extra or {}).items()}
             for target in [path, *others]:
                 if target.exists() and not overwrite:
-                    raise AppError(409, "exists", _("файл уже существует: {path}", path=target))
+                    raise AppError(409, "exists", _("file already exists: {path}", path=target))
             wsp.check_unsaved(force)
             try:
                 text = make_text(path)
@@ -642,7 +643,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(text, encoding="utf-8", newline="\n")
             except OSError as e:
-                raise AppError(400, "write", _("не удалось создать {path}: {error}", path=path, error=e)) from e
+                raise AppError(400, "write", _("could not create {path}: {error}", path=path, error=e)) from e
             wsp.open(path)
             return await session_changed()
 
@@ -672,7 +673,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             except FileExistsError as e:
                 raise AppError(409, "exists", str(e)) from e
             except OSError as e:
-                raise AppError(400, "write", _("не удалось сохранить {path}: {error}", path=path, error=e)) from e
+                raise AppError(400, "write", _("could not save {path}: {error}", path=path, error=e)) from e
             wsp.generation += 1
             wsp.remember(path)
             return await session_changed()
@@ -757,24 +758,24 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         if template is not None:
             template = PDF_TEMPLATE_ALIASES.get(template, template)
         if fmt not in EXPORT_FORMATS:
-            raise HTTPException(404, _("неизвестный формат: {fmt}", fmt=fmt))
+            raise HTTPException(404, _("unknown format: {fmt}", fmt=fmt))
         if template is not None and template not in PDF_TEMPLATES:
-            raise HTTPException(400, _("неизвестный шаблон PDF: {template}", template=template))
+            raise HTTPException(400, _("unknown PDF template: {template}", template=template))
         if lang:
             norm = normalize_language(lang)
             if norm is None:
-                raise HTTPException(400, _("неизвестный язык: {language}", language=lang))
+                raise HTTPException(400, _("unknown language: {language}", language=lang))
             lang = norm
         s = wsp.require()
         cmap = s.map
         if cmap is None:
-            raise HTTPException(409, _("карта содержит ошибки структуры — экспорт невозможен"))
+            raise HTTPException(409, _("the map has structural errors and cannot be exported"))
         media, ext = EXPORT_FORMATS[fmt]
         stem = s.path.stem
         try:
             data = await run_in_threadpool(build_export, cmap, fmt, stem, lang, template)
         except Exception as e:  # noqa: BLE001 — показать причину в UI
-            raise HTTPException(500, _("ошибка экспорта {fmt}: {error}", fmt=fmt, error=e)) from e
+            raise HTTPException(500, _("{fmt} export error: {error}", fmt=fmt, error=e)) from e
         name = f"{stem}{ext}" if ext != ".zip" else f"{stem}-{fmt}.zip"
         if fmt == "pdf" and template and template != DEFAULT_TEMPLATE_NAME:
             name = f"{stem}-{template}.pdf"
@@ -798,7 +799,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def get_logo() -> Response:
         p = logo_file()
         if p is None or not p.is_file():
-            raise AppError(404, "no-logo", _("логотип не задан или файл не найден"))
+            raise AppError(404, "no-logo", _("no logo is set or the file was not found"))
         return FileResponse(p, headers={"Cache-Control": "no-store"})
 
     @app.post("/api/logo")
@@ -808,17 +809,17 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         writable()
         ext = Path(file.filename or "").suffix.lower()
         if ext not in LOGO_FORMATS:
-            raise AppError(400, "logo-format", _("поддерживаются {formats}", formats=", ".join(LOGO_FORMATS)))
+            raise AppError(400, "logo-format", _("supported formats: {formats}", formats=", ".join(LOGO_FORMATS)))
         data = await file.read()
         if len(data) > LOGO_MAX_BYTES:
-            raise AppError(400, "logo-size", _("файл больше {mb} МБ", mb=LOGO_MAX_BYTES // (1024 * 1024)))
+            raise AppError(400, "logo-size", _("the file is larger than {mb} MB", mb=LOGO_MAX_BYTES // (1024 * 1024)))
         async with lock:
             s = wsp.require()
             target = s.path.parent / f"{s.path.stem}-logo{ext}"
             try:
                 target.write_bytes(data)
             except OSError as e:
-                raise AppError(400, "write", _("не удалось сохранить логотип: {error}", error=e)) from e
+                raise AppError(400, "write", _("could not save the logo: {error}", error=e)) from e
             s.apply([{"op": "set", "path": ["document", "logo"], "value": target.name}])
             return await changed()
 
@@ -827,11 +828,11 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     def _diff_against(old_text: str, label: str) -> dict:
         old = loads(old_text, label)
         if old.map is None:
-            raise HTTPException(400, _("{label}: карта не загружается: {errors}", label=label,
+            raise HTTPException(400, _("{label}: the map failed to load: {errors}", label=label,
                                   errors="; ".join(d.message for d in old.report.diagnostics[:3])))
         new = wsp.require().map
         if new is None:
-            raise HTTPException(409, _("текущая карта содержит ошибки структуры"))
+            raise HTTPException(409, _("the current map has structural errors"))
         d = diff_maps(old.map, new)
         return {**d.to_dict(), "lines": changelog_lines(d, new.lang), "label": label}
 
@@ -862,7 +863,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             return _git(["show", f"{rev}:./{s.path.name}"], cwd)
         except HTTPException:
             if _git_ok(["rev-parse", "-q", "--verify", f"{rev}^{{commit}}"], cwd):
-                raise AppError(404, "git-no-file", _("в ревизии {rev} нет файла карты", rev=rev)) from None
+                raise AppError(404, "git-no-file", _(
+                    "the map file does not exist in revision {rev}", rev=rev)) from None
             raise
 
     @app.get("/api/git/revs")
@@ -930,20 +932,20 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         writable()
         s = wsp.require()
         if s.text != s.saved_text:
-            raise AppError(409, "unsaved", _("сначала сохраните карту"))
+            raise AppError(409, "unsaved", _("save the map first"))
         return s
 
     def git_tag_name(raw: str) -> str:
         name = raw.strip()
         if not name or name.startswith("-"):
-            raise AppError(400, "git-tag", _("недопустимое имя тега: {name}", name=name))
+            raise AppError(400, "git-tag", _("invalid tag name: {name}", name=name))
         cwd = wsp.require().path.parent
         try:
             _git(["check-ref-format", f"refs/tags/{name}"], cwd)
         except HTTPException as e:
-            raise AppError(400, "git-tag", _("недопустимое имя тега: {name}", name=name)) from e
+            raise AppError(400, "git-tag", _("invalid tag name: {name}", name=name)) from e
         if _git_ok(["rev-parse", "-q", "--verify", f"refs/tags/{name}"], cwd):
-            raise AppError(409, "git-tag-exists", _("тег {name} уже существует", name=name))
+            raise AppError(409, "git-tag-exists", _("the tag {name} already exists", name=name))
         return name
 
     def git_author(args: list[str], cwd: Path, timeout: float = 60) -> str:
@@ -963,8 +965,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         except HTTPException as e:
             if "user.email" in str(e.detail) or "user.name" in str(e.detail):
                 raise AppError(400, "git-identity", _(
-                    "git не знает автора коммита: укажите имя и GitHub в профиле mapcan "
-                    "или выполните git config --global user.name / user.email")) from e
+                    "git does not know the commit author: enter your name and GitHub in the mapcan profile or run git "
+                    "config --global user.name / user.email")) from e
             raise
 
     def make_tag(cwd: Path, name: str, message: str) -> None:
@@ -984,7 +986,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         writable()
         s = wsp.require()
         if (await git_state(s))["available"]:
-            raise AppError(409, "git-exists", _("папка уже в репозитории git"))
+            raise AppError(409, "git-exists", _("the folder is already in a git repository"))
         _git(["init"], s.path.parent)
         return await git_state(s)
 
@@ -994,16 +996,16 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         cwd = s.path.parent
         message = body.message.strip()
         if not message:
-            raise AppError(400, "git-message", _("укажите описание коммита"))
+            raise AppError(400, "git-message", _("enter a commit message"))
         tag = git_tag_name(body.tag) if body.tag.strip() else ""
         st = await git_state(s)
         if st.get("file") == "ignored":
-            raise AppError(409, "git-ignored", _("файл карты исключён через .gitignore — уберите его оттуда"))
+            raise AppError(409, "git-ignored", _("the map file is excluded by .gitignore; remove it from there"))
         # Коммитим только карту и её логотип, не трогая остальные изменения в репозитории
         files = [s.path.name, *await run_in_threadpool(git_extra, s)]
         _git(["add", "--", *files], cwd)
         if not _git(["diff", "--cached", "--name-only", "--", *files], cwd).strip():
-            raise AppError(400, "git-nothing", _("нет изменений для коммита"))
+            raise AppError(400, "git-nothing", _("nothing to commit"))
         await run_in_threadpool(git_author, ["commit", "-m", message, "--", *files], cwd)
         if tag:
             make_tag(cwd, tag, message)
@@ -1035,10 +1037,10 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         """Черновик выпуска: следующая версия, изменения с прошлого выпуска (тега) или коммита, тег."""
         s = wsp.require()
         if s.map is None:
-            raise AppError(409, "map", _("текущая карта содержит ошибки структуры"))
+            raise AppError(409, "map", _("the current map has structural errors"))
         st = await git_state(s)
         if not st.get("available"):
-            raise AppError(409, "git-unavailable", _("папка карты не в репозитории git"))
+            raise AppError(409, "git-unavailable", _("the map folder is not in a git repository"))
         cwd = s.path.parent
         base = await run_in_threadpool(release_base, s)
         old = loads(await run_in_threadpool(git_show, s, base), base).map if base else None
@@ -1058,13 +1060,13 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         s = wsp.require()
         version = body.version.strip()
         if not version:
-            raise AppError(400, "version", _("укажите версию"))
+            raise AppError(400, "version", _("enter a version"))
         tag = git_tag_name(f"v{version}")
         st = await git_state(s)
         if not st.get("available"):
-            raise AppError(409, "git-unavailable", _("папка карты не в репозитории git"))
+            raise AppError(409, "git-unavailable", _("the map folder is not in a git repository"))
         if st.get("file") == "ignored":
-            raise AppError(409, "git-ignored", _("файл карты исключён через .gitignore — уберите его оттуда"))
+            raise AppError(409, "git-ignored", _("the map file is excluded by .gitignore; remove it from there"))
         changes = [c.strip() for c in body.changes if c.strip()]
         today = datetime.date.today().isoformat()
         entry: dict[str, Any] = {"version": version, "date": today}
@@ -1106,12 +1108,12 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         s = git_session()
         st = await git_state(s)
         if not st["available"]:
-            raise AppError(409, "no-repo", _("папка карты не в репозитории git"))
+            raise AppError(409, "no-repo", _("the map folder is not in a git repository"))
         if not st["remote"]:
-            raise AppError(409, "no-remote", _("у репозитория нет удалённого репозитория (remote)"))
+            raise AppError(409, "no-remote", _("the repository has no remote configured"))
         if not st["branch"]:
             raise AppError(409, "git-detached",
-                           _("HEAD не на ветке: переключитесь на ветку, чтобы отправить изменения"))
+                           _("HEAD is detached; switch to a branch to push changes"))
         if st["upstream"]:
             args = ["push", "--follow-tags"]
         else:
@@ -1157,16 +1159,16 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         s = git_session()
         name = body.name.strip()
         if not _GH_REPO.match(name):
-            raise AppError(400, "gh-name", _("недопустимое имя репозитория: {name}", name=name))
+            raise AppError(400, "gh-name", _("invalid repository name: {name}", name=name))
         if not shutil.which("gh"):
-            raise AppError(400, "no-gh", _("GitHub CLI (gh) не установлен"))
+            raise AppError(400, "no-gh", _("GitHub CLI (gh) is not installed"))
         st = await git_state(s)
         if not st["available"]:
-            raise AppError(409, "no-repo", _("папка карты не в репозитории git"))
+            raise AppError(409, "no-repo", _("the map folder is not in a git repository"))
         if st["remote"]:
-            raise AppError(409, "gh-remote", _("у репозитория уже есть remote «{remote}»", remote=st["remote"]))
+            raise AppError(409, "gh-remote", _("the repository already has the remote “{remote}”", remote=st["remote"]))
         if not st["last"]:
-            raise AppError(409, "gh-empty", _("сначала закоммитьте карту"))
+            raise AppError(409, "gh-empty", _("commit the map first"))
         top = _git(["rev-parse", "--show-toplevel"], s.path.parent).strip()
         args = ["repo", "create", name, "--private" if body.private else "--public",
                 "--source", top, "--remote", "origin", "--push"]
@@ -1183,7 +1185,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError as e:
-            raise HTTPException(400, _("файл не в UTF-8")) from e
+            raise HTTPException(400, _("the file is not UTF-8 encoded")) from e
         return _diff_against(text, file.filename or "upload.yaml")
 
     # ---------------------------------------------------------------- websocket
@@ -1220,7 +1222,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         @app.get("/", include_in_schema=False)
         async def no_ui():
             return HTMLResponse("<h1>mapcan</h1><p>" + _(
-                "Интерфейс не собран: выполните <code>npm run build</code> в каталоге <code>web/</code>. "
-                "API доступно на <a href='/api/docs'>/api/docs</a>.") + "</p>")
+                "The interface is not built: run <code>npm run build</code> in <code>web/</code>. The API is available "
+                "at <a href='/api/docs'>/api/docs</a>.") + "</p>")
 
     return app

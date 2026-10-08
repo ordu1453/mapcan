@@ -49,8 +49,8 @@ class _Base(BaseModel):
 
 
 class LocalizedText(_Base):
-    """Текст с переводами: ключ — код языка ISO 639-1 (ru, en, de…). Строка вместо объекта —
-    текст на языке документа."""
+    """Text with translations: the key is an ISO 639-1 language code (ru, en, de…). A plain string instead
+    of an object is text in the document language."""
 
     model_config = ConfigDict(extra="allow")
     ru: str | None = None
@@ -60,7 +60,7 @@ class LocalizedText(_Base):
     def _language_keys(self) -> LocalizedText:
         for key in self.model_extra or {}:
             if not re.fullmatch(r"[a-z]{2}", key):
-                raise ValueError(N_("ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)"))
+                raise ValueError(N_("a translation key must be an ISO 639-1 language code (de, fr…)"))
         return self
 
 
@@ -94,36 +94,36 @@ class HistoryEntry(_Base):
     author: str | None = None
     github: str | None = Field(
         None, pattern=r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$",
-        description=N_("Имя пользователя GitHub автора изменения."),
+        description=N_("GitHub username of the change's author."),
     )
     changes: list[Text] = Field(default_factory=list)
 
 
 class Person(_Base):
-    """Должностное лицо для блоков «УТВЕРЖДАЮ» / «СОГЛАСОВАНО»."""
+    """An official for the "APPROVED" / "AGREED" blocks."""
 
     position: str | None = None
     name: str = ""
 
 
 class Signatures(_Base):
-    """Подписи основной надписи ЕСКД (ГОСТ 2.104) и листов утверждения."""
+    """Signatures for the ESKD title block (GOST 2.104) and approval sheets."""
 
-    developed: str | None = Field(None, description=N_("Разраб."))
-    checked: str | None = Field(None, description=N_("Пров."))
-    tech_control: str | None = Field(None, description=N_("Т. контр."))
-    norm_control: str | None = Field(None, description=N_("Н. контр."))
-    approved: str | None = Field(None, description=N_("Утв."))
+    developed: str | None = Field(None, description=N_("Developed by (Разраб.)"))
+    checked: str | None = Field(None, description=N_("Checked by (Пров.)"))
+    tech_control: str | None = Field(None, description=N_("Technical control (Т. контр.)"))
+    norm_control: str | None = Field(None, description=N_("Standards control (Н. контр.)"))
+    approved: str | None = Field(None, description=N_("Approved by (Утв.)"))
 
 
 LOGO_FORMATS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")
 
 # Текстовые поля значат одно и то же на всех уровнях карты
-TITLE = N_("Название для людей, напр. «Состояния»: подпись в дереве карты и заголовок в документах.")
-DESCRIPTION = N_("Что это и зачем: выводится в документах, комментариях сгенерированного кода и DBC.")
-COMMENT = N_("Примечание или оговорка: в документах — «Примечание:», в DBC — после описания.")
-SHORT = N_("Сокращение устройства, напр. «BMS»: в таблицах документов и в дереве перед названием.")
-VALUES = N_("Таблица значений (значение → имя) или имя таблицы из value_tables.")
+TITLE = N_("Name for people, e.g. \"States\": the label in the map tree and the heading in documents.")
+DESCRIPTION = N_("What it is and what for: shown in documents, comments of generated code and DBC.")
+COMMENT = N_("A note or caveat: \"Note:\" in documents, after the description in DBC.")
+SHORT = N_("Device abbreviation, e.g. \"BMS\": in document tables and before the name in the tree.")
+VALUES = N_("Value table (value → name) or the name of a table in value_tables.")
 
 
 class Document(_Base):
@@ -134,34 +134,34 @@ class Document(_Base):
     author: str | None = None
     organization: str | None = None
     language: str = Field(pattern=r"^[a-z]{2}$",
-                          description=N_("Язык документов по умолчанию: код ISO 639-1 (ru, en, de…)."))
+                          description=N_("Default document language: ISO 639-1 code (ru, en, de…)."))
     bit_numbering: Literal["lsb0"] = Field(
         "lsb0",
-        description=N_("Нумерация бит: lsb0 — бит 0 это младший бит байта 0. "
-        "Поле фиксирует соглашение явно и выводится во всех документах."),
+        description=N_("Bit numbering: lsb0 — bit 0 is the least significant bit of byte 0. The field states the "
+                       "convention explicitly and is shown in every document."),
     )
     # Оформление и реквизиты (шаблоны ГОСТ)
     logo: str | None = Field(
-        None, description=N_("Логотип предприятия: путь к PNG/JPG/SVG относительно файла карты."))
+        None, description=N_("Company logo: path to a PNG/JPG/SVG relative to the map file."))
     designation: str | None = Field(
-        None, description=N_("Обозначение документа, напр. «АБВГ.468332.001 Д1» (ЕСКД)."))
-    litera: str | None = Field(None, description=N_("Литера документа (ЕСКД), напр. «О1»."))
-    city: str | None = Field(None, description=N_("Город для титульного листа."))
+        None, description=N_("Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD)."))
+    litera: str | None = Field(None, description=N_("Document letter (ESKD), e.g. \"О1\"."))
+    city: str | None = Field(None, description=N_("City for the title page."))
     signatures: Signatures | None = None
-    approve: Person | None = Field(None, description=N_("Блок «УТВЕРЖДАЮ» титульного листа."))
-    agree: list[Person] = Field(default_factory=list, description=N_("Блоки «СОГЛАСОВАНО»."))
+    approve: Person | None = Field(None, description=N_("The \"APPROVED\" block of the title page."))
+    agree: list[Person] = Field(default_factory=list, description=N_("The \"AGREED\" blocks."))
     history: list[HistoryEntry] = Field(default_factory=list)
 
 
 class LintRules(_Base):
-    """Настраиваемые правила стиля (проверяются как warning)."""
+    """Configurable style rules (checked as warnings)."""
 
     signal_name: NameStyle = "snake_case"
     frame_name: NameStyle = "snake_case"
     device_name: NameStyle = "snake_case"
     value_name: NameStyle = "UPPER_SNAKE"
     disable: list[str] = Field(
-        default_factory=list, description=N_("Коды правил, которые нужно отключить.")
+        default_factory=list, description=N_("Codes of the rules to disable.")
     )
 
 
@@ -191,7 +191,7 @@ def enum_entries(values: ValueTable | None) -> list[tuple[int, EnumValue]]:
 
 
 class Flag(_Base):
-    """Флаг внутри битового поля. ``bit`` — смещение от младшего бита поля."""
+    """A flag inside a bit field. ``bit`` is the offset from the field's least significant bit."""
 
     name: str
     bit: int = Field(ge=0)
@@ -205,26 +205,26 @@ class Signal(_Base):
     title: Text | None = Field(None, description=TITLE)
     description: Text | None = Field(None, description=DESCRIPTION)
     encoding: SignalEncoding = Field(
-        description=N_("Кодирование сигнала: enum, flag, bitfield, scaled, raw, float, bytes."))
+        description=N_("Signal encoding: enum, flag, bitfield, scaled, raw, float, bytes."))
 
     # Позиция: каноническая запись
     start_bit: int | None = Field(
         None, ge=0,
-        description=N_("Позиция младшего бита (LSB) сигнала в нумерации lsb0."),
+        description=N_("Position of the signal's least significant bit (LSB) in lsb0 numbering."),
     )
     # Длиннее 64 бит — только массив байт (encoding: bytes) в кадре CAN FD или PGN по транспортному протоколу
     bit_length: int | None = Field(None, ge=1, le=J1939_TP_MAX * 8)
     # Позиция: синтаксический сахар
-    byte: int | None = Field(None, ge=0, description=N_("Первый байт сигнала."))
-    bit: int | None = Field(None, ge=0, le=7, description=N_("Смещение бита в байте."))
+    byte: int | None = Field(None, ge=0, description=N_("First byte of the signal."))
+    bit: int | None = Field(None, ge=0, le=7, description=N_("Bit offset within the byte."))
     byte_length: int | None = Field(None, ge=1, le=J1939_TP_MAX)
 
     byte_order: ByteOrder = "little_endian"
     signed: bool = False
     signed_code: SignedCode | None = Field(
-        None, description=N_("Код знакового числа: twos_complement — дополнительный (по умолчанию), "
-                             "ones_complement — обратный, sign_magnitude — прямой. Сгенерированный код C/Python "
-                             "кодирует значение в заданном коде; DBC хранит только дополнительный."))
+        None, description=N_("Signed number encoding: twos_complement (default), ones_complement, sign_magnitude. "
+                             "Generated C/Python code encodes the value in this code; DBC stores two's complement "
+                             "only."))
 
     values: ValueTableRef | None = Field(None, description=VALUES)
     flags: list[Flag] | None = None
@@ -236,22 +236,22 @@ class Signal(_Base):
     max: float | None = None
 
     value_format: Literal["dec", "hex"] = Field(
-        "dec", description=N_("Как показывать значения enum в документах."))
-    multiplexer: bool = Field(False, description=N_("Сигнал-селектор мультиплексора."))
+        "dec", description=N_("How enum values are shown in documents."))
+    multiplexer: bool = Field(False, description=N_("Multiplexer selector signal."))
     mux: int | list[int] | None = Field(
-        None, description=N_("Значение(я) селектора, при которых сигнал присутствует.")
+        None, description=N_("Selector value(s) for which the signal is present.")
     )
     initial: float | None = Field(
-        None, description=N_("Значение по умолчанию (в физических единицах)."))
+        None, description=N_("Default value (in physical units)."))
     invalid: int | list[int] | None = Field(
-        None, description=N_("Сырое значение (или значения), означающее «нет данных / недостоверно»."))
+        None, description=N_("Raw value (or values) meaning \"no data / invalid\"."))
     comment: Text | None = Field(None, description=COMMENT)
     spn: int | None = Field(None, ge=0, le=0x7FFFF,
-                            description=N_("J1939: номер параметра (SPN) по SAE J1939-71."))
+                            description=N_("J1939: suspect parameter number (SPN) per SAE J1939-71."))
     index: int | None = Field(None, ge=0, le=0xFFFF,
-                              description=N_("CANopen: индекс объекта словаря, отображённого в PDO."))
+                              description=N_("CANopen: index of the dictionary object mapped into the PDO."))
     subindex: int | None = Field(None, ge=0, le=0xFF,
-                                 description=N_("CANopen: субиндекс объекта словаря (по умолчанию 0)."))
+                                 description=N_("CANopen: subindex of the dictionary object (0 by default)."))
 
     @property
     def invalid_values(self) -> list[int]:
@@ -271,9 +271,9 @@ class Signal(_Base):
     def _resolve_layout(self) -> Signal:
         sugar = self.byte is not None or self.bit is not None or self.byte_length is not None
         if self.start_bit is not None and sugar:
-            raise ValueError(N_("укажите либо start_bit, либо byte/bit, но не оба способа"))
+            raise ValueError(N_("specify either start_bit or byte/bit, not both"))
         if self.bit_length is not None and self.byte_length is not None:
-            raise ValueError(N_("укажите либо bit_length, либо byte_length"))
+            raise ValueError(N_("specify either bit_length or byte_length"))
 
         if self.byte_length is not None:
             self.bit_length = self.byte_length * 8
@@ -284,11 +284,11 @@ class Signal(_Base):
             elif self.encoding == "flag":
                 self.bit_length = 1
             else:
-                raise ValueError(N_("не задана длина сигнала: bit_length или byte_length"))
+                raise ValueError(N_("signal length is not set: bit_length or byte_length"))
 
         if self.start_bit is None:
             if self.byte is None:
-                raise ValueError(N_("не задана позиция сигнала (start_bit или byte)"))
+                raise ValueError(N_("signal position is not set (start_bit or byte)"))
             bit = self.bit or 0
             if self.byte_order == "little_endian":
                 self.start_bit = self.byte * 8 + bit
@@ -313,7 +313,7 @@ class Signal(_Base):
 
 class SdoValue(_Base):
     name: str
-    encoding: Literal["enum", "scaled", "raw"] = Field(description=N_("Кодирование значения: enum, scaled, raw."))
+    encoding: Literal["enum", "scaled", "raw"] = Field(description=N_("Value encoding: enum, scaled, raw."))
     description: Text | None = Field(None, description=DESCRIPTION)
     bit_length: Literal[8, 16, 24, 32]
     signed: bool = False
@@ -326,11 +326,11 @@ class SdoValue(_Base):
 
 
 class SdoExchange(_Base):
-    """Один SDO-обмен (expedited): команда, индекс, субиндекс, значение."""
+    """One SDO transfer (expedited): command, index, subindex, value."""
 
     name: str
     description: Text | None = Field(None, description=DESCRIPTION)
-    command: int = Field(ge=0, le=0xFF, description=N_("Байт команды (CCS/SCS), напр. 0x2B."))
+    command: int = Field(ge=0, le=0xFF, description=N_("Command byte (CCS/SCS), e.g. 0x2B."))
     index: int = Field(ge=0, le=0xFFFF)
     subindex: int = Field(0, ge=0, le=0xFF)
     value: SdoValue | None = None
@@ -348,29 +348,29 @@ class Frame(_Base):
     type: FrameType = "raw"
     id: int | None = Field(
         None, ge=0, le=0x1FFFFFFF,
-        description=N_("Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN."),
+        description=N_("Explicit CAN ID. For CANopen it is computed from node_id, for J1939 from the PGN."),
     )
     extended: bool = False
     brs: bool | None = Field(None, description=N_(
-        "CAN FD: переключение скорости (BRS) — данные на скорости фазы данных. Пусто — как у шины."))
+        "CAN FD: bit rate switch (BRS), the data phase is sent at the data bit rate. Empty: as set on the bus."))
     # J1939
-    pgn: int | None = Field(None, ge=0, le=0x3FFFF, description=N_("J1939: номер группы параметров (PGN)."))
-    priority: int | None = Field(None, ge=0, le=7, description=N_("J1939: приоритет 0..7 (по умолчанию 6)."))
+    pgn: int | None = Field(None, ge=0, le=0x3FFFF, description=N_("J1939: parameter group number (PGN)."))
+    priority: int | None = Field(None, ge=0, le=7, description=N_("J1939: priority 0..7 (6 by default)."))
     destination: int | None = Field(
-        None, ge=0, le=0xFF, description=N_("J1939: адрес получателя для PDU1 (по умолчанию 0xFF — всем)."))
+        None, ge=0, le=0xFF, description=N_("J1939: destination address for PDU1 (0xFF, global, by default)."))
     receivers: list[str] = Field(
-        default_factory=list, description=N_("Устройства шины, принимающие кадр (имена)."))
+        default_factory=list, description=N_("Bus devices that receive the frame (names)."))
     sender: str | None = Field(
-        None, description=N_("Устройство шины, передающее кадр, если это не его владелец: "
-                             "для RX-кадров (напр. PDO RX узла от мастера) и кадров шины (NMT, SYNC)."))
+        None, description=N_("Bus device that transmits the frame when it is not the frame's owner: for RX frames "
+                             "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC)."))
     dlc: int | None = Field(
         None, ge=0, le=J1939_TP_MAX, description=N_(
-            "Длина данных, байт. Обязательна, кроме служебных кадров CANopen (NMT, SYNC, TIME, Heartbeat, "
-            "SDO): их длина задана CiA 301. На шине J1939 до 1785 байт — транспортным протоколом."))
+            "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose "
+            "length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol."))
     direction: Direction | None = None
-    cycle_ms: int | None = Field(None, gt=0, description=N_("Период циклической передачи, мс."))
+    cycle_ms: int | None = Field(None, gt=0, description=N_("Cyclic transmission period, ms."))
     trigger: Trigger | None = Field(
-        None, description=N_("Нециклическая передача: event — по событию, on_request — по запросу."))
+        None, description=N_("Non-cyclic transmission: event — on event, on_request — on request."))
     signals: list[Signal] = Field(default_factory=list)
     sdo: list[SdoExchange] | None = None
     comment: Text | None = Field(None, description=COMMENT)
@@ -430,8 +430,8 @@ class Device(_Base):
     name: str
     short: str | None = Field(None, description=SHORT)
     title: Text | None = Field(None, description=TITLE)
-    node_id: int | None = Field(None, ge=0, le=0x7F, description=N_("CANopen: адрес узла 1..127."))
-    address: int | None = Field(None, ge=0, le=0xFF, description=N_("J1939: адрес источника 0..253."))
+    node_id: int | None = Field(None, ge=0, le=0x7F, description=N_("CANopen: node address 1..127."))
+    address: int | None = Field(None, ge=0, le=0xFF, description=N_("J1939: source address 0..253."))
     description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(default_factory=list)
 
@@ -442,14 +442,15 @@ class Bus(_Base):
     interface: str | None = None
     bitrate: int | None = Field(None, gt=0)
     protocol: Protocol = Field(
-        description=N_("Протокол: canopen — ID из типа кадра и node_id, j1939 — из PGN и адреса, can — явные ID."))
+        description=N_("Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, can "
+                       "— explicit IDs."))
     fd: bool = False
     brs: bool | None = Field(None, description=N_(
-        "CAN FD: переключение скорости (BRS) у кадров по умолчанию. Пусто — включено."))
+        "CAN FD: bit rate switch (BRS) of the frames by default. Empty: on."))
     description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(
         default_factory=list,
-        description=N_("Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME)."),
+        description=N_("Broadcast frames without an owning device (NMT, SYNC, TIME)."),
     )
     devices: list[Device] = Field(default_factory=list)
 
@@ -469,15 +470,15 @@ class Bus(_Base):
 
 
 class MapCan(_Base):
-    mapcan: Literal[1] = Field(title="mapcan", description=N_("Версия формата файла."))
+    mapcan: Literal[1] = Field(title="mapcan", description=N_("File format version."))
     include: list[str] = Field(
         default_factory=list,
-        description=N_("Подключаемые файлы (пути от файла карты): их шины, устройства, кадры и value_tables "
-                       "добавляются к карте."))
+        description=N_("Included files (paths relative to the map file): their buses, devices, frames and value_tables "
+                       "are added to the map."))
     document: Document
     lint: LintRules = Field(default_factory=LintRules)
     value_tables: dict[str, ValueTable] = Field(
-        default_factory=dict, description=N_("Именованные таблицы значений: в сигнале — values: <имя>."))
+        default_factory=dict, description=N_("Named value tables: in a signal, values: <name>."))
     buses: list[Bus] = Field(min_length=1)
 
     _source: str | None = PrivateAttr(default=None)

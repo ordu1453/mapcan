@@ -40,23 +40,23 @@ function go(d: Diagnostic) {
   <section class="diag-panel" :class="{ closed: !open }">
     <header @click="open = !open">
       <span class="twisty">{{ open ? "▾" : "▸" }}</span>
-      <b>{{ t("Проверка") }}</b>
+      <b>{{ t("Validation") }}</b>
       <span v-for="lvl in (['error', 'warning', 'info'] as Level[])" :key="lvl" class="chip" :class="[lvl, { off: !show[lvl] }]"
             @click.stop="show[lvl] = !show[lvl]">
-        {{ { error: t("ошибки"), warning: t("предупреждения"), info: t("замечания") }[lvl] }}: {{ counts[lvl] }}
+        {{ { error: t("errors"), warning: t("warnings"), info: t("notes") }[lvl] }}: {{ counts[lvl] }}
       </span>
-      <span v-if="draft" class="badge warning">{{ t("текст YAML не применён") }}</span>
-      <span v-if="!counts.error && !counts.warning" class="ok">{{ t("✓ карта корректна") }}</span>
+      <span v-if="draft" class="badge warning">{{ t("YAML text not applied") }}</span>
+      <span v-if="!counts.error && !counts.warning" class="ok">{{ t("✓ map is valid") }}</span>
     </header>
     <ul v-if="open">
       <li v-for="(d, i) in items" :key="i" :class="d.level" @click="go(d)">
         <span class="lvl">{{ d.level === "error" ? "✖" : d.level === "warning" ? "▲" : "i" }}</span>
-        <span class="mono loc">{{ d.line ? t("стр. {line}", { line: d.line }) : "" }}</span>
+        <span class="mono loc">{{ d.line ? t("line {line}", { line: d.line }) : "" }}</span>
         <span class="mono code">{{ d.code }}</span>
         <span class="msg">{{ d.message }}</span>
         <span class="mono path muted">{{ d.path }}</span>
       </li>
-      <li v-if="!items.length" class="muted empty">{{ t("Нет сообщений выбранных уровней.") }}</li>
+      <li v-if="!items.length" class="muted empty">{{ t("No messages at the selected levels.") }}</li>
     </ul>
   </section>
 </template>

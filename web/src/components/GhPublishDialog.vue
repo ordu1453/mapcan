@@ -32,7 +32,7 @@ async function submit() {
     const r = await api.ghCreate({ name: name.value.trim(), private: isPrivate.value, description: description.value });
     url = r.url;
     return r;
-  }, t("Репозиторий опубликован на GitHub"));
+  }, t("Repository published on GitHub"));
   if (ok) {
     if (url) toast(url, "info");
     emit("close");
@@ -41,37 +41,37 @@ async function submit() {
 </script>
 
 <template>
-  <Modal :title="t('Опубликовать на GitHub')" @close="emit('close')">
-    <p v-if="!gh" class="muted">{{ t("Проверка GitHub CLI…") }}</p>
+  <Modal :title="t('Publish on GitHub')" @close="emit('close')">
+    <p v-if="!gh" class="muted">{{ t("Checking GitHub CLI…") }}</p>
     <p v-else-if="!gh.installed" class="banner error">
-      {{ t("GitHub CLI (gh) не найден. Установите его с cli.github.com и выполните «gh auth login».") }}
+      {{ t("GitHub CLI (gh) not found. Install it from cli.github.com, then run “gh auth login”.") }}
     </p>
     <p v-else-if="!gh.user" class="banner error">
-      {{ t("GitHub CLI не авторизован. Выполните в терминале «gh auth login» и откройте это окно снова.") }}
+      {{ t("GitHub CLI is not logged in. Run “gh auth login” in a terminal, then reopen this window.") }}
     </p>
     <template v-else>
       <p class="muted">
-        {{ t("Будет создан репозиторий на GitHub от имени {user}, он станет remote «origin», и все коммиты будут отправлены.", { user: gh.user }) }}
+        {{ t("This creates a GitHub repository under {user}, adds it as the “origin” remote and pushes all commits.", { user: gh.user }) }}
       </p>
       <div class="form-grid">
         <label class="field wide">
-          <span class="field-label">{{ t("Имя репозитория") }}</span>
+          <span class="field-label">{{ t("Repository name") }}</span>
           <input v-model="name" class="mono" placeholder="repo" @keydown.enter="submit" />
-          <span class="field-hint">{{ t("«repo» или «организация/repo».") }}</span>
+          <span class="field-hint">{{ t("“repo” or “organization/repo”.") }}</span>
         </label>
         <label class="field wide">
-          <span class="field-label">{{ t("Описание") }}</span>
+          <span class="field-label">{{ t("Description") }}</span>
           <input v-model="description" @keydown.enter="submit" />
         </label>
         <label class="checkbox wide">
-          <input v-model="isPrivate" type="checkbox" /> {{ t("Приватный репозиторий") }}
+          <input v-model="isPrivate" type="checkbox" /> {{ t("Private repository") }}
         </label>
       </div>
     </template>
     <div class="fd-actions">
       <span class="spacer" />
-      <button @click="emit('close')">{{ t("Отмена") }}</button>
-      <button class="primary" :disabled="!canSubmit" @click="submit">{{ t("Опубликовать") }}</button>
+      <button @click="emit('close')">{{ t("Cancel") }}</button>
+      <button class="primary" :disabled="!canSubmit" @click="submit">{{ t("Publish") }}</button>
     </div>
   </Modal>
 </template>

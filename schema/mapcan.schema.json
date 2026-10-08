@@ -896,7 +896,7 @@
     },
     "LocalizedText": {
       "additionalProperties": true,
-      "description": "Текст с переводами: ключ — код языка ISO 639-1 (ru, en, de…). Строка вместо объекта —\nтекст на языке документа.",
+      "description": "Text with translations: the key is an ISO 639-1 language code (ru, en, de…). A plain string instead\nof an object is text in the document language.",
       "properties": {
         "ru": {
           "anyOf": [

@@ -152,25 +152,25 @@ def _fix_number(value, path, src: SourceMap, report: Report, is_key=False):
     """Распознать типичные ошибки записи чисел, сообщить и исправить для продолжения проверки."""
     if not isinstance(value, str):
         return value
-    what = _("ключ") if is_key else _("значение")
+    what = _("key") if is_key else _("value")
     if _COMMA_NUMBER.match(value):
         fixed = float(value.replace(",", "."))
         report.add(src.diag(
             "error", "number-comma",
-            _("{what} {value!r}: дробная часть отделена запятой, нужно {fixed!r}",
+            _("{what} {value!r}: decimal comma used, should be {fixed!r}",
               what=what, value=value, fixed=fixed), path))
         return fixed
     m = _CYR_HEX.match(value)
     if m:
         report.add(src.diag(
             "error", "number-cyrillic-x",
-            _("{what} {value!r}: в префиксе 0x используется кириллическая «х»", what=what, value=value), path))
+            _("{what} {value!r}: the 0x prefix uses a Cyrillic “х”", what=what, value=value), path))
         return int(m.group(1), 16)
     m = _HEX_STR.match(value)
     if m:
         report.add(src.diag(
             "warning", "number-quoted",
-            _("{what} {value!r} записано строкой; уберите кавычки", what=what, value=value), path))
+            _("{what} {value!r} is written as a string; remove the quotes", what=what, value=value), path))
         return int(m.group(1), 16)
     return value
 
@@ -187,15 +187,15 @@ def _pydantic_messages(err: ValidationError, src: SourceMap, report: Report) -> 
         dash_keys = [k for k in e.get("input") or {} if str(k).startswith("-")] \
             if isinstance(e.get("input"), dict) else []
         if e["type"] == "extra_forbidden" and str(loc[-1]).startswith("-"):
-            msg = _("неизвестное поле {name!r}: если это элемент списка, после «-» нужен пробел",
+            msg = _("unknown field {name!r}: if this is meant to be a list item, add a space after '-'",
                     name=loc[-1])
         elif e["type"] == "list_type" and dash_keys:
-            msg = _("ожидается список: если {name!r} — его элемент, после «-» нужен пробел",
+            msg = _("a list is expected: if {name!r} is meant to be a list item, add a space after '-'",
                     name=dash_keys[0])
         elif e["type"] == "extra_forbidden":
-            msg = _("неизвестное поле {name!r}", name=loc[-1])
+            msg = _("unknown field {name!r}", name=loc[-1])
         elif e["type"] == "missing":
-            msg = _("отсутствует обязательное поле {name!r}", name=loc[-1])
+            msg = _("missing required field {name!r}", name=loc[-1])
         key = (clean, msg)
         if key in seen:
             continue
@@ -232,7 +232,7 @@ def _yaml_error(e: MarkedYAMLError, text: str) -> tuple[str, int | None, int | N
     ctx_line = cm.line + 1 if cm else None
 
     if "duplicate key" in str(e):
-        return _("повторяющийся ключ: {problem}", problem=e.problem or ""), line, col
+        return _("duplicate key: {problem}", problem=e.problem or ""), line, col
 
     lines = text.splitlines()
     if pm is not None:
@@ -240,28 +240,28 @@ def _yaml_error(e: MarkedYAMLError, text: str) -> tuple[str, int | None, int | N
         for i in range(pm.line, first - 1, -1):
             m = _DASH_NO_SPACE.match(lines[i]) if i < len(lines) else None
             if m:
-                return (_("после «-» нужен пробел: элемент списка записывается как «- {item}»",
+                return (_("missing space after '-': write the list item as '- {item}'",
                           item=m.group(2).strip()), i + 1, len(m.group(1)) + 1)
 
     if "cannot start any token" in problem and "\\t" in problem:
-        problem = _("символ табуляции: отступы в YAML делаются только пробелами")
+        problem = _("tab character: YAML indentation must use spaces only")
     elif problem.startswith("expected <block end>"):
         if "'-'" in problem:
-            problem = _("элемент списка «-» не на своём месте: здесь ожидался ключ блока, начатого "
-                        "в строке {start}; проверьте отступ", start=ctx_line)
+            problem = _("unexpected list item '-': a key of the block that starts on line {start} was expected here; "
+                        "check the indentation", start=ctx_line)
         else:
-            problem = _("неверный отступ: строка не выровнена по блоку, начатому в строке {start}",
+            problem = _("bad indentation: this line does not line up with the block that starts on line {start}",
                         start=ctx_line)
     elif problem.startswith("mapping values are not allowed"):
-        problem = _("лишнее «:» — возьмите значение, содержащее «: », в кавычки или проверьте, "
-                    "что у предыдущей строки есть «:» после ключа")
+        problem = _("unexpected ':': quote a value that contains ': ', or check that the previous line has ':' after "
+                    "its key")
     elif "end of stream" in problem and e.context and "quoted scalar" in e.context:
-        problem = _("кавычка, открытая в строке {start}, не закрыта", start=ctx_line)
+        problem = _("the quote opened on line {start} is never closed", start=ctx_line)
     elif problem.startswith("expected ',' or ']'"):
-        problem = _("«[», открытая в строке {start}, не закрыта или элементы не разделены запятой",
+        problem = _("the '[' opened on line {start} is not closed, or its items are not separated by commas",
                     start=ctx_line)
     elif problem.startswith("expected ',' or '}'"):
-        problem = _("«{{», открытая в строке {start}, не закрыта или элементы не разделены запятой",
+        problem = _("the '{{' opened on line {start} is not closed, or its items are not separated by commas",
                     start=ctx_line)
     return problem, line, col
 
@@ -282,7 +282,7 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
         report.add(Diagnostic("error", "yaml", problem, filename, line, col))
         return LoadResult(None, report, src)
     if raw is None:
-        report.add(Diagnostic("error", "yaml", _("пустой файл"), filename, 1, 1))
+        report.add(Diagnostic("error", "yaml", _("empty file"), filename, 1, 1))
         return LoadResult(None, report, src, raw)
 
     data = _plain(raw, (), src, report)
@@ -331,14 +331,14 @@ def _include(data: dict, base: Path | None, src: SourceMap, report: Report) -> N
         if not isinstance(name, str):
             continue
         if base is None:
-            report.add(src.diag("error", "include", _("include: у карты нет пути, подключать файлы не от чего"),
+            report.add(src.diag("error", "include", _("include: the map has no path to resolve included files from"),
                                 ("include", i)))
             continue
         path = base / name
         try:
             text = path.read_text(encoding="utf-8")
         except OSError:
-            report.add(src.diag("error", "include", _("include: файл {name!r} не найден", name=name), ("include", i)))
+            report.add(src.diag("error", "include", _("include: file {name!r} not found", name=name), ("include", i)))
             continue
         fname = str(path)
         try:
@@ -351,12 +351,12 @@ def _include(data: dict, base: Path | None, src: SourceMap, report: Report) -> N
         part = _plain(raw, (), sub_src, report) if raw is not None else {}
         src.includes.append((i, fname))
         if not isinstance(part, dict):
-            report.add(Diagnostic("error", "include", _("подключаемый файл должен быть словарём YAML"), fname, 1, 1))
+            report.add(Diagnostic("error", "include", _("an included file must be a YAML mapping"), fname, 1, 1))
             continue
         for key in part:
             if key not in INCLUDE_KEYS:
                 report.add(sub_src.diag("error", "include",
-                                        _("ключ {key!r} нельзя подключать: допустимы buses и value_tables", key=key),
+                                        _("key {key!r} cannot be included: only buses and value_tables", key=key),
                                         (key,)))
         _merge_tables(data, part, sub_src, src, report)
         _merge_buses(data, part, sub_src, src, report)
@@ -380,7 +380,7 @@ def _merge_tables(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, re
     added = set()
     for name, table in tables.items():
         if name in own:
-            report.add(sub_src.diag("error", "include", _("таблица значений {name!r} уже описана", name=name),
+            report.add(sub_src.diag("error", "include", _("value table {name!r} is already defined", name=name),
                                     ("value_tables", name)))
             continue
         own[name] = table
@@ -410,8 +410,8 @@ def _merge_buses(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, rep
         for key in bus:
             if key not in BUS_EXTENSION_KEYS:
                 report.add(sub_src.diag("error", "include",
-                                        _("шина {name!r} уже описана: подключаемый файл может только добавить "
-                                          "ей devices и frames, а не {key!r}", name=bus.get("name"), key=key),
+                                        _("bus {name!r} is already defined: an included file can only add devices and "
+                                          "frames to it, not {key!r}", name=bus.get("name"), key=key),
                                         ("buses", j, key)))
         mine = own[target]
         offsets = {}
@@ -443,7 +443,7 @@ def _value_tables(data: dict, src: SourceMap, report: Report) -> None:
                         node[k] = tables[v]
                     else:
                         report.add(src.diag("error", "value-table",
-                                            _("таблица значений {name!r} не описана в value_tables", name=v),
+                                            _("value table {name!r} is not defined in value_tables", name=v),
                                             path + (k,)))
                         node[k] = None
                 elif k != "value_tables":

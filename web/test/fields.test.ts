@@ -65,7 +65,7 @@ describe("кадр", () => {
       devices: ["pump", "master", "panel"], sender: "master",
       deviceLabels: { pump: "Насос", master: "MCU", panel: "Панель" },
     });
-    expect(options("sender", ctx)).toEqual([["", "вне карты"], ["master", "MCU"], ["panel", "Панель"]]);
+    expect(options("sender", ctx)).toEqual([["", "outside the map"], ["master", "MCU"], ["panel", "Панель"]]);
     expect(options("receivers", ctx)).toEqual([["panel", "Панель"]]);
   });
 });

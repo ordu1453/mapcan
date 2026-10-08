@@ -46,12 +46,12 @@ def _mapping(frame: Frame, warn) -> list[tuple[int, int, int]] | None:
     if not mapped:
         return None
     if any(s.mux is not None or s.multiplexer for s in frame.signals):
-        warn(_("{frame}: мультиплексированный PDO в EDS не отображается", frame=frame.name))
+        warn(_("{frame}: a multiplexed PDO is not mapped in the EDS", frame=frame.name))
         return None
     out, pos = [], 0
     for s in mapped:
         if s.start_bit < pos:
-            warn(_("{frame}.{signal}: пересекается с предыдущим объектом, в EDS не отображён",
+            warn(_("{frame}.{signal}: overlaps the previous object and is not mapped in the EDS",
                    frame=frame.name, signal=s.name))
             continue
         while pos < s.start_bit:          # промежуток: dummy UNSIGNED8 по байтам, BOOLEAN по битам

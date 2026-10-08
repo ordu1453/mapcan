@@ -11,7 +11,7 @@ import { docLanguages, N_, t } from "../i18n";
 const props = defineProps<{ fmt: "html" | "pdf" | "md" }>();
 const emit = defineEmits<{ close: [] }>();
 
-const TITLES = { html: N_("Предпросмотр HTML"), pdf: N_("Предпросмотр PDF"), md: "Markdown" };
+const TITLES = { html: N_("HTML preview"), pdf: N_("PDF preview"), md: "Markdown" };
 const md = ref("");
 const error = ref("");
 const loading = ref(props.fmt === "md");
@@ -64,26 +64,26 @@ async function copy() {
   <Modal :title="t(TITLES[fmt])" wide @close="emit('close')">
     <template #actions>
       <label v-if="fmt === 'pdf'" class="tpl-pick">
-        {{ t("Шаблон") }}
+        {{ t("Template") }}
         <select :value="store.pdfTemplate" @change="pick">
           <option v-for="t in store.pdfTemplates" :key="t.name" :value="t.name">{{ t.title }}</option>
         </select>
       </label>
-      <label class="tpl-pick" :title="langFixed ? t('Документы по ГОСТ оформляются только на русском') : ''">
-        {{ t("Язык") }}
+      <label class="tpl-pick" :title="langFixed ? t('GOST documents are always in Russian') : ''">
+        {{ t("Language") }}
         <select :value="docLang" :disabled="langFixed" @change="pickLang">
           <option v-for="[code, label] in docLanguages(lang)" :key="code" :value="code">{{ t(label) }}</option>
         </select>
       </label>
-      <button v-if="fmt === 'md' && md" class="small" @click="copy">{{ t("Копировать") }}</button>
-      <a class="button small primary-link" :href="api.exportUrl(fmt, true, template, docLang)">{{ t("Скачать") }}</a>
+      <button v-if="fmt === 'md' && md" class="small" @click="copy">{{ t("Copy") }}</button>
+      <a class="button small primary-link" :href="api.exportUrl(fmt, true, template, docLang)">{{ t("Download") }}</a>
     </template>
     <p v-if="fmt === 'pdf' && current" class="muted tpl-desc">{{ current.description }}</p>
     <p v-if="error" class="banner error">{{ error }}</p>
-    <p v-else-if="loading" class="muted">{{ t("Формирование…") }}</p>
+    <p v-else-if="loading" class="muted">{{ t("Generating…") }}</p>
     <pre v-else-if="fmt === 'md'" class="md-preview mono">{{ md }}</pre>
     <div v-else class="preview-wrap">
-      <div v-if="frameLoading" class="preview-loading muted">{{ t("Формирование документа…") }}</div>
+      <div v-if="frameLoading" class="preview-loading muted">{{ t("Generating document…") }}</div>
       <iframe :key="src" class="preview-frame" :src="src" :title="t(TITLES[fmt])" @load="frameLoading = false" />
     </div>
   </Modal>

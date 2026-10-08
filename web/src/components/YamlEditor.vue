@@ -292,14 +292,14 @@ function onKey(e: KeyboardEvent) {
     <div class="yaml-bar">
       <span v-if="syntaxErrors.length" class="yaml-problem">
         <button class="link" :title="syntaxErrors[0].message" @click="reveal(syntaxErrors[0].line)">
-          <b>{{ t("Строка {line}", { line: syntaxErrors[0].line ?? "?" }) }}:</b> {{ syntaxErrors[0].message }}
+          <b>{{ t("Line {line}", { line: syntaxErrors[0].line ?? "?" }) }}:</b> {{ syntaxErrors[0].message }}
         </button>
-        <span v-if="syntaxErrors.length > 1" class="muted">{{ t("и ещё {count}", { count: syntaxErrors.length - 1 }) }}</span>
+        <span v-if="syntaxErrors.length > 1" class="muted">{{ t("and {count} more", { count: syntaxErrors.length - 1 }) }}</span>
       </span>
-      <span v-else class="muted yaml-hint">{{ t("Правка YAML целиком. Комментарии сохраняются как есть.") }}</span>
-      <span v-if="local" class="badge warning">{{ t("не применено") }}</span>
-      <button :disabled="!local || store.state?.readonly" @click="revert">{{ t("Сбросить изменения") }}</button>
-      <button class="primary" :disabled="!local || store.state?.readonly" title="Ctrl+Enter" @click="apply">{{ t("Применить") }}</button>
+      <span v-else class="muted yaml-hint">{{ t("") }}</span>
+      <span v-if="local" class="badge warning">{{ t("not applied") }}</span>
+      <button :disabled="!local || store.state?.readonly" @click="revert">{{ t("Discard changes") }}</button>
+      <button class="primary" :disabled="!local || store.state?.readonly" title="Ctrl+Enter" @click="apply">{{ t("Apply") }}</button>
     </div>
     <div class="yaml-body">
       <div ref="gutter" class="gutter mono">

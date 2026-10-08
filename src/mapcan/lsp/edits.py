@@ -185,7 +185,7 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
         m = re.match(pattern, text)
         if m:
             new = fix(m.group(0))
-            return [Action(_("Заменить на {value}", value=new),
+            return [Action(_("Change to {value}", value=new),
                            [Edit((line, col), (line, col + m.end()), new)], preferred=True)]
         return []
 
@@ -194,7 +194,7 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
         vr = value_range(a, path)
         if not isinstance(value, str) or vr is None:
             return []
-        return [Action(_("Заменить на {value!r}", value=s), [Edit(*vr, s)], preferred=k == 0)
+        return [Action(_("Change to {value!r}", value=s), [Edit(*vr, s)], preferred=k == 0)
                 for k, s in enumerate(_suggest(value, _bus_devices(a, path), 0.4))]
 
     if code == "schema" and path and isinstance(path[-1], str):
@@ -203,29 +203,29 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
         if cls is not None and key not in cls.model_fields:
             kr = key_range(a, path)
             fields = [f for f in cls.model_fields if not f.startswith("_")]
-            return [Action(_("Заменить на {value!r}", value=s), [Edit(*kr, s)], preferred=k == 0)
+            return [Action(_("Change to {value!r}", value=s), [Edit(*kr, s)], preferred=k == 0)
                     for k, s in enumerate(_suggest(key, fields))] if kr else []
         value = raw_at(a, path)
         choices = enum_choices().get(key) if cls is not None and key in cls.model_fields else None
         vr = value_range(a, path)
         if isinstance(value, str) and choices and value not in choices and vr:
-            return [Action(_("Заменить на {value!r}", value=s), [Edit(*vr, s)], preferred=k == 0)
+            return [Action(_("Change to {value!r}", value=s), [Edit(*vr, s)], preferred=k == 0)
                     for k, s in enumerate(_suggest(value, choices, 0.4))]
         return []
 
     if code == "can-id-range" and path and path[-1] == "id":
-        return [Action(_("Добавить extended: true"), set_value(a, path[:-1] + ("extended",), "true"),
+        return [Action(_("Add extended: true"), set_value(a, path[:-1] + ("extended",), "true"),
                        preferred=True)]
 
     if code == "j1939-destination":
         edits = delete_key(a, path) if path and path[-1] == "destination" else []
-        return [Action(_("Удалить destination"), edits)] if edits else []
+        return [Action(_("Remove destination"), edits)] if edits else []
 
     if code == "history-version":
         hv = value_range(a, ("document", "history", 0, "version"))
         if hv and ("document", "version") in a.nodes:
             latest = a.lines[hv[0][0]][hv[0][1]:hv[1][1]]
-            return [Action(_("Заменить на {value}", value=latest),
+            return [Action(_("Change to {value}", value=latest),
                            set_value(a, ("document", "version"), latest), preferred=True)]
         return []
 
@@ -236,7 +236,7 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
             new = to_style(name, style)
             if new and new != name and STYLE_RE[style].match(new):
                 edits = rename_edits(a, path, new) if path[-1] == "name" else _rename_key(a, path, new)
-                return [Action(_("Переименовать в {value!r}", value=new), edits, preferred=True)] if edits else []
+                return [Action(_("Rename to {value!r}", value=new), edits, preferred=True)] if edits else []
         return []
 
     if code in ("bit-overlap", "signal-out-of-frame"):
@@ -251,7 +251,7 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
                 if t["taken"] is None and t["type"] != current and prefix.startswith("pdo_")
                 and t["type"].startswith(prefix)]
         vr = value_range(a, path)
-        return [Action(_("Заменить тип на {value}", value=t), [Edit(*vr, t)], preferred=k == 0)
+        return [Action(_("Change type to {value}", value=t), [Edit(*vr, t)], preferred=k == 0)
                 for k, t in enumerate(free)] if vr else []
     return []
 
@@ -263,7 +263,7 @@ def _yaml_fixes(a: Analysis, start: Pos) -> list[Action]:
     if not m:
         return []
     pos = (line, m.end())
-    return [Action(_("Вставить пробел после «-»"), [Edit(pos, pos, " ")], preferred=True)]
+    return [Action(_("Insert a space after '-'"), [Edit(pos, pos, " ")], preferred=True)]
 
 
 def _style_for(a: Analysis, path: Path_) -> str | None:
@@ -329,8 +329,8 @@ def move_to_free_bits(a: Analysis, path: Path_) -> Action | None:
     if not edits:
         return None
     hi = start + length - 1
-    bits = _("бит {bit}", bit=start) if length == 1 else _("биты {lo}–{hi}", lo=start, hi=hi)
-    return Action(_("Переместить на свободные биты: {bits}", bits=bits), edits, preferred=True)
+    bits = _("bit {bit}", bit=start) if length == 1 else _("bits {lo}–{hi}", lo=start, hi=hi)
+    return Action(_("Move to free bits: {bits}", bits=bits), edits, preferred=True)
 
 
 def _find(cmap: M.MapCan, path: Path_):
@@ -930,7 +930,7 @@ def apply_ops(a: Analysis, ops: list[dict]) -> str:
     y = Y.make_yaml(a.text)
     doc = y.load(a.text)
     if doc is None:
-        raise Y.OpError(_("в YAML синтаксическая ошибка"))
+        raise Y.OpError(_("the YAML has a syntax error"))
     canon_old = Y.dump(y, doc)
     Y.apply_ops(doc, ops)
     return Y.merge_text(a.text, canon_old, Y.dump(y, doc))

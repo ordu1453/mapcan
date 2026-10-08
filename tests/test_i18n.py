@@ -11,7 +11,7 @@ import string
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from mapcan.locale.en import EN
+from mapcan.locale.ru import RU
 from mapcan.web.app import create_app
 from mapcan.web.session import EditorSession
 
@@ -50,29 +50,39 @@ def _frontend_keys() -> dict[str, str]:
     return keys
 
 
+def _mostly_cyrillic(s: str) -> bool:
+    """Russian text rather than English quoting Russian words (a Cyrillic «х», ESKD codes and abbreviations)."""
+    return len(re.findall("[а-яё]", s)) > len(re.findall("[A-Za-z]", s))
+
+
 def test_backend_catalog_complete():
     keys = _backend_keys()
     assert len(keys) > 200
-    missing = {k: v for k, v in keys.items() if k not in EN}
+    # Messages are written in English; Russian is a translation
+    cyrillic = {k: v for k, v in keys.items() if _mostly_cyrillic(k)}
+    assert not cyrillic, cyrillic
+    missing = {k: v for k, v in keys.items() if k not in RU}
     assert not missing, missing
-    bad = {k: EN[k] for k in keys if _fields(k) != _fields(EN[k])}
+    bad = {k: RU[k] for k in keys if _fields(k) != _fields(RU[k])}
     assert not bad, bad
 
 
 def test_backend_catalog_has_no_stale_entries():
-    stale = set(EN) - set(_backend_keys())
+    stale = set(RU) - set(_backend_keys())
     assert not stale, stale
 
 
 def test_frontend_catalog_complete():
-    en = json.loads((WEB / "locale" / "en.json").read_text(encoding="utf-8"))
+    ru = json.loads((WEB / "locale" / "ru.json").read_text(encoding="utf-8"))
     keys = _frontend_keys()
     assert len(keys) > 200
-    missing = {k: v for k, v in keys.items() if k not in en}
+    cyrillic = {k: v for k, v in keys.items() if _mostly_cyrillic(k)}
+    assert not cyrillic, cyrillic
+    missing = {k: v for k, v in keys.items() if k not in ru}
     assert not missing, missing
-    bad = {k: en[k] for k in keys if _fields(k) != _fields(en[k])}
+    bad = {k: ru[k] for k in keys if _fields(k) != _fields(ru[k])}
     assert not bad, bad
-    stale = set(en) - set(keys)
+    stale = set(ru) - set(keys)
     assert not stale, stale
 
 

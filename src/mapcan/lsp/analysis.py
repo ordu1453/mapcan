@@ -375,7 +375,7 @@ def map_tree(a: Analysis) -> list[dict]:
             for fi, fl in enumerate(_items(s.get("flags"))):
                 if (fll := rng(sp + ("flags", fi))) is not None:
                     snode["children"].append({"kind": "flag", "label": name_of(fl), "ident": name_of(fl),
-                                              "description": _("бит {bit}", bit=fl.get("bit")),
+                                              "description": _("bit {bit}", bit=fl.get("bit")),
                                               "children": [], **fll})
             node["children"].append(snode)
         for ei, e in enumerate(_items(f.get("sdo"))):
@@ -565,10 +565,10 @@ def _hex(v: int, extended: bool) -> str:
 def signal_bits(sig: M.Signal) -> str:
     start, length = sig.start_bit or 0, sig.bit_length or 1
     if sig.byte_order == "big_endian":
-        return _("биты {msb}…{lsb} (BE)", msb=msb_position(start, length, True), lsb=start)
+        return _("bits {msb}…{lsb} (BE)", msb=msb_position(start, length, True), lsb=start)
     if length == 1:
-        return _("бит {bit}", bit=start)
-    return _("биты {lo}–{hi}", lo=start, hi=start + length - 1)
+        return _("bit {bit}", bit=start)
+    return _("bits {lo}–{hi}", lo=start, hi=start + length - 1)
 
 
 def signal_markdown(sig: M.Signal) -> str:
@@ -582,11 +582,11 @@ def signal_markdown(sig: M.Signal) -> str:
     if sig.factor != 1 or sig.offset != 0:
         facts.append(f"phys = raw × {sig.factor:g} + {sig.offset:g}")
     if sig.unit:
-        facts.append(_("единица: {unit}", unit=sig.unit))
+        facts.append(_("unit: {unit}", unit=sig.unit))
     if sig.min is not None or sig.max is not None:
         lo = "…" if sig.min is None else f"{sig.min:g}"
         hi = "…" if sig.max is None else f"{sig.max:g}"
-        facts.append(_("диапазон: {lo} … {hi}", lo=lo, hi=hi))
+        facts.append(_("range: {lo} … {hi}", lo=lo, hi=hi))
     if sig.mux_values is not None:
         facts.append("mux = " + ", ".join(str(v) for v in sig.mux_values))
     if facts:
@@ -594,10 +594,10 @@ def signal_markdown(sig: M.Signal) -> str:
     values = enum_entries(sig.values)
     if values:
         fmt = (lambda v: f"0x{v:X}") if sig.value_format == "hex" else str
-        out.append("| " + _("Значение") + " | " + _("Имя") + " |\n|---:|---|\n"
+        out.append("| " + _("Value") + " | " + _("Name") + " |\n|---:|---|\n"
                    + "\n".join(f"| {fmt(k)} | {v.name} |" for k, v in values))
     if sig.flags:
-        out.append("| " + _("Бит") + " | " + _("Флаг") + " |\n|---:|---|\n"
+        out.append("| " + _("Bit") + " | " + _("Flag") + " |\n|---:|---|\n"
                    + "\n".join(f"| {f.bit if f.bit_length == 1 else f'{f.bit}–{f.bit + f.bit_length - 1}'} "
                                f"| {f.name} |" for f in sig.flags))
     return "\n\n".join(out)
@@ -611,7 +611,7 @@ def frame_markdown(frame: M.Frame) -> str:
     out = [head]
     facts = []
     if frame.mode == "cyclic":
-        facts.append(_("цикл {ms} мс", ms=frame.cycle_ms))
+        facts.append(_("cycle {ms} ms", ms=frame.cycle_ms))
     if frame.sender_name or frame.receiver_names:
         facts.append(f"{frame.sender_name or '—'} → {', '.join(frame.receiver_names) or '—'}")
     if facts:
@@ -631,7 +631,7 @@ def frame_layout(frame: M.Frame) -> str:
     for i, s in enumerate(sigs, 1):
         for b in occupied_bits(s.start_bit or 0, s.bit_length or 1, s.byte_order == "big_endian"):
             cells.setdefault(b, []).append(i)
-    rows = ["| " + _("Байт") + " | " + " | ".join(str(b) for b in range(7, -1, -1)) + " |",
+    rows = ["| " + _("Byte") + " | " + " | ".join(str(b) for b in range(7, -1, -1)) + " |",
             "|---:|" + ":-:|" * 8]
     for byte in range(frame.dlc):
         row = [",".join(map(str, cells.get(byte * 8 + bit, []))) or "·" for bit in range(7, -1, -1)]

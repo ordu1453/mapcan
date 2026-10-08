@@ -19,7 +19,7 @@ try {
   /* хранилище недоступно */
 }
 
-document.title = t("mapcan — редактор карты");
+document.title = t("mapcan — map editor");
 createApp(App).mount("#app");
 installShortcuts();
 installDeleteShortcut();

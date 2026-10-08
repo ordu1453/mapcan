@@ -10,11 +10,11 @@ _PACKAGE_DIR = Path(__file__).resolve().parent.parent
 
 # Подписи на стартовом экране (на языке интерфейса); пример без подписи показывается по имени файла.
 EXAMPLES = {
-    "minimal": N_("Минимальный"),
+    "minimal": N_("Minimal"),
     "j1939": N_("SAE J1939"),
-    "vehicle-can": N_("Электромобиль"),
-    "canopen-node": N_("CANopen-привод"),
-    "tractor": N_("Трактор: карта из нескольких файлов"),
+    "vehicle-can": N_("Electric vehicle"),
+    "canopen-node": N_("CANopen drive"),
+    "tractor": N_("Tractor: a map in several files"),
 }
 
 
@@ -49,7 +49,7 @@ def example_text(name: str) -> str:
     """Текст примера для копии; ссылка на схему убрана — относительный путь в копии будет битым."""
     path = _example_path(name)
     if path is None:
-        raise ValueError(_("неизвестный пример: {name}", name=name))
+        raise ValueError(_("unknown example: {name}", name=name))
     lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
     if lines and lines[0].startswith("# yaml-language-server:"):
         lines = lines[1:]
@@ -66,7 +66,7 @@ def example_includes(name: str) -> dict[str, str]:
 
     path = _example_path(name)
     if path is None:
-        raise ValueError(_("неизвестный пример: {name}", name=name))
+        raise ValueError(_("unknown example: {name}", name=name))
     data = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
     files = data.get("include") if isinstance(data, dict) else None
     return {f: (path.parent / f).read_text(encoding="utf-8") for f in files or [] if isinstance(f, str)}

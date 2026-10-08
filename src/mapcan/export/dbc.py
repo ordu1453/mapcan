@@ -165,7 +165,7 @@ def export_dbc(cmap: MapCan, out: str | Path, bus_name: str | None = None,
     out = Path(out)
     buses = [b for b in cmap.buses if bus_name in (None, b.name)]
     if not buses:
-        raise ValueError(_("шина {name!r} не найдена", name=bus_name))
+        raise ValueError(_("bus {name!r} not found", name=bus_name))
     written = []
     for b in buses:
         if len(buses) == 1 and out.suffix.lower() == ".dbc":
@@ -179,10 +179,10 @@ def export_dbc(cmap: MapCan, out: str | Path, bus_name: str | None = None,
         other = [f"{f.name}.{s.name}" for f in b.all_frames() for s in f.layout
                  if s.signed and s.signed_code in ("ones_complement", "sign_magnitude")]
         if warn is not None and other:
-            warn(_("{path}: DBC хранит знаковые значения только в дополнительном коде, сигналы в обратном "
-                   "или прямом коде записаны как дополнительный: {names}", path=path, names=", ".join(other)))
+            warn(_("{path}: DBC stores signed values in two's complement only; signals in ones' complement or sign and "
+                   "magnitude are written as two's complement: {names}", path=path, names=", ".join(other)))
         if warn is not None and (lost := unencodable(dbc)):
-            warn(_("{path}: символы {chars} не входят в кодировку {encoding} и записаны как «?»",
+            warn(_("{path}: characters {chars} are not in the {encoding} encoding and were written as '?'",
                    path=path, chars=" ".join(repr(c) for c in lost), encoding=DBC_ENCODING))
         path.write_text(dbc, encoding=DBC_ENCODING, errors="replace")
         written.append(path)

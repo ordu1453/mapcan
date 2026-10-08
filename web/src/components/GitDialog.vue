@@ -39,53 +39,53 @@ onMounted(async () => {
     const changes = ((entry.changes ?? []) as unknown[]).map((c) => txt(c, lang).trim()).filter(Boolean);
     message.value = changes.length === 1
       ? `${version}: ${changes[0]}`
-      : [t("Версия {version}", { version }), ...(changes.length ? ["", ...changes.map((c) => `- ${c}`)] : [])].join("\n");
+      : [t("Version {version}", { version }), ...(changes.length ? ["", ...changes.map((c) => `- ${c}`)] : [])].join("\n");
   }
 });
 
 async function submit() {
   if (!canSubmit.value) return;
   const ok = props.mode === "commit"
-    ? await actions.git(() => api.gitCommit(message.value, tag.value.trim()), t("Коммит создан"))
-    : await actions.git(() => api.gitTag(tag.value.trim(), message.value), t("Тег создан"));
+    ? await actions.git(() => api.gitCommit(message.value, tag.value.trim()), t("Commit created"))
+    : await actions.git(() => api.gitTag(tag.value.trim(), message.value), t("Tag created"));
   if (ok) emit("close");
 }
 </script>
 
 <template>
-  <Modal :title="mode === 'commit' ? t('Коммит в git') : t('Тег версии')" @close="emit('close')">
+  <Modal :title="mode === 'commit' ? t('Commit to git') : t('Version tag')" @close="emit('close')">
     <p v-if="mode === 'commit'" class="muted">
-      {{ t("В коммит попадут только файл карты и её логотип; остальные изменения в репозитории не затрагиваются.") }}
+      {{ t("Only the map file and its logo are committed; other changes in the repository are not affected.") }}
     </p>
     <p v-else class="muted">
-      {{ t("Тег ставится на последний коммит ветки {branch}.", { branch: store.git?.branch ?? "HEAD" }) }}
+      {{ t("The tag goes on the latest commit of {branch}.", { branch: store.git?.branch ?? "HEAD" }) }}
     </p>
     <p v-if="tagStale" class="banner warning">
-      {{ t("В карте есть незакоммиченные изменения — тег их не включит. Чтобы пометить текущую версию, закоммитьте её с тегом.") }}
+      {{ t("The map has uncommitted changes, and the tag will not include them. To tag the current version, commit it with a tag.") }}
     </p>
     <div class="form-grid">
       <label v-if="mode === 'tag'" class="field wide">
-        <span class="field-label">{{ t("Имя тега") }}</span>
+        <span class="field-label">{{ t("Tag name") }}</span>
         <input v-model="tag" class="mono" placeholder="v1.0.0" @keydown.enter="submit" />
-        <span v-if="tagTaken" class="field-hint git-warn">{{ t("Такой тег уже есть.") }}</span>
+        <span v-if="tagTaken" class="field-hint git-warn">{{ t("This tag already exists.") }}</span>
       </label>
       <label class="field wide">
-        <span class="field-label">{{ mode === "commit" ? t("Описание коммита") : t("Описание тега") }}</span>
+        <span class="field-label">{{ mode === "commit" ? t("Commit message") : t("Tag message") }}</span>
         <textarea v-model="message" rows="4" @keydown.ctrl.enter="submit" />
-        <span v-if="mode === 'tag'" class="field-hint">{{ t("Необязательно.") }}</span>
+        <span v-if="mode === 'tag'" class="field-hint">{{ t("Optional.") }}</span>
       </label>
       <label v-if="mode === 'commit'" class="field wide">
-        <span class="field-label">{{ t("Тег версии") }}</span>
+        <span class="field-label">{{ t("Version tag") }}</span>
         <input v-model="tag" class="mono" placeholder="v1.0.0" @keydown.enter="submit" />
-        <span v-if="tagTaken" class="field-hint git-warn">{{ t("Такой тег уже есть.") }}</span>
-        <span v-else class="field-hint">{{ t("Необязательно.") }}</span>
+        <span v-if="tagTaken" class="field-hint git-warn">{{ t("This tag already exists.") }}</span>
+        <span v-else class="field-hint">{{ t("Optional.") }}</span>
       </label>
     </div>
     <div class="fd-actions">
       <span class="spacer" />
-      <button @click="emit('close')">{{ t("Отмена") }}</button>
+      <button @click="emit('close')">{{ t("Cancel") }}</button>
       <button class="primary" :disabled="!canSubmit" @click="submit">
-        {{ mode === "commit" ? t("Закоммитить") : t("Создать тег") }}
+        {{ mode === "commit" ? t("Commit") : t("Create tag") }}
       </button>
     </div>
   </Modal>

@@ -56,11 +56,11 @@ function remove(i: number) {
 <template>
   <section class="subtable">
     <header>
-      <h4>{{ t("Флаги битового поля") }}</h4>
-      <button v-if="!readonly" class="small" @click="addFlag(path)">{{ t("+ Флаг") }}</button>
+      <h4>{{ t("Bit field flags") }}</h4>
+      <button v-if="!readonly" class="small" @click="addFlag(path)">{{ t("+ Flag") }}</button>
     </header>
     <table v-if="flags?.length">
-      <thead><tr><th class="num">{{ t("Бит") }}</th><th class="num">{{ t("Длина") }}</th><th>{{ t("Имя") }}</th><th>{{ t("Описание") }}</th><th></th></tr></thead>
+      <thead><tr><th class="num">{{ t("Bit") }}</th><th class="num">{{ t("Length") }}</th><th>{{ t("Name") }}</th><th>{{ t("Description") }}</th><th></th></tr></thead>
       <tbody>
         <tr v-for="(f, i) in flags" :key="i" :class="rowDiags(i)[0]?.level">
           <td class="num"><input class="mono" :value="f.bit" :readonly="readonly" @change="setInt(i, 'bit', $event)" /></td>
@@ -71,12 +71,12 @@ function remove(i: number) {
           </td>
           <td><input :value="txt(f.description)" :readonly="readonly" @change="setText(i, 'description', $event)" /></td>
           <td class="act">
-            <button class="icon" :title="t('Открыть')" @click="actions.select([...path, 'flags', i])">›</button>
-            <button v-if="!readonly" class="icon" :title="t('Удалить')" @click="remove(i)">✕</button>
+            <button class="icon" :title="t('Open')" @click="actions.select([...path, 'flags', i])">›</button>
+            <button v-if="!readonly" class="icon" :title="t('Delete')" @click="remove(i)">✕</button>
           </td>
         </tr>
       </tbody>
     </table>
-    <p v-else class="muted">{{ t("Флагов нет.") }}</p>
+    <p v-else class="muted">{{ t("No flags.") }}</p>
   </section>
 </template>

@@ -290,33 +290,33 @@ const status = computed(() => {
   const p = preview.value;
   const d = drag.value;
   if (p && d) {
-    const verb = d.mode === "create" ? t("Новый сигнал") : d.mode === "move" ? t("Сдвиг") : t("Длина");
-    return t("{verb}: биты {bits} ({n} бит)", { verb, bits: rangeLabel(p.start, p.start + p.length - 1), n: p.length });
+    const verb = d.mode === "create" ? t("New signal") : d.mode === "move" ? t("Move") : t("Length");
+    return t("{verb}: bits {bits} ({n} bits)", { verb, bits: rangeLabel(p.start, p.start + p.length - 1), n: p.length });
   }
   if (hover.value !== null) {
     const b = hover.value;
     const c = cells.value[b];
     const who = c?.owners.map((s) => s.name).join(", ");
-    return t("бит {bit} — байт {byte}, бит {inbyte}", { bit: b, byte: Math.floor(b / 8), inbyte: b % 8 })
+    return t("bit {bit} — byte {byte}, bit {inbyte}", { bit: b, byte: Math.floor(b / 8), inbyte: b % 8 })
       + (who ? " · " + who : "") + (c?.flag ? " · " + c.flag : "");
   }
   return props.readonly
-    ? t("Только просмотр")
-    : t("Протяните по свободным битам — новый сигнал. Перетащите сигнал — сдвиг, за край — длина.");
+    ? t("View only")
+    : t("Drag across free bits to add a signal. Drag a signal to move it, drag its edge to resize.");
 });
 </script>
 
 <template>
   <div class="bitgrid-wrap">
     <div v-if="muxOptions.length" class="mux-bar">
-      <span class="muted">{{ t("Селектор") }} <b>{{ selector?.name }}</b>:</span>
-      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">{{ t("Все") }}</button>
+      <span class="muted">{{ t("Selector") }} <b>{{ selector?.name }}</b>:</span>
+      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">{{ t("All") }}</button>
       <button v-for="[v, n] in muxOptions" :key="v" :class="{ active: muxValue === v }"
               @click="emit('update:muxValue', v)">{{ v }}{{ n ? " · " + n : "" }}</button>
     </div>
 
     <div class="bitgrid" :style="{ gridTemplateRows: `26px repeat(${frame.dlc}, 34px)` }" @mouseleave="hover = null">
-      <div class="bg-head corner">{{ t("Байт") }}</div>
+      <div class="bg-head corner">{{ t("Byte") }}</div>
       <div v-for="b in 8" :key="'h' + b" class="bg-head" :style="{ gridColumn: b + 1, gridRow: 1 }">{{ 8 - b }}</div>
 
       <template v-for="row in frame.dlc" :key="'r' + row">
@@ -325,7 +325,7 @@ const status = computed(() => {
 
       <div v-for="c in cells" :key="c.bit" class="bg-cell" :class="cellClass(c)" :style="{
              ...cellStyle(c), gridRow: Math.floor(c.bit / 8) + 2, gridColumn: 9 - (c.bit % 8) }"
-           :title="t('бит {bit}', { bit: c.bit })" @mousedown="onDown(c, $event)" @mouseenter="onEnter(c)">
+           :title="t('bit {bit}', { bit: c.bit })" @mousedown="onDown(c, $event)" @mouseenter="onEnter(c)">
         <span v-for="h in handles(c)" :key="h" class="grip" :class="h" :data-edge="h" />
       </div>
 

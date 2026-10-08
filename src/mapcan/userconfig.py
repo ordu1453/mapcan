@@ -43,7 +43,7 @@ def normalize_github(value: str | None) -> str | None:
     if m:
         v = m.group(1)
     if not _GITHUB_USER.match(v):
-        raise ValueError(_("«{value}» — не имя пользователя GitHub", value=value))
+        raise ValueError(_("“{value}” is not a GitHub username", value=value))
     return v
 
 

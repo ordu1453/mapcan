@@ -128,9 +128,9 @@ async function switchFile(fn: (force: boolean) => Promise<SessionResult>, okText
       acceptSession(await fn(false));
     } catch (e) {
       if (!(e instanceof ApiError && e.code === "unsaved")) throw e;
-      if (confirm(`${e.message}.\n\n${t("Сохранить их перед продолжением?")}`)) {
+      if (confirm(`${e.message}.\n\n${t("Save them before continuing?")}`)) {
         accept(await api.save());
-      } else if (!confirm(t("Продолжить без сохранения? Несохранённые изменения будут потеряны."))) {
+      } else if (!confirm(t("Continue without saving? Unsaved changes will be lost."))) {
         return false;
       }
       acceptSession(await fn(true));
@@ -165,23 +165,23 @@ export const actions = {
   },
   openFile: (path: string) => switchFile((force) => api.open(path, force)),
   newFile: (path: string, template: string, title: string, language: string, overwrite = false) =>
-    switchFile((force) => api.newFile({ path, template, title, language, force, overwrite }), t("Создана новая карта")),
+    switchFile((force) => api.newFile({ path, template, title, language, force, overwrite }), t("New map created")),
   newFromExample: (name: string, path: string, overwrite = false) =>
     switchFile(async (force) => {
       try {
         return await api.fromExample({ name, path, force, overwrite });
       } catch (e) {
-        if (!(e instanceof ApiError && e.code === "exists" && confirm(`${e.message}\n\n${t("Перезаписать?")}`))) throw e;
+        if (!(e instanceof ApiError && e.code === "exists" && confirm(`${e.message}\n\n${t("Overwrite?")}`))) throw e;
         return api.fromExample({ name, path, force, overwrite: true });
       }
     }),
   saveAs: async (path: string, overwrite = false): Promise<boolean> => {
     try {
       acceptSession(await api.saveAs(path, overwrite));
-      toast(t("Сохранено"), "info");
+      toast(t("Saved"), "info");
       return true;
     } catch (e) {
-      if (e instanceof ApiError && e.code === "exists" && confirm(`${e.message}\n\n${t("Перезаписать?")}`)) {
+      if (e instanceof ApiError && e.code === "exists" && confirm(`${e.message}\n\n${t("Overwrite?")}`)) {
         return actions.saveAs(path, true);
       }
       if (!(e instanceof ApiError && e.code === "exists")) toast(e instanceof Error ? e.message : String(e));
@@ -191,7 +191,7 @@ export const actions = {
   closeFile: () => switchFile((force) => api.close(force)),
   apply: (ops: Op[]) => {
     if (store.state?.readonly) {
-      toast(t("Режим только для чтения"));
+      toast(t("Read-only mode"));
       return Promise.resolve(false);
     }
     return run(() => api.ops(ops));
@@ -217,7 +217,7 @@ export const actions = {
       if (err) {
         store.tab = "yaml";
         store.revealLine = err.line;
-        toast(t("В YAML синтаксическая ошибка (строка {line}): {message}", { line: err.line ?? "?", message: err.message }));
+        toast(t("YAML syntax error (line {line}): {message}", { line: err.line ?? "?", message: err.message }));
         return false;
       }
     }
@@ -233,10 +233,10 @@ export const actions = {
   /** Перечитать файл с диска; `ask` — спросить, если есть несохранённые правки (они и история отмены теряются). */
   reload: async (ask = true) => {
     const unsaved = !!store.state?.dirty || yamlLocal.value;
-    if (ask && unsaved && !confirm(t("Перечитать файл с диска? Несохранённые изменения будут потеряны."))) return false;
+    if (ask && unsaved && !confirm(t("Reload the file from disk? Unsaved changes will be lost."))) return false;
     store.fileChangedBanner = false;
     store.yaml = { draft: null, applied: null, diags: null };
-    return run(api.reload, t("Файл перечитан с диска"));
+    return run(api.reload, t("Reloaded from disk"));
   },
   save: async (force = false): Promise<void> => {
     if (!force && !(await actions.flushYaml())) return;
@@ -244,10 +244,10 @@ export const actions = {
     try {
       accept(await api.save(force));
       store.fileChangedBanner = false;
-      toast(t("Сохранено"), "info");
+      toast(t("Saved"), "info");
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        if (confirm(t("Файл изменён на диске другой программой.\nПерезаписать его вашей версией?"))) {
+        if (confirm(t("The file was modified on disk by another program.\nOverwrite it with your version?"))) {
           return actions.save(true);
         }
       } else {
@@ -299,7 +299,7 @@ export const actions = {
       ownVersion = s.version;
       store.yaml = { draft: null, applied: null, diags: null };
       return s;
-    }, t("Версия {rev} открыта в редакторе. Сохраните карту, чтобы оставить её, или отмените (Ctrl+Z).", { rev })),
+    }, t("Version {rev} is open in the editor. Save the map to keep it, or undo (Ctrl+Z).", { rev })),
   /** Операция git (коммит, тег, push, pull): обновляет состояние git, ошибки — во всплывающем сообщении. */
   git: async (fn: () => Promise<GitStatus>, okText: string): Promise<boolean> => {
     store.busy = true;

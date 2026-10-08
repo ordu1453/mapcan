@@ -121,7 +121,7 @@ export function addSignal(framePath: Path, layout?: { start_bit: number; bit_len
   if (!pos) {
     const placed = placeNewSignal(framePath);
     if (!placed) {
-      toast(t("В кадре нет свободных бит: освободите место или увеличьте DLC"));
+      toast(t("No free bits left in the frame. Free up space or increase the DLC"));
       return Promise.resolve(false);
     }
     pos = placed.pos;
@@ -230,9 +230,9 @@ function takenNames(path: Path): string[] {
 export async function renameNode(path: Path, raw: string): Promise<string | null> {
   const name = raw.trim();
   const old = getAt(data(), path)?.name;
-  if (!name) return t("Имя не может быть пустым");
+  if (!name) return t("Name cannot be empty");
   if (name === old) return null;
-  if (takenNames(path).includes(name)) return t("Имя «{name}» уже занято", { name });
+  if (takenNames(path).includes(name)) return t("The name “{name}” is already taken", { name });
   const ops: Op[] = [{ op: "set", path: [...path, "name"], value: name }];
   if (nodeKind(path) === "device" && old) {
     const bp = path.slice(0, 2);
@@ -249,7 +249,7 @@ export async function renameNode(path: Path, raw: string): Promise<string | null
       }
     }
   }
-  return (await actions.apply(ops)) ? null : t("Не удалось переименовать");
+  return (await actions.apply(ops)) ? null : t("Could not rename");
 }
 
 /**
@@ -259,14 +259,14 @@ export async function renameNode(path: Path, raw: string): Promise<string | null
 export async function setTitle(path: Path, raw: string): Promise<string | null> {
   const v = raw.trim();
   // У шины и устройства название обязательно
-  if (!v && ["bus", "device"].includes(nodeKind(path))) return t("Название не может быть пустым");
+  if (!v && ["bus", "device"].includes(nodeKind(path))) return t("The name cannot be empty");
   const title = getAt(data(), path)?.title;
   const lng: string = store.state?.resolved?.language ?? data()?.document?.language ?? "ru";
   const op: Op = title && typeof title === "object"
     ? { op: "set", path: [...path, "title", lng], value: v || null }
     : { op: "set", path: [...path, "title"], value: v || null };
   if ((title && typeof title === "object" ? title[lng] ?? "" : title ?? "") === v) return null;
-  return (await actions.apply([op])) ? null : t("Не удалось переименовать");
+  return (await actions.apply([op])) ? null : t("Could not rename");
 }
 
 /** Обозначение устройства (short): необязательное, пустое значение удаляет ключ. */
@@ -274,7 +274,7 @@ export async function setShort(path: Path, raw: string): Promise<string | null> 
   const v = raw.trim();
   if (v === (getAt(data(), path)?.short ?? "")) return null;
   return (await actions.apply([{ op: "set", path: [...path, "short"], value: v || null }]))
-    ? null : t("Не удалось переименовать");
+    ? null : t("Could not rename");
 }
 
 /**
@@ -291,7 +291,7 @@ export async function receiveFrame(rxPath: Path, txPath: Path): Promise<boolean>
   const ok = await actions.apply(ops);
   if (ok) {
     actions.select(txPath);
-    toast(t("{device} принимает кадр {frame}: устройство добавлено в получатели, своя копия кадра удалена",
+    toast(t("{device} receives frame {frame}: the device was added to its receivers and its own copy was removed",
       { device, frame: tx.name }), "info");
   }
   return ok;

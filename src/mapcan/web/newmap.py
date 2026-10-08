@@ -9,10 +9,10 @@ from collections.abc import Callable
 from ..i18n import N_, _, normalize_language
 
 TEMPLATES = {
-    "canopen": N_("CANopen: шина и одно устройство"),
-    "j1939": N_("SAE J1939: ECU с одним PGN"),
-    "can": N_("CAN с явными ID: шина и одно устройство"),
-    "empty": N_("Пустая: только шина"),
+    "canopen": N_("CANopen: a bus and one device"),
+    "j1939": N_("SAE J1939: an ECU with one PGN"),
+    "can": N_("CAN with explicit IDs: a bus and one device"),
+    "empty": N_("Empty: just a bus"),
 }
 
 
@@ -28,29 +28,32 @@ def _q(s: str) -> str:
 def new_map_text(template: str, title: str, author: str = "", github: str | None = None,
                  today: _dt.date | None = None, lang: str = "en") -> str:
     if template not in TEMPLATES:
-        raise ValueError(_("неизвестный шаблон: {template}", template=template))
+        raise ValueError(_("unknown template: {template}", template=template))
     doc_lang = normalize_language(lang)
     if doc_lang is None:
-        raise ValueError(_("неизвестный язык: {language}", language=lang))
-    # Содержимое новой карты — на выбранном языке документов; ключи сообщений уже русские.
-    return _map_text(_ if doc_lang == "en" else _same, doc_lang, template, title, author, github,
+        raise ValueError(_("unknown language: {language}", language=lang))
+    # The new map is written in the document language: Russian from the translations, otherwise English
+    return _map_text(_russian if doc_lang == "ru" else _, doc_lang, template, title, author, github,
                      today or _dt.date.today())
 
 
-def _same(msg: str, /, **kw) -> str:
-    return msg.format(**kw) if kw else msg
+def _russian(msg: str, /, **kw) -> str:
+    from ..locale.ru import RU
+
+    return _(RU.get(msg, msg), **kw)
 
 
 def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, author: str,
               github: str | None, today: _dt.date) -> str:
     lines = [
-        "# " + _("Карта сигналов mapcan (формат v1)."),
-        "# " + _("Байты и биты нумеруются с 0; start_bit — позиция младшего бита; physical = raw * factor + offset."),
+        "# " + _("mapcan signal map (format v1)."),
+        "# " + _("Bytes and bits are numbered from 0; start_bit is the position of the least significant bit; physical "
+                 "= raw * factor + offset."),
         "",
         "mapcan: 1",
         "",
         "document:",
-        f"  title: {_q(title or _('Новая карта'))}",
+        f"  title: {_q(title or _('New map'))}",
         "  version: 0.1.0",
         f"  date: {today.isoformat()}",
     ]
@@ -61,11 +64,11 @@ def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, a
         lines.append(f"      author: {_q(author)}")
     if github:
         lines.append(f"      github: {github}")
-    lines += ["      changes:", "        - " + _("Создана карта."), "", "buses:"]
-    bus1 = "    title: " + _q(_("Шина 1"))
-    device = "        title: " + _q(_("Устройство"))
-    device_state = "            description: " + _q(_("Состояние устройства"))
-    status = "                description: " + _q(_("Статус"))
+    lines += ["      changes:", "        - " + _("Map created."), "", "buses:"]
+    bus1 = "    title: " + _q(_("Bus 1"))
+    device = "        title: " + _q(_("Device"))
+    device_state = "            description: " + _q(_("Device state"))
+    status = "                description: " + _q(_("Status"))
 
     if template == "empty":
         lines += ["  - name: bus1", bus1, "    bitrate: 500000", "    protocol: canopen",
@@ -102,16 +105,16 @@ def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, a
     elif template == "j1939":
         lines += [
             "  - name: j1939",
-            "    title: " + _q(_("Шина J1939")),
+            "    title: " + _q(_("J1939 bus")),
             "    bitrate: 250000",
             "    protocol: j1939",
             "    devices:",
             "      - name: ecu",
-            "        title: " + _q(_("Блок управления")),
+            "        title: " + _q(_("Control unit")),
             "        address: 0x00",
             "        frames:",
             "          - name: status",
-            "            description: " + _q(_("Состояние блока")),
+            "            description: " + _q(_("Unit state")),
             "            pgn: 0xFF00",
             "            priority: 6",
             "            dlc: 8",
@@ -119,7 +122,7 @@ def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, a
             "            signals:",
             "              - name: state",
             "                encoding: enum",
-            "                description: " + _q(_("Режим работы")),
+            "                description: " + _q(_("Operating mode")),
             "                byte: 0",
             "                byte_length: 1",
             "                values:",

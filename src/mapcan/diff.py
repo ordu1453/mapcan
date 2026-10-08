@@ -359,7 +359,7 @@ def release_message(version: str, changes: list[str]) -> str:
 
     if len(changes) == 1:
         return f"{version}: {changes[0]}"
-    head = _("Версия {version}", version=version)
+    head = _("Version {version}", version=version)
     return "\n".join([head, "", *(f"- {c}" for c in changes)]) if changes else head
 
 

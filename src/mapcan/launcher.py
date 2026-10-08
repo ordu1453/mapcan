@@ -72,9 +72,9 @@ class ServerThread:
         deadline = time.monotonic() + timeout
         while not self.server.started:
             if not self.thread.is_alive():
-                raise RuntimeError(_("сервер mapcan не запустился (порт занят?)"))
+                raise RuntimeError(_("the mapcan server did not start (is the port in use?)"))
             if time.monotonic() > deadline:
-                raise RuntimeError(_("сервер mapcan не ответил за отведённое время"))
+                raise RuntimeError(_("the mapcan server did not respond in time"))
             time.sleep(0.02)
 
     def stop(self) -> None:
@@ -247,7 +247,7 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
             session = EditorSession(path, readonly=readonly)
             cwd = path.resolve().parent
     except (OSError, UnicodeDecodeError) as e:
-        _message_box(_("Не удалось открыть {path}:\n{error}", path=path, error=e))
+        _message_box(_("Could not open {path}:\n{error}", path=path, error=e))
         session = None
 
     app = create_app(session, cwd=cwd.resolve(), readonly=readonly, check_updates=check_updates,
@@ -270,15 +270,14 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
                 s = wsp.session
                 if s is None or s.text == s.saved_text:
                     return True
-                answer = _ask_save(_("В «{name}» есть несохранённые изменения.\n\n"
-                                     "Сохранить перед закрытием?", name=s.path.name))
+                answer = _ask_save(_("“{name}” has unsaved changes.\n\nSave before closing?", name=s.path.name))
                 if answer is None:
                     return False
                 if answer:
                     try:
                         s.save()
                     except Exception as e:  # noqa: BLE001 — файл только для чтения, изменён извне и т.п.
-                        _message_box(_("Не удалось сохранить {path}:\n{error}", path=s.path, error=e))
+                        _message_box(_("Could not save {path}:\n{error}", path=s.path, error=e))
                         return False
                 return True
 
@@ -301,11 +300,12 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
                 webview.start(private_mode=False, storage_path=str(storage))
             except Exception as e:  # noqa: BLE001 — нет WebView2 и т.п.: работаем в браузере
                 win = None
-                print(_("mapcan: окно приложения недоступно ({error}), открываю браузер", error=e), file=sys.stderr)
+                print(_(
+                    "mapcan: the app window is unavailable ({error}), opening the browser", error=e), file=sys.stderr)
                 webbrowser.open(url)
                 server.wait()
         else:
-            print(_("mapcan {version}: {url}  (Ctrl+C — остановить)", version=__version__, url=url), file=sys.stderr)
+            print(_("mapcan {version}: {url}  (Ctrl+C to stop)", version=__version__, url=url), file=sys.stderr)
             webbrowser.open(url)
             server.wait()
     finally:
@@ -320,13 +320,13 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
 
     _redirect_output()
-    p = argparse.ArgumentParser(prog="mapcan-app", description=_("Редактор карты сигналов mapcan."))
-    p.add_argument("path", nargs="?", type=Path, help=_("карта (.yaml) или рабочая папка"))
-    p.add_argument("--browser", action="store_true", help=_("открыть в браузере вместо окна приложения"))
-    p.add_argument("--readonly", action="store_true", help=_("только просмотр"))
+    p = argparse.ArgumentParser(prog="mapcan-app", description=_("mapcan signal map editor."))
+    p.add_argument("path", nargs="?", type=Path, help=_("map (.yaml) or working folder"))
+    p.add_argument("--browser", action="store_true", help=_("open in a browser instead of the app window"))
+    p.add_argument("--readonly", action="store_true", help=_("view only"))
     p.add_argument("--version", action="version", version=f"mapcan {__version__}")
     a = p.parse_args(argv)
     if a.path is not None and not a.path.exists():
-        _message_box(_("Файл не найден:\n{path}", path=a.path))
+        _message_box(_("File not found:\n{path}", path=a.path))
         a.path = None
     return run(a.path, window=not a.browser, readonly=a.readonly)

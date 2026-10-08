@@ -20,8 +20,8 @@ import ValueTable from "./ValueTable.vue";
 import { N_, t } from "../i18n";
 
 const KIND_LABEL: Record<string, string> = {
-  document: N_("Документ"), history: "", revision: N_("Запись истории"), bus: N_("Шина"),
-  device: N_("Устройство"), frame: N_("Кадр"), signal: N_("Сигнал"), flag: N_("Флаг"), sdo: N_("SDO-обмен"), unknown: "",
+  document: N_("Document"), history: "", revision: N_("History entry"), bus: N_("Bus"),
+  device: N_("Device"), frame: N_("Frame"), signal: N_("Signal"), flag: N_("Flag"), sdo: N_("SDO exchange"), unknown: "",
 };
 
 const path = computed<Path>(() => store.selected);
@@ -86,7 +86,7 @@ const DEFAULTS: Record<string, string> = {
 
 function placeholderFor(def: FieldDef): string {
   if (kind.value === "frame" && def.key === "id" && rframe.value) {
-    return hex(rframe.value.can_id, rframe.value.extended ? 8 : 3) + " " + t("(вычислен)");
+    return hex(rframe.value.can_id, rframe.value.extended ? 8 : 3) + " " + t("(computed)");
   }
   if (def.key === "priority" && fieldCtx.value.protocol === "j1939") return "6";
   // DLC по умолчанию: 8, у служебного кадра CANopen — из типа
@@ -149,7 +149,7 @@ const crumbs = computed(() => {
     const k = nodeKind(sub);
     if (k === "unknown" || k === "document") continue;
     const nd = getAt(data.value, sub);
-    const label = k === "history" ? t("История изменений") : k === "revision" ? nd?.version
+    const label = k === "history" ? t("Revision history") : k === "revision" ? nd?.version
       : ["bus", "device", "frame", "signal"].includes(k) ? displayName(nd, lang.value) : nd?.name;
     out.push({ label, path: sub });
   }
@@ -196,7 +196,7 @@ function readInt(e: Event, key: string, min: number, max: number, old: number | 
   let n: number | null = null;
   try {
     n = parseInteger(el.value);
-    if (n < min || n > max) msg = t("«{raw}» — допустимо от {min} до {max}", { raw: el.value.trim(), min, max });
+    if (n < min || n > max) msg = t("“{raw}” must be between {min} and {max}", { raw: el.value.trim(), min, max });
   } catch (err) {
     msg = err instanceof ParseError ? err.message : String(err);
   }
@@ -341,7 +341,7 @@ const exchange = computed(() => {
     receives: onBus.filter((f) => f.receivers.includes(name))
       .map((f) => ({ ...row(f, label(f.sender)), foreign: f.device !== name })),
     sends: onBus.filter((f) => f.sender === name && f.device !== name)
-      .map((f) => row(f, f.device ? label(f.device) : t("кадр шины"))),
+      .map((f) => row(f, f.device ? label(f.device) : t("bus frame"))),
   };
 });
 
@@ -371,7 +371,7 @@ function onLayout(p: Path, start: number, length: number) {
     <header class="ne-head">
       <div>
         <div class="crumbs">
-          <a @click="actions.select(['document'])">{{ txt(data?.document?.title, lang) || t("Документ") }}</a>
+          <a @click="actions.select(['document'])">{{ txt(data?.document?.title, lang) || t("Document") }}</a>
           <template v-for="c in crumbs" :key="c.path.join('/')">
             <span class="sep">›</span><a @click="actions.select(c.path)">{{ c.label }}</a>
           </template>
@@ -382,16 +382,16 @@ function onLayout(p: Path, start: number, length: number) {
                         :value="renaming === 'title' ? nodeTitle : node?.[renaming] ?? ''" @done="renaming = null" />
           <template v-else-if="canRename(path)">
             <template v-if="kind === 'device' && node?.short">
-              <span class="renamable" :title="t('Двойной щелчок — изменить сокращение')"
+              <span class="renamable" :title="t('Double-click to edit the abbreviation')"
                     @dblclick="renaming = 'short'">{{ node.short }}</span><span class="muted">·</span>
             </template>
-            <span v-if="nodeTitle" class="renamable" :title="t('Двойной щелчок — изменить название')"
+            <span v-if="nodeTitle" class="renamable" :title="t('Double-click to edit the title')"
                   @dblclick="renaming = 'title'">{{ nodeTitle }}</span>
-            <span class="renamable mono" :class="{ secondary: !!nodeTitle }" :title="t('Двойной щелчок — изменить идентификатор')"
+            <span class="renamable mono" :class="{ secondary: !!nodeTitle }" :title="t('Double-click to edit the identifier')"
                   @dblclick="renaming = 'name'">{{ node?.name }}</span>
           </template>
           <template v-else>
-            {{ kind === "document" ? txt(node?.title, lang) : kind === "history" ? t("История изменений")
+            {{ kind === "document" ? txt(node?.title, lang) : kind === "history" ? t("Revision history")
               : kind === "revision" ? node?.version : node?.name }}
           </template>
           <span v-if="kind === 'frame' && rframe" class="mono id-badge">{{ hex(rframe.can_id, rframe.extended ? 8 : 3) }}</span>
@@ -399,52 +399,52 @@ function onLayout(p: Path, start: number, length: number) {
       </div>
       <div class="ne-actions">
         <template v-if="isListItem && !readonly">
-          <button class="icon" :title="t('Дублировать')" @click="duplicateNode(path)">⧉</button>
-          <button class="icon danger" :title="store.selectedVia ? t('Не принимать (убрать из получателей)') : t('Удалить (Delete)')"
+          <button class="icon" :title="t('Duplicate')" @click="duplicateNode(path)">⧉</button>
+          <button class="icon danger" :title="store.selectedVia ? t('Stop receiving (remove from receivers)') : t('Delete (Del)')"
                   @click="removeSelected()">✕</button>
         </template>
       </div>
     </header>
 
     <div v-if="includedFile" class="banner info">
-      🔗 {{ t("Узел описан в подключённом файле {file}: здесь он только для просмотра, правьте его в том файле.",
+      🔗 {{ t("The node is described in the included file {file}: it is read-only here, edit it in that file.",
               { file: includedFile }) }}
     </div>
     <div v-for="d in ownDiags" :key="d.code + d.message" class="banner" :class="d.level">
       <b>{{ d.code }}</b>: {{ d.message }}
       <button v-if="d.code === 'rx-duplicate' && rxTwin && !readonly" class="small fix"
-              @click="receiveFrame(path, rxTwin.path)">{{ t("Принимать кадр {frame}", { frame: rxTwin.label }) }}</button>
+              @click="receiveFrame(path, rxTwin.path)">{{ t("Receive frame {frame}", { frame: rxTwin.label }) }}</button>
     </div>
     <div v-if="kind === 'frame' && store.selectedVia" class="banner info">
-      {{ t("Кадр описан у отправителя, {device} принимает его. Delete или ✕ — перестать принимать, кадр останется.",
+      {{ t("The frame is described at its sender; {device} receives it. Delete or ✕ stops receiving it and keeps the frame.",
            { device: fieldCtx.deviceLabels?.[store.selectedVia] ?? store.selectedVia }) }}
     </div>
 
     <!-- Битовая карта для кадра, сигнала, флага -->
     <section v-if="rframe && rframe.dlc > 0 && ['frame', 'signal', 'flag', 'sdo'].includes(kind)" class="card">
-      <h3>{{ t("Раскладка кадра") }} <span class="muted">{{ frameData?.name }} · DLC {{ rframe.dlc }}</span></h3>
+      <h3>{{ t("Frame layout") }} <span class="muted">{{ frameData?.name }} · DLC {{ rframe.dlc }}</span></h3>
       <BitGrid :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly"
                v-model:mux-value="muxValue"
                @select="actions.select" @create="onCreate" @layout="onLayout" />
     </section>
 
     <section v-if="kind !== 'history'" class="card">
-      <h3>{{ t("Свойства") }} <span v-if="hasRequired" class="muted req-note"><span class="req">*</span> {{ t("— обязательное поле") }}</span></h3>
+      <h3>{{ t("Properties") }} <span v-if="hasRequired" class="muted req-note"><span class="req">*</span> {{ t("— required field") }}</span></h3>
       <div class="form-grid">
         <!-- позиция сигнала -->
         <template v-if="kind === 'signal' && rsignal">
           <label class="field" :class="worstLevel([...wholeDiags, ...startDiags])">
-            <span class="field-label"><HelpTip :text="HELP['layout.start_bit']" />{{ t("Начальный бит (LSB)") }}</span>
+            <span class="field-label"><HelpTip :text="HELP['layout.start_bit']" />{{ t("Start bit (LSB)") }}</span>
             <input class="mono" :value="rsignal.start_bit" :readonly="readonly || rsignal.synthetic" @change="setLayout('start_bit', $event)" />
             <span v-if="inputErrors.start_bit" class="field-msg error">{{ inputErrors.start_bit }}</span>
             <span v-for="d in startDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
           </label>
           <label class="field" :class="worstLevel([...wholeDiags, ...lengthDiags])">
-            <span class="field-label"><HelpTip :text="HELP['layout.bit_length']" />{{ t("Длина, бит") }}</span>
+            <span class="field-label"><HelpTip :text="HELP['layout.bit_length']" />{{ t("Length, bits") }}</span>
             <input class="mono" :value="rsignal.bit_length" :readonly="readonly || rsignal.synthetic" @change="setLayout('bit_length', $event)" />
             <span v-if="inputErrors.bit_length" class="field-msg error">{{ inputErrors.bit_length }}</span>
             <span class="field-hint">
-              {{ t("байты {bytes}, биты {bits}", {
+              {{ t("bytes {bytes}, bits {bits}", {
                 bytes: rangeLabel(Math.floor(Math.min(...rsignal.occupied) / 8), Math.floor(Math.max(...rsignal.occupied) / 8)),
                 bits: rangeLabel(Math.min(...rsignal.occupied), Math.max(...rsignal.occupied)) }) }}
             </span>
@@ -454,30 +454,30 @@ function onLayout(p: Path, start: number, length: number) {
 
         <!-- RX-кадр: выбрать вместо него кадр другого устройства -->
         <label v-if="rxSources.length && !readonly" class="field">
-          <span class="field-label"><HelpTip :text="HELP['layout.source']" />{{ t("Кадр другого устройства") }}</span>
+          <span class="field-label"><HelpTip :text="HELP['layout.source']" />{{ t("Frame of another device") }}</span>
           <select value="" @change="setSource">
-            <option value="">{{ t("нет — кадр описан здесь") }}</option>
+            <option value="">{{ t("none — the frame is described here") }}</option>
             <option v-for="o in rxSources" :key="o.key" :value="o.key">{{ o.label }}</option>
           </select>
-          <span class="field-hint">{{ t("устройство принимает кадр, описанный у отправителя") }}</span>
+          <span class="field-hint">{{ t("the device receives a frame described at its sender") }}</span>
         </label>
 
         <!-- режим передачи кадра -->
         <template v-if="kind === 'frame'">
           <label class="field" :class="txMode === 'cyclic' ? '' : worstLevel(txDiags)">
-            <span class="field-label"><HelpTip :text="HELP['layout.mode']" />{{ t("Передача") }}</span>
+            <span class="field-label"><HelpTip :text="HELP['layout.mode']" />{{ t("Transmission") }}</span>
             <select :value="txMode" :disabled="readonly" @change="setMode">
-              <option value="">{{ t("не указано") }}</option>
-              <option value="cyclic">{{ t("циклически") }}</option>
-              <option value="event">{{ t("по событию") }}</option>
-              <option value="on_request">{{ t("по запросу") }}</option>
+              <option value="">{{ t("not set") }}</option>
+              <option value="cyclic">{{ t("cyclic") }}</option>
+              <option value="event">{{ t("on event") }}</option>
+              <option value="on_request">{{ t("on request") }}</option>
             </select>
             <template v-if="txMode !== 'cyclic'">
               <span v-for="d in txDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
             </template>
           </label>
           <label v-if="txMode === 'cyclic'" class="field" :class="worstLevel(txDiags)">
-            <span class="field-label"><HelpTip :text="HELP['layout.cycle_ms']" />{{ t("Период, мс") }}</span>
+            <span class="field-label"><HelpTip :text="HELP['layout.cycle_ms']" />{{ t("Period, ms") }}</span>
             <input class="mono" :value="txCycle ?? ''" :readonly="readonly" @change="setCycle" />
             <span v-if="inputErrors.cycle_ms" class="field-msg error">{{ inputErrors.cycle_ms }}</span>
             <span v-for="d in txDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
@@ -496,8 +496,8 @@ function onLayout(p: Path, start: number, length: number) {
     <HistoryEditor v-if="kind === 'history' || kind === 'revision'" :path="path" />
 
     <section v-if="typeof node?.values === 'string'" class="card">
-      <h3>{{ t("Значения") }}</h3>
-      <p class="muted">{{ t("Таблица «{name}» из value_tables — правится там.", { name: node.values }) }}</p>
+      <h3>{{ t("Values") }}</h3>
+      <p class="muted">{{ t("Table \"{name}\" from value_tables; edit it there.", { name: node.values }) }}</p>
     </section>
     <ValueTable v-else-if="showValues" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
                 :readonly="readonly" :diags="diags" />
@@ -506,14 +506,14 @@ function onLayout(p: Path, start: number, length: number) {
     <!-- Сигналы кадра -->
     <section v-if="kind === 'frame'" class="card">
       <h3>
-        {{ t("Сигналы") }} <span class="muted">{{ frameSignals.length }}</span>
+        {{ t("Signals") }} <span class="muted">{{ frameSignals.length }}</span>
         <span v-if="!readonly" class="card-actions">
-          <button v-if="canAddSdo" class="small" @click="addSdo(path)">+ {{ t("SDO-обмен") }}</button>
-          <button class="small" @click="addSignal(path)">+ {{ t("Сигнал") }}</button>
+          <button v-if="canAddSdo" class="small" @click="addSdo(path)">+ {{ t("SDO exchange") }}</button>
+          <button class="small" @click="addSignal(path)">+ {{ t("Signal") }}</button>
         </span>
       </h3>
       <table v-if="frameSignals.length" class="list">
-        <thead><tr><th></th><th>{{ t("Сигнал") }}</th><th>{{ t("Биты") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Описание") }}</th></tr></thead>
+        <thead><tr><th></th><th>{{ t("Signal") }}</th><th>{{ t("Bits") }}</th><th>{{ t("Type") }}</th><th>{{ t("Description") }}</th></tr></thead>
         <tbody>
           <tr v-for="(r, i) in frameSignals" :key="r.s.name" class="clickable"
               @click="actions.select(r.s.synthetic ? path : r.s.path)">
@@ -526,51 +526,51 @@ function onLayout(p: Path, start: number, length: number) {
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">{{ t("Сигналов нет. Протяните мышью по битам в раскладке выше или нажмите «+ Сигнал».") }}</p>
+      <p v-else class="muted">{{ t("No signals yet. Drag across the bits in the layout above or click “+ Signal”.") }}</p>
     </section>
 
     <!-- Кадры устройства / шины -->
     <section v-if="kind === 'bus' || kind === 'device'" class="card">
       <h3>
-        {{ t("Кадры") }} <span class="muted">{{ childFrames.length }}</span>
+        {{ t("Frames") }} <span class="muted">{{ childFrames.length }}</span>
         <span v-if="!readonly" class="card-actions">
-          <button class="small" @click="addFrame(path)">+ {{ t("Кадр") }}</button>
+          <button class="small" @click="addFrame(path)">+ {{ t("Frame") }}</button>
         </span>
       </h3>
       <table v-if="childFrames.length" class="list">
-        <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Тип") }}</th><th>{{ t("Сигналов") }}</th><th>{{ t("Описание") }}</th><th v-if="!readonly"></th></tr></thead>
+        <thead><tr><th>ID</th><th>{{ t("Frame") }}</th><th>{{ t("Type") }}</th><th>{{ t("Signals") }}</th><th>{{ t("Description") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="f in childFrames" :key="f.name" class="clickable" @click="actions.select(f.path)">
             <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td><td>{{ f.type }}</td>
             <td>{{ f.n }}</td><td>{{ f.desc }}</td>
-            <td v-if="!readonly" class="act"><button class="icon danger" :title="t('Удалить')" @click.stop="removeNode(f.path)">✕</button></td>
+            <td v-if="!readonly" class="act"><button class="icon danger" :title="t('Delete')" @click.stop="removeNode(f.path)">✕</button></td>
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">{{ t("Кадров нет.") }}</p>
+      <p v-else class="muted">{{ t("No frames.") }}</p>
     </section>
 
     <!-- Обмен устройства: что оно принимает и какие чужие кадры передаёт -->
     <section v-if="exchange" class="card">
-      <h3>{{ t("Принимает") }} <span class="muted">{{ exchange.receives.length }}</span></h3>
+      <h3>{{ t("Receives") }} <span class="muted">{{ exchange.receives.length }}</span></h3>
       <table v-if="exchange.receives.length" class="list">
-        <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Отправитель") }}</th><th>{{ t("Описание") }}</th><th v-if="!readonly"></th></tr></thead>
+        <thead><tr><th>ID</th><th>{{ t("Frame") }}</th><th>{{ t("Sender") }}</th><th>{{ t("Description") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="f in exchange.receives" :key="f.name" class="clickable" @click="actions.select(f.path)">
             <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td>
             <td>{{ f.peer }}</td><td>{{ f.desc }}</td>
             <td v-if="!readonly" class="act">
-              <button v-if="f.foreign" class="icon danger" :title="t('Не принимать (убрать из получателей)')"
+              <button v-if="f.foreign" class="icon danger" :title="t('Stop receiving (remove from receivers)')"
                       @click.stop="stopReceiving(f.path, node.name)">✕</button>
             </td>
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">{{ t("Устройство не указано получателем ни одного кадра.") }}</p>
+      <p v-else class="muted">{{ t("The device is not a receiver of any frame.") }}</p>
       <template v-if="exchange.sends.length">
-        <h3 class="sub">{{ t("Передаёт кадры других устройств") }} <span class="muted">{{ exchange.sends.length }}</span></h3>
+        <h3 class="sub">{{ t("Transmits frames of other devices") }} <span class="muted">{{ exchange.sends.length }}</span></h3>
         <table class="list">
-          <thead><tr><th>ID</th><th>{{ t("Кадр") }}</th><th>{{ t("Устройство") }}</th><th>{{ t("Описание") }}</th></tr></thead>
+          <thead><tr><th>ID</th><th>{{ t("Frame") }}</th><th>{{ t("Device") }}</th><th>{{ t("Description") }}</th></tr></thead>
           <tbody>
             <tr v-for="f in exchange.sends" :key="f.name" class="clickable" @click="actions.select(f.path)">
               <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td>
@@ -583,13 +583,13 @@ function onLayout(p: Path, start: number, length: number) {
 
     <section v-if="kind === 'bus'" class="card">
       <h3>
-        {{ t("Устройства") }} <span class="muted">{{ devices.length }}</span>
+        {{ t("Devices") }} <span class="muted">{{ devices.length }}</span>
         <span v-if="!readonly" class="card-actions">
-          <button class="small" @click="addDevice(path)">+ {{ t("Устройство") }}</button>
+          <button class="small" @click="addDevice(path)">+ {{ t("Device") }}</button>
         </span>
       </h3>
       <table v-if="devices.length" class="list">
-        <thead><tr><th>{{ t("Устройство") }}</th><th>{{ t("Адрес") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
+        <thead><tr><th>{{ t("Device") }}</th><th>{{ t("Address") }}</th><th>{{ t("Frames") }}</th></tr></thead>
         <tbody>
           <tr v-for="(d, i) in devices" :key="i" class="clickable" @click="actions.select([...path, 'devices', i])">
             <td>{{ displayName(d, lang) }}<span v-if="d.name" class="ident">{{ d.name }}</span></td>
@@ -598,18 +598,18 @@ function onLayout(p: Path, start: number, length: number) {
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">{{ t("Устройств нет.") }}</p>
+      <p v-else class="muted">{{ t("No devices.") }}</p>
     </section>
 
     <section v-if="kind === 'document'" class="card">
       <h3>
-        {{ t("Шины") }} <span class="muted">{{ buses.length }}</span>
+        {{ t("Buses") }} <span class="muted">{{ buses.length }}</span>
         <span v-if="!readonly" class="card-actions">
-          <button class="small" @click="addBus()">+ {{ t("Шина") }}</button>
+          <button class="small" @click="addBus()">+ {{ t("Bus") }}</button>
         </span>
       </h3>
       <table v-if="buses.length" class="list">
-        <thead><tr><th>{{ t("Шина") }}</th><th>{{ t("Протокол") }}</th><th>{{ t("Устройства") }}</th><th>{{ t("Кадров") }}</th></tr></thead>
+        <thead><tr><th>{{ t("Bus") }}</th><th>{{ t("Protocol") }}</th><th>{{ t("Devices") }}</th><th>{{ t("Frames") }}</th></tr></thead>
         <tbody>
           <tr v-for="b in buses" :key="b.name" class="clickable" @click="actions.select(b.path)">
             <td>{{ b.label }}<span v-if="b.label !== b.name" class="ident">{{ b.name }}</span></td><td>{{ b.protocol }}</td>
@@ -617,17 +617,17 @@ function onLayout(p: Path, start: number, length: number) {
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">{{ t("Шин нет.") }}</p>
+      <p v-else class="muted">{{ t("No buses.") }}</p>
     </section>
 
     <!-- История изменений — отдельный узел дерева -->
     <section v-if="kind === 'document'" class="card">
-      <h3>{{ t("История изменений") }} <span class="muted">{{ node?.history?.length ?? 0 }}</span></h3>
+      <h3>{{ t("Revision history") }} <span class="muted">{{ node?.history?.length ?? 0 }}</span></h3>
       <p v-if="node?.history?.length" class="muted">
-        {{ t("Последняя запись:") }} <b class="mono">{{ node.history[0].version }}</b>
-        <template v-if="node.history[0].date"> {{ t("от {date}", { date: node.history[0].date }) }}</template>
+        {{ t("Latest entry:") }} <b class="mono">{{ node.history[0].version }}</b>
+        <template v-if="node.history[0].date"> {{ t("({date})", { date: node.history[0].date }) }}</template>
       </p>
-      <button class="small" @click="actions.select(HISTORY_PATH)">{{ t("Открыть историю") }}</button>
+      <button class="small" @click="actions.select(HISTORY_PATH)">{{ t("Open history") }}</button>
     </section>
   </div>
 </template>

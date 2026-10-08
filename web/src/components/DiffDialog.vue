@@ -73,9 +73,9 @@ async function compareFile(e: Event) {
 
 const gitHint = computed(() => {
   switch (revs.value?.reason) {
-    case "no-git": return t("Git не найден — сравнение с версиями из git недоступно.");
-    case "no-repo": return t("Файл карты не находится в git-репозитории.");
-    case "untracked": return t("Файл карты ещё не закоммичен в git — сравнивать не с чем.");
+    case "no-git": return t("Git not found, so comparing with versions from git is unavailable.");
+    case "no-repo": return t("The map file is not in a git repository.");
+    case "untracked": return t("The map file hasn't been committed to git yet, so there's nothing to compare with.");
     default: return "";
   }
 });
@@ -84,7 +84,7 @@ const groups = computed(() => {
   const g = new Map<string, string[]>();
   for (const line of result.value?.lines ?? []) {
     const m = /^(0x[0-9A-F]+ \S+): (.*)$/.exec(line);
-    const key = m ? m[1] : t("Общее");
+    const key = m ? m[1] : t("General");
     if (!g.has(key)) g.set(key, []);
     g.get(key)!.push(m ? m[2] : line);
   }
@@ -94,7 +94,7 @@ const groups = computed(() => {
 async function addToHistory() {
   const lines = changes.value.split("\n").map((s) => s.trim()).filter(Boolean);
   if (!version.value.trim() || !lines.length) {
-    toast(t("Укажите версию и хотя бы одно изменение"));
+    toast(t("Enter a version and at least one change"));
     return;
   }
   const user = store.meta?.user;
@@ -108,7 +108,7 @@ async function addToHistory() {
     { op: "set", path: ["document", "date"], value: date.value },
   ]);
   if (ok) {
-    toast(t("Запись добавлена в историю изменений"), "info");
+    toast(t("Entry added to the revision history"), "info");
     actions.select(["document"]);
     emit("close");
   }
@@ -116,39 +116,39 @@ async function addToHistory() {
 </script>
 
 <template>
-  <Modal :title="t('Сравнить версии')" wide @close="emit('close')">
+  <Modal :title="t('Compare versions')" wide @close="emit('close')">
     <div class="diff-source">
       <template v-if="revs?.available">
-        <label>{{ t("С версией из git:") }}
+        <label>{{ t("Compare with git version:") }}
           <select v-model="rev">
-            <option value="HEAD">{{ t("HEAD — последний коммит") }}</option>
-            <optgroup v-if="revs.tags.length" :label="t('Теги')">
+            <option value="HEAD">{{ t("HEAD — latest commit") }}</option>
+            <optgroup v-if="revs.tags.length" :label="t('Tags')">
               <option v-for="t in revs.tags" :key="t" :value="t">{{ t }}</option>
             </optgroup>
-            <optgroup v-if="revs.branches.length" :label="t('Ветки')">
+            <optgroup v-if="revs.branches.length" :label="t('Branches')">
               <option v-for="b in revs.branches" :key="b" :value="b">{{ b }}</option>
             </optgroup>
-            <optgroup v-if="revs.commits.length" :label="t('Коммиты с этим файлом')">
+            <optgroup v-if="revs.commits.length" :label="t('Commits with this file')">
               <option v-for="c in revs.commits" :key="c.rev" :value="c.rev">{{ c.rev }} · {{ c.date }} · {{ c.author }} · {{ c.subject }}</option>
             </optgroup>
           </select>
         </label>
-        <button :disabled="loading" @click="compareGit">{{ t("Сравнить") }}</button>
+        <button :disabled="loading" @click="compareGit">{{ t("Compare") }}</button>
         <button v-if="!store.state?.readonly" :disabled="loading || store.busy"
-                :title="t('Загрузить эту версию в редактор вместо текущей (можно отменить)')"
-                @click="openRevision">{{ t("Открыть эту версию") }}</button>
-        <span class="muted">{{ t("или") }}</span>
+                :title="t('Load this version into the editor in place of the current one (can be undone)')"
+                @click="openRevision">{{ t("Open this version") }}</button>
+        <span class="muted">{{ t("or") }}</span>
       </template>
-      <label class="button">{{ t("Выбрать файл…") }} <input type="file" accept=".yaml,.yml" hidden @change="compareFile" /></label>
+      <label class="button">{{ t("Choose file…") }} <input type="file" accept=".yaml,.yml" hidden @change="compareFile" /></label>
     </div>
 
     <p v-if="error" class="banner error">{{ error }}</p>
-    <p v-else-if="loading" class="muted">{{ t("Сравнение…") }}</p>
-    <p v-else-if="!result && gitHint" class="banner info">{{ gitHint }} {{ t("Выберите YAML-файл предыдущей версии карты для сравнения.") }}</p>
+    <p v-else-if="loading" class="muted">{{ t("Comparing…") }}</p>
+    <p v-else-if="!result && gitHint" class="banner info">{{ gitHint }} {{ t("Choose a YAML file with an earlier version of the map to compare against.") }}</p>
 
     <template v-if="result && !loading">
       <p class="muted">
-        {{ t("{label} (версия {old}) → текущая карта (версия {new}): изменений — {n}", {
+        {{ t("{label} (version {old}) → current map (version {new}): {n} changes", {
           label: result.label, old: result.old_version, new: result.new_version, n: result.lines.length }) }}
       </p>
       <div v-if="result.lines.length" class="diff-list">
@@ -157,26 +157,26 @@ async function addToHistory() {
           <ul><li v-for="(x, i) in items" :key="i">{{ x }}</li></ul>
         </section>
       </div>
-      <p v-else class="ok">{{ t("Отличий нет.") }}</p>
+      <p v-else class="ok">{{ t("No differences.") }}</p>
 
       <section v-if="result.lines.length && !store.state?.readonly" class="history-form">
-        <h4>{{ t("Добавить в историю изменений") }}</h4>
+        <h4>{{ t("Add to revision history") }}</h4>
         <div class="form-grid">
-          <label class="field"><span class="field-label">{{ t("Новая версия") }}</span><input v-model="version" class="mono" /></label>
-          <label class="field"><span class="field-label">{{ t("Дата") }}</span><input v-model="date" type="date" /></label>
-          <label class="field wide"><span class="field-label">{{ t("Изменения (по строке)") }}</span>
+          <label class="field"><span class="field-label">{{ t("New version") }}</span><input v-model="version" class="mono" /></label>
+          <label class="field"><span class="field-label">{{ t("Date") }}</span><input v-model="date" type="date" /></label>
+          <label class="field wide"><span class="field-label">{{ t("Changes (one per line)") }}</span>
             <textarea v-model="changes" rows="6" /></label>
         </div>
         <p class="muted">
-          {{ t("Автор:") }}
+          {{ t("Author:") }}
           <template v-if="store.meta?.user.name">
             <b>{{ store.meta.user.name }}</b>
             <span v-if="store.meta.user.github" class="mono">@{{ store.meta.user.github }}</span>
           </template>
-          <template v-else>{{ t("не указан —") }}</template>
-          <button class="link" @click="store.dialog = 'profile'">{{ store.meta?.user.name ? t("изменить") : t("заполнить профиль") }}</button>
+          <template v-else>{{ t("not set —") }}</template>
+          <button class="link" @click="store.dialog = 'profile'">{{ store.meta?.user.name ? t("edit") : t("fill in profile") }}</button>
         </p>
-        <button class="primary" @click="addToHistory">{{ t("Добавить в историю") }}</button>
+        <button class="primary" @click="addToHistory">{{ t("Add to history") }}</button>
       </section>
     </template>
   </Modal>

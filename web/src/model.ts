@@ -156,13 +156,13 @@ export function deviceLabel(v: Data, lang: string): string {
 
 export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string, included: Included[] = []): TreeNode[] {
   const doc: TreeNode = {
-    key: "document", path: ["document"], kind: "document", label: txt(data?.document?.title, lang) || t("Документ"),
+    key: "document", path: ["document"], kind: "document", label: txt(data?.document?.title, lang) || t("Document"),
     sub: data?.document?.version ?? "", children: [], search: "",
   };
   const history = list(data?.document?.history);
   doc.children.push({
-    key: pathKey(HISTORY_PATH), path: HISTORY_PATH, kind: "history", label: t("История изменений"),
-    sub: history.length ? String(history.length) : "", search: `${t("История изменений").toLowerCase()} история изменений history`,
+    key: pathKey(HISTORY_PATH), path: HISTORY_PATH, kind: "history", label: t("Revision history"),
+    sub: history.length ? String(history.length) : "", search: `${t("Revision history").toLowerCase()} история изменений history`,
     children: history.map((h: Data, i: number) => ({
       key: pathKey([...HISTORY_PATH, i]), path: [...HISTORY_PATH, i], kind: "revision" as NodeKind,
       label: String(h?.version ?? "—"), sub: h?.date ? String(h.date) : "", children: [],
@@ -197,7 +197,7 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
           const flp = [...sp, "flags", fi];
           snode.children.push({
             key: pathKey(flp), path: flp, kind: "flag", label: nameOf(fl),
-            sub: t("бит {bit}", { bit: fl.bit }), children: [], search: [fl.name, txt(fl.description, lang)].join(" ").toLowerCase(),
+            sub: t("bit {bit}", { bit: fl.bit }), children: [], search: [fl.name, txt(fl.description, lang)].join(" ").toLowerCase(),
           });
         });
         fnode.children.push(snode);

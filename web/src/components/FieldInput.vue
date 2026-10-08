@@ -162,7 +162,7 @@ watch(() => store.focusPath, async (fp) => {
   <!-- Переключатели — не внутри label: щелчок по подписи нажимал бы первую кнопку -->
   <component :is="def.type === 'devices' ? 'div' : 'label'" ref="root" class="field" :class="[{ wide: def.wide, flash }, level]">
     <span class="field-label"><HelpTip v-if="def.help" :text="def.help" />{{ t(def.label) }}<span
-      v-if="required" class="req" :title="t('Обязательное поле')">*</span></span>
+      v-if="required" class="req" :title="t('Required field')">*</span></span>
 
     <select v-if="def.type === 'select'" :value="value ?? ''" :disabled="readonly" @change="onSelect">
       <option v-for="[v, l] in def.options" :key="v" :value="v">{{ t(l) }}</option>
@@ -174,8 +174,8 @@ watch(() => store.focusPath, async (fp) => {
     <span v-else-if="def.type === 'devices'" class="chips">
       <button v-for="[v, l, known] in chips" :key="v" type="button" class="dev-chip"
               :class="{ on: chosen.includes(v), unknown: !known }" :disabled="readonly"
-              :title="known ? undefined : t('Устройство не описано на шине')" @click="toggle(v)">{{ l }}</button>
-      <span v-if="!chips.length" class="field-hint">{{ t("На шине нет других устройств") }}</span>
+              :title="known ? undefined : t('Device is not defined on the bus')" @click="toggle(v)">{{ l }}</button>
+      <span v-if="!chips.length" class="field-hint">{{ t("There are no other devices on the bus") }}</span>
     </span>
 
     <span v-else-if="def.type === 'bool'" class="checkbox">
@@ -188,7 +188,7 @@ watch(() => store.focusPath, async (fp) => {
     <span v-else-if="suggestions.length" class="suggest">
       <input v-model="draft" :readonly="readonly" :placeholder="placeholder"
              @change="commit" @input="onType" @blur="onBlur" @keydown.esc="listOpen = false" />
-      <button v-if="!readonly" type="button" class="suggest-toggle" :title="t('Выбрать из списка')"
+      <button v-if="!readonly" type="button" class="suggest-toggle" :title="t('Pick from the list')"
               @mousedown.prevent @click.prevent="toggleList">▾</button>
       <span v-if="listOpen && shown.length" class="suggest-list" @mousedown.prevent>
         <button v-for="[v, other] in shown" :key="v" type="button" :class="{ current: v === draft }"
@@ -202,7 +202,7 @@ watch(() => store.focusPath, async (fp) => {
 
     <span v-if="error" class="field-msg error">{{ error }}</span>
     <span v-for="d in diags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
-    <span v-if="missing && !error && !diags?.length" class="field-msg missing">{{ t("Обязательное поле") }}</span>
+    <span v-if="missing && !error && !diags?.length" class="field-msg missing">{{ t("Required field") }}</span>
     <span v-else-if="def.hint && !error && !diags?.length" class="field-hint">{{ t(def.hint) }}</span>
   </component>
 </template>

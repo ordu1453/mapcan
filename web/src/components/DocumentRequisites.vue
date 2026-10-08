@@ -16,21 +16,21 @@ const readonly = computed(() => !!store.state?.readonly);
 const diags = computed(() => store.state?.diagnostics ?? []);
 
 const MAIN: FieldDef[] = [
-  { key: "designation", label: N_("Обозначение документа"), type: "text", hint: N_("напр. АБВГ.468332.001 Д1") },
-  { key: "litera", label: N_("Литера"), type: "text", hint: N_("ЕСКД: Э, Т, О, О1, А…") },
-  { key: "organization", label: N_("Организация"), type: "text" },
-  { key: "city", label: N_("Город"), type: "text", hint: N_("для титульного листа") },
+  { key: "designation", label: N_("Document designation"), type: "text", hint: N_("e.g. АБВГ.468332.001 Д1") },
+  { key: "litera", label: N_("Letter"), type: "text", hint: N_("ESKD: Э, Т, О, О1, А…") },
+  { key: "organization", label: N_("Organization"), type: "text" },
+  { key: "city", label: N_("City"), type: "text", hint: N_("for the title page") },
 ];
 const SIGNS: FieldDef[] = [
-  { key: "signatures.developed", label: N_("Разраб."), type: "text" },
-  { key: "signatures.checked", label: N_("Пров."), type: "text" },
-  { key: "signatures.tech_control", label: N_("Т. контр."), type: "text" },
-  { key: "signatures.norm_control", label: N_("Н. контр."), type: "text" },
-  { key: "signatures.approved", label: N_("Утв."), type: "text" },
+  { key: "signatures.developed", label: N_("Developed by"), type: "text" },
+  { key: "signatures.checked", label: N_("Checked by"), type: "text" },
+  { key: "signatures.tech_control", label: N_("Technical control"), type: "text" },
+  { key: "signatures.norm_control", label: N_("Standards control"), type: "text" },
+  { key: "signatures.approved", label: N_("Approved by"), type: "text" },
 ];
 const APPROVE: FieldDef[] = [
-  { key: "approve.position", label: N_("УТВЕРЖДАЮ: должность"), type: "text" },
-  { key: "approve.name", label: N_("УТВЕРЖДАЮ: И. О. Фамилия"), type: "text" },
+  { key: "approve.position", label: N_("APPROVED: position"), type: "text" },
+  { key: "approve.name", label: N_("APPROVED: full name"), type: "text" },
 ];
 
 const value = (def: FieldDef) => getAt(doc.value, def.key.split("."));
@@ -65,7 +65,7 @@ async function upload(e: Event) {
     const st: State = await api.uploadLogo(f);
     store.state = st;
     logoBroken.value = false;
-    toast(t("Логотип загружен"), "info");
+    toast(t("Logo uploaded"), "info");
   } catch (err) {
     toast(err instanceof Error ? err.message : String(err));
   } finally {
@@ -87,7 +87,7 @@ function setAgree(i: number, key: "position" | "name", e: Event) {
   void actions.apply([{ op: "set", path: ["document", "agree", i, key], value: v || null }]);
 }
 function addAgree() {
-  void actions.apply([{ op: "insert", path: ["document", "agree"], value: { position: t("Должность"), name: t("И. О. Фамилия") } }]);
+  void actions.apply([{ op: "insert", path: ["document", "agree"], value: { position: t("Job title"), name: t("Initials and surname") } }]);
 }
 function removeAgree(i: number) {
   if (agree.value.length === 1) void actions.apply([{ op: "remove", path: ["document", "agree"] }]);
@@ -97,22 +97,22 @@ function removeAgree(i: number) {
 
 <template>
   <section class="card">
-    <h3>{{ t("Оформление и реквизиты") }} <span class="muted">{{ t("шаблон PDF ЕСКД") }}</span></h3>
+    <h3>{{ t("Layout and document details") }} <span class="muted">{{ t("ESKD PDF template") }}</span></h3>
 
     <div class="logo-row">
       <div class="logo-box" :class="{ empty: !doc.logo }">
-        <img v-if="doc.logo && !logoBroken" :src="logoUrl" :alt="t('Логотип')" @error="logoBroken = true" />
-        <span v-else-if="doc.logo" class="muted">{{ t("файл не найден") }}</span>
-        <span v-else class="muted">{{ t("Логотип не задан") }}</span>
+        <img v-if="doc.logo && !logoBroken" :src="logoUrl" :alt="t('Logo')" @error="logoBroken = true" />
+        <span v-else-if="doc.logo" class="muted">{{ t("file not found") }}</span>
+        <span v-else class="muted">{{ t("No logo set") }}</span>
       </div>
       <div class="logo-actions">
-        <b>{{ t("Логотип предприятия") }}</b>
-        <span class="muted">{{ t("PNG, JPG или SVG. Выводится на титульном листе, в основной надписи ЕСКД, в HTML и Excel.") }}</span>
+        <b>{{ t("Company logo") }}</b>
+        <span class="muted">{{ t("PNG, JPG or SVG. Appears on the title page, in the ESKD title block, and in HTML and Excel output.") }}</span>
         <span v-if="doc.logo" class="mono muted">{{ doc.logo }}</span>
         <span v-for="d in logoDiags" :key="d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
         <div v-if="!readonly" class="row-actions">
-          <button class="small" @click="fileInput?.click()">{{ doc.logo ? t("Заменить…") : t("Загрузить…") }}</button>
-          <button v-if="doc.logo" class="small" @click="removeLogo">{{ t("Удалить") }}</button>
+          <button class="small" @click="fileInput?.click()">{{ doc.logo ? t("Replace…") : t("Upload…") }}</button>
+          <button v-if="doc.logo" class="small" @click="removeLogo">{{ t("Delete") }}</button>
           <input ref="fileInput" type="file" accept=".png,.jpg,.jpeg,.svg,.gif,.webp" hidden @change="upload" />
         </div>
       </div>
@@ -123,29 +123,29 @@ function removeAgree(i: number) {
                   :readonly="readonly" @commit="commit(def, $event)" />
     </div>
 
-    <h4 class="sub-h">{{ t("Подписи основной надписи и листов утверждения") }}</h4>
+    <h4 class="sub-h">{{ t("Title block and approval sheet signatures") }}</h4>
     <div class="form-grid sign-grid">
       <FieldInput v-for="def in SIGNS" :key="def.key" :def="def" :value="value(def)" :diags="fieldDiags(def)"
-                  :readonly="readonly" :placeholder="t('Фамилия')" @commit="commit(def, $event)" />
+                  :readonly="readonly" :placeholder="t('Surname')" @commit="commit(def, $event)" />
     </div>
 
-    <h4 class="sub-h">{{ t("Титульный лист") }}</h4>
+    <h4 class="sub-h">{{ t("Title page") }}</h4>
     <div class="form-grid">
       <FieldInput v-for="def in APPROVE" :key="def.key" :def="def" :value="value(def)" :diags="fieldDiags(def)"
                   :readonly="readonly" @commit="commit(def, $event)" />
     </div>
     <div class="subtable agree">
       <header>
-        <span class="field-label">{{ t("СОГЛАСОВАНО") }}</span>
-        <button v-if="!readonly" class="small" @click="addAgree">{{ t("+ Согласующий") }}</button>
+        <span class="field-label">{{ t("AGREED") }}</span>
+        <button v-if="!readonly" class="small" @click="addAgree">{{ t("+ Approver") }}</button>
       </header>
       <table v-if="agree.length">
-        <thead><tr><th>{{ t("Должность") }}</th><th>{{ t("И. О. Фамилия") }}</th><th v-if="!readonly"></th></tr></thead>
+        <thead><tr><th>{{ t("Job title") }}</th><th>{{ t("Initials and surname") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="(p, i) in agree" :key="i">
             <td><input :value="p.position ?? ''" :readonly="readonly" @change="setAgree(i, 'position', $event)" /></td>
             <td><input :value="p.name" :readonly="readonly" @change="setAgree(i, 'name', $event)" /></td>
-            <td v-if="!readonly" class="act"><button class="icon" :title="t('Удалить')" @click="removeAgree(i)">✕</button></td>
+            <td v-if="!readonly" class="act"><button class="icon" :title="t('Delete')" @click="removeAgree(i)">✕</button></td>
           </tr>
         </tbody>
       </table>

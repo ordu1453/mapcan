@@ -76,7 +76,7 @@ class EditorSession:
         with self.lock:
             self._check_writable()
             if self.disk_changed() and not force:
-                raise ConflictError(_("файл изменён на диске другой программой"))
+                raise ConflictError(_("the file was changed on disk by another program"))
             data = self.text.replace("\n", self.newline)
             tmp = self.path.with_suffix(self.path.suffix + ".tmp")
             tmp.write_bytes(data.encode("utf-8"))
@@ -91,7 +91,7 @@ class EditorSession:
             self._check_writable()
             target = Path(path).resolve()
             if target.exists() and not overwrite and target != self.path:
-                raise FileExistsError(_("файл уже существует: {path}", path=target))
+                raise FileExistsError(_("file already exists: {path}", path=target))
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(self.text.replace("\n", self.newline).encode("utf-8"))
             self.path = target
@@ -105,7 +105,7 @@ class EditorSession:
 
     def _check_writable(self) -> None:
         if self.readonly:
-            raise ReadOnlyError(_("редактор запущен в режиме только для чтения"))
+            raise ReadOnlyError(_("the editor is running in read-only mode"))
 
     def _set_text(self, text: str) -> None:
         """Принять текст: разобрать в ruamel-документ и пересчитать проверку."""
@@ -146,7 +146,7 @@ class EditorSession:
         with self.lock:
             self._check_writable()
             if self.doc is None:
-                raise OpError(_("в YAML синтаксическая ошибка — исправьте текст во вкладке YAML"))
+                raise OpError(_("the YAML has a syntax error; fix the text in the YAML tab"))
             if self._result is not None:
                 check_editable(self._result.source, ops)
             canon_old = dump(self.yaml, self.doc)

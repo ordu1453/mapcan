@@ -36,11 +36,11 @@ class PdfTemplate:
 PDF_TEMPLATES: dict[str, PdfTemplate] = {
     t.name: t
     for t in [
-        PdfTemplate("mapcan", N_("mapcan — стандартное оформление"),
-                    N_("Цветные битовые диаграммы, колонтитулы, титульный лист в свободной форме.")),
-        PdfTemplate("gost-2.105", N_("ЕСКД — ГОСТ 2.105 / 2.104"),
-                    N_("Текстовый конструкторский документ: рамка, основная надпись (формы 2 и 2а), "
-                       "дополнительные графы, титульный лист, лист регистрации изменений."), "ru"),
+        PdfTemplate("mapcan", N_("mapcan — Standard layout"),
+                    N_("Colored bit diagrams, headers and footers, free-form title page.")),
+        PdfTemplate("gost-2.105", N_("ESKD — GOST 2.105 / 2.104"),
+                    N_("Design text document: frame, title block (forms 2 and 2a), additional columns, title page, "
+                       "change log sheet."), "ru"),
     ]
 }
 # Черновые шаблоны: файлы и код сохранены, но пользователю (CLI, редактор) не предлагаются,
@@ -48,12 +48,12 @@ PDF_TEMPLATES: dict[str, PdfTemplate] = {
 DRAFT_PDF_TEMPLATES: dict[str, PdfTemplate] = {
     t.name: t
     for t in [
-        PdfTemplate("gost-19", N_("ЕСПД — ГОСТ 19.104 / 19.106"),
-                    N_("Программный документ: лист утверждения, титульный лист, аннотация, "
-                       "обозначение на каждой странице, лист регистрации изменений."), "ru"),
-        PdfTemplate("gost-7.32", N_("Отчёт — ГОСТ 7.32-2017"),
-                    N_("Отчёт: титульный лист, список исполнителей, реферат, содержание, "
-                       "нумерованные таблицы, приложение."), "ru"),
+        PdfTemplate("gost-19", N_("ESPD — GOST 19.104 / 19.106"),
+                    N_("Software document: approval sheet, title page, abstract, designation on every page, change log "
+                       "sheet."), "ru"),
+        PdfTemplate("gost-7.32", N_("Report — GOST 7.32-2017"),
+                    N_("Report: title page, list of contributors, abstract, contents, numbered tables, "
+                       "appendix."), "ru"),
     ]
 }
 DEFAULT_TEMPLATE_NAME = "mapcan"
@@ -83,7 +83,7 @@ def resolve_template(template: str | Path | None) -> Path:
     if p.is_file():
         return p
     known = ", ".join(PDF_TEMPLATES)
-    raise PdfError(_("шаблон не найден: {template} (встроенные: {known})", template=template, known=known))
+    raise PdfError(_("template not found: {template} (built-in: {known})", template=template, known=known))
 
 
 def view_json(cmap: MapCan, lang: str | None = None, logo: str = "") -> str:
@@ -134,7 +134,7 @@ def export_pdf(
                 format=fmt,
             )
         except typst.TypstError as e:
-            raise PdfError(_("ошибка компиляции Typst ({name}): {error}", name=tpl.name, error=e)) from e
+            raise PdfError(_("Typst compilation error ({name}): {error}", name=tpl.name, error=e)) from e
     if isinstance(result, list):     # svg/png: по файлу на страницу
         stem, suffix = out.stem, out.suffix
         for i, page in enumerate(result, 1):

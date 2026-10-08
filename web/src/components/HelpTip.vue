@@ -30,7 +30,7 @@ onBeforeUnmount(() => {
 
 <template>
   <!-- Внутри <label>: клик не должен переводить фокус в поле ввода -->
-  <span ref="root" class="help-tip" :class="{ open, flip }" role="button" tabindex="0" :aria-label="t('Справка')"
+  <span ref="root" class="help-tip" :class="{ open, flip }" role="button" tabindex="0" :aria-label="t('Help')"
         :aria-expanded="open" @mouseenter="place" @mousedown.prevent @click.prevent.stop="place(); open = !open"
         @keydown.enter.prevent.stop="place(); open = !open">
     ?

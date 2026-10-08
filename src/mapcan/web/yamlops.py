@@ -231,7 +231,7 @@ def _get(doc, path: list) -> Any:
             else:
                 raise KeyError(el)
         except (KeyError, IndexError, ValueError, TypeError) as e:
-            raise OpError(_("путь не найден: {path}", path=path)) from e
+            raise OpError(_("path not found: {path}", path=path)) from e
     return node
 
 
@@ -246,7 +246,7 @@ def _find_key(m: dict, key: Any) -> Any:
 
 def _parent(doc, path: list) -> tuple[Any, Any]:
     if not path:
-        raise OpError(_("пустой путь"))
+        raise OpError(_("empty path"))
     return _get(doc, path[:-1]), path[-1]
 
 
@@ -268,16 +268,16 @@ def op_set(doc, path: list, value: Any) -> None:
         try:
             _ensure_parent(doc, path)
         except (KeyError, IndexError, ValueError, TypeError) as e:
-            raise OpError(_("путь не найден: {path}", path=path)) from e
+            raise OpError(_("path not found: {path}", path=path)) from e
     parent, last = _parent(doc, path)
     if isinstance(parent, list):
         idx = int(last)
         if not 0 <= idx < len(parent):
-            raise OpError(_("индекс вне списка: {path}", path=path))
+            raise OpError(_("index out of range: {path}", path=path))
         parent[idx] = to_node(value, None, parent[idx])
         return
     if not isinstance(parent, dict):
-        raise OpError(_("родитель не словарь: {path}", path=path))
+        raise OpError(_("parent is not a mapping: {path}", path=path))
     if last in parent or _key(last) in parent:
         key = _find_key(parent, last)
     else:
@@ -295,15 +295,15 @@ def op_remove(doc, path: list) -> None:
     if isinstance(parent, list):
         idx = int(last)
         if not 0 <= idx < len(parent):
-            raise OpError(_("индекс вне списка: {path}", path=path))
+            raise OpError(_("index out of range: {path}", path=path))
         del parent[idx]
     elif isinstance(parent, dict):
         try:
             del parent[_find_key(parent, last)]
         except KeyError as e:
-            raise OpError(_("ключ не найден: {path}", path=path)) from e
+            raise OpError(_("key not found: {path}", path=path)) from e
     else:
-        raise OpError(_("нельзя удалить: {path}", path=path))
+        raise OpError(_("cannot remove: {path}", path=path))
 
 
 def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
@@ -313,7 +313,7 @@ def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
         parent[last] = CommentedSeq()
     seq = _get(doc, path)
     if not isinstance(seq, list):
-        raise OpError(_("не список: {path}", path=path))
+        raise OpError(_("not a list: {path}", path=path))
     node = to_node(value, path[-1] if path else None)
     if index is None or index >= len(seq):
         seq.append(node)
@@ -324,10 +324,10 @@ def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
 def op_move(doc, path: list, to: int) -> None:
     parent, last = _parent(doc, path)
     if not isinstance(parent, list):
-        raise OpError(_("перемещать можно только элементы списка: {path}", path=path))
+        raise OpError(_("only list items can be moved: {path}", path=path))
     idx, to = int(last), int(to)
     if not (0 <= idx < len(parent) and 0 <= to < len(parent)):
-        raise OpError(_("индекс вне списка"))
+        raise OpError(_("index out of range"))
     item = parent.pop(idx)
     parent.insert(to, item)
 
@@ -336,13 +336,13 @@ def op_rename_key(doc, path: list, new_key: Any) -> None:
     """Переименовать ключ словаря, сохранив позицию (например, число в таблице значений)."""
     parent, last = _parent(doc, path)
     if not isinstance(parent, CommentedMap):
-        raise OpError(_("не словарь: {path}", path=path))
+        raise OpError(_("not a mapping: {path}", path=path))
     old = _find_key(parent, last)
     new = _key(new_key) if isinstance(old, int) or path[-2:-1] == ["values"] else new_key
     if new == old:
         return
     if new in parent:
-        raise OpError(_("ключ {key!r} уже существует", key=new))
+        raise OpError(_("key {key!r} already exists", key=new))
     pos = list(parent.keys()).index(old)
     value = parent.pop(old)
     parent.insert(pos, new, value)
@@ -380,10 +380,10 @@ def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None)
 def op_set_layout(doc, path: list, start_bit: int, bit_length: int) -> None:
     sig = _get(doc, path)
     if not isinstance(sig, CommentedMap):
-        raise OpError(_("не сигнал: {path}", path=path))
+        raise OpError(_("not a signal: {path}", path=path))
     if (not all(isinstance(v, int) and not isinstance(v, bool) for v in (start_bit, bit_length))
             or not 0 <= start_bit < MAX_FRAME_BITS or not 1 <= bit_length <= 64):
-        raise OpError(_("недопустимая позиция"))
+        raise OpError(_("invalid position"))
     big = sig.get("byte_order") == "big_endian"
     used_canonical = "start_bit" in sig and not any(k in sig for k in ("byte", "bit", "byte_length"))
     keys = list(sig.keys())
@@ -415,7 +415,7 @@ def check_editable(source, ops: list[dict]) -> None:
     """Узлы подключённых файлов (include) правятся только в своём файле, не через основной."""
     for o in ops:
         if isinstance(o.get("path"), list) and source.is_included(tuple(o["path"])):
-            raise OpError(_("узел описан в подключённом файле {file} — правьте его там",
+            raise OpError(_("the node is described in the included file {file}: edit it there",
                             file=Path(source.file_of(tuple(o["path"])) or "").name))
 
 
@@ -423,9 +423,9 @@ def apply_ops(doc, ops: list[dict]) -> None:
     for o in ops:
         kind = o.get("op")
         if kind not in OPS:
-            raise OpError(_("неизвестная операция: {op!r}", op=kind))
+            raise OpError(_("unknown operation: {op!r}", op=kind))
         if not isinstance(o.get("path"), list):
-            raise OpError(_("path должен быть списком"))
+            raise OpError(_("path must be a list"))
         try:
             OPS[kind](doc, o)
         except OpError:

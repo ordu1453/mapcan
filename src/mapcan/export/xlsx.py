@@ -46,7 +46,7 @@ class XlsxStyle:
             names = {f.name for f in fields(cls)}
             for k, v in data.items():
                 if k not in names:
-                    raise ValueError(_("неизвестный параметр стиля: {key}", key=k))
+                    raise ValueError(_("unknown style parameter: {key}", key=k))
                 if k == "max_width":
                     st.max_width.update(v)
                 else:

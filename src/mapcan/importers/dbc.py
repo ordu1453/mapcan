@@ -102,7 +102,7 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
         if s.offset != 0:
             out["offset"] = _num(s.offset)
     elif encoding == "enum" and scaled:
-        warnings.append(_("{where}: у сигнала с таблицей значений масштаб и смещение не переносятся", where=where))
+        warnings.append(_("{where}: the scale and offset of a signal with a value table are not imported", where=where))
     if s.unit and encoding in ("raw", "scaled", "float"):
         out["unit"] = s.unit
     if encoding in ("raw", "scaled", "float") and not (s.minimum in (None, 0) and s.maximum in (None, 0)):
@@ -184,7 +184,7 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
     for m in db.messages:
         owner = m.senders[0] if m.senders and m.senders[0] in devices else None
         if m.senders and len(m.senders) > 1:
-            warnings.append(_("{frame}: у кадра несколько отправителей, взят первый", frame=m.name))
+            warnings.append(_("{frame}: the frame has several senders, the first is used", frame=m.name))
         f = CommentedMap(name=m.name)
         if _text(m.comment):
             f["description"] = _text(m.comment)
@@ -216,13 +216,13 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
         if receivers:
             f["receivers"] = _flow_list(receivers)
         if owner is None and m.senders and m.senders[0] not in devices:
-            warnings.append(_("{frame}: отправитель {name!r} не описан как узел DBC", frame=m.name,
+            warnings.append(_("{frame}: sender {name!r} is not a DBC node", frame=m.name,
                               name=m.senders[0]))
         signals = CommentedSeq()
         for s in m.signals:
             if s.multiplexer_signal is not None and any(x.name == s.multiplexer_signal and x.multiplexer_ids
                                                          for x in m.signals):
-                warnings.append(_("{frame}.{signal}: вложенное мультиплексирование перенесено одним уровнем",
+                warnings.append(_("{frame}.{signal}: nested multiplexing is imported as one level",
                                   frame=m.name, signal=s.name))
             signals.append(_signal(s, warnings, f"{m.name}.{s.name}"))
         f["signals"] = signals

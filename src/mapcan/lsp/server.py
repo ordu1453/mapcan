@@ -235,7 +235,7 @@ def export_command(ls: MapcanServer, *args) -> dict:
     uri = params.get("uri", "")
     path = to_fs_path(uri)
     if not path or not uri.startswith("file:"):
-        return {"error": _("Сохраните карту в файл перед экспортом.")}
+        return {"error": _("Save the map to a file before exporting.")}
     try:
         files, warnings = export(ls.workspace.get_text_document(uri).source, path,
                                  list(params.get("formats") or []), params.get("outDir") or "build")
@@ -243,7 +243,7 @@ def export_command(ls: MapcanServer, *args) -> dict:
         return {"error": str(e)}
     except Exception as e:   # noqa: BLE001 — ошибку экспорта показываем пользователю, сервер продолжает работу
         ls.window_log_message(T.LogMessageParams(type=T.MessageType.Error, message=repr(e)))
-        return {"error": _("Ошибка экспорта: {error}", error=e)}
+        return {"error": _("Export failed: {error}", error=e)}
     return {"files": [str(f) for f in files], "warnings": warnings}
 
 
@@ -311,7 +311,7 @@ def ops_command(ls: MapcanServer, *args) -> dict:
     params = _arg(args)
     a = ls.analysis(params.get("uri", ""))
     if a is None:
-        return {"error": _("Документ не является картой mapcan.")}
+        return {"error": _("The document is not a mapcan map.")}
     try:
         text = E.apply_ops(a, list(params.get("ops") or []))
     except OpError as e:
@@ -333,10 +333,10 @@ def changes_command(ls: MapcanServer, *args) -> dict:
     params = _arg(args)
     a = ls.analysis(params.get("uri", ""))
     if a is None or a.map is None:
-        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+        return {"error": _("The map cannot be read: fix the errors to compare versions.")}
     old = loads(params.get("oldText") or "", "old.yaml").map
     if old is None:
-        return {"error": _("Версия карты из истории не разобрана.")}
+        return {"error": _("A version of the map from the history cannot be read.")}
     paths = changed_paths(diff_maps(old, a.map), a.map)
     return {"nodes": [{"path": list(p), "status": s} for p, s in paths.items()]}
 
@@ -349,7 +349,7 @@ def render_command(ls: MapcanServer, *args) -> dict:
 
     a = ls.analysis(_arg(args).get("uri", ""))
     if a is None or a.map is None:
-        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы увидеть документ.")}
+        return {"error": _("The map cannot be read: fix the errors to see the document.")}
     return {"text": render(a.map, "md")}
 
 
@@ -368,10 +368,10 @@ def diff_command(ls: MapcanServer, *args) -> dict:
         a = ls.analysis(params.get("uri", ""))
         new = a.map if a else None
         if new is None:
-            return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+            return {"error": _("The map cannot be read: fix the errors to compare versions.")}
     old = loads(params.get("oldText") or "", "old.yaml").map
     if old is None or new is None:
-        return {"error": _("Версия карты из истории не разобрана.")}
+        return {"error": _("A version of the map from the history cannot be read.")}
     return {"text": render_diff(diff_maps(old, new), "md", new.lang)}
 
 
@@ -389,10 +389,10 @@ def history_draft_command(ls: MapcanServer, *args) -> dict:
     params = _arg(args)
     a = ls.analysis(params.get("uri", ""))
     if a is None or a.map is None:
-        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+        return {"error": _("The map cannot be read: fix the errors to compare versions.")}
     old = loads(params.get("oldText") or "", "old.yaml").map
     if old is None:
-        return {"error": _("Версия карты из истории не разобрана.")}
+        return {"error": _("A version of the map from the history cannot be read.")}
     d = diff_maps(old, a.map)
     current = a.map.document.version or ""
     user = UserConfig.load().user
@@ -420,12 +420,12 @@ def release_draft_command(ls: MapcanServer, *args) -> dict:
     params = _arg(args)
     a = ls.analysis(params.get("uri", ""))
     if a is None or a.map is None:
-        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+        return {"error": _("The map cannot be read: fix the errors to compare versions.")}
     old = None
     if params.get("oldText") is not None:
         old = loads(params["oldText"], "old.yaml").map
         if old is None:
-            return {"error": _("Версия карты из истории не разобрана.")}
+            return {"error": _("A version of the map from the history cannot be read.")}
     tags = set(params.get("tags") or [])
     user = UserConfig.load().user
     return {**release_draft(a.map, old, lambda v: f"v{v}" in tags),
@@ -439,11 +439,11 @@ def add_history_command(ls: MapcanServer, *args) -> dict:
     params = _arg(args)
     a = ls.analysis(params.get("uri", ""))
     if a is None or a.result.raw is None:
-        return {"error": _("Карта не разобрана: исправьте ошибки, чтобы сравнить версии.")}
+        return {"error": _("The map cannot be read: fix the errors to compare versions.")}
     entry = {k: params.get(k) for k in ("version", "date", "author", "github")}
     change = E.add_history(a, entry, [str(c) for c in params.get("changes") or []])
     if change is None:
-        return {"error": _("Историю изменений, записанную в одну строку, нельзя дополнить.")}
+        return {"error": _("The revision history is written on one line and cannot be extended.")}
     e = E.minimal_edit(a.text, change.text)
     return {"edit": {"range": [*e.start, *e.end], "text": e.text}, "cursor": list(change.cursor)}
 

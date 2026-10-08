@@ -55,8 +55,8 @@ watch(
 <template>
   <aside class="tree-panel">
     <div class="tree-search">
-      <input v-model="query" type="search" :placeholder="t('Поиск: имя, 0x196, описание…')" />
-      <span v-if="count !== null" class="muted">{{ count ? t("найдено узлов: {n}", { n: count }) : t("ничего не найдено") }}</span>
+      <input v-model="query" type="search" :placeholder="t('Search: name, 0x196, description…')" />
+      <span v-if="count !== null" class="muted">{{ count ? t("{n} found", { n: count }) : t("no matches") }}</span>
     </div>
     <ul class="tree">
       <TreeItem v-for="n in roots" :key="n.key" :node="n" :depth="0" :expanded="expanded" :visible="visible"

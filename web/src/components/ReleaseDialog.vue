@@ -39,7 +39,7 @@ async function submit() {
   try {
     const r = await api.gitRelease(version.value.trim(), lines.value);
     store.git = r.git;
-    toast(t("Версия {version} выпущена: коммит и тег {tag}", { version: version.value.trim(), tag: r.tag }), "info");
+    toast(t("Version {version} released: commit and tag {tag}", { version: version.value.trim(), tag: r.tag }), "info");
     emit("close");
   } catch (e) {
     toast(e instanceof Error ? e.message : String(e));
@@ -50,45 +50,45 @@ async function submit() {
 </script>
 
 <template>
-  <Modal :title="t('Выпустить версию')" @close="emit('close')">
+  <Modal :title="t('Release version')" @close="emit('close')">
     <p class="muted">
-      {{ t("Запись добавится в историю изменений, версия и дата документа обновятся, карта сохранится и будет закоммичена с тегом версии.") }}
+      {{ t("An entry is added to the revision history, the document's version and date are updated, and the map is saved and committed with a version tag.") }}
     </p>
     <p v-if="error" class="banner error">{{ error }}</p>
-    <p v-else-if="!draft" class="muted">{{ t("Сравнение…") }}</p>
+    <p v-else-if="!draft" class="muted">{{ t("Comparing…") }}</p>
     <template v-else>
       <p v-if="draft.recorded" class="banner info">
-        {{ t("Запись версии {version} уже есть в истории изменений — новая не добавится.", { version: draft.version }) }}
+        {{ t("The revision history already has an entry for version {version}; no new entry is added.", { version: draft.version }) }}
       </p>
       <div class="form-grid">
         <label class="field">
-          <span class="field-label">{{ t("Новая версия") }}</span>
+          <span class="field-label">{{ t("New version") }}</span>
           <input v-model="version" class="mono" @keydown.enter="submit" />
-          <span v-if="tagTaken" class="field-hint git-warn">{{ t("Такой тег уже есть.") }}</span>
-          <span v-else class="field-hint">{{ t("Тег: {tag}", { tag }) }}</span>
+          <span v-if="tagTaken" class="field-hint git-warn">{{ t("This tag already exists.") }}</span>
+          <span v-else class="field-hint">{{ t("Tag: {tag}", { tag }) }}</span>
         </label>
         <label class="field wide">
           <span class="field-label">
-            {{ t("Изменения (по строке)") }}
-            <span v-if="draft.base" class="muted">· {{ t("с {base}", { base: draft.base }) }}</span>
+            {{ t("Changes (one per line)") }}
+            <span v-if="draft.base" class="muted">· {{ t("since {base}", { base: draft.base }) }}</span>
           </span>
           <textarea v-model="changes" rows="8" :readonly="draft.recorded" />
         </label>
       </div>
       <p class="muted">
-        {{ t("Автор:") }}
+        {{ t("Author:") }}
         <template v-if="store.meta?.user.name">
           <b>{{ store.meta.user.name }}</b>
           <span v-if="store.meta.user.github" class="mono">@{{ store.meta.user.github }}</span>
         </template>
-        <template v-else>{{ t("не указан —") }}</template>
-        <button class="link" @click="store.dialog = 'profile'">{{ store.meta?.user.name ? t("изменить") : t("заполнить профиль") }}</button>
+        <template v-else>{{ t("not set —") }}</template>
+        <button class="link" @click="store.dialog = 'profile'">{{ store.meta?.user.name ? t("edit") : t("fill in profile") }}</button>
       </p>
     </template>
     <div class="fd-actions">
       <span class="spacer" />
-      <button @click="emit('close')">{{ t("Отмена") }}</button>
-      <button class="primary" :disabled="!canSubmit" @click="submit">{{ t("Выпустить") }}</button>
+      <button @click="emit('close')">{{ t("Cancel") }}</button>
+      <button class="primary" :disabled="!canSubmit" @click="submit">{{ t("Release") }}</button>
     </div>
   </Modal>
 </template>

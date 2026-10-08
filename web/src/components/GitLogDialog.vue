@@ -26,13 +26,13 @@ async function open(rev: string) {
 </script>
 
 <template>
-  <Modal :title="t('Журнал версий')" wide @close="emit('close')">
+  <Modal :title="t('Version log')" wide @close="emit('close')">
     <p v-if="error" class="banner error">{{ error }}</p>
-    <p v-else-if="!revs" class="muted">{{ t("Загрузка…") }}</p>
-    <p v-else-if="!revs.available" class="banner info">{{ t("Файл карты ещё не закоммичен в git — версий нет.") }}</p>
+    <p v-else-if="!revs" class="muted">{{ t("Loading…") }}</p>
+    <p v-else-if="!revs.available" class="banner info">{{ t("The map file has not been committed to git yet, so there are no versions.") }}</p>
     <template v-else>
       <p class="muted">
-        {{ t("Коммиты, в которых менялась карта (последние {n}). «Открыть» загружает версию в редактор как несохранённую правку.", { n: revs.commits.length }) }}
+        {{ t("Commits that changed the map (latest {n}). “Open” loads a version into the editor as an unsaved change.", { n: revs.commits.length }) }}
       </p>
       <table class="git-log">
         <tbody>
@@ -44,8 +44,8 @@ async function open(rev: string) {
               <div class="muted">{{ c.author }}</div>
             </td>
             <td class="nowrap">
-              <button @click="emit('compare', c.rev)">{{ t("Сравнить") }}</button>
-              <button v-if="!store.state?.readonly" :disabled="store.busy" @click="open(c.rev)">{{ t("Открыть") }}</button>
+              <button @click="emit('compare', c.rev)">{{ t("Compare") }}</button>
+              <button v-if="!store.state?.readonly" :disabled="store.busy" @click="open(c.rev)">{{ t("Open") }}</button>
             </td>
           </tr>
         </tbody>
@@ -53,7 +53,7 @@ async function open(rev: string) {
     </template>
     <div class="fd-actions">
       <span class="spacer" />
-      <button @click="emit('close')">{{ t("Закрыть") }}</button>
+      <button @click="emit('close')">{{ t("Close") }}</button>
     </div>
   </Modal>
 </template>

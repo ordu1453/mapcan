@@ -18,7 +18,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
       <header>
         <h3>{{ title }}</h3>
         <slot name="actions" />
-        <button class="icon" :title="t('Закрыть (Esc)')" @click="emit('close')">✕</button>
+        <button class="icon" :title="t('Close (Esc)')" @click="emit('close')">✕</button>
       </header>
       <div class="modal-body"><slot /></div>
     </div>

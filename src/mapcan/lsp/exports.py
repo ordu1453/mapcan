@@ -19,11 +19,11 @@ def export(text: str, filename: str, formats: list[str], out_dir: str | Path) ->
     """Собрать артефакты карты в ``out_dir``: (записанные файлы, предупреждения экспорта)."""
     unknown = sorted(set(formats) - set(FORMATS))
     if unknown:
-        raise ExportError(_("неизвестные форматы: {formats}", formats=", ".join(unknown)))
+        raise ExportError(_("unknown formats: {formats}", formats=", ".join(unknown)))
     res = loads(text, filename)
     report = check(res)
     if res.map is None or report.errors:
-        raise ExportError(_("Экспорт отменён: в карте есть ошибки ({errors}). Исправьте их и повторите.",
+        raise ExportError(_("Export canceled: the map has errors ({errors}). Fix them and try again.",
                             errors=report.errors))
 
     from ..codegen.c import generate_c

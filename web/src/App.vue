@@ -82,22 +82,22 @@ function keepMine() {
     <TopBar @preview="preview = $event" @diff="openDiff()" />
 
     <div v-if="store.update" class="update-banner">
-      {{ t("Доступна новая версия mapcan {latest} (у вас {current}).",
+      {{ t("mapcan {latest} is available (you have {current}).",
             { latest: store.update.latest, current: store.update.current }) }}
       <a v-if="store.update.installer" class="button small primary-link" :href="store.update.installer"
-         target="_blank" rel="noopener">{{ t("Скачать установщик") }}</a>
-      <a class="button small" :href="store.update.url" target="_blank" rel="noopener">{{ t("Что нового") }}</a>
-      <button class="small" @click="dismissUpdate">{{ t("Скрыть") }}</button>
+         target="_blank" rel="noopener">{{ t("Download installer") }}</a>
+      <a class="button small" :href="store.update.url" target="_blank" rel="noopener">{{ t("What's new") }}</a>
+      <button class="small" @click="dismissUpdate">{{ t("Hide") }}</button>
     </div>
 
     <div v-if="store.fileChangedBanner && store.state" class="disk-banner">
-      {{ t("Файл {file} изменён на диске другой программой.", { file: store.state.file }) }}
-      <button @click="actions.reload(false)">{{ t("Перечитать с диска") }}</button>
-      <button @click="keepMine">{{ t("Оставить мою версию") }}</button>
-      <span v-if="store.state.dirty" class="muted">{{ t("Несохранённые правки при перечитывании будут потеряны.") }}</span>
+      {{ t("{file} was modified on disk by another program.", { file: store.state.file }) }}
+      <button @click="actions.reload(false)">{{ t("Reload from disk") }}</button>
+      <button @click="keepMine">{{ t("Keep my version") }}</button>
+      <span v-if="store.state.dirty" class="muted">{{ t("Reloading discards unsaved edits.") }}</span>
     </div>
 
-    <div v-if="!store.meta" class="loading">{{ t("Загрузка…") }}</div>
+    <div v-if="!store.meta" class="loading">{{ t("Loading…") }}</div>
     <StartScreen v-else-if="!store.state" />
     <main v-else class="workspace" :class="{ 'no-tree': store.tab === 'yaml' && !store.state.data }">
       <MapTree v-if="store.state.data" :key="'t' + store.state.session_id" />
