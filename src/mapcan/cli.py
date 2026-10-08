@@ -1,4 +1,4 @@
-"""Командная строка mapcan."""
+"""Command line of mapcan."""
 
 from __future__ import annotations
 
@@ -258,7 +258,7 @@ def template(
                                        known=", ".join(PDF_TEMPLATES)))
         shutil.copyfile(PDF_TEMPLATES[name].path, out)
         lib = out.parent / "lib.typ"
-        shutil.copyfile(TEMPLATES_DIR / "lib.typ", lib)    # общие элементы, импортируются шаблоном
+        shutil.copyfile(TEMPLATES_DIR / "lib.typ", lib)    # shared elements, imported by the template
         _done([out, lib])
         return
     src = {"md": base / "document.md.j2", "html": base / "document.html.j2",

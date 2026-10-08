@@ -1,8 +1,8 @@
-"""Правки текста карты для языкового сервера: быстрые исправления, переименование и ссылки,
-добавление, копирование и удаление узлов.
+"""Edits of a map's text for the language server: quick fixes, renaming and references,
+adding, duplicating and deleting nodes.
 
-Правки строятся по тексту с сохранением отступов, комментариев и стиля записи (блок или «{…}»).
-Позиции 0-based, как в :mod:`mapcan.lsp.analysis`.
+Edits are made in the text keeping the indents, comments and style (block or "{…}").
+Positions are 0-based, as in :mod:`mapcan.lsp.analysis`.
 """
 
 from __future__ import annotations
@@ -34,18 +34,18 @@ class Action:
     title: str
     edits: list[Edit]
     preferred: bool = False
-    diagnostics: list[int] = field(default_factory=list)   # индексы исправляемых диагностик
+    diagnostics: list[int] = field(default_factory=list)   # indices of the diagnostics it fixes
 
 
 def yaml_scalar(value: str) -> str:
-    """Строка для записи в YAML: как есть, если это простое слово, иначе в двойных кавычках."""
+    """Text to write in the YAML: as is if it is a plain word, otherwise in double quotes."""
     if _PLAIN.match(value) and not re.fullmatch(r"(?i)true|false|yes|no|on|off|null|~|[-+]?[\d.]+(e[-+]?\d+)?", value):
         return value
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 # --------------------------------------------------------------------------- #
-# Доступ к узлам
+# Access to nodes
 # --------------------------------------------------------------------------- #
 
 
@@ -65,7 +65,7 @@ def value_range(a: Analysis, path: Path_) -> tuple[Pos, Pos] | None:
 
 
 def key_range(a: Analysis, path: Path_) -> tuple[Pos, Pos] | None:
-    """Позиция ключа ``path[-1]`` (слева от значения на той же строке)."""
+    """Position of the key ``path[-1]`` (left of the value on the same line)."""
     n = a.nodes.get(path)
     if n is None or not path or isinstance(path[-1], int):
         return None
@@ -74,7 +74,7 @@ def key_range(a: Analysis, path: Path_) -> tuple[Pos, Pos] | None:
     m = re.search(rf"({key})\s*:\s*$", a.lines[line][:col])
     if m:
         return (line, m.start(1)), (line, m.end(1))
-    # Блочный список или словарь: значение начинается со следующей строки, ключ — выше
+    # A block list or mapping: the value starts on the next line, the key is above
     if a.lines[line][:col].strip() in ("", "-"):
         for i in range(line - 1, -1, -1):
             m = re.match(rf"^\s*(?:-\s+)?({key})\s*:\s*(?:#.*)?$", a.lines[i])
@@ -91,7 +91,7 @@ def _is_flow(a: Analysis, path: Path_) -> bool:
 
 
 def set_value(a: Analysis, path: Path_, text: str) -> list[Edit]:
-    """Заменить скалярное значение или добавить ключ в родительский словарь."""
+    """Replace a scalar value or add the key to the parent mapping."""
     if path in a.nodes and not isinstance(raw_at(a, path), (dict, list)):
         start, end = value_range(a, path)
         return [Edit(start, end, text)]
@@ -114,7 +114,7 @@ def insert_key(a: Analysis, map_path: Path_, key: str, text: str) -> list[Edit]:
 
 
 def delete_key(a: Analysis, path: Path_) -> list[Edit]:
-    """Удалить ключ со скалярным значением, если он записан на отдельной строке или внутри «{…}»."""
+    """Remove a key with a scalar value if it is written on a line of its own or inside "{…}"."""
     kr = key_range(a, path)
     vr = value_range(a, path)
     if kr is None or vr is None:
@@ -128,12 +128,12 @@ def delete_key(a: Analysis, path: Path_) -> list[Edit]:
         before = re.search(r",\s*$", text[:kcol])
         return [Edit((line, before.start() if before else kcol), (line, vend), "")]
     if text[:kcol].strip():
-        return []      # ключ на строке «- …» или после другого ключа
+        return []      # the key is on a "- …" line or after another key
     return [Edit((line, 0), (line + 1, 0), "")]
 
 
 # --------------------------------------------------------------------------- #
-# Быстрые исправления
+# Quick fixes
 # --------------------------------------------------------------------------- #
 
 
@@ -160,7 +160,7 @@ def to_style(name: str, style: str) -> str:
 
 
 def quick_fixes(a: Analysis, diags: list[tuple[str, list, Pos]]) -> list[Action]:
-    """Исправления для диагностик (код, путь узла, начало); ``Action.diagnostics`` — их индексы."""
+    """Fixes for the diagnostics (code, node path, start); ``Action.diagnostics`` are their indices."""
     out: list[Action] = []
     for i, (code, node, start) in enumerate(diags):
         path = tuple(node or ())
@@ -244,7 +244,7 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
         return [act] if act else []
 
     if code == "duplicate-can-id" and path and path[-1] == "type":
-        # Другой тип того же назначения (PDO TX → свободный PDO TX), чей ID не занят
+        # Another type of the same purpose (PDO TX → a free PDO TX) whose ID is not taken
         current = raw_at(a, path)
         prefix = re.sub(r"\d+$", "", current) if isinstance(current, str) else ""
         free = [t["type"] for t in frame_types(a, path[:-1])
@@ -257,7 +257,7 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
 
 
 def _yaml_fixes(a: Analysis, start: Pos) -> list[Action]:
-    """«-name: x» вместо «- name: x»: элемент списка без пробела после «-»."""
+    """"-name: x" instead of "- name: x": a list item without a space after "-"."""
     line = start[0]
     m = re.match(r"^(\s*)-(?=[A-Za-z_\"'{\[])", a.lines[line]) if line < len(a.lines) else None
     if not m:
@@ -276,13 +276,13 @@ def _style_for(a: Analysis, path: Path_) -> str | None:
 
 
 def _rename_key(a: Analysis, path: Path_, new: str) -> list[Edit]:
-    """Имя значения enum — это значение ``name`` или сама строка значения."""
+    """Name of an enum value: its ``name`` or the value's string itself."""
     vr = value_range(a, path + ("name",)) if (path + ("name",)) in a.nodes else value_range(a, path)
     return [Edit(*vr, yaml_scalar(new))] if vr else []
 
 
 # --------------------------------------------------------------------------- #
-# Свободные биты
+# Free bits
 # --------------------------------------------------------------------------- #
 
 
@@ -293,7 +293,7 @@ def _coexist(a: M.Signal, b: M.Signal) -> bool:
 
 
 def free_start(frame: M.Frame, length: int, step: int, skip: M.Signal | None = None) -> int | None:
-    """Первая позиция (кратная ``step``) little-endian поля длиной ``length`` без пересечений."""
+    """First position (a multiple of ``step``) of a little-endian field of ``length`` bits that overlaps nothing."""
     taken: set[int] = set()
     for s in frame.signals:
         if s is not skip and (skip is None or _coexist(s, skip)):
@@ -323,7 +323,7 @@ def move_to_free_bits(a: Analysis, path: Path_) -> Action | None:
         edits = [] if start is None else (set_value(a, path + ("byte",), str(start // 8))
                                           + set_value(a, path + ("bit",), str(start % 8)))
     else:
-        # Без «bit» поле начинается с границы байта; добавить «bit» нельзя — изменилась бы длина по умолчанию
+        # Without "bit" the field starts at a byte boundary; "bit" cannot be added, it would change the default length
         start = free_start(frame, length, 8, sig)
         edits = set_value(a, path + ("byte",), str(start // 8)) if start is not None else []
     if not edits:
@@ -344,7 +344,7 @@ def _find(cmap: M.MapCan, path: Path_):
 
 
 # --------------------------------------------------------------------------- #
-# Ссылки на устройства, переименование
+# References to devices, renaming
 # --------------------------------------------------------------------------- #
 
 
@@ -357,7 +357,7 @@ def _frame_paths(a: Analysis, bus_path: Path_) -> list[Path_]:
 
 
 def device_refs(a: Analysis, bus_path: Path_, name: str) -> tuple[Path_ | None, list[Path_]]:
-    """(объявление устройства, ссылки на него в receivers и sender) на шине."""
+    """(declaration of the device, references to it in receivers and sender) on the bus."""
     decl = None
     for di, dev in enumerate(raw_at(a, bus_path + ("devices",)) or []):
         if isinstance(dev, dict) and dev.get("name") == name:
@@ -377,7 +377,7 @@ def device_refs(a: Analysis, bus_path: Path_, name: str) -> tuple[Path_ | None, 
 
 
 def name_at(a: Analysis, pos: Pos) -> Path_ | None:
-    """Путь имени под курсором: ``…name`` любого узла или ссылка на устройство в receivers/sender."""
+    """Path of the name under the cursor: ``…name`` of any node or a reference to a device in receivers/sender."""
     for path, n in a.nodes.items():
         if not path or n.start[0] != pos[0]:
             continue
@@ -390,7 +390,7 @@ def name_at(a: Analysis, pos: Pos) -> Path_ | None:
 
 
 def _device_target(a: Analysis, path: Path_) -> tuple[Path_, str] | None:
-    """(путь шины, имя устройства), если ``path`` — имя устройства или ссылка на него."""
+    """(bus path, device name) if ``path`` is the name of a device or a reference to it."""
     if len(path) < 2 or path[0] != "buses":
         return None
     value = raw_at(a, path)
@@ -429,7 +429,7 @@ def rename_edits(a: Analysis, path: Path_, new: str) -> list[Edit]:
 
 
 # --------------------------------------------------------------------------- #
-# Добавление, копирование и удаление узлов (дерево карты)
+# Adding, duplicating and deleting nodes (the map tree)
 # --------------------------------------------------------------------------- #
 
 
@@ -454,7 +454,7 @@ def _names(items) -> list[str]:
 
 
 def _join(a: Analysis, lines: list[str]) -> str:
-    """Текст из строк с переводом строки исходного файла (CRLF или LF) и тем же окончанием."""
+    """Text of the lines with the source file's line break (CRLF or LF) and the same ending."""
     eol = "\r\n" if "\r\n" in a.text else "\n"
     return eol.join(lines) + (eol if a.text.endswith(("\n", "\r")) else "")
 
@@ -470,7 +470,7 @@ def _dash_col(a: Analysis, item_path: Path_) -> int:
 
 
 def append_item(a: Analysis, owner: Path_, key: str, fields: list[tuple[str, str]]) -> TextChange | None:
-    """Добавить элемент ``{fields}`` в список ``owner.key`` в стиле этого списка."""
+    """Add the item ``{fields}`` to the list ``owner.key`` in that list's style."""
     lines = list(a.lines)
     items = raw_at(a, owner + (key,))
     first = f"{fields[0][0]}: {fields[0][1]}"
@@ -499,13 +499,13 @@ def append_item(a: Analysis, owner: Path_, key: str, fields: list[tuple[str, str
 
 
 def _empty_list_slot(a: Analysis, owner: Path_, key: str, lines: list[str]) -> tuple[int, int] | None:
-    """Место первого элемента пустого или отсутствующего списка ``owner.key``: (колонка «-», строка).
-    Ключ списка при необходимости записывается в ``lines``."""
+    """Place of the first item of an empty or missing list ``owner.key``: (column of "-", line).
+    The list's key is written to ``lines`` if needed."""
     n = a.nodes.get(owner)
     if n is None:
         return None
     kr = key_range(a, owner + (key,)) if owner + (key,) in a.nodes else None
-    if kr:      # «key: []» или «key:» без значения: элементы — блоком под ключом
+    if kr:      # "key: []" or "key:" without a value: the items go as a block under the key
         kline = kr[0][0]
         lines[kline] = lines[kline][:kr[1][1]] + ":"
         return kr[0][1] + 2, kline + 1
@@ -518,7 +518,7 @@ HISTORY: Path_ = ("document", "history")
 
 
 def _entry_value(key: str, value: str) -> str:
-    """Версия вида 1.2.3 — без кавычек (YAML не читает её как число), остальное — как текст."""
+    """A version like 1.2.3 without quotes (YAML does not read it as a number), anything else as text."""
     if key == "version" and re.fullmatch(r"\d+\.\d+\.\d+[\w.+-]*", value):
         return value
     return yaml_text(value)
@@ -539,8 +539,9 @@ def apply_edits(text: str, edits: list[Edit]) -> str:
 
 
 def add_history(a: Analysis, entry: dict, changes: list[str]) -> TextChange | None:
-    """Запись первой в ``document.history`` (поля ``entry``: version, date, author, github и
-    изменения по строке); версия и дата документа — из неё. Курсор — на версии новой записи."""
+    """Write the first entry of ``document.history`` (``entry`` fields: version, date, author, github and
+    the changes, one per line); the document's version and date come from it. The cursor goes to the new entry's
+    version."""
     from .analysis import analyze
 
     items = raw_at(a, HISTORY)
@@ -570,13 +571,13 @@ def add_history(a: Analysis, entry: dict, changes: list[str]) -> TextChange | No
     return TextChange(text, n.start if n else (at, dash + 2))
 
 
-#: Типы PDO в порядке, в котором их получают новые кадры устройства CANopen.
+#: PDO types in the order new frames of a CANopen device get them.
 PDO_TYPES = [f"pdo_{d}{n}" for d in ("tx", "rx") for n in range(1, 5)]
 
 
 def _new_frame(a: Analysis, owner: Path_) -> list[tuple[str, str]]:
-    """Поля нового кадра, как в веб-редакторе: у кадра устройства CANopen — первый свободный тип PDO
-    (ID вычисляется из типа и node_id), у J1939 — свободный PGN, иначе — свободный явный ID."""
+    """Fields of a new frame, as in the web editor: a frame of a CANopen device gets the first free PDO type
+    (the ID is computed from the type and node_id), a J1939 one a free PGN, otherwise a free explicit ID."""
     bus = raw_at(a, owner[:2]) or {}
     protocol = bus.get("protocol") or "canopen"
     device = len(owner) == 4
@@ -616,8 +617,8 @@ def _free_number(values, lo: int, hi: int) -> int | None:
 
 
 def _default_title(a: Analysis, ru: str, en: str, siblings) -> str:
-    """Полное название нового узла на языке документа: «Шина 2», «Device 3» — первое свободное среди соседей
-    (как в веб-редакторе)."""
+    """Full name of a new node in the document language: "Шина 2", "Device 3", the first free one among siblings
+    (as in the web editor)."""
     lang = doc_language(a)
     base = en if lang == "en" else ru
     taken = {_txt(s.get("title"), lang) for s in siblings or [] if isinstance(s, dict)}
@@ -628,7 +629,7 @@ def _default_title(a: Analysis, ru: str, en: str, siblings) -> str:
 
 
 def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
-    """Добавить шину (в карту), устройство (в шину), кадр (в шину или устройство) или сигнал (в кадр)."""
+    """Add a bus (to the map), a device (to a bus), a frame (to a bus or a device) or a signal (to a frame)."""
     if a.result.source.is_included(path):
         return None
     if kind == "bus" and path == ():
@@ -658,14 +659,14 @@ def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
         byte = free_start(frame, 8, 8) if isinstance(frame, M.Frame) else 0
         if byte is not None:
             return append_item(a, path, "signals", [name, encoding, ("byte", str(byte // 8)), ("byte_length", "1")])
-        # Целого свободного байта нет — однобитный сигнал на первом свободном бите
+        # No whole free byte: a one-bit signal at the first free bit
         bit = free_start(frame, 1, 1)
         return append_item(a, path, "signals", [name, encoding, ("start_bit", str(bit or 0)), ("bit_length", "1")])
     return None
 
 
 def duplicate_node(a: Analysis, path: Path_) -> TextChange | None:
-    """Копия элемента списка сразу после него: имя с суффиксом, у кадра — свободный ID."""
+    """A copy of a list item right after it: the name with a suffix, a frame also gets a free ID."""
     if not path or not isinstance(path[-1], int) or path not in a.nodes:
         return None
     raw = raw_at(a, path)
@@ -685,7 +686,7 @@ def duplicate_node(a: Analysis, path: Path_) -> TextChange | None:
     (sl, sc), (el, ec) = a.block(path)
     lines = list(a.lines)
     if sl == el and _is_flow(a, path[:-1]):
-        # Элемент «{…}» в списке «[…]»: копия через запятую на той же строке
+        # An item "{…}" in a list "[…]": the copy goes after a comma on the same line
         text = _with_replacements(a, path, replace, (sl, sc), (el, ec))
         lines[sl] = lines[sl][:ec] + ", " + text + lines[sl][ec:]
         name_col = ec + 2 + (a.nodes[path + ("name",)].start[1] - sc)
@@ -699,7 +700,7 @@ def duplicate_node(a: Analysis, path: Path_) -> TextChange | None:
 
 
 def _with_replacements(a: Analysis, path: Path_, replace: dict, start: Pos, end: Pos) -> str:
-    """Текст от ``start`` до ``end`` с заменой значений (все замены — внутри этого текста)."""
+    """Text from ``start`` to ``end`` with values replaced (all replacements are inside this text)."""
     spans = sorted((value_range(a, p), v) for p, v in replace.items() if p in a.nodes)
     out, cur = [], start
     for (s, e), v in spans:
@@ -717,7 +718,7 @@ def _slice(a: Analysis, s: Pos, e: Pos) -> str:
 
 
 def delete_node(a: Analysis, path: Path_) -> TextChange | None:
-    """Удалить элемент списка (шина, устройство, кадр, сигнал, флаг, SDO-обмен)."""
+    """Remove a list item (bus, device, frame, signal, flag, SDO exchange)."""
     if not path or not isinstance(path[-1], int) or path not in a.nodes:
         return None
     siblings = raw_at(a, path[:-1])
@@ -735,7 +736,7 @@ def delete_node(a: Analysis, path: Path_) -> TextChange | None:
     del lines[sl:el + 1]
     cursor = (max(sl - 1, 0), 0)
     if isinstance(siblings, list) and len(siblings) == 1:
-        # Последний элемент блочного списка: «key:» → «key: []», иначе значение стало бы null
+        # The last item of a block list: "key:" → "key: []", otherwise the value would become null
         kr = key_range(a, path[:-1])
         if kr and kr[0][0] < sl:
             kline = kr[0][0]
@@ -745,17 +746,17 @@ def delete_node(a: Analysis, path: Path_) -> TextChange | None:
 
 
 # --------------------------------------------------------------------------- #
-# Поля узла (форма в боковой панели)
+# Fields of a node (the form in the side bar)
 # --------------------------------------------------------------------------- #
 
-#: Тексты, которые могут быть записаны на нескольких языках ({ru, en}).
+#: Texts that can be written in several languages ({ru, en}).
 TEXT_KEYS = {"title", "subtitle", "description", "comment"}
-#: Поля, которые пишутся в шестнадцатеричном виде.
+#: Fields written in hexadecimal.
 HEX_KEYS = {"id", "pgn", "node_id", "address", "index", "subindex", "command", "destination"}
 
 
 def node_kind(path: Path_) -> str | None:
-    """Тип узла дерева по форме пути."""
+    """Kind of a tree node from the shape of its path."""
     if len(path) == 2 and path[0] == "buses":
         return "bus"
     if len(path) >= 2 and isinstance(path[-1], int):
@@ -768,8 +769,8 @@ _RESERVED = re.compile(r"(?i)true|false|yes|no|on|off|null|~|[-+]?(0x[0-9a-f]+|[
 
 
 def yaml_text(value: str) -> str:
-    """Текст для людей в YAML: без кавычек, если YAML прочитает его как ту же строку (пробелы и любые
-    буквы допустимы; запятые и скобки — нет, чтобы текст годился и для записи «{…}»), иначе в кавычках."""
+    """Text for people in the YAML: without quotes if YAML reads it as the same string (spaces and any
+    letters are fine; commas and brackets are not, so the text also suits "{…}"), otherwise quoted."""
     plain = (value == value.strip() and value != "" and value[0] not in "-?:!&*|>'\"%@`"
              and not any(c in value for c in ",[]{}#\n\r\t") and ": " not in value and not value.endswith(":")
              and not _RESERVED.fullmatch(value))
@@ -777,8 +778,8 @@ def yaml_text(value: str) -> str:
 
 
 def _insert_field(a: Analysis, map_path: Path_, key: str, text: str) -> list[Edit]:
-    """Добавить ключ в словарь: в блочной записи — перед первым вложенным списком или словарём
-    (``signals``, ``values``…), чтобы поле оказалось рядом с остальными полями узла."""
+    """Add a key to a mapping: in block style before the first nested list or mapping
+    (``signals``, ``values``…), so that the field ends up next to the node's other fields."""
     n = a.nodes.get(map_path)
     raw = raw_at(a, map_path)
     if n is None or _is_flow(a, map_path) or not isinstance(raw, dict):
@@ -792,7 +793,7 @@ def _insert_field(a: Analysis, map_path: Path_, key: str, text: str) -> list[Edi
 
 
 def format_value(key: str, value) -> str:
-    """Значение поля формы → текст YAML."""
+    """Value of a form field → YAML text."""
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, int):
@@ -806,8 +807,9 @@ def format_value(key: str, value) -> str:
 
 
 def frame_types(a: Analysis, path: Path_) -> list[dict]:
-    """Типы кадра CANopen для формы: {type, label, taken}. У кадра шины (без node_id устройства) —
-    только типы с ID, не зависящим от узла; ``taken`` — имя другого кадра шины с тем же CAN ID."""
+    """CANopen frame types for the form: {type, label, taken}. A frame of the bus (without a device's node_id)
+    gets only the types whose ID does not depend on the node; ``taken`` names another frame of the bus with that CAN
+    ID."""
     owner = raw_at(a, path[:4]) if len(path) >= 6 and path[2] == "devices" else None
     node_id = owner.get("node_id") if isinstance(owner, dict) else None
     used: dict[int, str] = {}
@@ -826,11 +828,11 @@ def frame_types(a: Analysis, path: Path_) -> list[dict]:
 
 
 def node_fields(a: Analysis, path: Path_) -> dict | None:
-    """Данные узла для формы: тип, язык документа, протокол шины, владелец кадра, устройства шины
-    и скалярные поля (тексты {ru, en} — на языке документа).
+    """Data of a node for the form: kind, document language, the bus protocol, the frame's owner, the bus devices
+    and the scalar fields (texts {ru, en} in the document language).
 
-    Узел подключённого файла (include) читается из данных вместе с подключёнными файлами, ``file`` —
-    его файл: в форме он только для чтения. Устройства шины — тоже вместе с подключёнными."""
+    A node of an included file (include) is read from the data together with the included files, ``file``
+    is its file: the form shows it read-only. The bus devices also include those of the included files."""
     file = a.included_file(path)
 
     def at(p: Path_):
@@ -853,7 +855,7 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             values[k] = list(v)
         elif not isinstance(v, (dict, list)):
             values[k] = str(v)
-    # Значение SDO-обмена — вложенный словарь: его поля идут в форму под ключами «value.<поле>»
+    # The value of an SDO exchange is a nested mapping: its fields go to the form under the keys "value.<field>"
     if kind == "sdo" and isinstance(raw.get("value"), dict):
         for k, v in raw["value"].items():
             if isinstance(v, dict) and k in TEXT_KEYS:
@@ -863,11 +865,11 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     owner = at(path[:4]) if len(path) >= 6 and path[2] == "devices" else None
     devices = [(d.get("name"), _txt(d.get("short"), lang) or _txt(d.get("title"), lang) or d.get("name"))
                for d in bus.get("devices") or [] if isinstance(d, dict) and isinstance(d.get("name"), str)]
-    # Сигнал из разобранной карты: длина в битах вычисляется из byte_length и encoding
+    # Signal from the parsed map: its length in bits is computed from byte_length and encoding
     signal = _find(a.map, path) if a.map is not None and kind == "signal" else None
-    # Кадр из разобранной карты: направление, если оно не записано, вычисляется из типа и sender
+    # Frame from the parsed map: its direction, if not written, is computed from the type and sender
     frame = _find(a.map, path) if a.map is not None and kind == "frame" else None
-    # Есть ли в кадре другой сигнал-селектор мультиплексора (тогда сигналу доступно поле mux)
+    # Whether another signal of the frame is the multiplexer selector (then the signal can have mux)
     siblings = at(path[:-1]) if kind == "signal" else None
     has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not raw for s in siblings or [])
     return {"kind": kind, "path": list(path), "file": file, "lang": lang,
@@ -881,14 +883,14 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             "hasSelector": has_selector,
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
             "frameTypes": frame_types(a, path) if kind == "frame" and not file else [],
-            # Справочник единиц (ru, en) для подсказок в поле «Единица»; свой текст тоже допустим
+            # Units reference (ru, en) for the suggestions of the Unit field; any other text is allowed too
             "units": [list(u) for u in UNITS] if kind == "signal" else [],
             **_layout_fields(a, path, kind, raw, lang)}
 
 
 def _layout_fields(a: Analysis, path: Path_, kind: str, raw: dict, lang: str) -> dict:
-    """Раскладка кадра узла (кадр, сигнал, флаг, SDO-обмен) — как в веб-редакторе, — таблица значений
-    и флаги сигнала. Значение записи таблицы — как в YAML (``raw``), чтобы форма могла его дополнить."""
+    """Layout of the node's frame (frame, signal, flag, SDO exchange) as in the web editor, the value table
+    and the flags of a signal. A table entry's value is as in the YAML (``raw``), so the form can extend it."""
     from ..docmodel import PALETTE
     from ..web.session import frame_view
 
@@ -902,7 +904,7 @@ def _layout_fields(a: Analysis, path: Path_, kind: str, raw: dict, lang: str) ->
         return out
     values = raw.get("values")
     if isinstance(values, str):
-        out["valueTableRef"] = values          # именованная таблица из value_tables
+        out["valueTableRef"] = values          # a named table from value_tables
     if isinstance(values, dict):
         rows = []
         for k, v in values.items():
@@ -921,8 +923,8 @@ def _layout_fields(a: Analysis, path: Path_, kind: str, raw: dict, lang: str) ->
 
 
 def apply_ops(a: Analysis, ops: list[dict]) -> str:
-    """Текст карты после операций веб-редактора (:mod:`mapcan.web.yamlops`): set, remove, insert,
-    move, rename_key, set_layout. Нетронутые строки остаются как были. Ошибка операции —
+    """Text of the map after operations of the web editor (:mod:`mapcan.web.yamlops`): set, remove, insert,
+    move, rename_key, set_layout. Untouched lines stay as they were. An operation error raises
     :class:`mapcan.web.yamlops.OpError`."""
     from ..web import yamlops as Y
 
@@ -937,10 +939,10 @@ def apply_ops(a: Analysis, ops: list[dict]) -> str:
 
 
 def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
-    """Записать поле узла (``path`` — путь поля): новое значение, ``None`` или "" — удалить ключ.
+    """Write a field of a node (``path`` is the field's path): a new value, or ``None`` or "" to remove the key.
 
-    Имя переименовывается вместе со ссылками на него; текст, записанный на нескольких языках,
-    меняется только на языке документа.
+    A name is renamed together with the references to it; a text written in several languages
+    changes only in the document language.
     """
     if not path or not isinstance(path[-1], str) or a.result.source.is_included(path):
         return []
@@ -948,12 +950,12 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
     if key == "type" and node_kind(path[:-1]) == "frame":
         return _set_frame_type(a, path, value)
     if not isinstance(raw_at(a, path[:-1]), dict):
-        # Поле ещё не созданного вложенного словаря (value.name у SDO): словарь добавляется вместе с ним
+        # A field of a nested mapping that does not exist yet (value.name of an SDO): the mapping is added with it
         parent = path[:-1]
         if (value is None or value == "" or len(parent) < 2 or not isinstance(parent[-1], str)
                 or raw_at(a, parent) is not None or not isinstance(raw_at(a, parent[:-1]), dict)):
             return []
-        # У значения SDO encoding обязателен: новый словарь создаётся сразу с encoding: raw
+        # encoding is required for an SDO value: the new mapping gets encoding: raw right away
         extra = ", encoding: raw, bit_length: 32" if parent[-1] == "value" and key == "name" else ""
         return _insert_field(a, parent[:-1], parent[-1], f"{{{key}: {format_value(key, value)}{extra}}}")
     current = raw_at(a, path)
@@ -963,10 +965,10 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
         if isinstance(current, dict) and key in TEXT_KEYS:
             lang = doc_language(a)
             return delete_key(a, path + (lang,)) if lang in current else []
-        # Без идентификатора у SDO-обмена нет значения: словарь value удаляется целиком
+        # Without an identifier an SDO exchange has no value: the value mapping is removed as a whole
         if key == "name" and len(path) >= 2 and path[-2] == "value" and node_kind(path[:-2]) == "sdo":
             return delete_key(a, path[:-1])
-        # Последнее поле вложенного словаря «key: {поле: …}» удаляется вместе с ним, а не оставляет «{}»
+        # The last field of a nested mapping "key: {field: …}" is removed together with it rather than leaving "{}"
         parent, pn = path[:-1], a.nodes.get(path[:-1])
         if (len(parent) >= 2 and isinstance(parent[-1], str) and list(raw_at(a, parent)) == [key]
                 and pn is not None and _is_flow(a, parent) and (close := a._closing(pn.start))
@@ -985,7 +987,7 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
             if n is None:
                 return []
             if not _is_flow(a, path):
-                # Блочный список — заменяется записью «[…]» после ключа
+                # A block list is replaced with "[…]" after the key
                 kr, block = key_range(a, path), a.block(path)
                 return [Edit(kr[1], block[1], f": {text}")] if kr and block else []
             close = a._closing(n.start)
@@ -999,7 +1001,7 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
 
 
 def _set_frame_type(a: Analysis, path: Path_, value) -> list[Edit]:
-    """Тип кадра CANopen; записанный DLC, недопустимый для нового типа, убирается — берётся длина типа."""
+    """CANopen frame type; a written DLC not allowed for the new type is removed, so the type's length is used."""
     edits = _set_plain(a, path, value)
     allowed = CANOPEN_DLC.get(str(value or "raw"))
     dlc = raw_at(a, path[:-1] + ("dlc",))
@@ -1009,7 +1011,7 @@ def _set_frame_type(a: Analysis, path: Path_, value) -> list[Edit]:
 
 
 def _set_plain(a: Analysis, path: Path_, value) -> list[Edit]:
-    """Скалярное поле без особых правил: новое значение, ``None`` или "" — удалить ключ."""
+    """A scalar field without special rules: a new value, or ``None`` or "" to remove the key."""
     current = raw_at(a, path)
     if value is None or value == "":
         return delete_key(a, path) if current is not None and path in a.nodes else []
@@ -1021,7 +1023,7 @@ def _set_plain(a: Analysis, path: Path_, value) -> list[Edit]:
 
 
 def minimal_edit(old: str, new: str) -> Edit:
-    """Одна правка, заменяющая отличающиеся строки ``old`` на строки ``new``."""
+    """One edit that replaces the differing lines ``old`` with the lines ``new``."""
     a, b = old.splitlines(keepends=True), new.splitlines(keepends=True)
     p = 0
     while p < min(len(a), len(b)) and a[p] == b[p]:

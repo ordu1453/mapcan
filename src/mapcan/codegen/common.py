@@ -1,10 +1,10 @@
-"""Общие вспомогательные функции генераторов кода."""
+"""Helpers shared by the code generators."""
 
 from __future__ import annotations
 
 from ..model import Bus, Frame, Signal
 
-# Комментарии в сгенерированном коде — на языке документов карты.
+# Comments in the generated code are in the map's document language.
 CODE_TEXT = {
     "ru": {
         "bits_note": "/* Нумерация бит lsb0: бит p — бит (p % 8) байта (p / 8); start — позиция LSB.\n"
@@ -61,7 +61,7 @@ def code_text(lang: str) -> dict[str, str]:
 
 
 def is_byte_array(s: Signal) -> bool:
-    """Сигнал encoding=bytes, выровненный по байтам, представляется массивом."""
+    """A byte-aligned signal with encoding=bytes is represented as an array."""
     return s.encoding == "bytes" and s.start_bit % 8 == 0 and s.bit_length % 8 == 0 \
         and s.byte_order == "little_endian"
 
@@ -86,6 +86,6 @@ def physical(s: Signal) -> bool:
 
 
 def num(x: float) -> str:
-    """Литерал float для C/Python без потери точности."""
+    """float literal for C/Python without loss of precision."""
     r = repr(float(x))
     return r

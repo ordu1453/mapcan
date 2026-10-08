@@ -1,10 +1,10 @@
-"""Запуск редактора как настольного приложения (`mapcan app`, mapcan.exe из установщика).
+"""Running the editor as a desktop app (`mapcan app`, mapcan.exe from the installer).
 
-- Один экземпляр: повторный запуск (в том числе двойной щелчок по .yaml) передаёт
-  файл уже открытому окну и выводит его на передний план.
-- Порт 8765, а если он занят — любой свободный.
-- Окно открывается, когда сервер действительно готов принимать запросы.
-- Окно приложения — pywebview (WebView2 в Windows); без него — браузер по умолчанию.
+- One instance: running it again (also a double click on a .yaml) passes the
+  file to the window that is already open and brings it to the front.
+- Port 8765, or any free one if it is taken.
+- The window opens when the server is really ready to take requests.
+- The app window is pywebview (WebView2 on Windows); without it, the default browser.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ DEFAULT_PORT = 8765
 LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 
-# --------------------------------------------------------------------------- порт и сервер
+# --------------------------------------------------------------------------- port and server
 
 
 def port_free(host: str, port: int) -> bool:
@@ -43,7 +43,7 @@ def port_free(host: str, port: int) -> bool:
 
 
 def pick_port(host: str, preferred: int = DEFAULT_PORT) -> int:
-    """Предпочтительный порт, если свободен, иначе случайный свободный (0 — сразу случайный)."""
+    """The preferred port if it is free, otherwise a random free one (0: random right away)."""
     if preferred > 0 and port_free(host, preferred):
         return preferred
     with socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET) as s:
@@ -57,12 +57,12 @@ def browser_url(host: str, port: int) -> str:
 
 
 class ServerThread:
-    """uvicorn в фоновом потоке: старт с ожиданием готовности и остановка."""
+    """uvicorn in a background thread: start that waits until it is ready, and stop."""
 
     def __init__(self, app, host: str, port: int):
         import uvicorn
 
-        # log_config=None: в оконном .exe нет консоли, стандартный конфиг uvicorn на ней падает.
+        # log_config=None: a windowed .exe has no console, and uvicorn's default config fails on it.
         self.server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning",
                                                     log_config=None))
         self.thread = threading.Thread(target=self.server.run, name="mapcan-server", daemon=True)
@@ -82,7 +82,7 @@ class ServerThread:
         self.thread.join(timeout=5)
 
     def wait(self) -> None:
-        """Ждать до Ctrl+C (режим браузера)."""
+        """Wait until Ctrl+C (browser mode)."""
         try:
             while self.thread.is_alive():
                 self.thread.join(0.5)
@@ -90,7 +90,7 @@ class ServerThread:
             self.stop()
 
 
-# --------------------------------------------------------------------------- один экземпляр
+# --------------------------------------------------------------------------- single instance
 
 
 def instance_file() -> Path:
@@ -98,15 +98,15 @@ def instance_file() -> Path:
 
 
 def activate_existing(path: Path | None, timeout: float = 2.0) -> bool:
-    """Передать файл работающему экземпляру. True — экземпляр найден и ответил."""
+    """Pass a file to the running instance. True: the instance was found and answered."""
     try:
         info = json.loads(instance_file().read_text(encoding="utf-8"))
         url = browser_url("127.0.0.1", int(info["port"])) + "api/instance/activate"
         body = json.dumps({"token": info["token"], "path": str(path.resolve()) if path else None}).encode()
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — только localhost
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — localhost only
             return r.status == 200
-    except Exception:  # noqa: BLE001 — файла нет, процесс завершён, порт занят чужим
+    except Exception:  # noqa: BLE001 — no file, the process has ended, the port is someone else's
         return False
 
 
@@ -126,11 +126,11 @@ def _remove_instance(token: str) -> None:
             f.unlink()
 
 
-# --------------------------------------------------------------------------- окно
+# --------------------------------------------------------------------------- window
 
 
 def _message_box(text: str, title: str = "mapcan", yes_no: bool = False) -> bool:
-    """Системное окно сообщения (Windows); в остальных ОС — вывод в stderr."""
+    """System message box (Windows); on other systems, output to stderr."""
     if os.name == "nt":
         flags = 0x40000 | (0x04 | 0x30 if yes_no else 0x10)     # MB_TOPMOST | (YESNO+WARNING | ERROR)
         return ctypes.windll.user32.MessageBoxW(None, text, title, flags) == 6  # IDYES
@@ -140,24 +140,24 @@ def _message_box(text: str, title: str = "mapcan", yes_no: bool = False) -> bool
 
 
 def _ask_save(text: str, title: str = "mapcan") -> bool | None:
-    """Да / Нет / Отмена: True — сохранить, False — не сохранять, None — отменить действие.
+    """Yes / No / Cancel: True to save, False not to save, None to cancel the action.
 
-    Вне Windows вопрос задать нечем — закрываем без сохранения, как раньше.
+    Outside Windows there is no way to ask: close without saving, as before.
     """
     if os.name == "nt":
         flags = 0x40000 | 0x03 | 0x30      # MB_TOPMOST | MB_YESNOCANCEL | MB_ICONWARNING
         r = ctypes.windll.user32.MessageBoxW(None, text, title, flags)
-        return {6: True, 7: False}.get(r)  # IDYES, IDNO; IDCANCEL и закрытие окна — отмена
+        return {6: True, 7: False}.get(r)  # IDYES, IDNO; IDCANCEL and closing the box cancel
     if sys.stderr:
         print(f"{title}: {text}", file=sys.stderr)
     return False
 
 
 def _unblock_bundle() -> None:
-    """Снять с DLL сборки отметку «скачано из интернета» (Zone.Identifier).
+    """Remove the "downloaded from the internet" mark (Zone.Identifier) from the build's DLLs.
 
-    После распаковки zip-архива из браузера .NET отказывается загружать Python.Runtime.dll
-    (pythonnet) с такой отметкой, и окно pywebview не открывается.
+    After a zip archive is extracted from the browser, .NET refuses to load Python.Runtime.dll
+    (pythonnet) with such a mark, and the pywebview window does not open.
     """
     root = getattr(sys, "_MEIPASS", None)
     if os.name != "nt" or not getattr(sys, "frozen", False) or not root:
@@ -177,15 +177,15 @@ def _webview():
 
 
 class DialogApi:
-    """Методы для JS окна (window.pywebview.api): системные диалоги открытия и сохранения файла."""
+    """Methods for the window's JS (window.pywebview.api): the system open and save file dialogs."""
 
     FILE_TYPES = ("YAML (*.yaml;*.yml)", "All files (*.*)")
 
     def __init__(self, get_window):
-        self._get_window = get_window   # с «_» — pywebview не отдаёт атрибут в JS
+        self._get_window = get_window   # with "_": pywebview does not expose the attribute to JS
 
     def pick_file(self, mode: str, directory: str = "", filename: str = "") -> str | None:
-        """``mode``: "open" или "save". Возвращает выбранный путь или None (отмена)."""
+        """``mode``: "open" or "save". Returns the chosen path or None (cancelled)."""
         import webview
 
         win = self._get_window()
@@ -200,20 +200,20 @@ class DialogApi:
 
 
 def _redirect_output() -> None:
-    """В оконном .exe нет stdout/stderr — пишем их в лог, чтобы print/logging не падали."""
+    """A windowed .exe has no stdout/stderr: write them to a log so that print/logging do not fail."""
     if sys.stdout is not None and sys.stderr is not None:
         return
     with contextlib.suppress(OSError):
         d = config_dir()
         d.mkdir(parents=True, exist_ok=True)
-        log = open(d / "mapcan.log", "a", encoding="utf-8", buffering=1)  # noqa: SIM115 — живёт до выхода
+        log = open(d / "mapcan.log", "a", encoding="utf-8", buffering=1)  # noqa: SIM115 — lives until exit
         sys.stdout = sys.stdout or log
         sys.stderr = sys.stderr or log
 
 
 def run(path: Path | None = None, *, window: bool = True, readonly: bool = False,
         single_instance: bool = True, check_updates: bool = True) -> int:
-    """Открыть редактор. ``path`` — карта (.yaml) или рабочая папка."""
+    """Open the editor. ``path`` is a map (.yaml) or a workspace folder."""
     from .web.app import create_app
     from .web.session import EditorSession
 
@@ -234,7 +234,7 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
             if minimized:
                 win.restore()
             win.show()
-            win.on_top = True       # вывести поверх остальных окон и вернуть обычный режим
+            win.on_top = True       # bring it above the other windows, then back to normal
             win.on_top = False
         else:
             webbrowser.open(url)
@@ -276,7 +276,7 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
                 if answer:
                     try:
                         s.save()
-                    except Exception as e:  # noqa: BLE001 — файл только для чтения, изменён извне и т.п.
+                    except Exception as e:  # noqa: BLE001 — read-only file, changed outside etc.
                         _message_box(_("Could not save {path}:\n{error}", path=s.path, error=e))
                         return False
                 return True
@@ -298,7 +298,7 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
             try:
                 storage = config_dir() / "webview"
                 webview.start(private_mode=False, storage_path=str(storage))
-            except Exception as e:  # noqa: BLE001 — нет WebView2 и т.п.: работаем в браузере
+            except Exception as e:  # noqa: BLE001 — no WebView2 etc.: work in the browser
                 win = None
                 print(_(
                     "mapcan: the app window is unavailable ({error}), opening the browser", error=e), file=sys.stderr)
@@ -316,7 +316,7 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Точка входа mapcan.exe / mapcan-app: ``mapcan-app [карта.yaml | папка] [--browser]``."""
+    """Entry point of mapcan.exe / mapcan-app: ``mapcan-app [map.yaml | folder] [--browser]``."""
     import argparse
 
     _redirect_output()

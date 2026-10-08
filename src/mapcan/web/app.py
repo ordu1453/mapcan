@@ -1,4 +1,4 @@
-"""FastAPI-приложение веб-редактора (`mapcan serve`)."""
+"""FastAPI application of the web editor (`mapcan serve`)."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ class OpsBody(BaseModel):
 
 class TextBody(BaseModel):
     text: str
-    live: bool = False                 # применение по ходу ввода (см. EditorSession.set_text)
+    live: bool = False                 # applied while typing (see EditorSession.set_text)
 
 
 class SaveBody(BaseModel):
@@ -69,12 +69,12 @@ class GitDiffBody(BaseModel):
 
 class GitCommitBody(BaseModel):
     message: str
-    tag: str = ""                 # поставить тег на новый коммит
+    tag: str = ""                 # put a tag on the new commit
 
 
 class GitTagBody(BaseModel):
     name: str
-    message: str = ""             # непустое — аннотированный тег
+    message: str = ""             # non-empty: an annotated tag
 
 
 class GitReleaseBody(BaseModel):
@@ -83,21 +83,21 @@ class GitReleaseBody(BaseModel):
 
 
 class GhCreateBody(BaseModel):
-    name: str                     # «repo» или «owner/repo»
+    name: str                     # "repo" or "owner/repo"
     private: bool = True
     description: str = ""
 
 
 class OpenBody(BaseModel):
     path: str
-    force: bool = False           # открыть, даже если есть несохранённые правки
+    force: bool = False           # open even if there are unsaved edits
 
 
 class NewBody(BaseModel):
     path: str
     template: str = "canopen"
     title: str = ""
-    language: str = "en"          # язык документов новой карты
+    language: str = "en"          # document language of the new map
     force: bool = False
     overwrite: bool = False
 
@@ -125,11 +125,11 @@ class UserBody(BaseModel):
 
 class ActivateBody(BaseModel):
     token: str
-    path: str | None = None       # файл, который просят открыть (двойной щелчок по .yaml)
+    path: str | None = None       # the file asked to be opened (a double click on a .yaml)
 
 
 class AppError(Exception):
-    """Ошибка API с машинно-читаемым кодом (для диалогов в UI)."""
+    """API error with a machine-readable code (for the dialogs of the UI)."""
 
     def __init__(self, status: int, code: str, message: str):
         super().__init__(message)
@@ -137,7 +137,7 @@ class AppError(Exception):
 
 
 class Hub:
-    """Подключённые вкладки браузера."""
+    """Connected browser tabs."""
 
     def __init__(self) -> None:
         self.clients: set[WebSocket] = set()
@@ -146,7 +146,7 @@ class Hub:
         for ws in list(self.clients):
             try:
                 await ws.send_json(message)
-            except Exception:  # noqa: BLE001 — вкладка закрыта
+            except Exception:  # noqa: BLE001 — the tab is closed
                 self.clients.discard(ws)
 
 
@@ -158,13 +158,13 @@ def _hostname(netloc: str) -> str | None:
 
 
 class RequestGuard:
-    """Защита локального сервера от чужих страниц в браузере.
+    """Protection of the local server from other pages in the browser.
 
-    * ``Host`` должен быть из ``allowed_hosts`` (если задан): иначе страница с домена, который
-      после DNS rebinding указывает на 127.0.0.1, читала бы и меняла файлы как «свой» сайт;
-    * ``Origin`` изменяющих запросов и WebSocket должен совпадать с ``Host``: чужой сайт не может
-      отправить форму или открыть сокет к редактору (CSRF). Запросы без ``Origin`` (curl,
-      повторный запуск mapcan) пропускаются.
+    * ``Host`` must be one of ``allowed_hosts`` (if given): otherwise a page from a domain that
+      points to 127.0.0.1 after DNS rebinding could read and change files as a "same" site;
+    * ``Origin`` of changing requests and of WebSocket must match ``Host``: another site cannot
+      post a form or open a socket to the editor (CSRF). Requests without ``Origin`` (curl,
+      mapcan run again) pass.
     """
 
     SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -194,7 +194,7 @@ class RequestGuard:
 
 
 class Workspace:
-    """Открытая карта (может отсутствовать), рабочая папка, настройки пользователя."""
+    """The open map (there may be none), the workspace folder, the user settings."""
 
     def __init__(self, session: EditorSession | None, cwd: Path, readonly: bool):
         self.session = session
@@ -252,7 +252,7 @@ class Workspace:
 
 
 def list_dir(d: Path) -> dict:
-    """Содержимое папки для диалога файлов: подпапки и YAML-файлы."""
+    """Contents of a folder for the file dialog: subfolders and YAML files."""
     if not d.is_dir():
         raise AppError(404, "not-found", _("folder not found: {path}", path=d))
     try:
@@ -318,13 +318,13 @@ def build_export(cmap: MapCan, fmt: str, stem: str, lang: str | None, template: 
     raise ValueError(fmt)
 
 
-# В оконной сборке под Windows каждый запуск консольного git открывает окно терминала.
+# In the windowed build on Windows every run of console git opens a terminal window.
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def _run_tool(cmd: list[str], cwd: Path, timeout: float, *, input: str | None = None,
               env: dict[str, str] | None = None) -> str:
-    # Запрос пароля в терминале повесил бы сервер: без окна его некому ввести.
+    # A password prompt in a terminal would hang the server: without a window there is no one to answer it.
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1",
            **(env or {})}
     try:
@@ -344,7 +344,7 @@ def _git(args: list[str], cwd: Path, timeout: float = 15, **kw: Any) -> str:
 
 
 def _git_ok(args: list[str], cwd: Path) -> bool:
-    """Команда-проверка git: True при коде возврата 0."""
+    """A git check command: True on exit code 0."""
     try:
         _git(args, cwd)
     except HTTPException:
@@ -357,21 +357,21 @@ def _gh(args: list[str], cwd: Path, timeout: float = 15) -> str:
 
 
 def _git_remote(args: list[str], cwd: Path) -> str:
-    """push/pull/fetch: для github.com — учётные данные GitHub CLI (gh), если он установлен."""
+    """push/pull/fetch: for github.com, the GitHub CLI (gh) credentials if it is installed."""
     auth: list[str] = []
     if shutil.which("gh"):
         auth = ["-c", "credential.https://github.com.helper=",
                 "-c", "credential.https://github.com.helper=!gh auth git-credential"]
-    # Сообщения git — по-английски, чтобы распознать типичные ошибки pull/push
+    # git messages in English, to recognize the typical pull/push errors
     return _git([*auth, *args], cwd, timeout=120, env={"LC_ALL": "C", "LANGUAGE": "C"})
 
 
-# Имя репозитория GitHub: «repo» или «owner/repo»
+# Name of a GitHub repository: "repo" or "owner/repo"
 _GH_REPO = re.compile(r"^(?:[A-Za-z0-9][A-Za-z0-9-]*/)?[A-Za-z0-9._][A-Za-z0-9._-]*$")
 
 
 def _check_rev(rev: str) -> str:
-    """Ревизия из запроса: не пустая и не начинается с «-» (иначе git примет её за ключ)."""
+    """Revision from a request: not empty and not starting with "-" (git would take it for an option)."""
     rev = rev.strip()
     if not rev or rev.startswith("-") or any(c.isspace() for c in rev):
         raise AppError(400, "git-rev", _("invalid revision: {rev}", rev=rev))
@@ -379,20 +379,20 @@ def _check_rev(rev: str) -> str:
 
 
 def _web_url(remote_url: str) -> str | None:
-    """Адрес репозитория для браузера: из https://… или git@host:owner/repo.git; иначе None."""
+    """Repository address for the browser: from https://… or git@host:owner/repo.git; otherwise None."""
     u = remote_url.strip()
     m = re.match(r"^(?:ssh://)?git@([^:/]+)[:/](.+?)(?:\.git)?/?$", u)
     if m:
         return f"https://{m[1]}/{m[2]}"
     parts = urlsplit(u)
     if parts.scheme in ("http", "https") and parts.hostname:
-        port = f":{parts.port}" if parts.port else ""       # логин и токен из адреса не показываем
+        port = f":{parts.port}" if parts.port else ""       # the login and token of the address are not shown
         return f"{parts.scheme}://{parts.hostname}{port}{parts.path.rstrip('/').removesuffix('.git')}"
     return None
 
 
 def _refs_with_file(cwd: Path, name: str, refs: list[str]) -> list[str]:
-    """Ссылки (теги, ветки), в которых есть файл карты, — одним запуском git cat-file."""
+    """Refs (tags, branches) that have the map file, with one run of git cat-file."""
     if not refs:
         return []
     out = _git(["cat-file", "--batch-check"], cwd, input="".join(f"{r}:./{name}\n" for r in refs))
@@ -400,7 +400,7 @@ def _refs_with_file(cwd: Path, name: str, refs: list[str]) -> list[str]:
 
 
 def _git_status(path: Path, extra: Collection[str] = ()) -> dict:
-    """Ветка, расхождение с upstream и состояние в git файла карты и ``extra`` (логотипа)."""
+    """Branch, divergence from upstream and the git state of the map file and of ``extra`` (the logo)."""
     cwd = path.parent
     try:
         _git(["rev-parse", "--git-dir"], cwd)
@@ -426,11 +426,11 @@ def _git_status(path: Path, extra: Collection[str] = ()) -> dict:
         elif line[:2] in ("1 ", "2 ", "u "):
             st["file"] = "modified"
     if st["file"] == "clean" and _git_ok(["check-ignore", "-q", "--", path.name], cwd):
-        st["file"] = "ignored"                      # не отслеживается и исключён через .gitignore
+        st["file"] = "ignored"                      # not tracked and excluded by .gitignore
     try:
         log = _git(["log", "-1", "--format=%h%x09%s%x09%ad", "--date=short", "--", path.name], cwd)
     except HTTPException:
-        log = ""                                    # в репозитории ещё нет коммитов
+        log = ""                                    # the repository has no commits yet
     parts = log.strip().split("\t")
     if len(parts) == 3:
         st["last"] = {"rev": parts[0], "subject": parts[1], "date": parts[2]}
@@ -443,7 +443,7 @@ def _git_status(path: Path, extra: Collection[str] = ()) -> dict:
 
 
 def _remote_error(e: HTTPException, upstream: str | None) -> Exception:
-    """Понятное сообщение для типичных отказов pull/push (вывод git — на английском, см. _git_remote)."""
+    """A clear message for the typical pull/push failures (git output is in English, see _git_remote)."""
     text = str(e.detail)
     if "Not possible to fast-forward" in text or "diverging" in text or "divergent" in text:
         return AppError(409, "git-diverged", _(
@@ -463,13 +463,13 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                check_updates: bool = False, instance_token: str | None = None,
                on_activate: Callable[[], None] | None = None,
                allowed_hosts: Collection[str] | None = None) -> FastAPI:
-    """Приложение редактора.
+    """The editor application.
 
-    ``allowed_hosts`` — допустимые имена в заголовке ``Host`` (для сервера на localhost),
-    None — любые (сервер слушает сеть);
-    ``check_updates`` — отвечать на /api/update сведениями с GitHub Releases;
-    ``instance_token`` — разрешить /api/instance/activate (повторный запуск mapcan
-    передаёт файл уже работающему экземпляру), ``on_activate`` — вывести окно на передний план.
+    ``allowed_hosts`` are the names allowed in the ``Host`` header (for a server on localhost),
+    None allows any (the server listens on the network);
+    ``check_updates``: answer /api/update with information from GitHub Releases;
+    ``instance_token`` allows /api/instance/activate (mapcan run again
+    passes the file to the running instance), ``on_activate`` brings the window to the front.
     """
     hub = Hub()
     lock = asyncio.Lock()
@@ -541,7 +541,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         if wsp.readonly:
             raise AppError(403, "readonly", _("the editor is running in read-only mode"))
 
-    # ---------------------------------------------------------------- метаданные, профиль
+    # ---------------------------------------------------------------- metadata, profile
 
     @app.get("/api/meta")
     async def get_meta() -> dict:
@@ -565,7 +565,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             s = wsp.session
             async with lock:
                 if s is not None and s.text != s.saved_text:
-                    # Есть несохранённые правки — открывает вкладка, спросив пользователя.
+                    # There are unsaved edits: the tab opens it after asking the user.
                     await hub.broadcast({"type": "open-request", "path": str(path)})
                     return {"ok": True}
                 if path.is_file() and (s is None or s.path != path):
@@ -595,7 +595,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             raise AppError(500, "config", _("could not save settings: {error}", error=e)) from e
         return wsp.config.user.to_dict()
 
-    # ---------------------------------------------------------------- файлы
+    # ---------------------------------------------------------------- files
 
     def yaml_path(raw: str) -> Path:
         path = wsp.resolve(raw)
@@ -623,7 +623,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     async def create_file(raw_path: str, force: bool, overwrite: bool, make_text: Callable[[Path], str],
                           extra: dict[str, str] | None = None) -> dict:
-        """Создать карту и открыть её; ``extra`` — файлы рядом с ней (путь относительно карты → текст)."""
+        """Create a map and open it; ``extra`` are files next to it (path relative to the map → text)."""
         writable()
         async with lock:
             path = yaml_path(raw_path)
@@ -737,7 +737,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     @app.get("/api/schema")
     async def get_schema() -> dict:
-        """JSON Schema формата — для подсказок во вкладке YAML."""
+        """JSON Schema of the format, for the hints of the YAML tab."""
         from ..schema import json_schema
 
         return json_schema()
@@ -774,7 +774,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         stem = s.path.stem
         try:
             data = await run_in_threadpool(build_export, cmap, fmt, stem, lang, template)
-        except Exception as e:  # noqa: BLE001 — показать причину в UI
+        except Exception as e:  # noqa: BLE001 — show the cause in the UI
             raise HTTPException(500, _("{fmt} export error: {error}", fmt=fmt, error=e)) from e
         name = f"{stem}{ext}" if ext != ".zip" else f"{stem}-{fmt}.zip"
         if fmt == "pdf" and template and template != DEFAULT_TEMPLATE_NAME:
@@ -784,7 +784,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                         headers={"Content-Disposition": f'{disp}; filename="{name}"',
                                  "Cache-Control": "no-store"})
 
-    # ---------------------------------------------------------------- логотип
+    # ---------------------------------------------------------------- logo
 
     def logo_file() -> Path | None:
         s = wsp.require()
@@ -836,10 +836,10 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         d = diff_maps(old.map, new)
         return {**d.to_dict(), "lines": changelog_lines(d, new.lang), "label": label}
 
-    # ---------------------------------------------------------------- git: версии карты
+    # ---------------------------------------------------------------- git: versions of the map
 
     def git_extra(s: EditorSession) -> list[str]:
-        """Логотип карты внутри репозитория — путь для git относительно папки карты (или пусто)."""
+        """Logo of the map inside the repository: a path for git relative to the map's folder (or empty)."""
         logo = logo_file()
         if logo is None or not logo.is_file():
             return []
@@ -857,7 +857,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         return await run_in_threadpool(lambda: _git_status(s.path, git_extra(s)))
 
     def git_show(s: EditorSession, rev: str) -> str:
-        """Текст карты в ревизии ``rev``."""
+        """Text of the map in revision ``rev``."""
         cwd = s.path.parent
         try:
             return _git(["show", f"{rev}:./{s.path.name}"], cwd)
@@ -882,7 +882,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         try:
             log = _git(["log", "-n", "100", "--format=%h%x09%ad%x09%an%x09%D%x09%s", "--date=short", "--", name], cwd)
         except (HTTPException, OSError, subprocess.SubprocessError):
-            return {**none, "reason": "untracked"}      # например, в репозитории ещё нет коммитов
+            return {**none, "reason": "untracked"}      # e.g. the repository has no commits yet
         commits = []
         for line in log.splitlines():
             parts = line.split("\t", 4)
@@ -891,10 +891,10 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                 tags = [r.removeprefix("tag: ") for r in refs.split(", ") if r.startswith("tag: ")]
                 commits.append({"rev": rev, "subject": subject, "date": date, "author": author, "tags": tags})
         if not commits:
-            # Файл ещё не закоммичен — версий для сравнения в git нет
+            # The file is not committed yet: git has no versions to compare
             return {**none, "reason": "untracked"}
         all_tags = _git(["tag", "--sort=-creatordate"], cwd).split()
-        # Ветки, кроме текущей; upstream — первой (сравнить с тем, что придёт при pull)
+        # Branches other than the current one; upstream first (compare with what pull will bring)
         current = _git(["branch", "--show-current"], cwd).strip()
         try:
             upstream = _git(["rev-parse", "--abbrev-ref", "@{upstream}"], cwd).strip()
@@ -917,7 +917,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     @app.post("/api/git/restore")
     async def git_restore(body: GitDiffBody) -> dict:
-        """Загрузить версию карты из git в редактор — как несохранённую правку (отменяется Ctrl+Z)."""
+        """Load a version of the map from git into the editor as an unsaved edit (undone with Ctrl+Z)."""
         writable()
         s = wsp.require()
         text = await run_in_threadpool(git_show, s, _check_rev(body.rev))
@@ -925,10 +925,10 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             s.set_text(text)
             return await changed()
 
-    # ---------------------------------------------------------------- git: коммит, тег, push/pull
+    # ---------------------------------------------------------------- git: commit, tag, push/pull
 
     def git_session() -> EditorSession:
-        """Карта для операций git: редактор не только для чтения, правки сохранены."""
+        """The map for git operations: the editor is not read-only and the edits are saved."""
         writable()
         s = wsp.require()
         if s.text != s.saved_text:
@@ -949,10 +949,10 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         return name
 
     def git_author(args: list[str], cwd: Path, timeout: float = 60) -> str:
-        """Команда, которой нужен автор (коммит, аннотированный тег).
+        """A command that needs an author (commit, annotated tag).
 
-        Если в git не заданы user.name/user.email, берём их из профиля: имя и адрес
-        <логин>@users.noreply.github.com. Тайм-аут больше обычного — у коммита бывают хуки.
+        If git has no user.name/user.email, they come from the profile: the name and the address
+        <login>@users.noreply.github.com. The timeout is longer than usual: commits may have hooks.
         """
         user = wsp.config.user
         ident: list[str] = []
@@ -970,7 +970,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             raise
 
     def make_tag(cwd: Path, name: str, message: str) -> None:
-        # Всегда аннотированный: push --follow-tags отправляет только такие
+        # Always annotated: push --follow-tags sends only those
         git_author(["tag", "-a", name, "-m", message.strip() or name], cwd)
 
     @app.get("/api/git/status")
@@ -1001,7 +1001,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         st = await git_state(s)
         if st.get("file") == "ignored":
             raise AppError(409, "git-ignored", _("the map file is excluded by .gitignore; remove it from there"))
-        # Коммитим только карту и её логотип, не трогая остальные изменения в репозитории
+        # Commit only the map and its logo, leaving the other changes of the repository alone
         files = [s.path.name, *await run_in_threadpool(git_extra, s)]
         _git(["add", "--", *files], cwd)
         if not _git(["diff", "--cached", "--name-only", "--", *files], cwd).strip():
@@ -1017,11 +1017,11 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         make_tag(s.path.parent, git_tag_name(body.name), body.message)
         return await git_state(s)
 
-    # ---------------------------------------------------------------- git: выпуск версии
+    # ---------------------------------------------------------------- git: releasing a version
 
     def release_base(s: EditorSession) -> str | None:
-        """С чем сравнивать выпуск: последний тег ветки с файлом карты, иначе последний коммит; None —
-        карта ещё не в git."""
+        """What to compare a release with: the last tag of the branch with the map file, otherwise the last commit;
+        None if the map is not in git yet."""
         cwd = s.path.parent
         try:
             tag = _git(["describe", "--tags", "--abbrev=0", "HEAD"], cwd).strip()
@@ -1034,7 +1034,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     @app.get("/api/git/release")
     async def git_release_draft() -> dict:
-        """Черновик выпуска: следующая версия, изменения с прошлого выпуска (тега) или коммита, тег."""
+        """Draft of a release: the next version, the changes since the previous release (tag) or commit, the tag."""
         s = wsp.require()
         if s.map is None:
             raise AppError(409, "map", _("the current map has structural errors"))
@@ -1052,8 +1052,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     @app.post("/api/git/release")
     async def git_release(body: GitReleaseBody) -> dict:
-        """Выпуск версии одним действием: запись в истории изменений, версия и дата документа, сохранение,
-        коммит карты и аннотированный тег v<версия>."""
+        """Release a version in one action: the revision history entry, the document's version and date, saving,
+        a commit of the map and the annotated tag v<version>."""
         import datetime
 
         writable()
@@ -1077,7 +1077,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             entry["github"] = user.github
         entry["changes"] = changes
         history = s.map.document.history if s.map is not None else []
-        # Запись этой версии уже есть (добавлена раньше) — вторую не добавляем
+        # The entry of this version is already there (added earlier): no second one
         recorded = bool(history) and history[0].version == version
         ops: list[dict] = [] if recorded else [
             {"op": "insert", "path": ["document", "history"], "index": 0, "value": entry}]
@@ -1096,7 +1096,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     @app.post("/api/git/fetch")
     async def git_fetch() -> dict:
-        """Узнать, что нового на сервере (для счётчика «не получено»), ничего не меняя в рабочей копии."""
+        """Find out what is new on the server (for the "not pulled" counter) without changing the working copy."""
         writable()
         s = wsp.require()
         if (await git_state(s)).get("remote"):
@@ -1117,7 +1117,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         if st["upstream"]:
             args = ["push", "--follow-tags"]
         else:
-            # Первая отправка ветки: заодно запоминаем upstream
+            # First push of the branch: remember the upstream too
             args = ["push", "--follow-tags", "-u", st["remote"], st["branch"]]
         try:
             await run_in_threadpool(_git_remote, args, s.path.parent)
@@ -1143,19 +1143,19 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     @app.get("/api/gh/status")
     async def gh_status() -> dict:
-        """Установлен ли gh и под каким пользователем он вошёл в GitHub."""
+        """Whether gh is installed and as which user it is signed in to GitHub."""
         s = wsp.require()
         if not shutil.which("gh"):
             return {"installed": False, "user": None}
         try:
             user = (await run_in_threadpool(_gh, ["api", "user", "--jq", ".login"], s.path.parent)).strip()
         except HTTPException:
-            user = ""                                   # не выполнен gh auth login
+            user = ""                                   # gh auth login was not run
         return {"installed": True, "user": user or None}
 
     @app.post("/api/gh/create")
     async def gh_create(body: GhCreateBody) -> dict:
-        """Создать репозиторий на GitHub, добавить его как origin и отправить коммиты."""
+        """Create a repository on GitHub, add it as origin and push the commits."""
         s = git_session()
         name = body.name.strip()
         if not _GH_REPO.match(name):
@@ -1199,7 +1199,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             await ws.send_json({"type": "hello", "version": s.version if s else 0, "app": __version__,
                                 "session_id": wsp.generation})
             while True:
-                await ws.receive_text()        # клиент ничего не шлёт; ждём закрытия
+                await ws.receive_text()        # the client sends nothing; wait for it to close
         except WebSocketDisconnect:
             pass
         finally:
@@ -1215,8 +1215,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             candidate = (STATIC_DIR / full_path).resolve()
             if full_path and candidate.is_file() and STATIC_DIR in candidate.parents:
                 return FileResponse(candidate)
-            # index.html ссылается на бандл с хешем в имени: без no-cache браузер после
-            # обновления mapcan может показать закэшированный интерфейс старой версии
+            # index.html refers to a bundle with a hash in its name: without no-cache the browser could
+            # show the cached interface of the old version after mapcan is updated
             return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
     else:
         @app.get("/", include_in_schema=False)

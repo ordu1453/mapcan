@@ -1,4 +1,4 @@
-"""mapcan — YAML-карта сигналов как единственный источник правды."""
+"""mapcan: a YAML signal map as the single source of truth."""
 
 __version__ = "0.20.0"
 

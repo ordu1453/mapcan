@@ -1,9 +1,9 @@
-"""Правка YAML-документа операциями над путями с сохранением комментариев и форматирования.
+"""Editing a YAML document with operations on paths, keeping comments and formatting.
 
-Документ хранится как ruamel round-trip дерево. Операции меняют только адресованные
-узлы. При сериализации изменения переносятся на *исходный* текст построчно
-(:func:`merge_text`), поэтому нетронутые фрагменты, включая ручные переносы строк
-во flow-словарях, остаются байт-в-байт прежними.
+The document is kept as a ruamel round-trip tree. Operations change only the nodes
+they address. On serialization the changes are carried over to the *source* text line by line
+(:func:`merge_text`), so untouched parts, including manual line breaks
+in flow mappings, stay byte for byte the same.
 """
 
 from __future__ import annotations
@@ -22,14 +22,14 @@ from ruamel.yaml.util import load_yaml_guess_indent
 from ..i18n import _
 from ..model import Signal
 
-# Ключи, числа в которых принято писать в hex.
+# Keys whose numbers are usually written in hex.
 HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
 LAYOUT_KEYS = ("start_bit", "bit_length", "byte", "bit", "byte_length")
-MAX_FRAME_BITS = 64 * 8     # кадр CAN FD — до 64 байт
+MAX_FRAME_BITS = 64 * 8     # a CAN FD frame is up to 64 bytes
 
 
 class OpError(ValueError):
-    """Операцию нельзя применить (неверный путь, тип и т.п.)."""
+    """The operation cannot be applied (wrong path, type etc.)."""
 
 
 # --------------------------------------------------------------------------- YAML I/O
@@ -43,14 +43,14 @@ def make_yaml(text: str = "") -> YAML:
     if text.strip():
         try:
             _, ind, bsi = load_yaml_guess_indent(text)
-        except Exception:  # noqa: BLE001 — оставим отступы по умолчанию
+        except Exception:  # noqa: BLE001 — keep the default indents
             pass
     if bsi is None:
-        # В тексте нет списков: ind — отступ словаря; списки — в принятом стиле «  - »
+        # The text has no lists: ind is the mapping indent; lists in the usual style "  - "
         mapping = ind or 2
         y.indent(mapping=mapping, sequence=mapping + 2, offset=mapping)
     else:
-        # bsi — отступ «-» (0 — списки без отступа), ind — отступ содержимого элемента
+        # bsi is the indent of "-" (0: lists without an indent), ind the indent of an item's content
         y.indent(mapping=bsi or ind or 2, sequence=ind or 4, offset=bsi)
     return y
 
@@ -62,11 +62,11 @@ def dump(y: YAML, doc) -> str:
 
 
 def merge_text(orig: str, canon_old: str, canon_new: str) -> str:
-    """Перенести изменения canon_old → canon_new на исходный текст ``orig``.
+    """Carry the changes canon_old → canon_new over to the source text ``orig``.
 
-    ``canon_old`` — сериализация документа до правки (может отличаться от ``orig``
-    переносами строк). Фрагменты ``orig``, которым соответствуют неизменённые строки,
-    копируются как есть; изменённые — берутся из ``canon_new``.
+    ``canon_old`` is the serialization of the document before the edit (it can differ from ``orig``
+    in line breaks). Parts of ``orig`` that match unchanged lines are
+    copied as is; changed ones are taken from ``canon_new``.
     """
     if canon_old == canon_new:
         return orig
@@ -74,9 +74,9 @@ def merge_text(orig: str, canon_old: str, canon_new: str) -> str:
     a = canon_old.splitlines(keepends=True)
     b = canon_new.splitlines(keepends=True)
 
-    # 1. Атомы: группы строк canon_old с соответствующими строками orig.
-    atom_of = [0] * len(a)          # индекс атома для строки canon_old
-    atoms: list[tuple[int, int, list[str]]] = []   # (первая строка a, число строк a, строки orig)
+    # 1. Atoms: groups of lines of canon_old with the matching lines of orig.
+    atom_of = [0] * len(a)          # index of the atom of a canon_old line
+    atoms: list[tuple[int, int, list[str]]] = []   # (first line of a, number of lines of a, lines of orig)
     pending: list[str] = []
     for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, o, a, autojunk=False).get_opcodes():
         if tag == "equal":
@@ -85,14 +85,14 @@ def merge_text(orig: str, canon_old: str, canon_new: str) -> str:
                 pending = []
                 atom_of[j1 + k] = len(atoms) - 1
         elif tag == "delete":
-            pending += o[i1:i2]      # строки только в orig — приклеим к следующему атому
+            pending += o[i1:i2]      # lines only in orig: attach them to the next atom
         else:  # replace / insert
             atoms.append((j1, j2 - j1, pending + o[i1:i2]))
             pending = []
             for k in range(j1, j2):
                 atom_of[k] = len(atoms) - 1
 
-    # 2. Какие строки canon_old остались без изменений и куда перешли.
+    # 2. Which lines of canon_old stayed unchanged and where they went.
     new_of = [-1] * len(a)
     for tag, i1, i2, j1, _j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
         if tag == "equal":
@@ -106,7 +106,7 @@ def merge_text(orig: str, canon_old: str, canon_new: str) -> str:
 
     old_at = {j: i for i, j in enumerate(new_of) if j >= 0}
     out: list[str] = []
-    fresh: list[bool] = []            # строка взята из canon_new (новая/изменённая)
+    fresh: list[bool] = []            # the line is taken from canon_new (new/changed)
     j = 0
     while j < len(b):
         i = old_at.get(j)
@@ -131,10 +131,10 @@ def _indent(line: str) -> int:
 
 
 def _blank_before_insert(lines: list[str], fresh: list[bool]) -> list[str]:
-    """ruamel относит пустые строки-разделители к концу предыдущего элемента списка
-    (или последнего ключа словаря), поэтому вставленный в конец элемент оказывается
-    *после* разделителя. Переносим разделитель за вставленный блок, если тот начинается
-    с «- » или это ключ, дописанный в конец вложенного словаря."""
+    """ruamel attributes empty separator lines to the end of the previous list item
+    (or the last key of a mapping), so an item inserted at the end ends up
+    *after* the separator. Move the separator after the inserted block if it starts
+    with "- " or is a key appended to the end of a nested mapping."""
     out = list(lines)
     i = 0
     while i < len(out):
@@ -157,11 +157,11 @@ def _blank_before_insert(lines: list[str], fresh: list[bool]) -> list[str]:
     return out
 
 
-# --------------------------------------------------------------------------- значения
+# --------------------------------------------------------------------------- values
 
 
 def _key(k: Any) -> Any:
-    """Ключи таблиц значений приходят из JSON строками."""
+    """Keys of value tables come from JSON as strings."""
     if isinstance(k, str):
         s = k.strip()
         try:
@@ -172,7 +172,7 @@ def _key(k: Any) -> Any:
 
 
 def to_node(value: Any, key: Any = None, old: Any = None) -> Any:
-    """JSON-значение → узел ruamel."""
+    """JSON value → ruamel node."""
     if isinstance(value, dict):
         m = CommentedMap()
         for k, v in value.items():
@@ -188,7 +188,7 @@ def to_node(value: Any, key: Any = None, old: Any = None) -> Any:
         return value
     if isinstance(value, int):
         if isinstance(old, (HexInt, HexCapsInt)) and value >= 0:
-            cls = type(old)                                 # сохранить регистр и ширину записи
+            cls = type(old)                                 # keep the case and the width of the notation
             return cls(value, width=getattr(old, "_width", None))
         if key in HEX_KEYS and value >= 0:
             return HexCapsInt(value, width=4 if key == "pgn" else (2 if value <= 0xFF else None))
@@ -217,7 +217,7 @@ def plain(node: Any) -> Any:
     return node
 
 
-# --------------------------------------------------------------------------- навигация
+# --------------------------------------------------------------------------- navigation
 
 
 def _get(doc, path: list) -> Any:
@@ -250,11 +250,11 @@ def _parent(doc, path: list) -> tuple[Any, Any]:
     return _get(doc, path[:-1]), path[-1]
 
 
-# --------------------------------------------------------------------------- операции
+# --------------------------------------------------------------------------- operations
 
 
 def _ensure_parent(doc, path: list) -> None:
-    """Создать недостающие промежуточные словари (например, ``value`` у SDO-обмена)."""
+    """Create the missing intermediate mappings (e.g. ``value`` of an SDO exchange)."""
     node = doc
     for el in path[:-1]:
         if isinstance(node, dict) and el not in node and _key(el) not in node:
@@ -263,7 +263,7 @@ def _ensure_parent(doc, path: list) -> None:
 
 
 def op_set(doc, path: list, value: Any) -> None:
-    """Установить значение. ``None`` удаляет ключ словаря."""
+    """Set a value. ``None`` removes the key of a mapping."""
     if value is not None and value != "":
         try:
             _ensure_parent(doc, path)
@@ -281,7 +281,7 @@ def op_set(doc, path: list, value: Any) -> None:
     if last in parent or _key(last) in parent:
         key = _find_key(parent, last)
     else:
-        # Новая строка таблицы значений: ключ из JSON — число, а не строка «'99'»
+        # A new row of a value table: the key from JSON is a number, not the string "'99'"
         key = _key(last) if len(path) >= 2 and path[-2] == "values" else last
     if value is None or value == "":
         if key in parent:
@@ -307,7 +307,7 @@ def op_remove(doc, path: list) -> None:
 
 
 def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
-    """Вставить элемент в список по пути ``path`` (список создаётся, если его нет)."""
+    """Insert an item into the list at ``path`` (the list is created if it is missing)."""
     parent, last = _parent(doc, path)
     if isinstance(parent, dict) and (last not in parent or parent[last] is None):
         parent[last] = CommentedSeq()
@@ -333,7 +333,7 @@ def op_move(doc, path: list, to: int) -> None:
 
 
 def op_rename_key(doc, path: list, new_key: Any) -> None:
-    """Переименовать ключ словаря, сохранив позицию (например, число в таблице значений)."""
+    """Rename a key of a mapping keeping its position (e.g. a number in a value table)."""
     parent, last = _parent(doc, path)
     if not isinstance(parent, CommentedMap):
         raise OpError(_("not a mapping: {path}", path=path))
@@ -349,7 +349,7 @@ def op_rename_key(doc, path: list, new_key: Any) -> None:
 
 
 def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None) -> dict:
-    """Самая читаемая запись позиции, которая разбирается обратно в те же start/length."""
+    """The most readable notation of a position that parses back to the same start/length."""
     candidates: list[dict] = []
     byte, bit = divmod(start, 8)
     if big_endian:
@@ -412,7 +412,7 @@ OPS = {
 
 
 def check_editable(source, ops: list[dict]) -> None:
-    """Узлы подключённых файлов (include) правятся только в своём файле, не через основной."""
+    """Nodes of included files (include) are edited only in their own file, not through the main one."""
     for o in ops:
         if isinstance(o.get("path"), list) and source.is_included(tuple(o["path"])):
             raise OpError(_("the node is described in the included file {file}: edit it there",
@@ -434,14 +434,14 @@ def apply_ops(doc, ops: list[dict]) -> None:
             raise OpError(f"{kind}: {e}") from e
 
 
-# ---------------------------------------------------------------- переименование устройств
+# ---------------------------------------------------------------- renaming devices
 
 def _names(items: Any) -> list:
     return [d.get("name") if isinstance(d, dict) else None for d in items] if isinstance(items, list) else []
 
 
 def _bus_frames(bus: dict, bp: list) -> list[tuple[list, dict]]:
-    """Все кадры шины с путями: общие и кадры устройств."""
+    """All frames of the bus with their paths: the bus's own and the devices' frames."""
     out = []
     frames = bus.get("frames")
     if isinstance(frames, list):
@@ -456,11 +456,11 @@ def _bus_frames(bus: dict, bp: list) -> list[tuple[list, dict]]:
 
 
 def device_rename_ops(old: Any, new: Any) -> list[dict]:
-    """Операции, переносящие переименование устройств (правкой текста) в sender/receivers кадров.
+    """Operations that carry device renames (made by editing the text) over to sender/receivers of the frames.
 
-    Переименование узнаём по месту: у устройства на той же позиции той же шины другое имя,
-    причём старого имени среди устройств шины больше нет, а нового раньше не было.
-    Меняются только ссылки, всё ещё указывающие на старое имя. `old`, `new` — простые данные (plain).
+    A rename is recognized by place: the device at the same position of the same bus has another name,
+    the old name is no longer among the bus devices, and the new one was not there before.
+    Only references still pointing to the old name change. `old` and `new` are plain data.
     """
     ops: list[dict] = []
     old_buses = old.get("buses") if isinstance(old, dict) else None

@@ -1,21 +1,21 @@
-"""Раскладка бит сигналов и упаковка/распаковка полезной нагрузки.
+"""Bit layout of signals and packing/unpacking of the payload.
 
-Позиции — в нумерации lsb0: абсолютный бит ``p`` это бит ``p % 8`` байта ``p // 8``.
-``start_bit`` сигнала — позиция его младшего бита (LSB).
+Positions are in lsb0 numbering: absolute bit ``p`` is bit ``p % 8`` of byte ``p // 8``.
+``start_bit`` of a signal is the position of its least significant bit (LSB).
 
-* little-endian: значение занимает биты ``start .. start+len-1`` подряд;
-* big-endian (Motorola): от LSB биты идут вверх до конца байта, затем
-  переходят к биту 0 *предыдущего* байта.
+* little-endian: the value takes bits ``start .. start+len-1`` in a row;
+* big-endian (Motorola): from the LSB the bits go up to the end of the byte, then
+  continue at bit 0 of the *previous* byte.
 """
 
 from __future__ import annotations
 
 
 def chunks(start: int, length: int, big_endian: bool) -> list[tuple[int, int, int]]:
-    """Разбить поле на куски внутри байтов: (байт, сдвиг в байте, число бит).
+    """Split a field into pieces within bytes: (byte, shift in the byte, number of bits).
 
-    Куски идут от младших бит значения к старшим. Байт может быть
-    отрицательным, если big-endian поле «вылезает» за начало кадра.
+    The pieces go from the low bits of the value to the high ones. A byte can be
+    negative if a big-endian field sticks out before the start of the frame.
     """
     out = []
     pos, left = start, length
@@ -29,7 +29,7 @@ def chunks(start: int, length: int, big_endian: bool) -> list[tuple[int, int, in
 
 
 def occupied_bits(start: int, length: int, big_endian: bool) -> list[int]:
-    """Абсолютные позиции бит поля, от младшего бита значения к старшему."""
+    """Absolute positions of the field's bits, from the value's least significant bit to the most significant."""
     bits = []
     for byte, shift, n in chunks(start, length, big_endian):
         base = byte * 8 + shift
@@ -38,20 +38,20 @@ def occupied_bits(start: int, length: int, big_endian: bool) -> list[int]:
 
 
 def byte_span(start: int, length: int, big_endian: bool) -> tuple[int, int]:
-    """Первый и последний байт поля (по возрастанию)."""
+    """First and last byte of the field (ascending)."""
     bs = [c[0] for c in chunks(start, length, big_endian)]
     return min(bs), max(bs)
 
 
 def msb_position(start: int, length: int, big_endian: bool) -> int:
-    """Позиция старшего бита значения (нужна для DBC/Motorola)."""
+    """Position of the value's most significant bit (needed for DBC/Motorola)."""
     return occupied_bits(start, length, big_endian)[-1]
 
 
 def lsb_from_msb(msb: int, length: int) -> int:
-    """start_bit (позиция LSB) big-endian поля по позиции его старшего бита, как в DBC/Motorola.
+    """start_bit (LSB position) of a big-endian field from the position of its MSB, as in DBC/Motorola.
 
-    От старшего бита значение идёт вниз по байту, а с бита 0 — к биту 7 *следующего* байта."""
+    From the MSB the value goes down the byte, and from bit 0 on to bit 7 of the *next* byte."""
     pos = msb
     for _ in range(length - 1):
         pos = pos + 15 if pos % 8 == 0 else pos - 1
@@ -78,7 +78,7 @@ def insert(buf: bytearray, value: int, start: int, length: int, big_endian: bool
 
 
 def raw_range(length: int, signed: bool, code: str | None = None) -> tuple[int, int]:
-    """Диапазон сырого значения; в обратном и прямом коде он симметричен (у нуля два представления)."""
+    """Range of the raw value; in ones' complement and sign-magnitude it is symmetric (zero has two forms)."""
     if signed:
         lo = -(1 << (length - 1)) + (code in ("ones_complement", "sign_magnitude"))
         return lo, (1 << (length - 1)) - 1

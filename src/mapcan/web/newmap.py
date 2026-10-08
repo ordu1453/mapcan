@@ -1,4 +1,4 @@
-"""Шаблоны новых карт для «Файл → Новая карта»."""
+"""Templates of new maps for "File → New map"."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def template_labels() -> dict[str, str]:
 
 
 def _q(s: str) -> str:
-    """Строка YAML в двойных кавычках (JSON-строка — валидный YAML-скаляр)."""
+    """A YAML string in double quotes (a JSON string is a valid YAML scalar)."""
     return json.dumps(s, ensure_ascii=False)
 
 

@@ -1,7 +1,7 @@
-"""Языковой сервер mapcan (LSP поверх stdio): ``mapcan lsp``.
+"""Language server of mapcan (LSP over stdio): ``mapcan lsp``.
 
-Работает с YAML-документами, у которых есть ключ верхнего уровня ``mapcan:``;
-остальные YAML-файлы пропускает.
+It works with YAML documents that have the top-level key ``mapcan:``;
+other YAML files are skipped.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ def _text_edit(e: E.Edit) -> T.TextEdit:
 
 
 def _arg(args) -> dict:
-    """Аргумент команды: pygls передаёт аргументы списком или по одному."""
+    """Argument of a command: pygls passes the arguments as a list or one by one."""
     if len(args) == 1 and isinstance(args[0], list):
         args = args[0]
     return args[0] if args and isinstance(args[0], dict) else {}
@@ -43,7 +43,7 @@ def _arg(args) -> dict:
 class MapcanServer(LanguageServer):
     def __init__(self) -> None:
         super().__init__("mapcan", __version__)
-        # Последний анализ каждого документа (для автодополнения, пока текст не разбирается).
+        # The last analysis of each document (for completion while the text does not parse).
         self.analyses: dict[str, A.Analysis] = {}
 
     def analysis(self, uri: str) -> A.Analysis | None:
@@ -141,7 +141,7 @@ def completion(ls: MapcanServer, params: T.CompletionParams) -> T.CompletionList
 
 
 def _snippets(text: str, pos: A.Pos) -> T.CompletionList | None:
-    """Заготовки элементов списков после «- » (сам «- » уже набран, в заготовку не входит)."""
+    """Snippets of list items after "- " (the "- " itself is typed already and not part of the snippet)."""
     lines = text.splitlines()
     before = (lines[pos[0]] if pos[0] < len(lines) else "")[:pos[1]]
     m = A.SNIPPET_CTX.match(before)
@@ -218,7 +218,7 @@ def rename(ls: MapcanServer, params: T.RenameParams) -> T.WorkspaceEdit | None:
 
 @server.feature("mapcan/tree")
 def map_tree(ls: MapcanServer, params) -> list[dict]:
-    """Узлы дерева карты для боковой панели. Параметр: {textDocument: {uri}}."""
+    """Nodes of the map tree for the side bar. Parameter: {textDocument: {uri}}."""
     doc = params.get("textDocument") if isinstance(params, dict) else getattr(params, "textDocument", None)
     uri = doc.get("uri") if isinstance(doc, dict) else getattr(doc, "uri", None)
     a = ls.analysis(uri) if uri else None
@@ -228,7 +228,7 @@ def map_tree(ls: MapcanServer, params) -> list[dict]:
 @server.command("mapcan.lsp.export")
 @server.thread()
 def export_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, formats: [...], outDir}. Ответ: {files: [...], warnings: [...]} или {error}."""
+    """Argument: {uri, formats: [...], outDir}. Response: {files: [...], warnings: [...]} or {error}."""
     from .exports import ExportError, export
 
     params = _arg(args)
@@ -241,7 +241,7 @@ def export_command(ls: MapcanServer, *args) -> dict:
                                  list(params.get("formats") or []), params.get("outDir") or "build")
     except ExportError as e:
         return {"error": str(e)}
-    except Exception as e:   # noqa: BLE001 — ошибку экспорта показываем пользователю, сервер продолжает работу
+    except Exception as e:   # noqa: BLE001 — the export error is shown to the user, the server keeps working
         ls.window_log_message(T.LogMessageParams(type=T.MessageType.Error, message=repr(e)))
         return {"error": _("Export failed: {error}", error=e)}
     return {"files": [str(f) for f in files], "warnings": warnings}
@@ -249,13 +249,13 @@ def export_command(ls: MapcanServer, *args) -> dict:
 
 @server.command("mapcan.lsp.edit")
 def edit_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, action: add|duplicate|delete, path, kind}. Ответ: {edit: {range, text}, cursor} или {}."""
+    """Argument: {uri, action: add|duplicate|delete, path, kind}. Response: {edit: {range, text}, cursor} or {}."""
     params = _arg(args)
     uri = params.get("uri", "")
     a = ls.analysis(uri) if uri else None
     path = tuple(params.get("path") or ())
     action = params.get("action")
-    # Пустой путь — только у новой шины (добавляется в карту)
+    # An empty path: only a new bus (added to the map)
     if a is None or not (path or (action == "add" and params.get("kind") == "bus")):
         return {}
     if action == "add":
@@ -273,7 +273,7 @@ def edit_command(ls: MapcanServer, *args) -> dict:
 
 
 def _params(params) -> tuple[str, tuple]:
-    """(uri, path) из параметров запроса {textDocument: {uri}, path}."""
+    """(uri, path) from the request parameters {textDocument: {uri}, path}."""
     get = (lambda o, k: o.get(k)) if isinstance(params, dict) else (lambda o, k: getattr(o, k, None))
     doc = get(params, "textDocument")
     uri = (doc.get("uri") if isinstance(doc, dict) else getattr(doc, "uri", None)) if doc else None
@@ -282,7 +282,7 @@ def _params(params) -> tuple[str, tuple]:
 
 @server.feature("mapcan/node")
 def node_request(ls: MapcanServer, params) -> dict | None:
-    """Поля узла для формы. Параметр: {textDocument: {uri}, path}."""
+    """Fields of the node for the form. Parameter: {textDocument: {uri}, path}."""
     uri, path = _params(params)
     a = ls.analysis(uri) if uri else None
     return E.node_fields(a, path) if a else None
@@ -290,8 +290,8 @@ def node_request(ls: MapcanServer, params) -> dict | None:
 
 @server.command("mapcan.lsp.set")
 def set_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, path, value} — путь поля и новое значение (null — удалить).
-    Ответ: {edits: [{range, text}]}."""
+    """Argument: {uri, path, value}: the path of the field and its new value (null to remove it).
+    Response: {edits: [{range, text}]}."""
     params = _arg(args)
     uri = params.get("uri", "")
     a = ls.analysis(uri) if uri else None
@@ -304,8 +304,8 @@ def set_command(ls: MapcanServer, *args) -> dict:
 
 @server.command("mapcan.lsp.ops")
 def ops_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, ops} — операции веб-редактора (set, remove, insert, move, rename_key, set_layout)
-    одной правкой. Ответ: {edit: {range, text}}, {} — текст не изменился — или {error}."""
+    """Argument: {uri, ops}: operations of the web editor (set, remove, insert, move, rename_key, set_layout)
+    as one edit. Response: {edit: {range, text}}, {} if the text did not change, or {error}."""
     from ..web.yamlops import OpError
 
     params = _arg(args)
@@ -325,8 +325,8 @@ def ops_command(ls: MapcanServer, *args) -> dict:
 @server.command("mapcan.lsp.changes")
 @server.thread()
 def changes_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, oldText}. Ответ: {nodes: [{path, status}]} — узлы текущей карты, добавленные
-    (added) или изменённые (modified) с версии oldText, — или {error}."""
+    """Argument: {uri, oldText}. Response: {nodes: [{path, status}]}, the nodes of the current map added
+    (added) or changed (modified) since the version oldText, or {error}."""
     from ..diff import changed_paths, diff_maps
     from ..loader import loads
 
@@ -344,7 +344,7 @@ def changes_command(ls: MapcanServer, *args) -> dict:
 @server.command("mapcan.lsp.render")
 @server.thread()
 def render_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri}. Ответ: {text} — документ карты в Markdown — или {error}."""
+    """Argument: {uri}. Response: {text}, the map's document in Markdown, or {error}."""
     from ..export.text import render
 
     a = ls.analysis(_arg(args).get("uri", ""))
@@ -356,8 +356,8 @@ def render_command(ls: MapcanServer, *args) -> dict:
 @server.command("mapcan.lsp.diff")
 @server.thread()
 def diff_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, oldText, newText?}. Без newText новая версия — текущий текст карты.
-    Ответ: {text} — изменения в Markdown — или {error}."""
+    """Argument: {uri, oldText, newText?}. Without newText the new version is the current text of the map.
+    Response: {text}, the changes in Markdown, or {error}."""
     from ..diff import diff_maps, render_diff
     from ..loader import loads
 
@@ -378,8 +378,8 @@ def diff_command(ls: MapcanServer, *args) -> dict:
 @server.command("mapcan.lsp.historyDraft")
 @server.thread()
 def history_draft_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, oldText}. Ответ: черновик записи истории изменений с версии oldText до текущего
-    текста — {version, date, author, github, changes} — или {error}. Автор — из профиля mapcan."""
+    """Argument: {uri, oldText}. Response: a draft revision history entry from the version oldText to the current
+    text, {version, date, author, github, changes}, or {error}. The author comes from the mapcan profile."""
     import datetime
 
     from ..diff import bump_version, changelog_lines, diff_maps
@@ -408,9 +408,9 @@ def history_draft_command(ls: MapcanServer, *args) -> dict:
 @server.command("mapcan.lsp.releaseDraft")
 @server.thread()
 def release_draft_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, oldText, tags}: oldText — карта прошлого выпуска или последнего коммита (null —
-    выпусков не было), tags — теги репозитория. Ответ: {version, recorded, changes, date, author, github}
-    или {error}; recorded — запись этой версии уже есть в истории изменений."""
+    """Argument: {uri, oldText, tags}: oldText is the map of the previous release or of the last commit (null:
+    no releases yet), tags are the repository's tags. Response: {version, recorded, changes, date, author, github}
+    or {error}; recorded tells that the entry of this version is already in the revision history."""
     import datetime
 
     from ..diff import release_draft
@@ -434,8 +434,8 @@ def release_draft_command(ls: MapcanServer, *args) -> dict:
 
 @server.command("mapcan.lsp.addHistory")
 def add_history_command(ls: MapcanServer, *args) -> dict:
-    """Аргумент: {uri, version, date, author, github, changes}. Новая запись — первой в истории
-    изменений, версия и дата документа — из неё. Ответ: {edit: {range, text}, cursor} или {error}."""
+    """Argument: {uri, version, date, author, github, changes}. The new entry goes first in the revision
+    history, and the document's version and date come from it. Response: {edit: {range, text}, cursor} or {error}."""
     params = _arg(args)
     a = ls.analysis(params.get("uri", ""))
     if a is None or a.result.raw is None:

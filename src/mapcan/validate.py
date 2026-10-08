@@ -1,7 +1,7 @@
-"""Семантические проверки карты.
+"""Semantic checks of the map.
 
-Каждое правило имеет код (``Diagnostic.code``); правила стиля можно
-отключить через ``lint.disable`` в YAML или опцией ``--disable`` CLI.
+Every rule has a code (``Diagnostic.code``); style rules can be
+turned off with ``lint.disable`` in the YAML or the ``--disable`` option of the CLI.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ STYLE_RE = {
 IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 FD_DLC = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64}
 
-# Ключевые слова C (C99…C23) и Python: имена сигналов становятся полями структур и классов.
+# Keywords of C (C99…C23) and Python: signal names become fields of structs and classes.
 C_KEYWORDS = frozenset("""
     auto break case char const continue default do double else enum extern float for goto if inline
     int long register restrict return short signed sizeof static struct switch typedef union unsigned
@@ -37,18 +37,18 @@ C_KEYWORDS = frozenset("""
     thread_local true typeof typeof_unqual
 """.split())
 PY_KEYWORDS = frozenset(keyword.kwlist)
-# Члены сгенерированного класса кадра в Python-модуле.
+# Members of the generated frame class in the Python module.
 PY_FRAME_MEMBERS = frozenset({"ID", "DLC", "IS_EXTENDED", "IS_FD", "BITRATE_SWITCH", "pack", "unpack"})
-# Стандартные скорости классического CAN, бит/с (33,3 и 83,3 кбит/с — GMLAN и низкоскоростные шины).
+# Standard classic CAN bitrates, bit/s (33.3 and 83.3 kbit/s: GMLAN and low-speed buses).
 STANDARD_BITRATES = frozenset({10_000, 20_000, 33_333, 50_000, 83_333, 100_000, 125_000, 250_000,
                                500_000, 800_000, 1_000_000})
-BUS_LOAD_LIMIT = 70  # %, порог предупреждения о загрузке шины
-# Длина данных служебных кадров CANopen по CiA 301. EMCY не проверяется: CiA 301 требует 8 байт,
-# но многие устройства передают укороченный кадр, и это не мешает его приёму.
-# Широковещательные службы CANopen: получателей у них не перечисляют.
+BUS_LOAD_LIMIT = 70  # %, threshold of the bus load warning
+# Data length of CANopen service frames by CiA 301. EMCY is not checked: CiA 301 requires 8 bytes,
+# but many devices send a shorter frame, and that does not prevent receiving it.
+# CANopen broadcast services: their receivers are not listed.
 BROADCAST_TYPES = frozenset({"nmt", "sync", "time", "emcy", "heartbeat"})
 
-# Правила, которые описаны в документации (для `mapcan rules`).
+# Rules described in the documentation (for `mapcan rules`).
 RULES = {
     "yaml": ("error", N_("YAML syntax error, duplicate key")),
     "schema": ("error", N_("Schema violation: wrong type, missing required field or invalid value")),
@@ -174,7 +174,7 @@ def validate_map(cmap: MapCan, src: SourceMap, disable: Iterable[str] = ()) -> R
 
     for spellings in value_spellings.values():
         if len(spellings) > 1:
-            # Эталон — корректный идентификатор, затем самое частое написание.
+            # The reference is a valid identifier, then the most frequent spelling.
             names = sorted(spellings, key=lambda n: (not IDENT_RE.match(n), -len(spellings[n])))
             main = names[0]
             for other in names[1:]:
@@ -263,7 +263,7 @@ def _check_bus(ctx: _Ctx, bus) -> None:
         upper.setdefault(frame.name.upper(), frame.name)
         if frame.can_id is None:
             if bus.protocol == "j1939":
-                # Сообщение — на поле, которое нужно заполнить (редактор подсвечивает его)
+                # The message goes on the field to fill in (the editor highlights it)
                 if frame.pgn is None:
                     ctx.emit("frame-id-missing", _("frame {name!r}: {why}", name=frame.name,
                                                    why=_("pgn (or id) is required")), p + ("pgn",))
@@ -303,7 +303,7 @@ def _check_bus(ctx: _Ctx, bus) -> None:
 
 
 def _check_od(ctx: _Ctx, bus) -> None:
-    """Объекты словаря CANopen, отображённые в PDO: index/subindex сигналов."""
+    """CANopen dictionary objects mapped into PDOs: index/subindex of the signals."""
     for frame in bus.all_frames():
         pdo = bus.protocol == "canopen" and frame.device is not None and frame.type.startswith("pdo_")
         for s in frame.signals:
@@ -353,31 +353,31 @@ def _check_spn(ctx: _Ctx, bus) -> None:
 
 
 def _is_tp(frame: Frame) -> bool:
-    """PGN, который передаётся транспортным протоколом J1939-21: длиннее одного кадра шины."""
+    """A PGN sent with the J1939-21 transport protocol: longer than one frame of the bus."""
     return frame.bus.protocol == "j1939" and frame.dlc > (64 if frame.bus.fd else 8)
 
 
 def _tp_mode(frame: Frame) -> str:
-    """BAM — всем (PDU2 или PDU1 с адресом 0xFF), RTS/CTS — одному получателю."""
+    """BAM to all (PDU2 or PDU1 with address 0xFF), RTS/CTS to one receiver."""
     dest = frame.destination if frame.destination is not None else 0xFF
     return "RTS/CTS" if frame.pgn is not None and j1939_is_pdu1(frame.pgn) and dest != 0xFF else "BAM"
 
 
 def _tp_bits(frame: Frame) -> int:
-    """Биты на шине для PGN по транспортному протоколу: пакеты TP.DT по 7 байт и служебные TP.CM."""
+    """Bits on the bus of a PGN with the transport protocol: TP.DT packets of 7 bytes and the TP.CM frames."""
     packets = -(-frame.dlc // 7)
     control = 1 if _tp_mode(frame) == "BAM" else 3      # BAM; RTS, CTS, EndOfMsgAck
     return (packets + control) * _frame_bits(8, True)
 
 
 def _frame_bits(dlc: int, extended: bool) -> int:
-    """Длина кадра классического CAN в битах с худшим случаем бит-стаффинга (Davis et al., 2007)."""
+    """Length of a classic CAN frame in bits with worst-case bit stuffing (Davis et al., 2007)."""
     n = 8 * dlc
     return n + 67 + (54 + n - 1) // 4 if extended else n + 47 + (34 + n - 1) // 4
 
 
 def _check_bus_load(ctx: _Ctx, bus) -> None:
-    # У CAN FD фаза данных идёт на другой скорости, которой нет в карте, — оценка была бы неверной.
+    # In CAN FD the data phase runs at another bitrate, which the map does not have: the estimate would be wrong.
     if bus.fd or not bus.bitrate:
         return
     cyclic = [f for f in bus.all_frames()
@@ -393,7 +393,7 @@ def _check_bus_load(ctx: _Ctx, bus) -> None:
 
 
 def _rx_twin(a: Frame, b: Frame) -> tuple[Frame, Frame] | None:
-    """Пара (RX-кадр устройства, тот же кадр у его отправителя) — один кадр, описанный дважды."""
+    """A pair (RX frame of a device, the same frame at its sender): one frame described twice."""
     for rx, tx in ((a, b), (b, a)):
         if (rx.device is not None and rx.direction == "rx"
                 and tx.sender_name is not None and tx.sender_name != rx.device.name):
@@ -505,7 +505,7 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
     sigs = frame.layout
     nbits = frame.dlc * 8
 
-    # Имена
+    # Names
     names: dict[str, tuple] = {}
     upper: dict[str, str] = {}
     phys = {s.name + "_phys": s.name for s in sigs if s.factor != 1 or s.offset != 0 or s.encoding == "scaled"}
@@ -540,7 +540,7 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                                                  other=upper[name.upper()]), path)
                 upper.setdefault(name.upper(), name)
 
-    # Мультиплексирование
+    # Multiplexing
     selectors = [s for s in sigs if s.multiplexer]
     selector = selectors[0] if selectors else None
     for extra in selectors[1:]:
@@ -673,7 +673,7 @@ def _dup_enum_names(ctx: _Ctx, values, path) -> None:
         upper.setdefault(ev.name.upper(), ev.name)
 
 
-# Кодирования, к которым применимо поле сигнала (поле задано, если отличается от значения по умолчанию)
+# Encodings a signal field applies to (a field is set if it differs from its default)
 ENCODING_FIELDS = {
     "factor": ("scaled", "float"),
     "offset": ("scaled", "float"),
@@ -690,7 +690,7 @@ ENCODING_FIELDS = {
 
 
 def _misplaced_fields(s: Signal) -> list[str]:
-    """Поля сигнала, которые заданы, но не применяются при его кодировании."""
+    """Fields of a signal that are set but do not apply to its encoding."""
     defaults = {k: Signal.model_fields[k].default for k in ENCODING_FIELDS}
     return [k for k, allowed in ENCODING_FIELDS.items()
             if s.encoding not in allowed and getattr(s, k) not in (defaults[k], None, [], {})]
@@ -745,7 +745,7 @@ def _check_overlap(ctx: _Ctx, frame: Frame, sigs: list[Signal], selector) -> Non
 
 
 def check(result: LoadResult, disable: Iterable[str] = ()) -> Report:
-    """Объединить ошибки загрузки и семантической проверки."""
+    """Merge the errors of loading and of the semantic checks."""
     report = Report()
     disabled = set(disable)
     report.extend(d for d in result.report.diagnostics if d.code not in disabled)

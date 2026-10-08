@@ -1,4 +1,4 @@
-"""Готовые примеры карт для стартового экрана («Примеры» → копия в выбранную папку)."""
+"""Ready example maps for the start screen ("Examples" → a copy in the chosen folder)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from ..i18n import N_, _
 
 _PACKAGE_DIR = Path(__file__).resolve().parent.parent
 
-# Подписи на стартовом экране (на языке интерфейса); пример без подписи показывается по имени файла.
+# Labels on the start screen (in the interface language); an example without a label is shown by its file name.
 EXAMPLES = {
     "minimal": N_("Minimal"),
     "j1939": N_("SAE J1939"),
@@ -19,13 +19,13 @@ EXAMPLES = {
 
 
 def examples_dir() -> Path:
-    """Папка примеров: внутри пакета (wheel, mapcan.exe) или в корне репозитория (разработка)."""
+    """Folder of the examples: inside the package (wheel, mapcan.exe) or at the repository root (development)."""
     bundled = _PACKAGE_DIR / "examples"
     return bundled if bundled.is_dir() else _PACKAGE_DIR.parent.parent / "examples"
 
 
 def _example_path(name: str) -> Path | None:
-    """Файл примера: ``name.yaml`` или, у примера из нескольких файлов, ``name/name.yaml``."""
+    """File of an example: ``name.yaml`` or, for an example of several files, ``name/name.yaml``."""
     if "/" in name or "\\" in name or name in ("", ".", ".."):
         return None
     d = examples_dir()
@@ -46,7 +46,7 @@ def list_examples() -> list[dict[str, str]]:
 
 
 def example_text(name: str) -> str:
-    """Текст примера для копии; ссылка на схему убрана — относительный путь в копии будет битым."""
+    """Text of an example for a copy; the link to the schema is removed, a relative path would break in the copy."""
     path = _example_path(name)
     if path is None:
         raise ValueError(_("unknown example: {name}", name=name))
@@ -59,9 +59,9 @@ def example_text(name: str) -> str:
 
 
 def example_includes(name: str) -> dict[str, str]:
-    """Файлы, которые подключает пример (``include``): путь относительно карты → текст.
+    """Files the example includes (``include``): path relative to the map → text.
 
-    Копируются рядом с копией карты, иначе у неё не нашлось бы подключённых файлов."""
+    They are copied next to the copy of the map, otherwise its included files would not be found."""
     from ruamel.yaml import YAML
 
     path = _example_path(name)

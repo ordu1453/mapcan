@@ -1,4 +1,4 @@
-"""Состояние редактируемой карты: текст, ruamel-документ, undo/redo, синхронизация с диском."""
+"""State of the edited map: text, ruamel document, undo/redo, syncing with the disk."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ HISTORY_LIMIT = 200
 
 
 class ConflictError(RuntimeError):
-    """Файл на диске изменён извне."""
+    """The file on disk was changed outside."""
 
 
 class ReadOnlyError(RuntimeError):
@@ -43,12 +43,12 @@ class EditorSession:
         self.version = 0
         self.undo_stack: list[str] = []
         self.redo_stack: list[str] = []
-        self._live_base: str | None = None     # текст до серии правок вкладки YAML по ходу ввода
+        self._live_base: str | None = None     # text before a series of edits in the YAML tab while typing
         self._result: LoadResult | None = None
         self._report = None
         self.reload()
 
-    # ------------------------------------------------------------------ диск
+    # ------------------------------------------------------------------ disk
 
     def _read_disk(self) -> str:
         raw = self.path.read_bytes().decode("utf-8")
@@ -56,7 +56,7 @@ class EditorSession:
         return raw.replace("\r\n", "\n")
 
     def disk_changed(self) -> bool:
-        """Файл изменён извне с момента последней загрузки/сохранения."""
+        """The file was changed outside since the last load/save."""
         try:
             return _hash(self.path.read_bytes().decode("utf-8").replace("\r\n", "\n")) != self.disk_hash
         except (OSError, UnicodeDecodeError):
@@ -86,7 +86,7 @@ class EditorSession:
             self.version += 1
 
     def save_as(self, path: str | Path, overwrite: bool = False) -> None:
-        """Сохранить текущий текст в другой файл и продолжить работу с ним."""
+        """Save the current text to another file and go on working with it."""
         with self.lock:
             self._check_writable()
             target = Path(path).resolve()
@@ -101,31 +101,31 @@ class EditorSession:
             self._report = check(self._result)
             self.version += 1
 
-    # ------------------------------------------------------------------ правка
+    # ------------------------------------------------------------------ editing
 
     def _check_writable(self) -> None:
         if self.readonly:
             raise ReadOnlyError(_("the editor is running in read-only mode"))
 
     def _set_text(self, text: str) -> None:
-        """Принять текст: разобрать в ruamel-документ и пересчитать проверку."""
+        """Take a text: parse it into a ruamel document and redo the validation."""
         self.text = text
         self.yaml = make_yaml(text)
         try:
             self.doc = self.yaml.load(text)
         except YAMLError:
-            self.doc = None           # синтаксическая ошибка: доступна только вкладка YAML
+            self.doc = None           # syntax error: only the YAML tab is available
         self._result = loads(text, str(self.path.name), self.path.parent)
         self._report = check(self._result)
         self.version += 1
 
     def check_text(self, text: str) -> list[dict]:
-        """Проверить текст, не применяя его (живая проверка во вкладке YAML)."""
+        """Validate a text without applying it (live validation in the YAML tab)."""
         result = loads(text.replace("\r\n", "\n"), str(self.path.name), self.path.parent)
         return [asdict(result.source.in_main_file(d)) for d in check(result).sorted()]
 
     def recheck(self) -> None:
-        """Пересобрать сообщения проверки (после смены языка интерфейса)."""
+        """Rebuild the validation messages (after the interface language changed)."""
         with self.lock:
             self._result = loads(self.text, str(self.path.name), self.path.parent)
             self._report = check(self._result)
@@ -142,7 +142,7 @@ class EditorSession:
         return True
 
     def apply(self, ops: list[dict]) -> bool:
-        """Применить операции атомарно. Возвращает True, если текст изменился."""
+        """Apply operations atomically. Returns True if the text changed."""
         with self.lock:
             self._check_writable()
             if self.doc is None:
@@ -154,12 +154,13 @@ class EditorSession:
                 apply_ops(self.doc, ops)
                 canon_new = dump(self.yaml, self.doc)
             except Exception:
-                self.doc = self.yaml.load(self.text)     # откат
+                self.doc = self.yaml.load(self.text)     # roll back
                 raise
             return self._commit(merge_text(self.text, canon_old, canon_new))
 
     def _carry_renames(self, base: str, text: str) -> str:
-        """Переименование устройства в тексте переносим в sender/receivers кадров — как при правке формой."""
+        """A device renamed in the text is carried over to sender/receivers of the frames, as when edited in the
+        form."""
         y = make_yaml(text)
         try:
             old = plain(make_yaml(base).load(base))
@@ -177,11 +178,11 @@ class EditorSession:
         return merge_text(text, canon_old, dump(y, doc))
 
     def set_text(self, text: str, live: bool = False) -> bool:
-        """Принять текст вкладки YAML.
+        """Take the text of the YAML tab.
 
-        `live` — промежуточное применение по ходу ввода: такие правки подряд сливаются в один шаг
-        отмены, пока не придёт обычное применение или другая правка. Переименования устройств
-        отсчитываются от текста до начала этой серии, поэтому промежуточные имена ничего не ломают.
+        `live`: an intermediate application while typing; such edits in a row merge into one undo
+        step until a normal application or another edit comes. Device renames are counted
+        from the text before the series started, so the intermediate names break nothing.
         """
         with self.lock:
             self._check_writable()
@@ -193,7 +194,7 @@ class EditorSession:
                 if live and changed:
                     self._live_base = self.undo_stack[-1]
                 return changed
-            if text == base:                     # серия вернула текст к исходному — шаг отмены не нужен
+            if text == base:                     # the series brought the text back: no undo step needed
                 self.undo_stack.pop()
             elif live:
                 self._live_base = base
@@ -223,11 +224,11 @@ class EditorSession:
             self._set_text(self.redo_stack.pop())
             return True
 
-    # ------------------------------------------------------------------ чтение
+    # ------------------------------------------------------------------ reading
 
     def _included(self) -> dict[str, Any]:
-        """Подключённые файлы (include): шины вместе с ними (для дерева и формы только для чтения)
-        и узлы, которые они добавили, — с путём файла относительно карты."""
+        """Included files (include): the buses together with them (for the tree and the read-only form)
+        and the nodes they added, with the file's path relative to the map."""
         merged = self._result.merged if self._result else None
         if not isinstance(merged, dict) or not isinstance(merged.get("buses"), list):
             return {"included_buses": None, "included": []}
@@ -235,7 +236,7 @@ class EditorSession:
         def rel(f: str) -> str:
             try:
                 return Path(os.path.relpath(f, self.path.parent)).as_posix()
-            except ValueError:          # другой диск
+            except ValueError:          # another drive
                 return Path(f).name
 
         roots = self._result.source.included_roots()

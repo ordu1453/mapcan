@@ -1,1 +1,1 @@
-"""Языковой сервер (LSP) для редакторов: VS Code, Neovim, Zed, JetBrains."""
+"""Language server (LSP) for editors: VS Code, Neovim, Zed, JetBrains."""

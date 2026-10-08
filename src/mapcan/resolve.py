@@ -1,4 +1,4 @@
-"""Пост-обработка модели: CAN ID, ссылки на родителей, пути в YAML, раскладка SDO."""
+"""Post-processing of the model: CAN IDs, references to parents, paths in the YAML, SDO layout."""
 
 from __future__ import annotations
 
@@ -29,15 +29,15 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
     frame._bus = bus
     frame._device = dev
     frame._can_id, frame.extended = frame_id(bus, dev, frame)
-    # Длина служебного кадра CANopen задана CiA 301 (NMT — 2, Heartbeat — 1…): dlc можно не писать.
-    # У остальных кадров dlc обязателен; без него — ошибка dlc-missing, а дальше считаем 8 байт
+    # CiA 301 sets the length of CANopen service frames (NMT 2, Heartbeat 1…): dlc can be omitted.
+    # Other frames require dlc; without it the error is dlc-missing, and 8 bytes are assumed from there on
     if frame.dlc is None:
         if bus.protocol == "canopen" and frame.type in CANOPEN_DLC:
             frame.dlc = min(CANOPEN_DLC[frame.type])
         else:
             frame.dlc, frame._dlc_missing = 8, True
     if frame.direction is None and dev is not None:
-        # Кадр без типа CANopen с чужим отправителем устройство принимает
+        # A frame without a CANopen type and with another sender is received by the device
         foreign = frame.sender is not None and frame.sender != dev.name
         frame.direction = default_direction(frame.type) or ("rx" if foreign else "tx")
     for si, sig in enumerate(frame.signals):
@@ -52,7 +52,7 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
 
 
 def sdo_layout(frame: Frame) -> list[Signal]:
-    """Раскладка expedited SDO-кадра по описанию обменов."""
+    """Layout of an expedited SDO frame from the description of the exchanges."""
     exs = frame.sdo or []
     commands = sorted({e.command for e in exs})
     indices = sorted({e.index for e in exs})

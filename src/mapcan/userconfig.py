@@ -1,8 +1,8 @@
-"""Пользовательские настройки mapcan: профиль автора и недавние файлы.
+"""User settings of mapcan: the author profile and recent files.
 
-Хранятся в ``~/.mapcan/config.json`` (каталог можно переопределить переменной
-окружения ``MAPCAN_CONFIG_DIR``). Файл общий для CLI и веб-редактора. Каталог прежнего
-названия ``~/.canmap`` при первом обращении переименовывается в ``~/.mapcan``.
+Stored in ``~/.mapcan/config.json`` (the environment variable ``MAPCAN_CONFIG_DIR``
+overrides the folder). The file is shared by the CLI and the web editor. The folder of the former
+name ``~/.canmap`` is renamed to ``~/.mapcan`` on first access.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def config_dir() -> Path:
 
 
 def normalize_github(value: str | None) -> str | None:
-    """Имя пользователя GitHub из «user», «@user» или ссылки https://github.com/user."""
+    """GitHub username from "user", "@user" or a link https://github.com/user."""
     if not value:
         return None
     v = value.strip().lstrip("@")

@@ -1,4 +1,4 @@
-"""Экспорт из редактора: текст документа (в том числе несохранённый) → файлы, как ``mapcan build``."""
+"""Export from the editor: the document's text (also unsaved) → files, as ``mapcan build`` does."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ class ExportError(RuntimeError):
 
 
 def export(text: str, filename: str, formats: list[str], out_dir: str | Path) -> tuple[list[Path], list[str]]:
-    """Собрать артефакты карты в ``out_dir``: (записанные файлы, предупреждения экспорта)."""
+    """Build the map's artifacts in ``out_dir``: (written files, export warnings)."""
     unknown = sorted(set(formats) - set(FORMATS))
     if unknown:
         raise ExportError(_("unknown formats: {formats}", formats=", ".join(unknown)))

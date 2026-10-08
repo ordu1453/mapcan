@@ -1,4 +1,4 @@
-"""Экспорт в Markdown и HTML через Jinja2-шаблоны."""
+"""Markdown and HTML export through Jinja2 templates."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ _MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif
 
 
 def logo_data_uri(path: str) -> str:
-    """Логотип как data: URI — HTML остаётся одним самодостаточным файлом."""
+    """The logo as a data: URI, so the HTML stays one self-contained file."""
     if not path:
         return ""
     p = Path(path)
@@ -39,7 +39,7 @@ def logo_data_uri(path: str) -> str:
 
 
 def render(cmap: MapCan, kind: str, template: str | Path | None = None, lang: str | None = None) -> str:
-    """kind: "md" или "html". ``template`` — свой Jinja2-шаблон."""
+    """kind: "md" or "html". ``template`` is your own Jinja2 template."""
     default = {"md": "document.md.j2", "html": "document.html.j2"}[kind]
     if template:
         tpl = Path(template)
@@ -53,7 +53,7 @@ def render(cmap: MapCan, kind: str, template: str | Path | None = None, lang: st
         view["document"]["logo"] = logo_data_uri(view["document"]["logo_file"])
     out = env.get_template(name).render(**view)
     if kind == "md":
-        # Убрать лишние пустые строки, которые остаются от управляющих блоков.
+        # Remove the extra empty lines left by the control blocks.
         lines, blank = [], 0
         for line in out.splitlines():
             blank = blank + 1 if not line.strip() else 0

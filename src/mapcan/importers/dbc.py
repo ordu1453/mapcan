@@ -1,8 +1,8 @@
-"""Импорт DBC: шина, устройства (узлы DBC), кадры и сигналы → YAML-карта mapcan.
+"""DBC import: bus, devices (DBC nodes), frames and signals → a mapcan YAML map.
 
-DBC не знает части того, что есть в карте (описания на нескольких языках, тип кадра CANopen, флаги
-битовых полей), поэтому карта получается как шина ``can`` (или ``j1939``, если кадры помечены
-VFrameFormat = J1939PG) с явными ID. Чего перенести нельзя, импорт сообщает предупреждениями.
+DBC lacks part of what a map has (descriptions in several languages, the CANopen frame type, flags
+of bit fields), so the map becomes a ``can`` bus (or ``j1939`` if the frames are marked
+VFrameFormat = J1939PG) with explicit IDs. What cannot be carried over, the import reports as warnings.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from .. import bits as B
 from ..i18n import _
 from ..web.yamlops import layout_keys
 
-# GenMsgSendType (шаблоны Vector) → режим передачи карты
+# GenMsgSendType (Vector templates) → transmission mode of the map
 SEND_TYPES = {"spontaneous": "event", "onchange": "event", "onwrite": "event", "ifactive": "event",
               "onrequest": "on_request"}
 J1939_FRAME_FORMAT = "J1939PG"
@@ -28,7 +28,7 @@ _IDENT = re.compile(r"[^0-9A-Za-z_]+")
 
 
 def _attr(obj, name: str):
-    """Значение атрибута DBC (для ENUM — строка варианта) или None."""
+    """Value of a DBC attribute (for an ENUM, the text of the option) or None."""
     attrs = getattr(getattr(obj, "dbc", None), "attributes", None) or {}
     a = attrs.get(name)
     if a is None:
@@ -49,7 +49,7 @@ def _brs(db, m) -> bool:
 
 
 def _ident(name: str) -> str:
-    """Имя значения enum как идентификатор: «Not available» → NOT_AVAILABLE."""
+    """Name of an enum value as an identifier: "Not available" → NOT_AVAILABLE."""
     s = _IDENT.sub("_", name.strip()).strip("_").upper() or "VALUE"
     return "V_" + s if s[0].isdigit() else s
 
@@ -73,7 +73,7 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
     choices = dict(s.choices or {})
     scaled = s.scale != 1 or s.offset != 0
     if s.length > 64:
-        encoding = "bytes"            # длиннее 64 бит — только массив байт (DBC такого вида не знает)
+        encoding = "bytes"            # longer than 64 bits: only a byte array (DBC has no such kind)
     elif s.is_float:
         encoding = "float"
     elif choices:
@@ -91,7 +91,7 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
         out["description"] = _text(s.comment)
     out.update(layout_keys(start, s.length, big, encoding))
     if encoding == "flag":
-        out.pop("bit_length", None)       # у флага длина всегда 1 бит
+        out.pop("bit_length", None)       # a flag is always 1 bit long
     if big:
         out["byte_order"] = "big_endian"
     if s.is_signed and encoding in ("raw", "scaled", "enum"):
@@ -118,7 +118,7 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
             values[int(k)] = ident if ident == name else _flow({"name": ident, "description": name})
         out["values"] = values
     if s.raw_initial is not None and encoding != "bytes":
-        # initial в карте — физическое значение (у сигнала с таблицей cantools отдаёт имя значения)
+        # initial in the map is a physical value (for a signal with a table cantools gives the value's name)
         raw = float(s.raw_initial)
         out["initial"] = _num(raw if encoding in ("enum", "flag", "raw") else raw * s.scale + s.offset)
     spn = _attr(s, "SPN")
@@ -133,7 +133,7 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
 
 
 def _j1939(frame_id: int) -> tuple[int, int, int | None, int]:
-    """CAN ID J1939 → (PGN, приоритет, адрес получателя для PDU1 или None, адрес отправителя)."""
+    """J1939 CAN ID → (PGN, priority, destination address for PDU1 or None, source address)."""
     priority = (frame_id >> 26) & 0x7
     pgn = (frame_id >> 8) & 0x3FFFF
     pf, ps, sa = (frame_id >> 16) & 0xFF, (frame_id >> 8) & 0xFF, frame_id & 0xFF
@@ -143,7 +143,7 @@ def _j1939(frame_id: int) -> tuple[int, int, int | None, int]:
 
 
 def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> tuple[str, list[str]]:
-    """DBC-файл → (текст YAML-карты, предупреждения)."""
+    """DBC file → (text of the YAML map, warnings)."""
     path = Path(path)
     db = cantools.database.load_file(str(path), strict=False)
     warnings: list[str] = []
@@ -165,7 +165,7 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
     if bus_no_brs:
         bus["brs"] = False
 
-    # Адрес устройства J1939 — адрес отправителя его кадров
+    # Address of a J1939 device: the source address of its frames
     addresses: dict[str, int] = {}
     if j1939:
         for m in db.messages:
@@ -235,7 +235,7 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
     doc = CommentedMap()
     doc["mapcan"] = 1
     doc["document"] = CommentedMap(title=title or path.stem, language=lang)
-    # Имена в DBC бывают в любом стиле: проверка стиля имён отключена
+    # Names in DBC come in any style: the name style check is disabled
     doc["lint"] = _flow({"signal_name": "any", "frame_name": "any", "device_name": "any", "value_name": "any"})
     doc["buses"] = CommentedSeq([bus])
 
@@ -244,7 +244,7 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
     y.indent(mapping=2, sequence=4, offset=2)
     buf = io.StringIO()
     y.dump(doc, buf)
-    # ruamel оставляет пробел в конце строки, перенося длинную flow-запись
+    # ruamel leaves a trailing space when it wraps a long flow sequence
     return "\n".join(line.rstrip() for line in buf.getvalue().split("\n")), warnings
 
 

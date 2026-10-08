@@ -1,7 +1,7 @@
-"""Анализ текста карты для языкового сервера: диагностика, структура, подсказки.
+"""Analysis of a map's text for the language server: diagnostics, outline, hints.
 
-Модуль не зависит от pygls: позиции здесь 0-based (строка, колонка), как в LSP,
-а преобразование в типы протокола делает :mod:`mapcan.lsp.server`.
+The module does not depend on pygls: positions here are 0-based (line, column), as in LSP,
+and :mod:`mapcan.lsp.server` converts them to the protocol's types.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from ..loader import LoadResult, SourceMap, loads
 from ..model import MapCan, enum_entries
 from ..validate import check
 
-Pos = tuple[int, int]          # 0-based (строка, колонка)
+Pos = tuple[int, int]          # 0-based (line, column)
 Path_ = tuple
 
 _HEADER = re.compile(r"^mapcan\s*:", re.MULTILINE)
@@ -31,12 +31,12 @@ _KEY = re.compile(r"([A-Za-z_][\w]*)\s*:(?=\s|$)")
 
 
 def is_mapcan(text: str) -> bool:
-    """Похож ли YAML на карту mapcan (ключ верхнего уровня ``mapcan:``)."""
+    """Whether the YAML looks like a mapcan map (the top-level key ``mapcan:``)."""
     return _HEADER.search(text) is not None
 
 
 # --------------------------------------------------------------------------- #
-# Узлы и их области в тексте
+# Nodes and their ranges in the text
 # --------------------------------------------------------------------------- #
 
 
@@ -52,9 +52,9 @@ def _is_prefix(a: Path_, b: Path_) -> bool:
 
 
 def node_ranges(src: SourceMap, lines: list[str], file: str | None = None) -> dict[Path_, Node]:
-    """Область каждого узла: от его начала до начала следующего узла вне его поддерева.
+    """Range of each node: from its start to the start of the next node outside its subtree.
 
-    Узлы основного файла, а с ``file`` — узлы этого подключённого файла (позиции в нём)."""
+    Nodes of the main file, or with ``file`` the nodes of that included file (positions in it)."""
     nodes = [Node(p, (ln - 1, col - 1)) for p, (ln, col) in src.positions.items() if src.files.get(p) == file]
     nodes.sort(key=lambda n: (n.start, len(n.path)))
     doc_end = (len(lines), 0)
@@ -75,7 +75,7 @@ class Analysis:
     diagnostics: list[Diagnostic]
     lines: list[str] = field(default_factory=list)
     nodes: dict[Path_, Node] = field(default_factory=dict)
-    # Подключённые файлы (include): имя файла → его текст и области узлов в нём
+    # Included files (include): file name → its text and the ranges of the nodes in it
     included: dict[str, Analysis] = field(default_factory=dict)
 
     @property
@@ -84,16 +84,16 @@ class Analysis:
 
     @property
     def data(self):
-        """Данные карты для дерева и формы: вместе с подключёнными файлами, если они есть."""
+        """Data of the map for the tree and the form: together with the included files, if any."""
         return self.result.merged if self.result.merged is not None else self.result.raw
 
     def included_file(self, path: Path_) -> str | None:
-        """Подключённый файл, в котором описан узел; None — узел основного файла."""
+        """Included file the node is described in; None for a node of the main file."""
         src = self.result.source
         return src.file_of(path) if src.is_included(path) else None
 
     def token_end(self, start: Pos) -> Pos:
-        """Конец скаляра (или первого слова), начинающегося в позиции ``start``."""
+        """End of the scalar (or the first word) that starts at ``start``."""
         line, col = start
         if line >= len(self.lines):
             return start
@@ -101,11 +101,11 @@ class Analysis:
         return (line, m.end()) if m and m.end() > col else (line, min(col + 1, len(self.lines[line])))
 
     def block(self, path: Path_) -> tuple[Pos, Pos] | None:
-        """Текст узла целиком: от его начала до конца последней строки с содержимым.
+        """The whole text of a node: from its start to the end of the last line with content.
 
-        Область узла (:func:`node_ranges`) кончается там, где начинается значение следующего узла,
-        то есть захватывает его ключ или «- » и пустые строки и комментарии перед ним; здесь они
-        отрезаются.
+        The range of a node (:func:`node_ranges`) ends where the value of the next node starts,
+        so it takes in that node's key or "- " and the empty lines and comments before it; here they
+        are cut off.
         """
         n = self.nodes.get(path)
         if n is None:
@@ -116,9 +116,9 @@ class Analysis:
             if end is not None:
                 return n.start, end
         if el > sl:
-            # Следующий узел на другой строке: узел кончается на последней строке перед ней, где есть
-            # что-то кроме комментария и отступ не меньше, чем у начала узла (строка с меньшим
-            # отступом — ключ родителя, например «sdo:» после последнего сигнала).
+            # The next node is on another line: the node ends on the last line before it that has
+            # something besides a comment and an indent not less than at the node's start (a line with a
+            # smaller indent is a key of the parent, e.g. "sdo:" after the last signal).
             last = el - 1
             while last > sl:
                 text = self.lines[last]
@@ -128,7 +128,7 @@ class Analysis:
                 last -= 1
             line = self.lines[last]
             return n.start, (last, len(_strip_comment(line).rstrip()))
-        # Следующий узел на той же строке (поток «{…}» или «[…]»): до разделителя перед ним
+        # The next node is on the same line (flow "{…}" or "[…]"): up to the separator before it
         line = self.lines[sl] if sl < len(self.lines) else ""
         end = len(line) if el > sl else ec
         text = line[sc:end]
@@ -136,7 +136,7 @@ class Analysis:
         return n.start, (sl, sc + (m.start() if m else len(text)))
 
     def _closing(self, start: Pos) -> Pos | None:
-        """Позиция после скобки, парной открывающей в ``start`` (с учётом кавычек и вложенности)."""
+        """Position after the bracket that matches the opening one at ``start`` (minding quotes and nesting)."""
         depth, quote = 0, ""
         line, col = start
         while line < len(self.lines):
@@ -163,7 +163,7 @@ class Analysis:
         return None
 
     def path_at(self, pos: Pos) -> Path_:
-        """Самый глубокий узел, область которого содержит позицию."""
+        """The deepest node whose range contains the position."""
         best: Path_ = ()
         for n in self.nodes.values():
             if n.start <= pos < n.end and len(n.path) >= len(best):
@@ -175,7 +175,7 @@ _COMMENT = re.compile(r"""^((?:[^#"']|"(?:[^"\\]|\\.)*"|'(?:[^']|'')*')*?)\s+#.*
 
 
 def _strip_comment(line: str) -> str:
-    """Строка без комментария в конце (« # …» вне кавычек)."""
+    """The line without a trailing comment (" # …" outside quotes)."""
     if line.lstrip().startswith("#"):
         return ""
     m = _COMMENT.match(line)
@@ -186,7 +186,7 @@ def analyze(text: str, filename: str | None = None) -> Analysis:
     result = loads(text, filename)
     report = check(result)
     lines = text.splitlines()
-    # Сообщения о подключённых файлах (include) показываются на строке include основного
+    # Messages about included files (include) are shown on the include line of the main file
     diags = [result.source.in_main_file(d) for d in report.sorted()]
     a = Analysis(text, result, diags, lines, node_ranges(result.source, lines))
     for _i, fname in result.source.includes:
@@ -207,7 +207,7 @@ def diagnostic_range(a: Analysis, d: Diagnostic) -> tuple[Pos, Pos]:
 
 
 # --------------------------------------------------------------------------- #
-# Структура (Outline)
+# Outline
 # --------------------------------------------------------------------------- #
 
 
@@ -228,7 +228,7 @@ _CHILDREN = {"bus": (("frames", "frame"), ("devices", "device")),
 
 
 def symbols(a: Analysis) -> list[Symbol]:
-    """Дерево шин, устройств, кадров и сигналов по сырому YAML (работает и при ошибках модели)."""
+    """Tree of buses, devices, frames and signals from the raw YAML (it works even if the model has errors)."""
     raw = a.result.raw
     if not isinstance(raw, dict):
         return []
@@ -257,7 +257,7 @@ def symbols(a: Analysis) -> list[Symbol]:
 
 
 def _detail(a: Analysis, node: dict, path: Path_, kind: str) -> str:
-    """Подпись узла: по модели (вычисленный ID, биты), если карта разобрана, иначе по сырому YAML."""
+    """Label of a node: from the model (computed ID, bits) if the map parses, otherwise from the raw YAML."""
     obj = _find(a.map, path) if a.map is not None and kind in ("frame", "signal") else None
     if isinstance(obj, M.Frame) and obj.can_id is not None:
         return _hex(obj.can_id, obj.extended)
@@ -276,7 +276,7 @@ def _detail(a: Analysis, node: dict, path: Path_, kind: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Дерево карты (боковая панель) — те же узлы и подписи, что в дереве веб-редактора
+# Map tree (side bar): the same nodes and labels as in the web editor's tree
 # --------------------------------------------------------------------------- #
 
 
@@ -285,7 +285,7 @@ def _hexw(v, width: int) -> str:
 
 
 def _txt(value, lang: str) -> str:
-    """Текст сырого YAML (строка или {ru, en}) на языке документа с откатом на любой доступный."""
+    """Text of the raw YAML (a string or {ru, en}) in the document language, falling back to any available."""
     if isinstance(value, dict):
         return str(value.get(lang) or next((v for v in value.values() if v), "") or "")
     return "" if value is None else str(value)
@@ -299,25 +299,25 @@ def doc_language(a: Analysis) -> str:
 
 
 def display_name(d: dict, lang: str) -> str:
-    """Подпись узла, как в веб-редакторе: название для людей, идентификатор — если названия нет;
-    у устройства перед названием — сокращение."""
+    """Label of a node as in the web editor: the title for people, the identifier if there is no title;
+    a device has its abbreviation before the title."""
     title = _txt(d.get("title"), lang) or ("—" if d.get("name") is None else str(d["name"]))
     return f"{d['short']} · {title}" if d.get("short") else title
 
 
 def device_label(d: dict, lang: str) -> str:
-    """Короткая подпись устройства в ссылках на него: сокращение, иначе полное название."""
+    """Short label of a device in references to it: the abbreviation, else the full name."""
     return str(d["short"]) if d.get("short") else display_name(d, lang)
 
 
 def map_tree(a: Analysis) -> list[dict]:
-    """Узлы: kind, label, ident, description, dir (кадры), from (принимаемые кадры), range, selection, children.
+    """Nodes: kind, label, ident, description, dir (frames), from (received frames), range, selection, children.
 
-    Подписи — как в дереве веб-редактора: названия (title) на языке документа, идентификатор (``ident``)
-    только если названия нет. Строится по сырому YAML, вычисленные ID и биты — из модели, если карта разобрана.
+    Labels are as in the web editor's tree: titles in the document language, the identifier (``ident``)
+    only if there is no title. Built from the raw YAML; computed IDs and bits come from the model if the map parses.
 
-    Узлы подключённых файлов (include) — на своих местах в дереве, с ``file`` (полный путь файла):
-    их области — в тексте того файла, править их можно только там.
+    Nodes of included files (include) are in their places in the tree, with ``file`` (the file's full path):
+    their ranges are in the text of that file, and they can be edited only there.
     """
     raw = a.data
     buses = raw.get("buses") if isinstance(raw, dict) else None
@@ -332,7 +332,7 @@ def map_tree(a: Analysis) -> list[dict]:
         if block is None:
             return None
         (sl, sc), end = block
-        # Курсор на отступе или «- » перед узлом тоже относится к нему
+        # The cursor on the indent or on the "- " before a node belongs to it too
         own_line = re.fullmatch(r"\s*(?:-\s+)*", part.lines[sl][:sc]) is not None
         name = part.nodes.get(path + ("name",))
         out = {"range": [sl, 0 if own_line else sc, *end], "selection": [sl, sc, *end], "path": list(path),
@@ -408,8 +408,8 @@ def map_tree(a: Analysis) -> list[dict]:
             for fi, f in enumerate(_items(d.get("frames"))):
                 if (fn := frame_node(f, dp + ("frames", fi))) is not None:
                     dnode["children"].append(fn)
-            # Чужие кадры, которые устройство принимает, — ссылками после своих; название кадра может
-            # не говорить, чей он, — в подписи ссылки указываем отправителя
+            # Frames of other devices that the device receives: links after its own; the frame's title may
+            # not tell whose it is, so the link's label names the sender
             for rf in mbus.all_frames() if isinstance(mbus, M.Bus) else []:
                 own = rf.device is not None and rf.device.name == d.get("name")
                 if own or d.get("name") not in rf.receivers or (loc := rng(rf._path)) is None:
@@ -442,12 +442,12 @@ def _items(v) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
-# Поиск модели по пути
+# Finding the model by path
 # --------------------------------------------------------------------------- #
 
 
 def _model_of(annotation) -> type[BaseModel] | None:
-    """Класс модели внутри аннотации вида ``X | None``, ``list[X]``, ``dict[int, X]``."""
+    """Model class inside an annotation like ``X | None``, ``list[X]``, ``dict[int, X]``."""
     if isinstance(annotation, type) and issubclass(annotation, BaseModel):
         return annotation
     for arg in typing.get_args(annotation):
@@ -458,7 +458,7 @@ def _model_of(annotation) -> type[BaseModel] | None:
 
 
 def model_for(path: Path_) -> type[BaseModel] | None:
-    """Класс модели узла по пути в YAML (индексы списков пропускаются)."""
+    """Model class of a node by its path in the YAML (list indices are skipped)."""
     cls: type[BaseModel] | None = MapCan
     for el in path:
         if isinstance(el, int):
@@ -479,7 +479,7 @@ def _literals(annotation) -> list:
 
 
 def enum_choices() -> dict[str, list[str]]:
-    """Ключ YAML → допустимые строковые значения (по аннотациям Literal всех моделей)."""
+    """YAML key → allowed string values (from the Literal annotations of all models)."""
     out: dict[str, list[str]] = {}
     for obj in vars(M).values():
         if isinstance(obj, type) and issubclass(obj, BaseModel) and obj.__module__ == M.__name__:
@@ -504,7 +504,7 @@ def _key_at(line: str, col: int) -> tuple[str, int] | None:
 
 
 def _owner(path: Path_, kind: str) -> Path_ | None:
-    """Ближайший предок-элемент списка ``signals``/``frames``."""
+    """The nearest ancestor that is an item of a ``signals``/``frames`` list."""
     for i in range(len(path) - 1, 0, -1):
         if path[i - 1] == kind and isinstance(path[i], int):
             return path[: i + 1]
@@ -544,7 +544,7 @@ def hover(a: Analysis, pos: Pos) -> str | None:
 
 
 def _field_doc(a: Analysis, key: str, after: Pos) -> str | None:
-    """Описание поля модели для ключа, значение которого начинается после ``after``."""
+    """Description of the model field for the key whose value starts after ``after``."""
     best = None
     for p, n in a.nodes.items():
         if p and p[-1] == key and n.start >= after and (best is None or n.start < a.nodes[best].start):
@@ -623,7 +623,7 @@ def frame_markdown(frame: M.Frame) -> str:
 
 
 def frame_layout(frame: M.Frame) -> str:
-    """Битовая карта кадра markdown-таблицей: строки — байты, столбцы — биты 7…0."""
+    """Bit map of a frame as a markdown table: rows are bytes, columns are bits 7…0."""
     sigs = frame.layout
     if not sigs or frame.dlc == 0:
         return ""
@@ -652,7 +652,7 @@ class Hint:
 
 
 def inlay_hints(a: Analysis) -> list[Hint]:
-    """Вычисленные значения рядом с именами: ID кадров без явного ``id`` и биты сигналов."""
+    """Computed values next to the names: IDs of frames without an explicit ``id``, and bits of signals."""
     if a.map is None:
         return []
     hints: list[Hint] = []
@@ -672,10 +672,10 @@ def inlay_hints(a: Analysis) -> list[Hint]:
 
 
 # --------------------------------------------------------------------------- #
-# Автодополнение значений
+# Completion of values
 # --------------------------------------------------------------------------- #
 
-# Заготовки (snippet) элементов списков: метка, описание, текст с отступами относительно «-».
+# Snippets of list items: label, description, text with indents relative to "-".
 SNIPPET_CTX = re.compile(r"^\s*(-\s+)([A-Za-z_]*)$")
 SNIPPETS = [
     ("device", "mapcan device",
@@ -703,7 +703,7 @@ DEVICE_KEYS = ("sender", "receivers")
 
 
 def device_names(a: Analysis | None) -> list[str]:
-    """Имена устройств всех шин из сырого YAML последнего анализа."""
+    """Names of the devices of all buses from the raw YAML of the last analysis."""
     out: list[str] = []
     raw = a.result.raw if a else None
     buses = raw.get("buses") if isinstance(raw, dict) else None
@@ -717,10 +717,10 @@ def device_names(a: Analysis | None) -> list[str]:
 
 
 def completions(text: str, pos: Pos, last: Analysis | None) -> tuple[str, list[str]] | None:
-    """(ключ, варианты) для значения под курсором или None.
+    """(key, options) for the value under the cursor, or None.
 
-    ``last`` — последний анализ документа: имена устройств берутся из него, даже если
-    текущий текст ещё не разбирается.
+    ``last`` is the last analysis of the document: the device names come from it even if
+    the current text does not parse yet.
     """
     lines = text.splitlines()
     line, col = pos
@@ -736,7 +736,7 @@ def completions(text: str, pos: Pos, last: Analysis | None) -> tuple[str, list[s
         choices = enum_choices().get(key)
         return (key, choices) if choices else None
     if _ITEM_CTX.match(before):
-        # Элемент блочного списка «receivers:» на одной из строк выше
+        # An item of the block list "receivers:" on one of the lines above
         for prev in reversed(lines[:line]):
             stripped = prev.strip()
             if stripped.startswith("- "):

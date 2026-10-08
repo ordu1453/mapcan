@@ -1,7 +1,7 @@
-"""Экспорт в PDF через Typst (pip-пакет ``typst`` со встроенным компилятором).
+"""PDF export through Typst (the ``typst`` pip package with the compiler built in).
 
-Шаблоны: встроенные (по имени, см. :data:`PDF_TEMPLATES`) или свой ``.typ``-файл.
-Данные карты передаются шаблону как JSON в ``sys.inputs.data``.
+Templates: built-in (by name, see :data:`PDF_TEMPLATES`) or your own ``.typ`` file.
+The map's data is passed to the template as JSON in ``sys.inputs.data``.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class PdfTemplate:
     name: str
     title: str
     description: str
-    lang: str | None = None          # язык документа зафиксирован (шаблоны ГОСТ — только русский)
+    lang: str | None = None          # the document language is fixed (GOST templates: Russian only)
 
     @property
     def path(self) -> Path:
@@ -43,8 +43,8 @@ PDF_TEMPLATES: dict[str, PdfTemplate] = {
                        "change log sheet."), "ru"),
     ]
 }
-# Черновые шаблоны: файлы и код сохранены, но пользователю (CLI, редактор) не предлагаются,
-# пока не доведены до ума. Собрать их можно только по пути к .typ (см. тесты).
+# Draft templates: their files and code are kept, but users (CLI, editor) are not offered them
+# until they are finished. They can be built only by the path to the .typ (see the tests).
 DRAFT_PDF_TEMPLATES: dict[str, PdfTemplate] = {
     t.name: t
     for t in [
@@ -57,7 +57,7 @@ DRAFT_PDF_TEMPLATES: dict[str, PdfTemplate] = {
     ]
 }
 DEFAULT_TEMPLATE_NAME = "mapcan"
-# Прежние имена встроенных шаблонов (до переименования canmap → mapcan).
+# Former names of the built-in templates (before canmap was renamed to mapcan).
 PDF_TEMPLATE_ALIASES = {"canmap": "mapcan"}
 
 
@@ -66,14 +66,14 @@ class PdfError(RuntimeError):
 
 
 def template_lang(template: str | Path | None) -> str | None:
-    """Язык, зафиксированный встроенным шаблоном (ГОСТ — русский), или None."""
+    """Language fixed by a built-in template (GOST: Russian), or None."""
     name = PDF_TEMPLATE_ALIASES.get(str(template or DEFAULT_TEMPLATE_NAME), str(template or DEFAULT_TEMPLATE_NAME))
     t = PDF_TEMPLATES.get(name) or DRAFT_PDF_TEMPLATES.get(name)
     return t.lang if t else None
 
 
 def resolve_template(template: str | Path | None) -> Path:
-    """Имя встроенного шаблона, путь к .typ или None (шаблон по умолчанию)."""
+    """Name of a built-in template, path to a .typ or None (the default template)."""
     if template is None or str(template) == "":
         return PDF_TEMPLATES[DEFAULT_TEMPLATE_NAME].path
     name = PDF_TEMPLATE_ALIASES.get(str(template), str(template))
@@ -100,9 +100,9 @@ def export_pdf(
     lang: str | None = None,
     fmt: str = "pdf",
 ) -> Path:
-    """Собрать PDF. ``template`` — имя встроенного шаблона или путь к своему ``.typ``.
+    """Build a PDF. ``template`` is the name of a built-in template or the path to your own ``.typ``.
 
-    Шаблоны ГОСТ всегда собираются на русском — ``lang`` для них не учитывается.
+    GOST templates are always built in Russian: ``lang`` does not apply to them.
     """
     import typst
 
@@ -112,8 +112,8 @@ def export_pdf(
     out.parent.mkdir(parents=True, exist_ok=True)
     fonts = [str(FONTS_DIR)] + [str(p) for p in font_paths]
 
-    # Typst читает файлы только внутри root. Собираем во временном каталоге: копия файлов
-    # шаблона (lib.typ и т.п.) и логотип — так логотип может лежать где угодно на диске.
+    # Typst reads files only inside its root. The build runs in a temporary folder with a copy of the
+    # template's files (lib.typ etc.) and the logo, so the logo can be anywhere on the disk.
     with tempfile.TemporaryDirectory(prefix="mapcan-pdf-") as tmp:
         root = Path(tmp)
         for f in tpl.parent.iterdir():
@@ -135,7 +135,7 @@ def export_pdf(
             )
         except typst.TypstError as e:
             raise PdfError(_("Typst compilation error ({name}): {error}", name=tpl.name, error=e)) from e
-    if isinstance(result, list):     # svg/png: по файлу на страницу
+    if isinstance(result, list):     # svg/png: a file per page
         stem, suffix = out.stem, out.suffix
         for i, page in enumerate(result, 1):
             out.with_name(f"{stem}-{i}{suffix}").write_bytes(page)

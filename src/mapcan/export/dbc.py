@@ -1,4 +1,4 @@
-"""Экспорт DBC через cantools (CANalyzer, SavvyCAN, PCAN-View, Wireshark)."""
+"""DBC export through cantools (CANalyzer, SavvyCAN, PCAN-View, Wireshark)."""
 
 from __future__ import annotations
 
@@ -24,16 +24,16 @@ from ..units import dbc_unit
 
 DBC_ENCODING = "cp1251"
 
-# Режим передачи кадра (GenMsgSendType, как в шаблонах Vector CANdb++). Кадры без режима
-# получают значение по умолчанию NoMsgSendType.
+# Transmission mode of a frame (GenMsgSendType, as in the Vector CANdb++ templates). Frames without a mode
+# get the default value NoMsgSendType.
 SEND_TYPES = {"cyclic": "Cyclic", "event": "Spontaneous", "on_request": "OnRequest"}
 ATTRIBUTE_DEFINITION_SENDTYPE = DbcAttributeDefinition(
     name="GenMsgSendType", default_value="NoMsgSendType", kind="BO_", type_name="ENUM",
     choices=[*SEND_TYPES.values(), "NoMsgSendType"])
-# Тип шины: по "CAN FD" инструменты (и cantools) понимают, что кадры нужно помечать
+# Bus type: from "CAN FD" the tools (and cantools) know that the frames are to be marked
 # VFrameFormat = StandardCAN_FD / ExtendedCAN_FD.
 ATTRIBUTE_DEFINITION_BUSTYPE = DbcAttributeDefinition(name="BusType", default_value="", type_name="STRING")
-# SPN сигнала J1939 — атрибут сигнала, как в J1939-шаблонах Vector
+# SPN of a J1939 signal: a signal attribute, as in the Vector J1939 templates
 ATTRIBUTE_DEFINITION_SPN = DbcAttributeDefinition(name="SPN", default_value=0, kind="SG_", type_name="INT",
                                                   minimum=0, maximum=0x7FFFF)
 
@@ -128,13 +128,13 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
             protocol="j1939" if bus.protocol == "j1939" else None,
             strict=False,
         ))
-    # Без dbc_specifics cantools не пишет ни одного атрибута (BA_): пропали бы период кадров,
-    # стартовые значения сигналов и скорость шины.
+    # Without dbc_specifics cantools writes no attributes (BA_) at all: the frame periods,
+    # the initial values of signals and the bus bitrate would be lost.
     definitions = OrderedDict()
     attributes = OrderedDict()
     if bus.protocol == "j1939" or bus.fd:
-        # Признак J1939 и FD-кадров хранится в атрибуте VFrameFormat (J1939PG, *_FD);
-        # без определения атрибута cantools его не записывает.
+        # J1939 and FD frames are marked by the VFrameFormat attribute (J1939PG, *_FD);
+        # cantools does not write it without the attribute's definition.
         definitions["VFrameFormat"] = ATTRIBUTE_DEFINITION_VFRAMEFORMAT
     if bus.fd:
         definitions["CANFD_BRS"] = ATTRIBUTE_DEFINITION_CANFD_BRS
@@ -151,17 +151,17 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
 
 
 def unencodable(text_: str, encoding: str = DBC_ENCODING) -> str:
-    """Символы, которых нет в кодировке DBC (будут записаны как «?»), без повторов."""
+    """Characters the DBC encoding does not have (they will be written as "?"), without repeats."""
     return "".join(dict.fromkeys(ch for ch in text_ if not ch.encode(encoding, errors="ignore")))
 
 
 def export_dbc(cmap: MapCan, out: str | Path, bus_name: str | None = None,
                warn: Callable[[str], None] | None = None) -> list[Path]:
-    """Один DBC на шину. Если шина одна или указана, ``out`` — путь к файлу,
-    иначе ``out`` трактуется как каталог (или шаблон имени) и создаётся <bus>.dbc.
+    """One DBC per bus. If there is one bus or it is given, ``out`` is the file path,
+    otherwise ``out`` is a folder (or a name pattern) and <bus>.dbc files are created.
 
-    DBC пишется в cp1251 (её ожидают CANalyzer и другие инструменты под Windows); о символах,
-    которых в ней нет, сообщает ``warn``."""
+    DBC is written in cp1251 (CANalyzer and other Windows tools expect it); ``warn`` reports
+    the characters it does not have."""
     out = Path(out)
     buses = [b for b in cmap.buses if bus_name in (None, b.name)]
     if not buses:
@@ -175,7 +175,7 @@ def export_dbc(cmap: MapCan, out: str | Path, bus_name: str | None = None,
             path = base / f"{b.name}.dbc"
         path.parent.mkdir(parents=True, exist_ok=True)
         dbc = bus_database(cmap, b).as_dbc_string()
-        # DBC знает только дополнительный код: сигналы в обратном и прямом коде в нём читаются иначе
+        # DBC knows two's complement only: signals in ones' complement or sign-magnitude read differently there
         other = [f"{f.name}.{s.name}" for f in b.all_frames() for s in f.layout
                  if s.signed and s.signed_code in ("ones_complement", "sign_magnitude")]
         if warn is not None and other:

@@ -1,4 +1,4 @@
-"""Вычисление CAN ID по протоколу шины: CANopen, J1939, CAN с явными ID."""
+"""CAN ID computation by the bus protocol: CANopen, J1939, CAN with explicit IDs."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ J1939_GLOBAL = 0xFF
 
 
 def j1939_is_pdu1(pgn: int) -> bool:
-    """PDU1 (адресный): PF < 240 — младший байт PGN (PS) задаёт адрес получателя."""
+    """PDU1 (destination-specific): PF < 240, the low byte of the PGN (PS) is the destination address."""
     return ((pgn >> 8) & 0xFF) < 240
 
 
 def j1939_id(pgn: int, source: int, priority: int = J1939_DEFAULT_PRIORITY,
              destination: int | None = None) -> int:
-    """29-битный ID J1939: priority(3) | EDP(1) DP(1) PF(8) PS(8) | SA(8)."""
+    """29-bit J1939 ID: priority(3) | EDP(1) DP(1) PF(8) PS(8) | SA(8)."""
     if j1939_is_pdu1(pgn):
         field = (pgn & 0x3FF00) | (J1939_GLOBAL if destination is None else destination)
     else:
@@ -24,7 +24,7 @@ def j1939_id(pgn: int, source: int, priority: int = J1939_DEFAULT_PRIORITY,
 
 
 def j1939_decode(can_id: int) -> tuple[int, int, int, int | None]:
-    """(priority, pgn, source, destination|None) из 29-битного ID."""
+    """(priority, pgn, source, destination|None) from a 29-bit ID."""
     priority = (can_id >> 26) & 0x7
     field = (can_id >> 8) & 0x3FFFF
     source = can_id & 0xFF
@@ -34,7 +34,7 @@ def j1939_decode(can_id: int) -> tuple[int, int, int, int | None]:
 
 
 def frame_id(bus, device, frame) -> tuple[int | None, bool]:
-    """(CAN ID, extended) для кадра; ID None — вычислить нельзя."""
+    """(CAN ID, extended) of a frame; ID None if it cannot be computed."""
     if frame.id is not None:
         return frame.id, frame.extended
     if bus.protocol == "canopen":

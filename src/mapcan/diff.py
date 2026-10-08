@@ -1,4 +1,4 @@
-"""Сравнение двух версий карты на уровне кадров и сигналов, генерация changelog."""
+"""Comparison of two map versions at the level of frames and signals, changelog generation."""
 
 from __future__ import annotations
 
@@ -23,8 +23,8 @@ class Change:
     can_id: str = ""
     device: str = ""
     signal: str = ""
-    item: str = ""           # флаг или значение enum
-    field: str = ""          # изменённое поле
+    item: str = ""           # flag or enum value
+    field: str = ""          # changed field
     old: Any = None
     new: Any = None
 
@@ -149,7 +149,7 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, lang: str) -> None
         o = os_[s.name]
         for fld, a, b in _attrs_diff(_signal_attrs(o, lang), _signal_attrs(s, lang), SIGNAL_FIELDS):
             d.changes.append(Change("changed", "signal", signal=s.name, field=fld, old=a, new=b, **base))
-        # значения enum
+        # enum values
         ov = {v: ev for v, ev in enum_entries(o.values)}
         nv = {v: ev for v, ev in enum_entries(s.values)}
         for v in sorted(ov.keys() - nv.keys()):
@@ -164,7 +164,7 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, lang: str) -> None
                 d.changes.append(Change("changed", "value", signal=s.name, item=str(v), field="description",
                                         old=text(ov[v].description, lang),
                                         new=text(nv[v].description, lang), **base))
-        # флаги
+        # flags
         ofl = {x.name: x for x in o.flags or []}
         nfl = {x.name: x for x in s.flags or []}
         for n in [x.name for x in o.flags or []]:
@@ -182,17 +182,17 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, lang: str) -> None
                                         old=a, new=b, **base))
 
 
-# --------------------------------------------------------------------------- узлы новой версии
+# --------------------------------------------------------------------------- nodes of the new version
 
 
 NodeStatus = Literal["added", "modified"]
 
 
 def changed_paths(diff: MapDiff, new: MapCan) -> dict[tuple, NodeStatus]:
-    """Узлы новой версии карты, затронутые изменениями: путь в YAML → added или modified.
+    """Nodes of the new map version touched by the changes: path in the YAML → added or modified.
 
-    Удалённый узел помечает изменённым своего владельца (кадр — устройство или шину, сигнал — кадр),
-    изменённое значение или флаг — свой сигнал. Предки помеченных узлов не помечаются.
+    A removed node marks its owner as modified (a frame: its device or bus, a signal: its frame),
+    a changed value or flag marks its signal. Ancestors of marked nodes are not marked.
     """
     buses = {b.name: b for b in new.buses}
     out: dict[tuple, NodeStatus] = {}
@@ -217,7 +217,7 @@ def changed_paths(diff: MapDiff, new: MapCan) -> dict[tuple, NodeStatus]:
             continue
         frame = next((f for f in bus.all_frames() if f.name == c.frame), None)
         if frame is None:
-            # Удалённый кадр: изменилось его устройство, если оно осталось, иначе шина
+            # Removed frame: its device changed if it is still there, otherwise the bus
             dev = next((d for d in bus.devices if d.name == c.device), None)
             mark(dev._path if dev is not None else bus._path, "modified")
             continue
@@ -226,7 +226,7 @@ def changed_paths(diff: MapDiff, new: MapCan) -> dict[tuple, NodeStatus]:
             continue
         sig = next((s for s in frame.signals if s.name == c.signal), None)
         if sig is None:
-            mark(frame._path, "modified")       # удалённый сигнал или сигнал SDO-обмена
+            mark(frame._path, "modified")       # removed signal or a signal of an SDO exchange
         elif c.scope == "signal":
             mark(sig._path, "added" if c.kind == "added" else "modified")
         elif c.scope == "flag" and c.kind != "removed":
@@ -320,18 +320,18 @@ def changelog_lines(diff: MapDiff, lang: str = "ru") -> list[str]:
 
 
 def bump_version(version: str) -> str:
-    """Следующая версия: 1.2.3 → 1.2.4; не семантическая версия — без изменений, пустая — 0.1.0."""
+    """Next version: 1.2.3 → 1.2.4; a non-semantic version stays as is, an empty one becomes 0.1.0."""
     m = re.match(r"^(\d+)\.(\d+)\.(\d+)", version or "")
     return f"{m[1]}.{m[2]}.{int(m[3]) + 1}" if m else version or "0.1.0"
 
 
 def release_draft(new: MapCan, old: MapCan | None, tagged) -> dict:
-    """Черновик выпуска версии карты ``new``: {version, recorded, changes}.
+    """Draft of a release of the map version ``new``: {version, recorded, changes}.
 
-    ``old`` — карта прошлого выпуска (или последнего коммита), ``None`` — выпусков ещё не было;
-    ``tagged(version)`` — есть ли уже тег этой версии. Если версия документа уже записана первой в
-    истории изменений, но не выпущена, выпускается она с записанными изменениями (``recorded``).
-    Иначе — следующая невыпущенная версия и изменения с ``old``.
+    ``old`` is the map of the previous release (or of the last commit), ``None`` if there were no releases yet;
+    ``tagged(version)`` tells whether that version already has a tag. If the document version is already
+    first in the revision history but not released, it is released with its recorded changes (``recorded``).
+    Otherwise: the next unreleased version and the changes since ``old``.
     """
     lang = new.lang
     version = (new.document.version or "").strip()
@@ -344,7 +344,7 @@ def release_draft(new: MapCan, old: MapCan | None, tagged) -> dict:
     if old is not None:
         d = diff_maps(old, new)
         changes, old_version = changelog_lines(d, lang), d.old_version
-    # Версия уже выпущена (есть её тег) или не менялась с прошлого выпуска — следующая
+    # The version is already released (it has a tag) or did not change since the last release: the next one
     while not version or version == old_version or tagged(version):
         bumped = bump_version(version)
         if bumped == version:
@@ -354,7 +354,7 @@ def release_draft(new: MapCan, old: MapCan | None, tagged) -> dict:
 
 
 def release_message(version: str, changes: list[str]) -> str:
-    """Описание коммита и тега выпуска (как в диалоге коммита веб-редактора)."""
+    """Message of the release commit and tag (as in the web editor's commit dialog)."""
     from .i18n import _
 
     if len(changes) == 1:

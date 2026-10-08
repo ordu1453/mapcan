@@ -1,4 +1,4 @@
-"""Справочник функциональных кодов CANopen (CiA 301, predefined connection set)."""
+"""CANopen function codes (CiA 301, predefined connection set)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ class FunctionCode:
     type: str
     base: int
     per_node: bool          # ID = base + node_id
-    direction: str | None   # направление относительно устройства по умолчанию
+    direction: str | None   # default direction relative to the device
     label_ru: str
     label_en: str
     purpose_ru: str
@@ -38,17 +38,17 @@ FUNCTION_CODES: dict[str, FunctionCode] = {
     ]
 }
 
-# Допустимые DLC служебных кадров по CiA 301; без явного dlc кадр получает наименьший из них.
+# Allowed DLC of service frames by CiA 301; a frame without an explicit dlc gets the smallest of them.
 CANOPEN_DLC: dict[str, set[int]] = {
     "nmt": {2}, "sync": {0, 1}, "time": {6}, "heartbeat": {1}, "sdo_tx": {8}, "sdo_rx": {8},
 }
 
-# Порядок строк в таблице адресации.
+# Order of the rows in the addressing table.
 ADDRESSING_ORDER = list(FUNCTION_CODES)
 
 
 def compute_id(frame_type: str, node_id: int | None) -> int | None:
-    """CAN ID по функциональному коду и node_id; None если вычислить нельзя."""
+    """CAN ID from the function code and node_id; None if it cannot be computed."""
     fc = FUNCTION_CODES.get(frame_type)
     if fc is None:
         return None

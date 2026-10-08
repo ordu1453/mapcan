@@ -1,10 +1,10 @@
-"""Справочник единиц измерения: пары обозначений (ru, en).
+"""Reference of units: pairs of symbols (ru, en).
 
-Редактор предлагает эти единицы в поле «Единица», а документы выводят их на языке документа:
-«В», выбранный в русском интерфейсе, в английском документе становится «V», и наоборот.
-Единица хранится в карте строкой как есть; свой текст пользователя не переводится.
-Символы-двойники (знак ома U+2126, «℃» U+2103 и т. п., вставленные из других программ) приводятся
-к обычным через NFKC, поэтому справочник их узнаёт.
+The editor offers these units in the Unit field, and documents show them in the document language:
+"В" chosen in the Russian interface becomes "V" in an English document, and the other way round.
+The map stores the unit as a string as is; the user's own text is not translated.
+Look-alike characters (the ohm sign U+2126, "℃" U+2103 etc., pasted from other programs) are normalized
+to the usual ones with NFKC, so the reference recognizes them.
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ UNITS: list[tuple[str, str]] = [
     ("л", "L"), ("л/ч", "L/h"),
 ]
 
-# Замены для DBC: инструменты читают его в разных однобайтовых кодировках, поэтому единицы
-# из справочника выводятся латиницей ASCII (английское обозначение с этими заменами).
+# Replacements for DBC: tools read it in different single-byte encodings, so units
+# of the reference are written in ASCII Latin (the English symbol with these replacements).
 _DBC_ASCII = {"Ω": "Ohm", "°C": "degC", "·": ""}
 
 
@@ -37,8 +37,8 @@ for _pair in UNITS:
 
 
 def translate_unit(unit: str | None, lang: str) -> str | None:
-    """Обозначение единицы на языке lang, если она есть в справочнике; иначе unit без изменений.
-    Русские обозначения — только для ru, для остальных языков — международные (ms, V, kOhm)."""
+    """Symbol of the unit in the language lang if the reference has it; otherwise unit unchanged.
+    Russian symbols only for ru, international ones for other languages (ms, V, kOhm)."""
     if not unit:
         return unit
     pair = _BY_SYMBOL.get(_normalize(unit))
@@ -48,8 +48,8 @@ def translate_unit(unit: str | None, lang: str) -> str | None:
 
 
 def dbc_unit(unit: str | None) -> str | None:
-    """Единица для DBC: из справочника — ASCII-обозначение (Ом, Ω → Ohm; °C → degC; Н·м → Nm),
-    свой текст пользователя — без изменений."""
+    """Unit for DBC: from the reference, the ASCII symbol (Ом, Ω → Ohm; °C → degC; Н·м → Nm);
+    the user's own text unchanged."""
     if not unit:
         return unit
     pair = _BY_SYMBOL.get(_normalize(unit))

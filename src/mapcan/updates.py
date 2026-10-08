@@ -1,7 +1,7 @@
-"""Проверка новой версии mapcan на GitHub Releases.
+"""Check for a new mapcan version on GitHub Releases.
 
-Результат кешируется на сутки в ``~/.mapcan/update.json``, чтобы не обращаться
-к GitHub при каждом запуске. Проверку отключает переменная окружения
+The result is cached for a day in ``~/.mapcan/update.json``, so that GitHub is not
+contacted on every start. The check is turned off by the environment variable
 ``MAPCAN_NO_UPDATE_CHECK=1``.
 """
 
@@ -23,7 +23,7 @@ CACHE_TTL = 24 * 3600
 
 
 def parse_version(v: str) -> tuple[int, ...] | None:
-    """«v1.2.3» / «1.2» → (1, 2, 3) / (1, 2, 0); пред-релизы и мусор → None."""
+    """"v1.2.3" / "1.2" → (1, 2, 3) / (1, 2, 0); pre-releases and garbage → None."""
     m = re.fullmatch(r"v?(\d+)\.(\d+)(?:\.(\d+))?", v.strip())
     return (int(m[1]), int(m[2]), int(m[3] or 0)) if m else None
 
@@ -43,7 +43,7 @@ def _fetch(timeout: float) -> dict:
         "Accept": "application/vnd.github+json",
         "User-Agent": f"mapcan/{__version__}",
     })
-    with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — фиксированный https-адрес
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — a fixed https address
         data = json.load(r)
     installer = next((a["browser_download_url"] for a in data.get("assets", [])
                       if a.get("name", "").endswith("-setup.exe")), None)
@@ -53,9 +53,9 @@ def _fetch(timeout: float) -> dict:
 
 
 def check(timeout: float = 4.0, use_cache: bool = True) -> dict:
-    """Сведения о последней версии: {current, latest, newer, url, installer}.
+    """Information about the latest version: {current, latest, newer, url, installer}.
 
-    Ошибки сети не пробрасываются: при недоступности GitHub ``newer`` = False.
+    Network errors are not raised: if GitHub is unreachable, ``newer`` = False.
     """
     result = {"current": __version__, "latest": None, "newer": False, "url": RELEASES_URL, "installer": None}
     if disabled():
@@ -72,7 +72,7 @@ def check(timeout: float = 4.0, use_cache: bool = True) -> dict:
     if info is None:
         try:
             info = {**_fetch(timeout), "checked": time.time()}
-        except Exception:  # noqa: BLE001 — нет сети, лимит API, неожиданный ответ
+        except Exception:  # noqa: BLE001 — no network, API rate limit, unexpected response
             return result
         try:
             cache.parent.mkdir(parents=True, exist_ok=True)

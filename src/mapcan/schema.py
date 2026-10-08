@@ -20,8 +20,8 @@ def json_schema() -> dict[str, Any]:
 
 
 def _allow_int_keys(node: Any) -> None:
-    """Таблицы значений имеют целочисленные ключи; в JSON Schema ключи — строки.
-    Разрешаем десятичную и шестнадцатеричную запись ключей."""
+    """Value tables have integer keys; JSON Schema keys are strings.
+    Decimal and hexadecimal keys are allowed."""
     if isinstance(node, dict):
         if node.get("type") == "object" and "additionalProperties" in node and "propertyNames" not in node:
             ap = node["additionalProperties"]

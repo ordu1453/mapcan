@@ -1,4 +1,4 @@
-"""Сообщения валидатора."""
+"""Validator messages."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ class Diagnostic:
     line: int | None = None      # 1-based
     column: int | None = None    # 1-based
     path: str = ""
-    node: list = field(default_factory=list)   # путь узла в YAML (для веб-редактора)
+    node: list = field(default_factory=list)   # path of the node in the YAML (for the web editor)
 
     def format(self) -> str:
         loc = self.file or "<input>"

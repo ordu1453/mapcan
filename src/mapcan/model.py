@@ -1,13 +1,13 @@
-"""Модель данных карты сигналов (формат YAML v1).
+"""Data model of the signal map (YAML format v1).
 
-Модель описывает *исходный* файл: здесь допускается синтаксический сахар
-(``byte``/``bit``/``byte_length`` вместо ``start_bit``/``bit_length``,
-короткая запись значений enum и т.п.). После валидации pydantic вызывается
-:func:`mapcan.resolve.resolve`, который вычисляет CAN ID, позиции бит и
-служебные ссылки (устройство кадра, путь в YAML для сообщений об ошибках).
+The model describes the *source* file: syntactic sugar is allowed here
+(``byte``/``bit``/``byte_length`` instead of ``start_bit``/``bit_length``,
+the short form of enum values etc.). After pydantic validation,
+:func:`mapcan.resolve.resolve` computes the CAN IDs, bit positions and
+internal references (the frame's device, the path in the YAML for error messages).
 
-Нумерация бит: ``lsb0``. Бит 0 — младший бит байта 0, бит 8 — младший бит
-байта 1 и т.д. Нумерация байт начинается с 0.
+Bit numbering: ``lsb0``. Bit 0 is the least significant bit of byte 0, bit 8 the least significant bit
+of byte 1 and so on. Bytes are numbered from 0.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ SignedCode = Literal["twos_complement", "ones_complement", "sign_magnitude"]
 SignalEncoding = Literal["enum", "flag", "bitfield", "scaled", "raw", "bytes", "float"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
-# Наибольшая длина PGN, передаваемого транспортным протоколом J1939-21 (255 пакетов по 7 байт)
+# Largest PGN sent with the J1939-21 transport protocol (255 packets of 7 bytes)
 J1939_TP_MAX = 1785
 Trigger = Literal["event", "on_request"]
 Protocol = Literal["canopen", "j1939", "can"]
@@ -44,7 +44,7 @@ FrameType = Literal[
 
 class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    # Путь узла в исходном YAML, например ("buses", 0, "devices", 1).
+    # Path of the node in the source YAML, e.g. ("buses", 0, "devices", 1).
     _path: tuple = PrivateAttr(default=())
 
 
@@ -68,7 +68,7 @@ Text = Union[str, LocalizedText]
 
 
 def text(value: Text | None, lang: str = "ru") -> str:
-    """Вернуть текст на нужном языке; без перевода — английский, русский, затем любой доступный."""
+    """The text in the given language; without a translation, English, Russian, then any available."""
     if value is None:
         return ""
     if isinstance(value, str):
@@ -84,7 +84,7 @@ def text(value: Text | None, lang: str = "ru") -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Документ
+# Document
 # --------------------------------------------------------------------------- #
 
 
@@ -118,7 +118,7 @@ class Signatures(_Base):
 
 LOGO_FORMATS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")
 
-# Текстовые поля значат одно и то же на всех уровнях карты
+# Text fields mean the same on all levels of the map
 TITLE = N_("Name for people, e.g. \"States\": the label in the map tree and the heading in documents.")
 DESCRIPTION = N_("What it is and what for: shown in documents, comments of generated code and DBC.")
 COMMENT = N_("A note or caveat: \"Note:\" in documents, after the description in DBC.")
@@ -140,7 +140,7 @@ class Document(_Base):
         description=N_("Bit numbering: lsb0 — bit 0 is the least significant bit of byte 0. The field states the "
                        "convention explicitly and is shown in every document."),
     )
-    # Оформление и реквизиты (шаблоны ГОСТ)
+    # Styling and requisites (GOST templates)
     logo: str | None = Field(
         None, description=N_("Company logo: path to a PNG/JPG/SVG relative to the map file."))
     designation: str | None = Field(
@@ -166,7 +166,7 @@ class LintRules(_Base):
 
 
 # --------------------------------------------------------------------------- #
-# Сигналы
+# Signals
 # --------------------------------------------------------------------------- #
 
 
@@ -176,12 +176,12 @@ class EnumValue(_Base):
 
 
 ValueTable = dict[int, Union[str, EnumValue]]
-# В карте вместо таблицы можно указать имя таблицы из value_tables: загрузчик подставит её
+# Instead of a table the map can name a table of value_tables: the loader substitutes it
 ValueTableRef = Union[ValueTable, str]
 
 
 def enum_entries(values: ValueTable | None) -> list[tuple[int, EnumValue]]:
-    """Нормализовать таблицу значений к списку (значение, EnumValue)."""
+    """Normalize a value table to a list of (value, EnumValue)."""
     if not values:
         return []
     out = []
@@ -220,16 +220,16 @@ class Signal(_Base):
                        "a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; "
                        "float — IEEE 754; bytes — a byte array."))
 
-    # Позиция: каноническая запись
+    # Position: the canonical form
     start_bit: int | None = Field(
         None, ge=0,
         description=N_("Position of the signal's least significant bit (LSB) in the frame, counting from 0. Bit N "
                        "is in byte N div 8 at position N mod 8."))
-    # Длиннее 64 бит — только массив байт (encoding: bytes) в кадре CAN FD или PGN по транспортному протоколу
+    # Longer than 64 bits: only a byte array (encoding: bytes) in a CAN FD frame or a PGN with the transport protocol
     bit_length: int | None = Field(
         None, ge=1, le=J1939_TP_MAX * 8,
         description=N_("Signal width in bits: 1..64; longer only for a byte array (encoding: bytes)."))
-    # Позиция: синтаксический сахар
+    # Position: syntactic sugar
     byte: int | None = Field(None, ge=0, description=N_("First byte of the signal."))
     bit: int | None = Field(None, ge=0, le=7, description=N_("Bit offset within the byte."))
     byte_length: int | None = Field(
@@ -305,7 +305,7 @@ class Signal(_Base):
 
     @property
     def initial_raw(self) -> int | float | None:
-        """Сырое значение по умолчанию (для float — само значение)."""
+        """Raw initial value (for float, the value itself)."""
         if self.initial is None or self.factor == 0:
             return None
         raw = (self.initial - self.offset) / self.factor
@@ -322,7 +322,7 @@ class Signal(_Base):
         if self.byte_length is not None:
             self.bit_length = self.byte_length * 8
         if self.bit_length is None:
-            # Длину можно не указывать только там, где её задаёт кодирование
+            # The length can be omitted only where the encoding sets it
             if self.encoding == "float":
                 self.bit_length = 32
             elif self.encoding == "flag":
@@ -337,8 +337,8 @@ class Signal(_Base):
             if self.byte_order == "little_endian":
                 self.start_bit = self.byte * 8 + bit
             else:
-                # Для big-endian «byte» — байт со старшей частью, LSB лежит
-                # в последнем байте поля (цепочка Motorola).
+                # For big-endian, "byte" is the byte with the high part, the LSB is
+                # in the last byte of the field (the Motorola chain).
                 nbytes = (bit + self.bit_length + 7) // 8
                 self.start_bit = (self.byte + nbytes - 1) * 8 + bit
         return self
@@ -388,7 +388,7 @@ class SdoExchange(_Base):
 
 
 # --------------------------------------------------------------------------- #
-# Кадры, устройства, шины
+# Frames, devices, buses
 # --------------------------------------------------------------------------- #
 
 
@@ -465,7 +465,7 @@ class Frame(_Base):
 
     @property
     def layout(self) -> list[Signal]:
-        """Сигналы для раскладки: явные или построенные из описания SDO."""
+        """Signals of the layout: the explicit ones or those built from the SDO description."""
         return self.signals if self.signals or self._synthetic is None else self._synthetic
 
     @property
@@ -489,19 +489,20 @@ class Frame(_Base):
 
     @property
     def mode(self) -> TxMode | None:
-        """Режим передачи: cyclic, если задан период, иначе trigger (None — не указан)."""
+        """Transmission mode: cyclic if a period is set, otherwise trigger (None: not set)."""
         return "cyclic" if self.cycle_ms is not None else self.trigger
 
     @property
     def sender_name(self) -> str | None:
-        """Передающее устройство: владелец TX-кадра, иначе явный sender (None — отправитель вне карты)."""
+        """Sending device: the owner of a TX frame, otherwise the explicit sender (None: the sender is outside the
+        map)."""
         if self._device is not None and self.direction == "tx":
             return self._device.name
         return self.sender
 
     @property
     def receiver_names(self) -> list[str]:
-        """Принимающие устройства: явные receivers и владелец RX-кадра."""
+        """Receiving devices: the explicit receivers and the owner of an RX frame."""
         out = list(self.receivers)
         if self._device is not None and self.direction == "rx" and self._device.name not in out:
             out.append(self._device.name)
@@ -571,11 +572,11 @@ class Bus(_Base):
         return out
 
     def received_by(self, device: str) -> list[Frame]:
-        """Кадры шины, которые принимает устройство: свои RX и чужие, где оно среди receivers."""
+        """Frames of the bus the device receives: its own RX ones and others' where it is among the receivers."""
         return [f for f in self.all_frames() if device in f.receiver_names]
 
     def sent_by(self, device: str) -> list[Frame]:
-        """Кадры шины, которые передаёт устройство: свои TX и чужие с sender = device."""
+        """Frames of the bus the device sends: its own TX ones and others' with sender = device."""
         return [f for f in self.all_frames() if f.sender_name == device]
 
 
@@ -592,7 +593,7 @@ class MapCan(_Base):
     buses: list[Bus] = Field(min_length=1)
 
     _source: str | None = PrivateAttr(default=None)
-    _base_dir: Path | None = PrivateAttr(default=None)   # каталог файла карты (для логотипа)
+    _base_dir: Path | None = PrivateAttr(default=None)   # folder of the map file (for the logo)
 
     @property
     def lang(self) -> str:
@@ -600,7 +601,7 @@ class MapCan(_Base):
 
     @property
     def logo_path(self) -> Path | None:
-        """Абсолютный путь логотипа (относительный — от каталога карты)."""
+        """Absolute path of the logo (a relative one is relative to the map's folder)."""
         if not self.document.logo:
             return None
         p = Path(self.document.logo).expanduser()

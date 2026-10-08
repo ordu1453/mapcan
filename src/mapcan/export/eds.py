@@ -1,9 +1,9 @@
-"""EDS (CiA 306) устройства CANopen: объекты словаря, отображённые в его PDO, и параметры PDO.
+"""EDS (CiA 306) of a CANopen device: the dictionary objects mapped into its PDOs, and the PDO parameters.
 
-По файлу на устройство шины CANopen. В словарь попадают обязательные объекты (1000, 1001, 1018),
-producer heartbeat (1017, если у устройства есть кадр heartbeat), параметры связи и отображения
-каждого PDO, в котором есть сигналы с ``index`` (1400/1600 — RPDO, 1800/1A00 — TPDO), и сами
-объекты сигналов. Промежутки между сигналами в PDO заполняются dummy-объектами (0x0001, 0x0005).
+One file per device of a CANopen bus. The dictionary has the mandatory objects (1000, 1001, 1018),
+the producer heartbeat (1017, if the device has a heartbeat frame), the communication and mapping
+parameters of each PDO that has signals with an ``index`` (1400/1600: RPDO, 1800/1A00: TPDO), and the
+signal objects themselves. Gaps between the signals of a PDO are filled with dummy objects (0x0001, 0x0005).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ BAUD_RATES = (10, 20, 50, 125, 250, 500, 800, 1000)
 
 
 def data_type(s: Signal) -> int:
-    """Тип данных CiA 301 для сигнала: наименьший стандартный, вмещающий его биты."""
+    """CiA 301 data type of a signal: the smallest standard one that holds its bits."""
     if s.encoding == "float":
         return REAL[64 if s.bit_length > 32 else 32]
     if s.encoding == "bytes":
@@ -41,7 +41,7 @@ def pdo_number(frame: Frame) -> int:
 
 
 def _mapping(frame: Frame, warn) -> list[tuple[int, int, int]] | None:
-    """Отображение PDO: (индекс, субиндекс, длина в битах) по порядку бит, с dummy-объектами в промежутках."""
+    """PDO mapping: (index, subindex, length in bits) in bit order, with dummy objects in the gaps."""
     mapped = sorted((s for s in frame.signals if s.index is not None), key=lambda s: s.start_bit)
     if not mapped:
         return None
@@ -54,7 +54,7 @@ def _mapping(frame: Frame, warn) -> list[tuple[int, int, int]] | None:
             warn(_("{frame}.{signal}: overlaps the previous object and is not mapped in the EDS",
                    frame=frame.name, signal=s.name))
             continue
-        while pos < s.start_bit:          # промежуток: dummy UNSIGNED8 по байтам, BOOLEAN по битам
+        while pos < s.start_bit:          # gap: dummy UNSIGNED8 per byte, BOOLEAN per bit
             if pos % 8 == 0 and s.start_bit - pos >= 8:
                 out.append((UNSIGNED8, 0, 8))
                 pos += 8
@@ -112,7 +112,7 @@ def device_eds(cmap: MapCan, bus: Bus, dev: Device, warn: Callable[[str], None] 
     w.section("DummyUsage", **{f"Dummy{i:04X}": int(i in used) for i in range(1, 8)})
     w.section("Comments", Lines=0)
 
-    # Обязательные объекты
+    # Mandatory objects
     w.section("MandatoryObjects", SupportedObjects=3, **{"1": "0x1000", "2": "0x1001", "3": "0x1018"})
     w.var("1000", "Device type", 0x0007, "ro", "0x00000000")
     w.var("1001", "Error register", 0x0005, "ro", 0)
@@ -121,7 +121,7 @@ def device_eds(cmap: MapCan, bus: Bus, dev: Device, warn: Callable[[str], None] 
     for sub, name in enumerate(("Vendor-ID", "Product code", "Revision number", "Serial number"), 1):
         w.var(f"1018sub{sub}", name, 0x0007, "ro", "0x00000000")
 
-    # Параметры PDO и сам словарь: сначала область связи, затем профили, затем производитель
+    # PDO parameters and the dictionary: the communication area first, then the profiles, then the manufacturer
     optional, manufacturer = [], []
     if heartbeat is not None:
         optional.append((0x1017, lambda: w.var("1017", "Producer heartbeat time", 0x0006, "rw",
@@ -199,7 +199,7 @@ def _object(w: _Writer, index: int, items: list[tuple[Signal, Frame]], lang: str
 
 def export_eds(cmap: MapCan, out: str | Path, bus_name: str | None = None,
                warn: Callable[[str], None] = lambda _m: None) -> list[Path]:
-    """EDS-файл на каждое устройство шин CANopen (или только шины ``bus_name``) в каталоге ``out``."""
+    """An EDS file for each device of the CANopen buses (or only of the bus ``bus_name``) in the folder ``out``."""
     out = Path(out)
     written = []
     for bus in cmap.buses:

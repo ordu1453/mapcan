@@ -1,4 +1,4 @@
-"""Загрузка YAML с сохранением позиций узлов и построение модели."""
+"""Loading YAML with the positions of the nodes kept, and building the model."""
 
 from __future__ import annotations
 
@@ -19,14 +19,14 @@ from .i18n import _
 from .model import MapCan
 from .resolve import resolve
 
-# Ключи, значения которых обязаны быть числами.
+# Keys whose values must be numbers.
 NUMERIC_KEYS = {
     "factor", "offset", "min", "max", "id", "node_id", "start_bit", "bit_length",
     "byte", "bit", "byte_length", "dlc", "cycle_ms", "bitrate", "command",
     "index", "subindex", "mux",
 }
 _COMMA_NUMBER = re.compile(r"^\s*[+-]?\d+,\d+\s*$")
-_CYR_HEX = re.compile(r"^\s*0[хХ]([0-9a-fA-F]+)\s*$")  # кириллическая «х»
+_CYR_HEX = re.compile(r"^\s*0[хХ]([0-9a-fA-F]+)\s*$")  # Cyrillic "х"
 _HEX_STR = re.compile(r"^\s*0[xX]([0-9a-fA-F]+)\s*$")
 
 
@@ -35,14 +35,14 @@ Path_ = tuple
 
 @dataclass
 class SourceMap:
-    """Позиции узлов YAML: путь → (строка, колонка), 1-based.
+    """Positions of YAML nodes: path → (line, column), 1-based.
 
-    Узлы из подключённых файлов (include) записаны в ``files``: путь → имя файла, позиция — в нём."""
+    Nodes of included files (include) are recorded in ``files``: path → file name, the position is in it."""
 
     file: str | None
     positions: dict[Path_, tuple[int, int]] = field(default_factory=dict)
     files: dict[Path_, str] = field(default_factory=dict)
-    includes: list[tuple[int, str]] = field(default_factory=list)   # (номер в include, файл)
+    includes: list[tuple[int, str]] = field(default_factory=list)   # (number in include, file)
 
     def _nearest(self, path: Path_) -> Path_:
         cur: tuple = ()
@@ -52,20 +52,20 @@ class SourceMap:
         return cur
 
     def locate(self, path: Path_) -> tuple[int | None, int | None]:
-        """Позиция ближайшего существующего узла для (возможно, неточного) пути."""
+        """Position of the nearest existing node for a (possibly inexact) path."""
         pos = self.positions.get(self._nearest(path))
         return pos if pos else (None, None)
 
     def file_of(self, path: Path_) -> str | None:
-        """Файл, в котором описан узел: основной или подключённый."""
+        """File the node is described in: the main one or an included one."""
         return self.files.get(self._nearest(path), self.file)
 
     def is_included(self, path: Path_) -> bool:
-        """Узел описан в подключённом файле (или внутри такого узла)."""
+        """The node is described in an included file (or inside such a node)."""
         return any(path[:n] in self.files for n in range(2, len(path) + 1, 2))
 
     def included_roots(self) -> list[tuple[Path_, str]]:
-        """Узлы, целиком добавленные подключёнными файлами: шины, а к шинам основного — устройства и кадры."""
+        """Nodes added entirely by included files: buses, and devices and frames on buses of the main file."""
         return [(p, f) for p, f in self.files.items()
                 if p[:1] == ("buses",) and (len(p) == 2 or len(p) == 4 and p[:2] not in self.files)]
 
@@ -74,7 +74,7 @@ class SourceMap:
         return Diagnostic(level, code, message, self.file_of(path), line, col, format_path(path), list(path))
 
     def in_main_file(self, d: Diagnostic) -> Diagnostic:
-        """Сообщение о подключённом файле — для редактора основного: на строке include, с местом в тексте."""
+        """Message about an included file for the main file's editor: on the include line, with the place in it."""
         if d.file is None or d.file == self.file or not self.files:
             return d
         include = next((i for i, f in self.includes if f == d.file), None)
@@ -98,13 +98,13 @@ class LoadResult:
     map: MapCan | None
     report: Report
     source: SourceMap
-    raw: Any = None  # ruamel-документ (для сохранения с комментариями)
-    # Данные вместе с подключёнными файлами (до подстановки таблиц значений); None — файлов не подключено
+    raw: Any = None  # ruamel document (to save with the comments)
+    # Data together with the included files (before value tables are substituted); None if nothing is included
     merged: Any = None
 
 
 def _plain(node, path: Path_, src: SourceMap, report: Report, parent_key=None):
-    """ruamel-узел → обычные dict/list/скаляры + запись позиций + мягкие исправления."""
+    """ruamel node → plain dicts/lists/scalars, recording positions and applying soft fixes."""
     if isinstance(node, CommentedMap):
         out = {}
         for k in node:
@@ -149,7 +149,7 @@ def _plain_scalar(v):
 
 
 def _fix_number(value, path, src: SourceMap, report: Report, is_key=False):
-    """Распознать типичные ошибки записи чисел, сообщить и исправить для продолжения проверки."""
+    """Recognize typical mistakes in writing numbers, report them and fix them so that validation can go on."""
     if not isinstance(value, str):
         return value
     what = _("key") if is_key else _("value")
@@ -179,11 +179,11 @@ def _pydantic_messages(err: ValidationError, src: SourceMap, report: Report) -> 
     seen = set()
     for e in err.errors():
         loc = tuple(e["loc"])
-        # Для union pydantic добавляет имена вариантов в путь — убираем их.
+        # For a union pydantic adds the names of the variants to the path: remove them.
         clean = tuple(x for x in loc if isinstance(x, int) or x in _known_keys(src))
         msg = e["msg"]
         if msg.startswith("Value error, "):
-            msg = _(msg[len("Value error, "):])      # сообщения валидаторов модели помечены N_()
+            msg = _(msg[len("Value error, "):])      # messages of the model's validators are marked with N_()
         dash_keys = [k for k in e.get("input") or {} if str(k).startswith("-")] \
             if isinstance(e.get("input"), dict) else []
         if e["type"] == "extra_forbidden" and str(loc[-1]).startswith("-"):
@@ -213,16 +213,16 @@ def _known_keys(src: SourceMap) -> set:
     return _KEYS_CACHE[k]
 
 
-# Элемент списка без пробела после «-»: «-name: x» читается как ключ «-name», а не как элемент.
+# A list item without a space after "-": "-name: x" reads as the key "-name", not as an item.
 _DASH_NO_SPACE = re.compile(r"^(\s*)-([A-Za-z_\"'{\[][^\n]*)$")
 
 
 def _yaml_error(e: MarkedYAMLError, text: str) -> tuple[str, int | None, int | None]:
-    """Понятное сообщение о синтаксической ошибке YAML: (текст, строка, колонка).
+    """A clear message about a YAML syntax error: (text, line, column).
 
-    Сообщения ruamel.yaml («expected <block end>, but found '-'») указывают на место, где разбор
-    сломался, а не на причину. Для частых ошибок ищем причину в строках между началом блока
-    (``context_mark``) и местом сбоя и объясняем, как исправить.
+    ruamel.yaml messages ("expected <block end>, but found '-'") point at where parsing broke,
+    not at the cause. For common mistakes the cause is looked for in the lines between the start of the block
+    (``context_mark``) and the failure, and the message explains how to fix it.
     """
     pm, cm = e.problem_mark, e.context_mark
     mark = pm or cm
@@ -309,24 +309,24 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
 
 
 # --------------------------------------------------------------------------- #
-# Подключаемые файлы (include) и именованные таблицы значений (value_tables)
+# Included files (include) and named value tables (value_tables)
 # --------------------------------------------------------------------------- #
 
 INCLUDE_KEYS = {"buses", "value_tables"}
-# Шину, описанную в основном файле, подключаемый файл может только дополнить устройствами и кадрами
+# An included file can only add devices and frames to a bus described in the main file
 BUS_EXTENSION_KEYS = {"name", "devices", "frames"}
 
 
 def _include(data: dict, base: Path | None, src: SourceMap, report: Report) -> None:
-    """Подключить файлы из ``include``: их шины, устройства, кадры и таблицы значений добавляются к карте.
+    """Include the files of ``include``: their buses, devices, frames and value tables are added to the map.
 
-    Узлы подключённых файлов получают пути после узлов основного файла (индексы основного не меняются),
-    позиции и имя файла — из подключённого файла."""
+    Nodes of included files get paths after the nodes of the main file (the main file's indices do not change),
+    and their positions and file name from the included file."""
     files = data.get("include")
     if files is None:
         return
     if not isinstance(files, list):
-        return          # тип поля проверит схема
+        return          # the schema checks the field's type
     for i, name in enumerate(files):
         if not isinstance(name, str):
             continue
@@ -432,7 +432,7 @@ def _merge_buses(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, rep
 
 
 def _value_tables(data: dict, src: SourceMap, report: Report) -> None:
-    """Подставить именованные таблицы: ``values: dc_states`` → таблица из ``value_tables``."""
+    """Substitute named tables: ``values: dc_states`` → the table from ``value_tables``."""
     tables = data.get("value_tables") if isinstance(data.get("value_tables"), dict) else {}
 
     def walk(node, path):

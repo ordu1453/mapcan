@@ -1,1 +1,1 @@
-"""Импорт карт из форматов других инструментов."""
+"""Import of maps from the formats of other tools."""

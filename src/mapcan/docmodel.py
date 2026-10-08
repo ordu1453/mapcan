@@ -1,7 +1,7 @@
-"""Представление карты для генераторов документов.
+"""View of the map for the document generators.
 
-Все форматы (xlsx, pdf, md, html) строятся из одного словаря, поэтому
-содержание документов совпадает и не зависит от формата.
+All formats (xlsx, pdf, md, html) are built from one dictionary, so
+the documents have the same content whatever the format.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from .model import Frame, MapCan, Signal, enum_entries, text
 from .protocols import j1939_is_pdu1
 from .units import translate_unit
 
-# Пастельные цвета для сигналов в битовых диаграммах (тёмный текст читается на всех).
+# Pastel colors of signals in the bit diagrams (dark text is readable on all of them).
 PALETTE = [
     "#BBD7F2", "#F7CFA6", "#C3E6B4", "#F3B8C0", "#D7C6EE", "#F6E3A1",
     "#AEE0DC", "#E9C7B0", "#CFD8A9", "#F2C4E3", "#B9C9E8", "#E0E0A8",
@@ -124,7 +124,7 @@ class ViewBuilder:
         return text(value, self.lang)
 
     def unit(self, value: str | None) -> str:
-        """Единица на языке документа (из справочника units) или как записана; None → ""."""
+        """Unit in the document language (from the units reference) or as written; None → ""."""
         return translate_unit(value, self.lang) or ""
 
     # ------------------------------------------------------------------ #
@@ -150,7 +150,7 @@ class ViewBuilder:
                 "designation": d.designation or "",
                 "litera": d.litera or "",
                 "city": d.city or "",
-                # Путь логотипа для шаблона выставляет экспортёр (logo); logo_file — исходный файл.
+                # The exporter sets the logo path for the template (logo); logo_file is the source file.
                 "logo": "",
                 "logo_file": str(logo) if logo and logo.is_file() else "",
                 "signatures": {
@@ -220,7 +220,7 @@ class ViewBuilder:
             "node_id": f"0x{dev.node_id:02X}" if dev.node_id is not None else "",
             "description": self.t(dev.description),
             "frames": [self.frame(f) for f in dev.frames],
-            # Сводки обмена вычисляются из sender/receivers кадров всей шины
+            # Exchange summaries are computed from sender/receivers of all frames of the bus
             "receives": [self._link(f, self.sender(f) or "—") for f in bus.received_by(dev.name)],
             "sends_other": [self._link(f, self.device_label(f.device) if f.device else own_label)
                             for f in bus.sent_by(dev.name) if f.device is not dev],
@@ -253,7 +253,7 @@ class ViewBuilder:
                     "cells": cells,
                     "used": bool(bc) or any(cells),
                 })
-            # Кадры типа raw на шине CANopen — отдельной строкой.
+            # Frames of type raw on a CANopen bus: a separate row.
             raw_cells = [[self._addr_cell(f) for f in dv.frames if f.type == "raw"] for dv in bus.devices]
             raw_bc = [self._addr_cell(f) for f in bus.frames if f.type == "raw"]
             if any(raw_cells) or raw_bc:
@@ -269,7 +269,7 @@ class ViewBuilder:
                 "has_sender": any(r["sender"] for r in rows), "has_receivers": any(r["receivers"] for r in rows)}
 
     def exchange(self, bus) -> dict:
-        """Матрица обмена: строки — кадры шины, колонки — устройства, в ячейке TX/RX."""
+        """Exchange matrix: rows are frames of the bus, columns are devices, TX/RX in the cells."""
         rows = []
         for f in sorted(bus.all_frames(), key=lambda f: (f.can_id is None, f.can_id or 0)):
             snd, rcv = f.sender_name, f.receiver_names
@@ -288,7 +288,7 @@ class ViewBuilder:
                 "receivers": self.receivers(f)}
 
     def raw_type(self, f: Frame) -> str:
-        """Тип кадра без функционального кода CANopen: J1939 PDU1/PDU2, CAN 11/29 бит, CAN FD."""
+        """Frame type apart from the CANopen function code: J1939 PDU1/PDU2, CAN 11/29-bit, CAN FD."""
         if f.bus.protocol == "j1939" and f.pgn is not None:
             return "J1939 PDU1" if j1939_is_pdu1(f.pgn) else "J1939 PDU2"
         bits = ("29" if f.extended else "11") + (" бит" if self.lang == "ru" else "-bit")
@@ -306,7 +306,7 @@ class ViewBuilder:
         return self._label(f, f.sender_name) if f.sender_name else ""
 
     def foreign_sender(self, f: Frame) -> str:
-        """Отправитель, если кадр передаёт не его владелец (у TX-кадров отправитель очевиден)."""
+        """The sender, if the frame is sent by someone other than its owner (for TX frames it is obvious)."""
         if f.device is not None and f.sender_name == f.device.name:
             return ""
         return self.sender(f)
@@ -433,7 +433,7 @@ class ViewBuilder:
         return {
             "name": s.name,
             "upper": s.name.upper(),
-            # Как у кадра: без описания в документах выводится название
+            # As for a frame: without a description, documents show the title
             "description": self.t(s.description) or self.t(s.title),
             "title": self.t(s.title),
             "kind": s.encoding,
@@ -455,9 +455,9 @@ class ViewBuilder:
         }
 
     def grid(self, f: Frame, sigs: list[Signal], colors: dict) -> list[dict]:
-        """Строки битовой диаграммы: на каждый байт — сегменты слева направо (бит 7 → 0)."""
+        """Rows of the bit diagram: for each byte, segments from left to right (bit 7 → 0)."""
         owner: dict[int, list[int]] = {}
-        flag_at: dict[int, str] = {}   # абсолютный бит → имя флага битового поля
+        flag_at: dict[int, str] = {}   # absolute bit → name of the bit field's flag
         for i, s in enumerate(sigs):
             occ = B.occupied_bits(s.start_bit, s.bit_length, s.byte_order == "big_endian")
             for b in occ:
@@ -497,7 +497,7 @@ class ViewBuilder:
 
 
 def _conflict(sigs: list[Signal], key: tuple) -> bool:
-    """Есть ли среди сигналов бита пара, присутствующая в кадре одновременно."""
+    """Whether two of the bit's signals can be in the frame at the same time."""
     for a in range(len(key)):
         for b in range(a):
             ma, mb = sigs[key[a]].mux_values, sigs[key[b]].mux_values

@@ -1,8 +1,8 @@
-"""Генерация самодостаточного Python-модуля (без зависимости от mapcan).
+"""Generation of a self-contained Python module (with no dependency on mapcan).
 
-Модуль содержит константы ID, IntEnum значений, маски флагов, dataclass на
-каждый кадр с методами ``pack()``/``unpack()`` и ``DECODERS`` — словарь
-CAN ID → класс кадра. Пригоден для тестов и стендов.
+The module has ID constants, value IntEnums, flag masks, a dataclass for
+each frame with ``pack()``/``unpack()`` methods, and ``DECODERS``, a dictionary
+CAN ID → frame class. Suitable for tests and test benches.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def _set(buf, value, start, length, big_endian):
 '''
 
 
-# Обратный и прямой код: функция кодирования в сгенерированном модуле (раскодирует _get)
+# Ones' complement and sign-magnitude: an encoding function in the generated module (_get decodes)
 _SIGNED_ENCODERS = {"ones_complement": "_ones", "sign_magnitude": "_sm"}
 
 
@@ -178,7 +178,7 @@ class PyGen:
             out += self._guard(s, sel, self._unpack_stmt(s), "msg")
         out.append("        return msg")
 
-        # физические значения
+        # physical values
         for s in f.layout:
             if physical(s) and not is_byte_array(s):
                 unit = ", " + translate_unit(s.unit, self.lang) if s.unit else ""
@@ -186,7 +186,7 @@ class PyGen:
                     "",
                     "    @property",
                     f"    def {s.name}_phys(self) -> float:",
-                    # Текст карты — строковым литералом: кавычки и \ в нём не ломают докстринг
+                    # The map's text as a string literal: quotes and \ in it do not break the docstring
                     f"        {_py_str((self.t(s.description) or self.t(s.title)) + unit)}",
                     f"        return self.{s.name} * {num(s.factor)} + {num(s.offset)}",
                     "",

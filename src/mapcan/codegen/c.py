@@ -1,7 +1,7 @@
-"""Генерация C-кода: ID кадров, enum значений, маски флагов, структуры и pack/unpack.
+"""C code generation: frame IDs, value enums, flag masks, structs and pack/unpack.
 
-Код не использует динамическую память и стандартную библиотеку, кроме
-<stdint.h>, <stdbool.h>, <stddef.h>; пригоден для bare-metal, FreeRTOS, Zephyr.
+The code uses no dynamic memory and no standard library beyond
+<stdint.h>, <stdbool.h>, <stddef.h>; it fits bare metal, FreeRTOS, Zephyr.
 """
 
 from __future__ import annotations
@@ -128,7 +128,7 @@ def _c_int(v: int) -> str:
 
 
 def _c_bound(v: int) -> str:
-    """Целочисленный литерал границы; INT64_MIN нельзя записать литералом напрямую."""
+    """Integer literal of a bound; INT64_MIN cannot be written as a literal directly."""
     return f"({v + 1} - 1)" if v == -(1 << 63) else _c_int(v)
 
 
@@ -148,7 +148,7 @@ class CGen:
         return _c_comment(text(v, self.lang))
 
     def P(self, *parts: str) -> str:
-        """Имя макроса: PREFIX_PART1_PART2."""
+        """Macro name: PREFIX_PART1_PART2."""
         return "_".join(x for x in (self.prefix.rstrip("_"), *parts) if x).upper()
 
     def p(self, *parts: str) -> str:
@@ -251,9 +251,9 @@ class CGen:
             elif physical(s) and not is_byte_array(s):
                 T = self.ctype(s)
                 lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code)
-                # В float точно представимы целые до 2^24: длинные поля считаются в double.
-                # Верхняя граница сравнивается с hi + 1 (степень двойки, точна в любом типе),
-                # иначе hi округлилась бы вверх и выпала за разрядность поля.
+                # float represents integers exactly only up to 2^24: long fields are computed in double.
+                # The upper bound is compared with hi + 1 (a power of two, exact in any type),
+                # otherwise hi would round up and fall outside the field's width.
                 if s.bit_length > 24:
                     FT, sfx, rnd = "double", "", "mapcan_round_d"
                 else:
@@ -300,7 +300,7 @@ class CGen:
         return out
 
     def default_defines(self, F: str, s: Signal) -> list[str]:
-        """#define для значения по умолчанию, «нет данных» и SPN (J1939)."""
+        """#define for the initial value, "no data" and SPN (J1939)."""
         out = []
         if s.spn is not None:
             out.append(f"#define {self.P(F, s.name, 'SPN')} {s.spn}u")
@@ -366,7 +366,7 @@ class CGen:
             "        return -1;",
             "    }",
         ]
-        # Селектор распаковывается первым — от него зависят остальные сигналы.
+        # The selector is unpacked first: the other signals depend on it.
         order = sorted(f.layout, key=lambda s: not s.multiplexer)
         if not f.layout:
             unpack.append("    msg->reserved_ = 0u;")

@@ -1,4 +1,4 @@
-"""Экспорт карты в Excel (openpyxl)."""
+"""Export of the map to Excel (openpyxl)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ CONTENT_COLUMNS = ["device", "frame", "id", "byte", "bits", "signal", "descripti
 
 @dataclass
 class XlsxStyle:
-    """Оформление. Можно переопределить YAML-файлом (``--style``)."""
+    """Styling. A YAML file can override it (``--style``)."""
 
     font: str = "Calibri"
     font_size: int = 10
@@ -141,7 +141,7 @@ class _Writer:
 
     @staticmethod
     def add_logo(ws, path: str, anchor: str, height_px: int = 48) -> None:
-        """Логотип (PNG/JPG/GIF) в лист; SVG Excel не поддерживает — пропускаем."""
+        """Logo (PNG/JPG/GIF) on the sheet; Excel does not support SVG, so it is skipped."""
         if not path or Path(path).suffix.lower() not in (".png", ".jpg", ".jpeg", ".gif"):
             return
         try:
@@ -228,7 +228,7 @@ class _Writer:
             ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(a['rows']) + 1}"
 
     def exchange_sheet(self, bus: dict) -> None:
-        """Матрица обмена: какое устройство передаёт (TX) и принимает (RX) каждый кадр."""
+        """Exchange matrix: which device sends (TX) and receives (RX) each frame."""
         L, ex = self.L, bus["exchange"]
         if not ex["columns"] or not ex["rows"]:
             return
