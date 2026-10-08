@@ -1,6 +1,6 @@
 [project]
 name = "mapcan"
-version = "0.19.0"
+version = "0.19.1"
 description = "YAML-карта сигналов CAN как единственный источник правды: проверка, Excel/PDF/Markdown/HTML, DBC, C/Python-код"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
