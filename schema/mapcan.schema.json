@@ -270,11 +270,8 @@
           "title": "Organization"
         },
         "language": {
-          "description": "Default document language.",
-          "enum": [
-            "ru",
-            "en"
-          ],
+          "description": "Default document language: ISO 639-1 code (ru, en, de…).",
+          "pattern": "^[a-z]{2}$",
           "title": "Language",
           "type": "string"
         },
@@ -869,7 +866,7 @@
     },
     "LocalizedText": {
       "additionalProperties": true,
-      "description": "Text with translations. A plain string instead of an object is treated as text in the document language.",
+      "description": "Текст с переводами: ключ — код языка ISO 639-1 (ru, en, de…). Строка вместо объекта —\nтекст на языке документа.",
       "properties": {
         "ru": {
           "anyOf": [

@@ -43,7 +43,7 @@ buses: [...]              # one or more buses
 | `version` | string | Map version (default `0.1`) |
 | `date` | date `YYYY-MM-DD` | Release date |
 | `author`, `organization` | string | |
-| `language` | `ru` \| `en` | Default document language (required); `--lang` overrides it at export |
+| `language` | ISO 639-1 code | Default document language (required): `ru`, `en`, `de`…; `--lang` overrides it at export. Document labels (table headings and so on) exist in Russian and English; other languages get the English ones, and units their international symbols |
 | `bit_numbering` | `lsb0` | Explicit statement of the bit numbering |
 | `logo` | path | Company logo (PNG/JPG/SVG/GIF/WEBP), relative to the map file |
 | `designation`, `litera`, `city` | string | Document designation, letter and city for the GOST template |
@@ -52,7 +52,7 @@ buses: [...]              # one or more buses
 | `history` | list | `{version, date, author, github, changes: [text, ...]}`; `github` is the author's GitHub user name |
 
 **Text** fields accept a string or an object with translations: `{en: "State", ru: "Состояние"}`.
-Documents use the translation for the selected language and fall back to the other one.
+Keys are ISO 639-1 language codes (`de`, `fr`…). Documents use the translation for the selected language; without it, English, then Russian, then any other.
 
 ### Text fields
 

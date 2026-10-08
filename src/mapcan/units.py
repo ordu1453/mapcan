@@ -37,13 +37,14 @@ for _pair in UNITS:
 
 
 def translate_unit(unit: str | None, lang: str) -> str | None:
-    """Обозначение единицы на языке lang, если она есть в справочнике; иначе unit без изменений."""
+    """Обозначение единицы на языке lang, если она есть в справочнике; иначе unit без изменений.
+    Русские обозначения — только для ru, для остальных языков — международные (ms, V, kOhm)."""
     if not unit:
         return unit
     pair = _BY_SYMBOL.get(_normalize(unit))
     if pair is None:
         return unit
-    return pair[1] if lang == "en" else pair[0]
+    return pair[0] if lang == "ru" else pair[1]
 
 
 def dbc_unit(unit: str | None) -> str | None:

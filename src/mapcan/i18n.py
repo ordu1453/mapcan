@@ -9,13 +9,18 @@
 
 from __future__ import annotations
 
+import re
+
+# Языки, для которых есть подписи документов (заголовки таблиц и т. п.); для других — английские
 DOC_LANGUAGES = ("ru", "en")
+LANGUAGE_CODE = re.compile(r"[a-z]{2}")
 
 
 def normalize_language(value: str | None) -> str | None:
-    """Код языка документа (ru/en) или None, если он не распознан."""
-    v = (value or "").strip().lower()[:2]
-    return v if v in DOC_LANGUAGES else None
+    """Код языка документа (ISO 639-1: ru, en, de…) или None, если он не распознан."""
+    v = (value or "").strip().lower()
+    v = v.split("-")[0].split("_")[0]      # en-US, pt_BR → en, pt
+    return v if LANGUAGE_CODE.fullmatch(v) else None
 
 
 def _(msg: str, /, **kw) -> str:

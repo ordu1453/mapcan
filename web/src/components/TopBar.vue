@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { api } from "../api";
 import { actions, exportLang, lang, store } from "../store";
-import { DOC_LANGUAGES, N_, t } from "../i18n";
+import { docLanguages, N_, t } from "../i18n";
 import BrandMark from "./BrandMark.vue";
 
 const emit = defineEmits<{ preview: [fmt: "html" | "pdf" | "md"]; diff: [] }>();
@@ -208,7 +208,7 @@ onBeforeUnmount(() => {
             <label v-if="items === DOCUMENTS" class="dd-row dd-lang" @click.stop>
               {{ t("Язык") }}
               <select :value="store.docLang || lang" @change="store.docLang = ($event.target as HTMLSelectElement).value">
-                <option v-for="[code, label] in DOC_LANGUAGES" :key="code" :value="code">{{ t(label) }}</option>
+                <option v-for="[code, label] in docLanguages(lang)" :key="code" :value="code">{{ t(label) }}</option>
               </select>
             </label>
             <div v-for="it in items" :key="it.fmt" class="dd-row">

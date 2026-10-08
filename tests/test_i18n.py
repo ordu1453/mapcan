@@ -127,7 +127,10 @@ def test_export_language_choice(tmp_path):
         ru = c.get("/api/export/md?lang=ru").text
         en = c.get("/api/export/md?lang=en").text
         assert ru != en
-        assert c.get("/api/export/md?lang=de").status_code == 400
+        # Любой код ISO 639-1; подписи документа для языков, кроме ru и en, — английские
+        de = c.get("/api/export/md?lang=de")
+        assert de.status_code == 200 and de.text == en
+        assert c.get("/api/export/md?lang=1x").status_code == 400
         tpls = {t["name"]: t["lang"] for t in c.get("/api/templates").json()["pdf"]}
         assert tpls["mapcan"] is None
         assert tpls["gost-2.105"] == "ru" and set(tpls) == {"mapcan", "gost-2.105"}
@@ -138,3 +141,29 @@ def test_gost_templates_always_russian():
 
     assert template_lang("gost-2.105") == "ru" and template_lang("gost-7.32") == "ru"
     assert template_lang("mapcan") is None and template_lang(None) is None
+
+
+def test_any_iso_language():
+    from mapcan.model import LocalizedText, text
+
+    from .conftest import one_bus, run
+
+    frame = """
+        - name: f
+          type: pdo_tx1
+          dlc: 1
+          title: {de: Zustand, en: State}
+          signals:
+            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1}
+    """
+    res, rep = run(one_bus(frame).replace("  language: ru", "  language: de"))
+    assert res.map is not None and not rep.errors and res.map.document.language == "de"
+    # Перевода нет — английский, затем русский
+    assert text(LocalizedText(ru="Состояние", en="State"), "fr") == "State"
+    assert text(LocalizedText(ru="Состояние", de="Zustand"), "fr") == "Состояние"
+    assert text(LocalizedText(de="Zustand", en="State"), "de") == "Zustand"
+    # Ключ перевода — только код языка
+    res, _ = run(one_bus(frame.replace("de: Zustand", "deutsch: Zustand")))
+    assert res.map is None
+    res, _ = run(one_bus(frame).replace("  language: ru", "  language: german"))
+    assert res.map is None

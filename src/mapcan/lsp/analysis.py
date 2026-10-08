@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from .. import model as M
 from ..bits import msb_position, occupied_bits
 from ..diagnostics import Diagnostic
-from ..i18n import _
+from ..i18n import _, normalize_language
 from ..loader import LoadResult, SourceMap, loads
 from ..model import MapCan, enum_entries
 from ..validate import check
@@ -270,7 +270,7 @@ def doc_language(a: Analysis) -> str:
     raw = a.result.raw
     doc = raw.get("document") if isinstance(raw, dict) else None
     lang = doc.get("language") if isinstance(doc, dict) else None
-    return lang if lang in ("ru", "en") else "ru"
+    return normalize_language(lang) or "ru"
 
 
 def display_name(d: dict, lang: str) -> str:

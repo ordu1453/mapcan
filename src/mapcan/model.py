@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+import re
 from pathlib import Path
 from typing import Any, Literal, Union
 
@@ -46,25 +47,34 @@ class _Base(BaseModel):
 
 
 class LocalizedText(_Base):
-    """Текст с переводами. Строка вместо объекта трактуется как язык документа."""
+    """Текст с переводами: ключ — код языка ISO 639-1 (ru, en, de…). Строка вместо объекта —
+    текст на языке документа."""
 
     model_config = ConfigDict(extra="allow")
     ru: str | None = None
     en: str | None = None
+
+    @model_validator(mode="after")
+    def _language_keys(self) -> LocalizedText:
+        for key in self.model_extra or {}:
+            if not re.fullmatch(r"[a-z]{2}", key):
+                raise ValueError(N_("ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)"))
+        return self
 
 
 Text = Union[str, LocalizedText]
 
 
 def text(value: Text | None, lang: str = "ru") -> str:
-    """Вернуть текст на нужном языке с откатом на любой доступный."""
+    """Вернуть текст на нужном языке; без перевода — английский, русский, затем любой доступный."""
     if value is None:
         return ""
     if isinstance(value, str):
         return value
     data = value.model_dump(exclude_none=True)
-    if lang in data:
-        return data[lang]
+    for key in (lang, "en", "ru"):
+        if data.get(key):
+            return data[key]
     for v in data.values():
         if v:
             return v
@@ -120,7 +130,8 @@ class Document(_Base):
     date: _dt.date | None = None
     author: str | None = None
     organization: str | None = None
-    language: Literal["ru", "en"] = Field(description=N_("Язык документов по умолчанию."))
+    language: str = Field(pattern=r"^[a-z]{2}$",
+                          description=N_("Язык документов по умолчанию: код ISO 639-1 (ru, en, de…)."))
     bit_numbering: Literal["lsb0"] = Field(
         "lsb0",
         description=N_("Нумерация бит: lsb0 — бит 0 это младший бит байта 0. "

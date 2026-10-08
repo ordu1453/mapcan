@@ -118,7 +118,7 @@ class ViewBuilder:
     def __init__(self, cmap: MapCan, lang: str | None = None):
         self.cmap = cmap
         self.lang = lang or cmap.lang
-        self.L = LABELS.get(self.lang, LABELS["ru"])
+        self.L = LABELS.get(self.lang, LABELS["en"])
 
     def t(self, value) -> str:
         return text(value, self.lang)

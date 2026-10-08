@@ -4,9 +4,9 @@
 // кроме шаблона ЕСКД (он только на русском).
 import { computed, onMounted, ref, watch } from "vue";
 import { api } from "../api";
-import { actions, exportLang, store } from "../store";
+import { actions, exportLang, lang, store } from "../store";
 import Modal from "./Modal.vue";
-import { DOC_LANGUAGES, N_, t } from "../i18n";
+import { docLanguages, N_, t } from "../i18n";
 
 const props = defineProps<{ fmt: "html" | "pdf" | "md" }>();
 const emit = defineEmits<{ close: [] }>();
@@ -72,7 +72,7 @@ async function copy() {
       <label class="tpl-pick" :title="langFixed ? t('Документы по ГОСТ оформляются только на русском') : ''">
         {{ t("Язык") }}
         <select :value="docLang" :disabled="langFixed" @change="pickLang">
-          <option v-for="[code, label] in DOC_LANGUAGES" :key="code" :value="code">{{ t(label) }}</option>
+          <option v-for="[code, label] in docLanguages(lang)" :key="code" :value="code">{{ t(label) }}</option>
         </select>
       </label>
       <button v-if="fmt === 'md' && md" class="small" @click="copy">{{ t("Копировать") }}</button>

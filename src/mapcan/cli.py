@@ -32,7 +32,7 @@ app.add_typer(gen_app, name="gen")
 COLORS = {"error": typer.colors.RED, "warning": typer.colors.YELLOW, "info": typer.colors.BLUE}
 
 MapArg = typer.Argument(..., exists=True, dir_okay=False, readable=True, help=_("YAML-файл карты."))
-LangOpt = typer.Option(None, "--lang", help=_("Язык документа (ru/en); по умолчанию из карты."))
+LangOpt = typer.Option(None, "--lang", help=_("Язык документа (код ISO 639-1: ru, en, de…); по умолчанию из карты."))
 ForceOpt = typer.Option(False, "--force", help=_("Генерировать, даже если есть ошибки проверки."))
 
 

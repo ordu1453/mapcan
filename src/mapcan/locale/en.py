@@ -9,7 +9,7 @@ EN: dict[str, str] = {
     "Экспорт документов и файлов для сторонних инструментов.": "Export documents and files for third-party tools.",
     "Генерация кода.": "Code generation.",
     "YAML-файл карты.": "Map YAML file.",
-    "Язык документа (ru/en); по умолчанию из карты.": "Document language (ru/en); defaults to the map's language.",
+    "Язык документа (код ISO 639-1: ru, en, de…); по умолчанию из карты.": "Document language (ISO 639-1 code: ru, en, de…); defaults to the map's language.",
     "Генерировать, даже если есть ошибки проверки.": "Generate even if validation reports errors.",
     "Проверить карту. Код возврата 1 при ошибках (и предупреждениях с --strict).":
         "Validate the map. Exit code 1 on errors (and on warnings with --strict).",
@@ -412,7 +412,8 @@ EN: dict[str, str] = {
         "Bus device that transmits the frame when it is not the frame's owner: for RX frames "
         "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
     "Период циклической передачи, мс.": "Cyclic transmission period, ms.",
-    "Язык документов по умолчанию.": "Default document language.",
+    "Язык документов по умолчанию: код ISO 639-1 (ru, en, de…).": "Default document language: ISO 639-1 code (ru, en, de…).",
+    "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)": "a translation key must be an ISO 639-1 language code (de, fr…)",
     "Не задан DLC кадра": "Frame DLC is not set",
     "кадр {name!r}: не задан dlc (длина данных, байт)": "frame {name!r}: dlc (data length, bytes) is not set",
     "Длина данных, байт. Обязательна, кроме служебных кадров CANopen "
