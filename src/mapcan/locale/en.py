@@ -384,7 +384,6 @@ EN: dict[str, str] = {
     "mapcan — карта сигналов CAN (формат v1)": "mapcan — CAN signal map (format v1)",
     "Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME).":
         "Broadcast frames without an owning device (NMT, SYNC, TIME).",
-    "Короткое обозначение, напр. «BMS».": "Short designation, e.g. \"BMS\".",
     "CANopen: адрес узла 1..127.": "CANopen: node address 1..127.",
     "J1939: адрес источника 0..253.": "J1939: source address 0..253.",
     "Нумерация бит: lsb0 — бит 0 это младший бит байта 0. "
@@ -401,8 +400,6 @@ EN: dict[str, str] = {
     "Блоки «СОГЛАСОВАНО».": "The \"AGREED\" blocks.",
     "Флаг внутри битового поля. ``bit`` — смещение от младшего бита поля.":
         "A flag inside a bit field. ``bit`` is the offset from the field's least significant bit.",
-    "Короткий заголовок, напр. «СОСТОЯНИЯ».": "Short heading, e.g. \"STATES\".",
-    "Название сигнала для людей, напр. «Напряжение батареи».": "Human-readable signal name, e.g. \"Battery voltage\".",
     "Явный CAN ID. Для CANopen вычисляется из node_id, для J1939 — из PGN.":
         "Explicit CAN ID. For CANopen it is computed from node_id, for J1939 from the PGN.",
     "J1939: номер группы параметров (PGN).": "J1939: parameter group number (PGN).",
@@ -416,6 +413,14 @@ EN: dict[str, str] = {
         "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
     "Период циклической передачи, мс.": "Cyclic transmission period, ms.",
     "Язык документов по умолчанию.": "Default document language.",
+    "Название для людей, напр. «Состояния»: подпись в дереве карты и заголовок в документах.":
+        "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
+    "Что это и зачем: выводится в документах, комментариях сгенерированного кода и DBC.":
+        "What it is and what for: shown in documents, comments of generated code and DBC.",
+    "Примечание или оговорка: в документах — «Примечание:», в DBC — после описания.":
+        "A note or caveat: \"Note:\" in documents, after the description in DBC.",
+    "Сокращение устройства, напр. «BMS»: в таблицах документов и в дереве перед названием.":
+        "Device abbreviation, e.g. \"BMS\": in document tables and before the name in the tree.",
     "Протокол: canopen — ID из типа кадра и node_id, j1939 — из PGN и адреса, can — явные ID.":
         "Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, can — explicit IDs.",
     "Нециклическая передача: event — по событию, on_request — по запросу.":

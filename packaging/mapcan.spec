@@ -14,6 +14,7 @@ ICON = f"{HERE}/mapcan.ico"
 
 datas = collect_data_files("mapcan")               # шаблоны, шрифты, собранный фронтенд
 datas += [(f"{HERE}/../examples", "mapcan/examples")]   # «Примеры» на стартовом экране
+datas += [(f"{HERE}/../{name}", ".") for name in ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")]
 hidden = (collect_submodules("mapcan") + collect_submodules("uvicorn") + collect_submodules("cantools"))
 excludes = ["tkinter", "matplotlib", "IPython", "pytest"]
 

@@ -8,7 +8,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/mapcan
 
 WORKDIR /src
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml uv.lock README.md LICENSE NOTICE THIRD_PARTY_NOTICES.md ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY src ./src
 # Примеры для стартового экрана редактора входят в пакет (force-include в pyproject.toml).

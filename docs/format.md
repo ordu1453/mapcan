@@ -54,6 +54,20 @@ buses: [...]              # one or more buses
 **Text** fields accept a string or an object with translations: `{en: "State", ru: "Состояние"}`.
 Documents use the translation for the selected language and fall back to the other one.
 
+### Text fields
+
+Buses, devices, frames and signals use the same keys for their texts, with the same meaning:
+
+| Key | Meaning | Where it is shown |
+|---|---|---|
+| `name` | Identifier | Generated code, DBC, references (`sender`, `receivers`) |
+| `title` | Name for people, in normal case ("States", "Battery voltage") | Editor tree, headings in documents |
+| `description` | What it is and what for | Documents, comments in generated code, DBC |
+| `comment` | A note or caveat (frames and signals) | Documents ("Note:"), DBC after the description |
+| `short` | Device abbreviation ("BMS") | Document tables, editor tree before the name |
+
+Without `description`, documents and code comments use `title`.
+
 See [templates.md](templates.md) for how the document details are laid out in PDF.
 
 ### `lint`
@@ -72,8 +86,8 @@ lint:
 | Field | Description |
 |---|---|
 | `name` | Bus identifier (used for DBC and C file names) |
-| `title` | Display name in documents and the editor tree ("Powertrain CAN"); without it, `missing-title` is reported |
-| `description` | Description |
+| `title` | Name for people ("Powertrain CAN"); without it, `missing-title` is reported |
+| `description` | What the bus is for |
 | `interface` | Interface (`can0`, `PCAN_USBBUS1`, …) |
 | `bitrate` | Bit rate, bit/s |
 | `protocol` | Required. `canopen`: IDs are computed from the function code and `node_id`; `j1939`: from the PGN, priority and device address; `can`: IDs are set explicitly |
@@ -86,11 +100,11 @@ lint:
 | Field | Description |
 |---|---|
 | `name` | Identifier (`imd`) |
-| `short` | Short label for tables (`BMS`) |
-| `title` | Full name, shown in documents and the editor tree; without it, `missing-title` is reported |
+| `short` | Abbreviation (`BMS`) |
+| `title` | Full name ("Battery management system"); without it, `missing-title` is reported |
 | `node_id` | CANopen node address (1..127) |
 | `address` | J1939 source address (0..253) |
-| `description` | Description |
+| `description` | What the device is |
 | `frames` | The device's frames: those it transmits, plus RX frames whose ID depends on its address (see [Sender and receivers](#sender-and-receivers)) |
 
 ### Frame (`frames[]`)
@@ -98,8 +112,8 @@ lint:
 | Field | Description |
 |---|---|
 | `name` | Frame identifier (unique on the bus) |
-| `title` | Name: the heading in documents and the label in the editor tree ("STATES") |
-| `description` | Purpose of the frame |
+| `title` | Name for people ("States") |
+| `description` | What the frame carries |
 | `type` | `nmt`, `sync`, `emcy`, `time`, `pdo_tx1..4`, `pdo_rx1..4`, `sdo_tx`, `sdo_rx`, `heartbeat`, `raw` (default) |
 | `id` | Explicit CAN ID (required on `can` buses; on CANopen and J1939 it overrides the computed ID) |
 | `pgn`, `priority`, `destination` | J1939: parameter group number, priority 0..7 (default 6), destination address for PDU1 (default 0xFF) |
@@ -112,7 +126,7 @@ lint:
 | `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
 | `signals` | Signals |
 | `sdo` | SDO exchanges (for `sdo_tx`/`sdo_rx`) |
-| `comment` | Note |
+| `comment` | A note or caveat (see [Text fields](#text-fields)) |
 
 CANopen ID computation:
 
@@ -134,8 +148,8 @@ CANopen ID computation:
 | Field | Description |
 |---|---|
 | `name` | Identifier (unique within the frame, together with flag names) |
-| `title` | Human-readable name ("Battery voltage"); the editor tree shows it instead of the identifier |
-| `description` | Description |
+| `title` | Name for people ("Battery voltage") |
+| `description` | What the signal means |
 | `encoding` | Required: `enum`, `flag`, `bitfield`, `scaled`, `raw`, `float`, `bytes` |
 | `start_bit` + `bit_length` | Canonical position |
 | `byte` [+ `bit`] + `byte_length` \| `bit_length` | Shorthand position (see below) |
@@ -150,7 +164,7 @@ CANopen ID computation:
 | `mux` | Selector value (or list of values) for which the signal is present |
 | `initial` | Default value in physical units (`…_INITIAL_RAW` in C, `GenSigStartValue` in DBC) |
 | `invalid` | Raw value (or list) meaning "not available / invalid", e.g. `0xFF` |
-| `comment` | Note |
+| `comment` | A note or caveat (see [Text fields](#text-fields)) |
 
 #### Encodings
 

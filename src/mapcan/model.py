@@ -106,6 +106,12 @@ class Signatures(_Base):
 
 LOGO_FORMATS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")
 
+# Текстовые поля значат одно и то же на всех уровнях карты
+TITLE = N_("Название для людей, напр. «Состояния»: подпись в дереве карты и заголовок в документах.")
+DESCRIPTION = N_("Что это и зачем: выводится в документах, комментариях сгенерированного кода и DBC.")
+COMMENT = N_("Примечание или оговорка: в документах — «Примечание:», в DBC — после описания.")
+SHORT = N_("Сокращение устройства, напр. «BMS»: в таблицах документов и в дереве перед названием.")
+
 
 class Document(_Base):
     title: Text
@@ -152,7 +158,7 @@ class LintRules(_Base):
 
 class EnumValue(_Base):
     name: str
-    description: Text | None = None
+    description: Text | None = Field(None, description=DESCRIPTION)
 
 
 ValueTable = dict[int, Union[str, EnumValue]]
@@ -174,14 +180,14 @@ class Flag(_Base):
     name: str
     bit: int = Field(ge=0)
     bit_length: int = Field(1, ge=1)
-    description: Text | None = None
+    description: Text | None = Field(None, description=DESCRIPTION)
     values: ValueTable | None = None
 
 
 class Signal(_Base):
     name: str
-    title: Text | None = Field(None, description=N_("Название сигнала для людей, напр. «Напряжение батареи»."))
-    description: Text | None = None
+    title: Text | None = Field(None, description=TITLE)
+    description: Text | None = Field(None, description=DESCRIPTION)
     encoding: SignalEncoding = Field(
         description=N_("Кодирование сигнала: enum, flag, bitfield, scaled, raw, float, bytes."))
 
@@ -222,7 +228,7 @@ class Signal(_Base):
         None, description=N_("Значение по умолчанию (в физических единицах)."))
     invalid: int | list[int] | None = Field(
         None, description=N_("Сырое значение (или значения), означающее «нет данных / недостоверно»."))
-    comment: Text | None = None
+    comment: Text | None = Field(None, description=COMMENT)
 
     @property
     def invalid_values(self) -> list[int]:
@@ -285,7 +291,7 @@ class Signal(_Base):
 class SdoValue(_Base):
     name: str
     encoding: Literal["enum", "scaled", "raw"] = Field(description=N_("Кодирование значения: enum, scaled, raw."))
-    description: Text | None = None
+    description: Text | None = Field(None, description=DESCRIPTION)
     bit_length: Literal[8, 16, 24, 32]
     signed: bool = False
     factor: float = 1.0
@@ -300,7 +306,7 @@ class SdoExchange(_Base):
     """Один SDO-обмен (expedited): команда, индекс, субиндекс, значение."""
 
     name: str
-    description: Text | None = None
+    description: Text | None = Field(None, description=DESCRIPTION)
     command: int = Field(ge=0, le=0xFF, description=N_("Байт команды (CCS/SCS), напр. 0x2B."))
     index: int = Field(ge=0, le=0xFFFF)
     subindex: int = Field(0, ge=0, le=0xFF)
@@ -314,8 +320,8 @@ class SdoExchange(_Base):
 
 class Frame(_Base):
     name: str
-    title: Text | None = Field(None, description=N_("Короткий заголовок, напр. «СОСТОЯНИЯ»."))
-    description: Text | None = None
+    title: Text | None = Field(None, description=TITLE)
+    description: Text | None = Field(None, description=DESCRIPTION)
     type: FrameType = "raw"
     id: int | None = Field(
         None, ge=0, le=0x1FFFFFFF,
@@ -339,7 +345,7 @@ class Frame(_Base):
         None, description=N_("Нециклическая передача: event — по событию, on_request — по запросу."))
     signals: list[Signal] = Field(default_factory=list)
     sdo: list[SdoExchange] | None = None
-    comment: Text | None = None
+    comment: Text | None = Field(None, description=COMMENT)
 
     _can_id: int | None = PrivateAttr(default=None)
     _device: Any = PrivateAttr(default=None)
@@ -386,23 +392,23 @@ class Frame(_Base):
 
 class Device(_Base):
     name: str
-    short: str | None = Field(None, description=N_("Короткое обозначение, напр. «BMS»."))
-    title: Text | None = None
+    short: str | None = Field(None, description=SHORT)
+    title: Text | None = Field(None, description=TITLE)
     node_id: int | None = Field(None, ge=0, le=0x7F, description=N_("CANopen: адрес узла 1..127."))
     address: int | None = Field(None, ge=0, le=0xFF, description=N_("J1939: адрес источника 0..253."))
-    description: Text | None = None
+    description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(default_factory=list)
 
 
 class Bus(_Base):
     name: str
-    title: Text | None = None
+    title: Text | None = Field(None, description=TITLE)
     interface: str | None = None
     bitrate: int | None = Field(None, gt=0)
     protocol: Protocol = Field(
         description=N_("Протокол: canopen — ID из типа кадра и node_id, j1939 — из PGN и адреса, can — явные ID."))
     fd: bool = False
-    description: Text | None = None
+    description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(
         default_factory=list,
         description=N_("Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME)."),

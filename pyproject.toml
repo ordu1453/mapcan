@@ -4,7 +4,8 @@ version = "0.18.0"
 description = "YAML-карта сигналов CAN как единственный источник правды: проверка, Excel/PDF/Markdown/HTML, DBC, C/Python-код"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-license = { text = "Proprietary" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "src/mapcan/fonts/OFL*.txt"]
 dependencies = [
     "pydantic>=2.7,<3",
     "ruamel.yaml>=0.18",
@@ -40,7 +41,7 @@ dev = ["pytest>=8", "ruff>=0.5", "jsonschema>=4", "httpx>=0.27"]
 package = ["pyinstaller>=6.10"]
 
 [build-system]
-requires = ["hatchling>=1.24"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

@@ -5,7 +5,7 @@
   "version": "0.4.0",
   "publisher": "ordu1453",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "icon": "media/icon.png",
   "galleryBanner": {
     "color": "#0065A9",

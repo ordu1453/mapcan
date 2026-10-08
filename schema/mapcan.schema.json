@@ -20,6 +20,7 @@
             }
           ],
           "default": null,
+          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
           "title": "Title"
         },
         "interface": {
@@ -75,6 +76,7 @@
             }
           ],
           "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         },
         "frames": {
@@ -117,7 +119,7 @@
             }
           ],
           "default": null,
-          "description": "Short designation, e.g. \"BMS\".",
+          "description": "Device abbreviation, e.g. \"BMS\": in document tables and before the name in the tree.",
           "title": "Short"
         },
         "title": {
@@ -133,6 +135,7 @@
             }
           ],
           "default": null,
+          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
           "title": "Title"
         },
         "node_id": {
@@ -178,6 +181,7 @@
             }
           ],
           "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         },
         "frames": {
@@ -399,6 +403,7 @@
             }
           ],
           "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         }
       },
@@ -440,6 +445,7 @@
             }
           ],
           "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         },
         "values": {
@@ -495,7 +501,7 @@
             }
           ],
           "default": null,
-          "description": "Short heading, e.g. \"STATES\".",
+          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
           "title": "Title"
         },
         "description": {
@@ -511,6 +517,7 @@
             }
           ],
           "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         },
         "type": {
@@ -711,6 +718,7 @@
             }
           ],
           "default": null,
+          "description": "A note or caveat: \"Note:\" in documents, after the description in DBC.",
           "title": "Comment"
         }
       },
@@ -929,6 +937,7 @@
             }
           ],
           "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         },
         "command": {
@@ -1001,6 +1010,7 @@
             }
           ],
           "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         },
         "bit_length": {
@@ -1118,7 +1128,7 @@
             }
           ],
           "default": null,
-          "description": "Human-readable signal name, e.g. \"Battery voltage\".",
+          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
           "title": "Title"
         },
         "description": {
@@ -1134,6 +1144,7 @@
             }
           ],
           "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         },
         "encoding": {
@@ -1419,6 +1430,7 @@
             }
           ],
           "default": null,
+          "description": "A note or caveat: \"Note:\" in documents, after the description in DBC.",
           "title": "Comment"
         }
       },
