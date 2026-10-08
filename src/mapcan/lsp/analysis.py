@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 import typing
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from pydantic import BaseModel
 
@@ -50,9 +51,11 @@ def _is_prefix(a: Path_, b: Path_) -> bool:
     return len(a) < len(b) and b[: len(a)] == a
 
 
-def node_ranges(src: SourceMap, lines: list[str]) -> dict[Path_, Node]:
-    """Область каждого узла: от его начала до начала следующего узла вне его поддерева."""
-    nodes = [Node(p, (ln - 1, col - 1)) for p, (ln, col) in src.positions.items()]
+def node_ranges(src: SourceMap, lines: list[str], file: str | None = None) -> dict[Path_, Node]:
+    """Область каждого узла: от его начала до начала следующего узла вне его поддерева.
+
+    Узлы основного файла, а с ``file`` — узлы этого подключённого файла (позиции в нём)."""
+    nodes = [Node(p, (ln - 1, col - 1)) for p, (ln, col) in src.positions.items() if src.files.get(p) == file]
     nodes.sort(key=lambda n: (n.start, len(n.path)))
     doc_end = (len(lines), 0)
     stack: list[Node] = []
@@ -72,10 +75,22 @@ class Analysis:
     diagnostics: list[Diagnostic]
     lines: list[str] = field(default_factory=list)
     nodes: dict[Path_, Node] = field(default_factory=dict)
+    # Подключённые файлы (include): имя файла → его текст и области узлов в нём
+    included: dict[str, Analysis] = field(default_factory=dict)
 
     @property
     def map(self) -> MapCan | None:
         return self.result.map
+
+    @property
+    def data(self):
+        """Данные карты для дерева и формы: вместе с подключёнными файлами, если они есть."""
+        return self.result.merged if self.result.merged is not None else self.result.raw
+
+    def included_file(self, path: Path_) -> str | None:
+        """Подключённый файл, в котором описан узел; None — узел основного файла."""
+        src = self.result.source
+        return src.file_of(path) if src.is_included(path) else None
 
     def token_end(self, start: Pos) -> Pos:
         """Конец скаляра (или первого слова), начинающегося в позиции ``start``."""
@@ -173,7 +188,15 @@ def analyze(text: str, filename: str | None = None) -> Analysis:
     lines = text.splitlines()
     # Сообщения о подключённых файлах (include) показываются на строке include основного
     diags = [result.source.in_main_file(d) for d in report.sorted()]
-    return Analysis(text, result, diags, lines, node_ranges(result.source, lines))
+    a = Analysis(text, result, diags, lines, node_ranges(result.source, lines))
+    for _i, fname in result.source.includes:
+        try:
+            sub_text = Path(fname).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        sub_lines = sub_text.splitlines()
+        a.included[fname] = Analysis(sub_text, result, [], sub_lines, node_ranges(result.source, sub_lines, fname))
+    return a
 
 
 def diagnostic_range(a: Analysis, d: Diagnostic) -> tuple[Pos, Pos]:
@@ -292,23 +315,31 @@ def map_tree(a: Analysis) -> list[dict]:
 
     Подписи — как в дереве веб-редактора: названия (title) на языке документа, идентификатор (``ident``)
     только если названия нет. Строится по сырому YAML, вычисленные ID и биты — из модели, если карта разобрана.
+
+    Узлы подключённых файлов (include) — на своих местах в дереве, с ``file`` (полный путь файла):
+    их области — в тексте того файла, править их можно только там.
     """
-    raw = a.result.raw
+    raw = a.data
     buses = raw.get("buses") if isinstance(raw, dict) else None
     if not isinstance(buses, list):
         return []
     lang = doc_language(a)
 
     def rng(path: Path_) -> dict | None:
-        block = a.block(path)
+        file = a.included_file(path)
+        part = a.included.get(file) if file else a
+        block = part.block(path) if part is not None else None
         if block is None:
             return None
         (sl, sc), end = block
         # Курсор на отступе или «- » перед узлом тоже относится к нему
-        own_line = re.fullmatch(r"\s*(?:-\s+)*", a.lines[sl][:sc]) is not None
-        name = a.nodes.get(path + ("name",))
-        return {"range": [sl, 0 if own_line else sc, *end], "selection": [sl, sc, *end], "path": list(path),
-                "name": list(name.start) if name else None}
+        own_line = re.fullmatch(r"\s*(?:-\s+)*", part.lines[sl][:sc]) is not None
+        name = part.nodes.get(path + ("name",))
+        out = {"range": [sl, 0 if own_line else sc, *end], "selection": [sl, sc, *end], "path": list(path),
+               "name": list(name.start) if name else None}
+        if file:
+            out["file"] = file
+        return out
 
     def name_of(d: dict) -> str:
         return "—" if d.get("name") is None else str(d["name"])

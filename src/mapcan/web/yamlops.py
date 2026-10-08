@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as _dt
 import difflib
 import io
+from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
@@ -408,6 +409,14 @@ OPS = {
     "rename_key": lambda d, o: op_rename_key(d, o["path"], o["new_key"]),
     "set_layout": lambda d, o: op_set_layout(d, o["path"], o["start_bit"], o["bit_length"]),
 }
+
+
+def check_editable(source, ops: list[dict]) -> None:
+    """Узлы подключённых файлов (include) правятся только в своём файле, не через основной."""
+    for o in ops:
+        if isinstance(o.get("path"), list) and source.is_included(tuple(o["path"])):
+            raise OpError(_("узел описан в подключённом файле {file} — правьте его там",
+                            file=Path(source.file_of(tuple(o["path"])) or "").name))
 
 
 def apply_ops(doc, ops: list[dict]) -> None:

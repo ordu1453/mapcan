@@ -480,6 +480,8 @@ EN: dict[str, str] = {
     "подключаемый файл должен быть словарём YAML": "an included file must be a YAML mapping",
     "ключ {key!r} нельзя подключать: допустимы buses и value_tables":
         "key {key!r} cannot be included: only buses and value_tables",
+    "узел описан в подключённом файле {file} — правьте его там":
+        "the node is described in the included file {file}: edit it there",
     "таблица значений {name!r} уже описана": "value table {name!r} is already defined",
     "шина {name!r} уже описана: подключаемый файл может только добавить ей devices и frames, а не {key!r}":
         "bus {name!r} is already defined: an included file can only add devices and frames to it, not {key!r}",

@@ -23,6 +23,8 @@ interface NodeFields {
   owner: string | null;
   devices: { name: string; label: string }[];
   signalEncoding: string | null;
+  /** The included file the node is described in (full path); the form is then read-only. */
+  file?: string | null;
   /** Name of a value table from value_tables when the node's values refer to one. */
   valueTableRef?: string | null;
   /** Frame direction computed from the map (tx/rx), also when the field is not set. */
@@ -59,7 +61,8 @@ type Message =
   | { type: "ops"; ops: object[]; select?: Path }
   | { type: "select"; path: Path }
   | { type: "done" }
-  | { type: "discard" };
+  | { type: "discard" }
+  | { type: "reveal" };
 
 const samePath = (a: Path, b: Path) => a.length === b.length && a.every((x, i) => String(x) === String(b[i]));
 
@@ -126,7 +129,7 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
   /** Select the node's lines in the editor (the panel's title button). */
   async reveal(): Promise<void> {
     const node = this.path && this.tree.nodeByPath(this.path);
-    if (node) await vscode.commands.executeCommand("mapcan.revealNode", this.tree.mapUri, node.selection);
+    if (node) await vscode.commands.executeCommand("mapcan.revealNode", node.file ?? this.tree.mapUri, node.selection);
   }
 
   async close(): Promise<void> {
@@ -180,6 +183,9 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
         break;
       case "discard":
         void this.queue.then(() => this.discard());
+        break;
+      case "reveal":
+        void this.reveal();
         break;
     }
   }

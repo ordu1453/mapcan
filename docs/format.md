@@ -437,7 +437,10 @@ nested.
 
 Validation, documents and generated code use the whole map. Messages about an included file
 point into that file on the command line; in the editors they are shown on the `include` line
-of the main file, with the file and line in the text. The editors change the main file only.
+of the main file, with the file and line in the text. The editors' trees show the included buses,
+devices and frames in their places, marked with the file name; their forms are read-only (the
+editors change the main file only), and clicking such a node in VS Code opens it in its file.
+Included devices can be chosen as senders and receivers of the main file's frames.
 
 ## Validation rules
 

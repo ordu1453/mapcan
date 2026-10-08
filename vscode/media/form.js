@@ -948,6 +948,12 @@
       app.append(el("div", { class: "section" }, el("div", { class: "field label" }, "The node is no longer in the map.")));
       return;
     }
+    // A node of an included file is shown, not edited: its text is in that file
+    if (node.file) {
+      app.append(el("div", { class: "section readonly-note" },
+        el("div", { class: "field label" }, `From ${node.file.split(/[\\/]/).pop()}: read-only here, edit it in that file.`),
+        el("button", { class: "secondary", onclick: () => vscode.postMessage({ type: "reveal" }) }, "Open in File")));
+    }
     layoutEl = el("div", { class: "section layout", hidden: true });
     app.append(layoutEl);
     for (const s of FORMS[node.kind] ?? []) {
@@ -963,6 +969,7 @@
     }
     tablesEl = el("div", { class: "tables" });
     app.append(tablesEl);
+    if (node.file) for (const part of [layoutEl, tablesEl, ...sections.map((s) => s.el)]) part.inert = true;
     if (created) {
       app.append(el("div", { class: "actions" },
         el("button", { onclick: done }, "Done"),

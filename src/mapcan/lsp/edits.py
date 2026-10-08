@@ -17,7 +17,7 @@ from ..canopen import CANOPEN_DLC, FUNCTION_CODES, compute_id
 from ..i18n import _
 from ..units import UNITS
 from ..validate import STYLE_RE
-from .analysis import Analysis, Path_, Pos, _txt, doc_language, enum_choices, model_for
+from .analysis import Analysis, Path_, Pos, _txt, doc_language, enum_choices, model_for, raw_at_path
 
 _PLAIN = re.compile(r"^[A-Za-z0-9_.+-]+$")
 
@@ -629,6 +629,8 @@ def _default_title(a: Analysis, ru: str, en: str, siblings) -> str:
 
 def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
     """Добавить шину (в карту), устройство (в шину), кадр (в шину или устройство) или сигнал (в кадр)."""
+    if a.result.source.is_included(path):
+        return None
     if kind == "bus" and path == ():
         buses = raw_at(a, ("buses",)) or []
         return append_item(a, (), "buses", [("name", _unique("bus", _names(buses))),
@@ -825,13 +827,21 @@ def frame_types(a: Analysis, path: Path_) -> list[dict]:
 
 def node_fields(a: Analysis, path: Path_) -> dict | None:
     """Данные узла для формы: тип, язык документа, протокол шины, владелец кадра, устройства шины
-    и скалярные поля (тексты {ru, en} — на языке документа)."""
-    raw = raw_at(a, path)
+    и скалярные поля (тексты {ru, en} — на языке документа).
+
+    Узел подключённого файла (include) читается из данных вместе с подключёнными файлами, ``file`` —
+    его файл: в форме он только для чтения. Устройства шины — тоже вместе с подключёнными."""
+    file = a.included_file(path)
+
+    def at(p: Path_):
+        return raw_at_path(a.data, p) if file else raw_at(a, p)
+
+    raw = at(path)
     kind = node_kind(path)
     if kind is None or not isinstance(raw, dict):
         return None
     lang = doc_language(a)
-    bus = raw_at(a, path[:2]) if path[:1] == ("buses",) else None
+    bus = raw_at_path(a.data, path[:2]) if path[:1] == ("buses",) else None
     bus = bus if isinstance(bus, dict) else {}
     values = {}
     for k, v in raw.items():
@@ -850,7 +860,7 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
                 values[f"value.{k}"] = _txt(v, lang)
             elif isinstance(v, (str, int, float, bool)):
                 values[f"value.{k}"] = v
-    owner = raw_at(a, path[:4]) if len(path) >= 6 and path[2] == "devices" else None
+    owner = at(path[:4]) if len(path) >= 6 and path[2] == "devices" else None
     devices = [(d.get("name"), _txt(d.get("short"), lang) or _txt(d.get("title"), lang) or d.get("name"))
                for d in bus.get("devices") or [] if isinstance(d, dict) and isinstance(d.get("name"), str)]
     # Сигнал из разобранной карты: длина в битах вычисляется из byte_length и encoding
@@ -858,16 +868,17 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     # Кадр из разобранной карты: направление, если оно не записано, вычисляется из типа и sender
     frame = _find(a.map, path) if a.map is not None and kind == "frame" else None
     # Есть ли в кадре другой сигнал-селектор мультиплексора (тогда сигналу доступно поле mux)
-    siblings = raw_at(a, path[:-1]) if kind == "signal" else None
+    siblings = at(path[:-1]) if kind == "signal" else None
     has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not raw for s in siblings or [])
-    return {"kind": kind, "path": list(path), "lang": lang, "protocol": bus.get("protocol") or "canopen",
+    return {"kind": kind, "path": list(path), "file": file, "lang": lang,
+            "protocol": bus.get("protocol") or "canopen",
             "owner": owner.get("name") if isinstance(owner, dict) else None,
             "signalEncoding": signal.encoding if isinstance(signal, M.Signal) else values.get("encoding"),
             "bitLength": signal.bit_length if isinstance(signal, M.Signal) else None,
             "frameDirection": frame.direction if isinstance(frame, M.Frame) else None,
             "hasSelector": has_selector,
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
-            "frameTypes": frame_types(a, path) if kind == "frame" else [],
+            "frameTypes": frame_types(a, path) if kind == "frame" and not file else [],
             # Справочник единиц (ru, en) для подсказок в поле «Единица»; свой текст тоже допустим
             "units": [list(u) for u in UNITS] if kind == "signal" else [],
             **_layout_fields(a, path, kind, raw, lang)}
@@ -913,6 +924,7 @@ def apply_ops(a: Analysis, ops: list[dict]) -> str:
     :class:`mapcan.web.yamlops.OpError`."""
     from ..web import yamlops as Y
 
+    Y.check_editable(a.result.source, ops)
     y = Y.make_yaml(a.text)
     doc = y.load(a.text)
     if doc is None:
@@ -928,7 +940,7 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
     Имя переименовывается вместе со ссылками на него; текст, записанный на нескольких языках,
     меняется только на языке документа.
     """
-    if not path or not isinstance(path[-1], str):
+    if not path or not isinstance(path[-1], str) or a.result.source.is_included(path):
         return []
     key = path[-1]
     if key == "type" and node_kind(path[:-1]) == "frame":

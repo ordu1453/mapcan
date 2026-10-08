@@ -3,7 +3,8 @@
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
 import { t } from "./i18n";
-import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath } from "./model";
+import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, includedFile, nodeKind, ownerPath, pathKey, samePath,
+  viewOf } from "./model";
 import type { Diagnostic, Meta, Op, Path, GitStatus, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
 interface Toast {
@@ -75,13 +76,14 @@ function accept(s: State): void {
   // Выбранный узел мог исчезнуть (удаление, undo) — поднимаемся к существующему предку.
   if (s.data) {
     let p = store.selected;
-    const exists = (x: Path) => getAt(s.data, x) !== undefined || (samePath(x, HISTORY_PATH) && !!s.data.document);
+    const view = viewOf(s);   // выбранным может быть и узел подключённого файла
+    const exists = (x: Path) => getAt(view, x) !== undefined || (samePath(x, HISTORY_PATH) && !!s.data.document);
     while (p.length > 1 && !exists(p)) p = p.slice(0, -1);
-    if (p.length === 1 && p[0] !== "document" && getAt(s.data, p) === undefined) p = ["document"];
+    if (p.length === 1 && p[0] !== "document" && getAt(view, p) === undefined) p = ["document"];
     // Путь вида […, "signals"] — список, а не узел дерева: выбираем его владельца (кадр и т. п.)
     p = nodeKind(p) === "unknown" ? ownerPath(p) : p;
     // Ссылка, через которую выбран кадр, исчезла (устройство больше не получатель) — выбран сам кадр
-    const receivers = getAt(s.data, [...p, "receivers"]);
+    const receivers = getAt(view, [...p, "receivers"]);
     if (!samePath(p, store.selected) || !(Array.isArray(receivers) && receivers.includes(store.selectedVia))) {
       store.selectedVia = null;
     }
@@ -338,7 +340,16 @@ export const resolvedFrames = computed(() => {
   return m;
 });
 
-export const tree = computed(() => (store.state?.data ? buildTree(store.state.data, resolvedFrames.value, lang.value) : []));
+/** Данные карты вместе с подключёнными файлами (include): для дерева и просмотра их узлов. */
+export const viewData = computed(() => viewOf(store.state));
+
+/** Подключённый файл, в котором описан узел (его можно только смотреть); null — узел основного файла. */
+export function includedPath(path: Path): string | null {
+  return includedFile(store.state?.included, path);
+}
+
+export const tree = computed(() => (store.state?.data
+  ? buildTree(viewData.value, resolvedFrames.value, lang.value, store.state.included ?? []) : []));
 
 /** В поле YAML есть ввод, ещё не применённый на сервере. */
 export const yamlLocal = computed(() => store.yaml.draft !== null && store.yaml.draft !== store.yaml.applied);

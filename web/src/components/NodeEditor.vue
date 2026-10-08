@@ -6,7 +6,8 @@ import { addBus, addDevice, addFrame, addSdo, addSignal, canRename, duplicateNod
 import { HELP } from "../help";
 import { CANOPEN_DLC, FIELDS, parseInteger, ParseError, type FieldCtx, type FieldDef } from "../fields";
 import { deviceLabel, displayName, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath, startsWith, txt } from "../model";
-import { actions, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast } from "../store";
+import { actions, includedPath, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast, viewData }
+  from "../store";
 import type { Diagnostic, Path } from "../types";
 import BitGrid from "./BitGrid.vue";
 import DocumentRequisites from "./DocumentRequisites.vue";
@@ -25,9 +26,11 @@ const KIND_LABEL: Record<string, string> = {
 
 const path = computed<Path>(() => store.selected);
 const kind = computed(() => nodeKind(path.value));
-const data = computed(() => store.state?.data);
+// Вместе с подключёнными файлами (include): их узлы видны, но правятся только в своём файле
+const data = computed(() => viewData.value);
 const node = computed(() => getAt(data.value, kind.value === "document" ? ["document"] : path.value));
-const readonly = computed(() => !!store.state?.readonly);
+const includedFile = computed(() => includedPath(path.value));
+const readonly = computed(() => !!store.state?.readonly || !!includedFile.value);
 const diags = computed(() => store.state?.diagnostics ?? []);
 
 const fieldCtx = computed<FieldCtx>(() => {
@@ -401,6 +404,10 @@ function onLayout(p: Path, start: number, length: number) {
       </div>
     </header>
 
+    <div v-if="includedFile" class="banner info">
+      🔗 {{ t("Узел описан в подключённом файле {file}: здесь он только для просмотра, правьте его в том файле.",
+              { file: includedFile }) }}
+    </div>
     <div v-for="d in ownDiags" :key="d.code + d.message" class="banner" :class="d.level">
       <b>{{ d.code }}</b>: {{ d.message }}
       <button v-if="d.code === 'rx-duplicate' && rxTwin && !readonly" class="small fix"

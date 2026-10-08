@@ -61,6 +61,11 @@ export interface ResolvedFrame {
   signals: ResolvedSignal[];
 }
 
+export interface Included {
+  path: Path;
+  file: string;
+}
+
 export interface State {
   file: string;
   path: string;
@@ -74,6 +79,11 @@ export interface State {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any | null;
   resolved: { frames: ResolvedFrame[]; language: string } | null;
+  /** Шины вместе с подключёнными файлами (include); null — файлов не подключено. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  included_buses: any[] | null;
+  /** Узлы, добавленные подключёнными файлами, и их файл (относительно карты). */
+  included: Included[];
   diagnostics: Diagnostic[];
   palette: string[];
   /** Справочник единиц: пары обозначений [ru, en]. */

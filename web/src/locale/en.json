@@ -437,6 +437,8 @@
   "устройство принимает кадр, описанный у отправителя": "the device receives a frame described at its sender",
   "Не принимать (убрать из получателей)": "Stop receiving (remove from receivers)",
   "Принимает кадр от {sender}": "Receives the frame from {sender}",
+  "Из подключённого файла {file} — только для просмотра": "From the included file {file}, read-only",
+  "Узел описан в подключённом файле {file}: здесь он только для просмотра, правьте его в том файле.": "The node is described in the included file {file}: it is read-only here, edit it in that file.",
   "Название не может быть пустым": "The name cannot be empty",
   "напр. Шина 1": "e.g. Bus 1",
   "в дереве карты и заголовках документов": "shown in the map tree and document headings",

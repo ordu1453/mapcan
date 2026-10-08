@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+* The **Map** view shows the buses, devices and frames of included files (`include`), marked with
+  the file name; clicking one opens it in its file, and its **Node** panel is read-only.
+
 ## 0.5.0
 
 * Follows the stricter map format of mapcan 0.19: every signal names its `encoding` (renamed from

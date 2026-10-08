@@ -1,7 +1,7 @@
 // Подписи узлов в дереве: названия для людей вместо идентификаторов, ссылки на принимаемые кадры.
 
 import { describe, expect, it } from "vitest";
-import { buildTree, deviceLabel, displayName, pathKey, type TreeNode } from "../src/model";
+import { buildTree, deviceLabel, displayName, includedFile, pathKey, viewOf, type TreeNode } from "../src/model";
 import type { ResolvedFrame } from "../src/types";
 
 const data = {
@@ -60,5 +60,25 @@ describe("подписи", () => {
     expect(link.receiver).toBe("panel");
     expect(link.dir).toBe("rx");
     expect(link.key).not.toBe(pathKey(status.path));
+  });
+});
+
+describe("подключённые файлы", () => {
+  const included = [{ path: ["buses", 0, "devices", 1], file: "common.yaml" }];
+  const view = viewOf({ data: { ...data, buses: [] }, included_buses: data.buses });
+
+  it("дерево строится вместе с подключёнными шинами", () => {
+    expect(view.buses).toBe(data.buses);
+    expect(viewOf({ data, included_buses: null })).toBe(data);
+  });
+
+  it("узлы подключённого файла помечены файлом, корень — отдельно", () => {
+    const [, bus] = buildTree(view, new Map(), "ru", included);
+    const [bms, panel] = bus.children;
+    expect(bms.file).toBeUndefined();
+    expect(panel.file).toBe("common.yaml");
+    expect(panel.fileRoot).toBe(true);
+    expect(includedFile(included, ["buses", 0, "devices", 1, "frames", 0])).toBe("common.yaml");
+    expect(includedFile(included, ["buses", 0, "devices", 0])).toBeNull();
   });
 });

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import threading
 from dataclasses import asdict
 from pathlib import Path
@@ -17,7 +18,7 @@ from ..loader import LoadResult, loads
 from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
 from ..validate import check
-from .yamlops import OpError, apply_ops, device_rename_ops, dump, make_yaml, merge_text, plain
+from .yamlops import OpError, apply_ops, check_editable, device_rename_ops, dump, make_yaml, merge_text, plain
 
 HISTORY_LIMIT = 200
 
@@ -146,6 +147,8 @@ class EditorSession:
             self._check_writable()
             if self.doc is None:
                 raise OpError(_("в YAML синтаксическая ошибка — исправьте текст во вкладке YAML"))
+            if self._result is not None:
+                check_editable(self._result.source, ops)
             canon_old = dump(self.yaml, self.doc)
             try:
                 apply_ops(self.doc, ops)
@@ -222,6 +225,23 @@ class EditorSession:
 
     # ------------------------------------------------------------------ чтение
 
+    def _included(self) -> dict[str, Any]:
+        """Подключённые файлы (include): шины вместе с ними (для дерева и формы только для чтения)
+        и узлы, которые они добавили, — с путём файла относительно карты."""
+        merged = self._result.merged if self._result else None
+        if not isinstance(merged, dict) or not isinstance(merged.get("buses"), list):
+            return {"included_buses": None, "included": []}
+
+        def rel(f: str) -> str:
+            try:
+                return Path(os.path.relpath(f, self.path.parent)).as_posix()
+            except ValueError:          # другой диск
+                return Path(f).name
+
+        roots = self._result.source.included_roots()
+        return {"included_buses": merged["buses"],
+                "included": [{"path": list(p), "file": rel(f)} for p, f in sorted(roots, key=lambda r: r[0])]}
+
     @property
     def map(self) -> MapCan | None:
         return self._result.map if self._result else None
@@ -240,6 +260,7 @@ class EditorSession:
                 "text": self.text,
                 "data": plain(self.doc) if self.doc is not None else None,
                 "resolved": resolved_view(self.map) if self.map else None,
+                **self._included(),
                 "diagnostics": [asdict(self._result.source.in_main_file(d)) for d in self._report.sorted()],
                 "palette": PALETTE,
                 "units": UNITS,

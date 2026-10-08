@@ -1,7 +1,7 @@
 // Навигация по plain-дереву карты, дерево для боковой панели, шаблоны новых узлов.
 
 import { hex, rangeLabel } from "./bits";
-import type { Diagnostic, Level, Path, ResolvedFrame, ResolvedSignal } from "./types";
+import type { Diagnostic, Included, Level, Path, ResolvedFrame, ResolvedSignal } from "./types";
 import { t } from "./i18n";
 
 export type NodeKind = "document" | "history" | "revision" | "bus" | "device" | "frame" | "signal" | "flag" | "sdo" | "unknown";
@@ -94,6 +94,33 @@ export interface TreeNode {
   from?: string;
   /** У ссылки — имя устройства-получателя, под которым она стоит. */
   receiver?: string;
+  /** Узел описан в подключённом файле (include): его путь относительно карты. */
+  file?: string;
+  /** Узел добавлен подключённым файлом целиком (у его потомков file тоже есть). */
+  fileRoot?: boolean;
+}
+
+/** Подключённый файл, в котором описан узел; null — узел основного файла. */
+export function includedFile(included: Included[] | undefined, path: Path): string | null {
+  for (const r of included ?? []) if (startsWith(path, r.path)) return r.file;
+  return null;
+}
+
+/** Данные карты вместе с подключёнными файлами — для дерева и просмотра их узлов. */
+export function viewOf(s: { data: Data; included_buses?: Data[] | null } | null | undefined): Data {
+  if (!s?.data) return null;
+  return s.included_buses ? { ...s.data, buses: s.included_buses } : s.data;
+}
+
+function markIncluded(nodes: TreeNode[], included: Included[]): void {
+  for (const n of nodes) {
+    const file = n.from === undefined ? includedFile(included, n.path) : null;
+    if (file) {
+      n.file = file;
+      n.fileRoot = included.some((r) => samePath(r.path, n.path));
+    }
+    markIncluded(n.children, included);
+  }
 }
 
 function frameSub(rf: ResolvedFrame | undefined): string {
@@ -127,7 +154,7 @@ export function deviceLabel(v: Data, lang: string): string {
   return v?.short ? String(v.short) : txt(v?.title, lang) || nameOf(obj(v));
 }
 
-export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string): TreeNode[] {
+export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string, included: Included[] = []): TreeNode[] {
   const doc: TreeNode = {
     key: "document", path: ["document"], kind: "document", label: txt(data?.document?.title, lang) || t("Документ"),
     sub: data?.document?.version ?? "", children: [], search: "",
@@ -213,6 +240,7 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
     });
     out.push(bnode);
   });
+  if (included.length) markIncluded(out, included);
   return out;
 }
 

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { canRename } from "../edit";
 import { getAt, pathKey, samePath, startsWith, txt, worst, type TreeNode } from "../model";
-import { actions, diagsByNode, lang, store } from "../store";
+import { actions, diagsByNode, lang, store, viewData } from "../store";
 import InlineRename from "./InlineRename.vue";
 import TreeIcon from "./TreeIcon.vue";
 import { N_, t } from "../i18n";
@@ -45,7 +45,7 @@ const match = computed(() => props.query !== "" && props.node.search.includes(pr
 // У устройства подпись «short · title» — каждая часть правится своим двойным щелчком; у флагов и SDO названия нет — правится имя.
 type Part = "name" | "short" | "title";
 const renaming = ref<Part | null>(null);
-const nodeData = computed(() => (store.state?.data ? getAt(store.state.data, props.node.path) : null));
+const nodeData = computed(() => (viewData.value ? getAt(viewData.value, props.node.path) : null));
 const titled = computed(() => ["bus", "device", "frame", "signal"].includes(props.node.kind));
 const title = computed(() => txt(nodeData.value?.title, lang.value));
 // Названия ещё нет — поле правки открывается с идентификатором, который сейчас виден в дереве
@@ -71,7 +71,7 @@ function click() {
 <template>
   <li>
     <!-- У ссылки на чужой кадр data-key свой: прокрутка к выбранному кадру идёт к оригиналу -->
-    <div class="tree-row" :class="{ selected, 'on-path': onPath, match, link: node.from !== undefined }"
+    <div class="tree-row" :class="{ selected, 'on-path': onPath, match, link: node.from !== undefined, included: !!node.file }"
          :style="{ paddingLeft: depth * 14 + 6 + 'px' }"
          :data-key="node.from !== undefined ? node.key : pathKey(node.path)" @click="click"
          :title="node.from !== undefined ? t('Принимает кадр от {sender}', { sender: node.from || t('вне карты') }) : undefined">
@@ -89,6 +89,8 @@ function click() {
       <span v-else class="tlabel" @dblclick.stop="startRename(titled ? 'title' : 'name')">{{ node.label }}</span>
       <span v-if="node.sub" class="tsub mono">{{ node.sub }}</span>
       <span v-if="node.from !== undefined" class="tsub link-mark">↪</span>
+      <span v-if="node.fileRoot" class="tsub include-mark"
+            :title="t('Из подключённого файла {file} — только для просмотра', { file: node.file })">🔗 {{ node.file }}</span>
       <span v-if="own" class="dot" :class="own" :title="own" />
       <span v-else-if="nested" class="dot ring" :class="nested" />
     </div>

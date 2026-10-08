@@ -153,6 +153,9 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 /* Ссылка на чужой кадр, который принимает устройство */
 .tree-row.link .tlabel { font-style: italic; color: var(--muted); }
 .tsub.link-mark { margin-left: 0; padding-left: 4px; }
+/* Узел подключённого файла (include): только для просмотра */
+.tree-row.included .tlabel { color: var(--muted); }
+.tsub.include-mark { font-size: 0.85em; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-left: 4px; }
 .dot.error { background: var(--error); }
 .dot.warning { background: var(--warning); }

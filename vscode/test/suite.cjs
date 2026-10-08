@@ -400,6 +400,32 @@ const tests = {
     assert.ok(error.error);
   },
 
+  async "nodes of included files are shown read-only"(ctx) {
+    fs.writeFileSync(path.join(workspace, "extra.yaml"),
+      "buses:\n  - name: aux\n    title: Aux bus\n    protocol: can\n    devices:\n      - name: valve\n");
+    const main = path.join(workspace, "with-include.yaml");
+    fs.writeFileSync(main, "mapcan: 1\ninclude: [extra.yaml]\ndocument: {title: T, language: en}\n"
+      + "buses:\n  - name: can1\n    title: Main bus\n    protocol: can\n");
+    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(main));
+    const roots = await until("tree with the included bus", () => {
+      const r = ctx.api.tree.getChildren();
+      return r.length === 2 ? r : undefined;
+    });
+    const own = ctx.api.tree.getTreeItem(roots[0]);
+    const aux = ctx.api.tree.getTreeItem(roots[1]);
+    assert.equal(own.contextValue, "bus");
+    assert.deepEqual([aux.label, aux.description, aux.contextValue], ["Aux bus", "extra.yaml", "included"]);
+    assert.match(aux.tooltip, /read-only here/);
+    assert.match(aux.command.arguments[0].fsPath, /extra\.yaml$/);
+    // The device under it comes from the same file: the file is named once, at the bus
+    const valve = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(roots[1])[0]);
+    assert.deepEqual([valve.description, valve.contextValue], ["", "included"]);
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    await vscode.window.showTextDocument(ctx.doc);
+    await until("the first map in the tree", () => ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString()
+      && ctx.api.tree.getChildren().length === 1);
+  },
+
   async "edits are validated as you type"(ctx) {
     const editor = await vscode.window.showTextDocument(ctx.doc);
     await editor.edit((e) => e.replace(

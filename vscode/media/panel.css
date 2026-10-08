@@ -712,3 +712,7 @@ a:hover {
   height: 24px;
   width: 24px;
 }
+
+/* A node of an included file: shown, not edited */
+[inert] { opacity: 0.7; }
+.readonly-note { display: flex; align-items: center; gap: 8px; }

@@ -38,6 +38,8 @@ interface RawNode {
   range: [number, number, number, number];
   selection: [number, number, number, number];
   children: RawNode[];
+  /** The node comes from an included file (`include`): its full path; ranges are in that file. */
+  file?: string;
 }
 
 const toRange = (r: number[]) => new vscode.Range(r[0], r[1], r[2], r[3]);
@@ -73,6 +75,16 @@ export class MapNode {
   /** Links to frames of other devices are not part of this node's text. */
   get isLink(): boolean {
     return this.raw.from !== undefined;
+  }
+
+  /** The included file the node is described in; such a node is read-only in the map. */
+  get file(): vscode.Uri | undefined {
+    return this.raw.file ? vscode.Uri.file(this.raw.file) : undefined;
+  }
+
+  /** The node's text is in the map itself (not a link, not from an included file). */
+  get isOwn(): boolean {
+    return !this.isLink && !this.raw.file;
   }
 }
 
@@ -154,7 +166,11 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     const item = new vscode.TreeItem(label, state);
     item.id = node.id;
     item.description = from !== undefined ? `${description} ↪`.trim() : description;
-    item.contextValue = node.isLink ? "frameLink" : kind;
+    item.contextValue = node.isLink ? "frameLink" : node.file ? "included" : kind;
+    // The node an included file adds names the file; its descendants come from the same file
+    const fileName = node.file && !node.isLink && node.parent?.raw.file !== node.raw.file
+      ? node.file.path.split("/").pop() : undefined;
+    if (fileName) item.description = `${item.description} · ${fileName}`.replace(/^ · /, "");
     // The identifier is not in the label (only titles are), so the tooltip shows it
     const lines = [`${KIND_TITLE[kind]} ${ident ?? label}`];
     if (kind === "frame") {
@@ -181,8 +197,11 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
       item.resourceUri = vscode.Uri.from({ scheme: DECORATION_SCHEME, path: `/${node.id}`, query: query.toString() });
     }
     if (change) lines.push(change === "added" ? "Added since the last commit" : "Modified since the last commit");
+    if (node.file && !node.isLink) {
+      lines.push(`From ${vscode.workspace.asRelativePath(node.file)}: read-only here, edit it in that file`);
+    }
     item.tooltip = lines.join("\n");
-    item.command = { command: "mapcan.revealNode", title: "Reveal", arguments: [this.uri, node.selection] };
+    item.command = { command: "mapcan.revealNode", title: "Reveal", arguments: [node.file ?? this.uri, node.selection] };
     return item;
   }
 
@@ -262,7 +281,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     let found: MapNode | undefined;
     let level = this.roots;
     for (;;) {
-      const next = level.find((n) => !n.isLink && n.range.contains(pos));
+      const next = level.find((n) => n.isOwn && n.range.contains(pos));
       if (!next) return found;
       found = next;
       level = next.children;

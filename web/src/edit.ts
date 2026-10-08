@@ -1,6 +1,6 @@
 // Структурные правки: добавить / удалить / дублировать узел.
 
-import { actions, lang, resolvedFrames, store, toast } from "./store";
+import { actions, includedPath, lang, resolvedFrames, store, toast } from "./store";
 import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, txt, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
 import { t } from "./i18n";
@@ -209,7 +209,7 @@ export async function addRevision(): Promise<boolean> {
 const RENAMABLE: NodeKind[] = ["bus", "device", "frame", "signal", "flag", "sdo"];
 
 export function canRename(path: Path): boolean {
-  return RENAMABLE.includes(nodeKind(path)) && !store.state?.readonly;
+  return RENAMABLE.includes(nodeKind(path)) && !store.state?.readonly && !includedPath(path);
 }
 
 /** Имена, с которыми новое имя не должно совпадать: соседи по списку, у кадров — все кадры шины. */

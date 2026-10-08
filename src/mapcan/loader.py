@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import datetime as _dt
 import re
 from dataclasses import dataclass, field
@@ -59,6 +60,15 @@ class SourceMap:
         """Файл, в котором описан узел: основной или подключённый."""
         return self.files.get(self._nearest(path), self.file)
 
+    def is_included(self, path: Path_) -> bool:
+        """Узел описан в подключённом файле (или внутри такого узла)."""
+        return any(path[:n] in self.files for n in range(2, len(path) + 1, 2))
+
+    def included_roots(self) -> list[tuple[Path_, str]]:
+        """Узлы, целиком добавленные подключёнными файлами: шины, а к шинам основного — устройства и кадры."""
+        return [(p, f) for p, f in self.files.items()
+                if p[:1] == ("buses",) and (len(p) == 2 or len(p) == 4 and p[:2] not in self.files)]
+
     def diag(self, level, code, message, path: Path_ = ()) -> Diagnostic:
         line, col = self.locate(path)
         return Diagnostic(level, code, message, self.file_of(path), line, col, format_path(path), list(path))
@@ -89,6 +99,8 @@ class LoadResult:
     report: Report
     source: SourceMap
     raw: Any = None  # ruamel-документ (для сохранения с комментариями)
+    # Данные вместе с подключёнными файлами (до подстановки таблиц значений); None — файлов не подключено
+    merged: Any = None
 
 
 def _plain(node, path: Path_, src: SourceMap, report: Report, parent_key=None):
@@ -278,19 +290,22 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
     if isinstance(data, dict):
         base = Path(base_dir) if base_dir is not None else Path(filename).resolve().parent if filename else None
         _include(data, base, src, report)
+        merged = copy.deepcopy(data) if src.includes else None
         _value_tables(data, src, report)
+    else:
+        merged = None
     try:
         cmap = MapCan.model_validate(data)
     except ValidationError as err:
         _pydantic_messages(err, src, report)
-        return LoadResult(None, report, src, raw)
+        return LoadResult(None, report, src, raw, merged)
     cmap._source = filename
     if base_dir is not None:
         cmap._base_dir = Path(base_dir)
     elif filename:
         cmap._base_dir = Path(filename).resolve().parent
     resolve(cmap)
-    return LoadResult(cmap, report, src, raw)
+    return LoadResult(cmap, report, src, raw, merged)
 
 
 # --------------------------------------------------------------------------- #
