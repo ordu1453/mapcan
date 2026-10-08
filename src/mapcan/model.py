@@ -121,6 +121,7 @@ TITLE = N_("Название для людей, напр. «Состояния»
 DESCRIPTION = N_("Что это и зачем: выводится в документах, комментариях сгенерированного кода и DBC.")
 COMMENT = N_("Примечание или оговорка: в документах — «Примечание:», в DBC — после описания.")
 SHORT = N_("Сокращение устройства, напр. «BMS»: в таблицах документов и в дереве перед названием.")
+VALUES = N_("Таблица значений (значение → имя) или имя таблицы из value_tables.")
 
 
 class Document(_Base):
@@ -173,6 +174,8 @@ class EnumValue(_Base):
 
 
 ValueTable = dict[int, Union[str, EnumValue]]
+# В карте вместо таблицы можно указать имя таблицы из value_tables: загрузчик подставит её
+ValueTableRef = Union[ValueTable, str]
 
 
 def enum_entries(values: ValueTable | None) -> list[tuple[int, EnumValue]]:
@@ -192,7 +195,7 @@ class Flag(_Base):
     bit: int = Field(ge=0)
     bit_length: int = Field(1, ge=1)
     description: Text | None = Field(None, description=DESCRIPTION)
-    values: ValueTable | None = None
+    values: ValueTableRef | None = Field(None, description=VALUES)
 
 
 class Signal(_Base):
@@ -220,7 +223,7 @@ class Signal(_Base):
                              "ones_complement — обратный, sign_magnitude — прямой. Сгенерированный код C/Python "
                              "кодирует значение в заданном коде; DBC хранит только дополнительный."))
 
-    values: ValueTable | None = None
+    values: ValueTableRef | None = Field(None, description=VALUES)
     flags: list[Flag] | None = None
 
     factor: float = 1.0
@@ -310,7 +313,7 @@ class SdoValue(_Base):
     unit: str | None = None
     min: float | None = None
     max: float | None = None
-    values: ValueTable | None = None
+    values: ValueTableRef | None = Field(None, description=VALUES)
 
 
 class SdoExchange(_Base):
@@ -446,8 +449,14 @@ class Bus(_Base):
 
 class MapCan(_Base):
     mapcan: Literal[1] = Field(title="mapcan", description=N_("Версия формата файла."))
+    include: list[str] = Field(
+        default_factory=list,
+        description=N_("Подключаемые файлы (пути от файла карты): их шины, устройства, кадры и value_tables "
+                       "добавляются к карте."))
     document: Document
     lint: LintRules = Field(default_factory=LintRules)
+    value_tables: dict[str, ValueTable] = Field(
+        default_factory=dict, description=N_("Именованные таблицы значений: в сигнале — values: <имя>."))
     buses: list[Bus] = Field(min_length=1)
 
     _source: str | None = PrivateAttr(default=None)

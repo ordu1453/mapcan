@@ -415,6 +415,23 @@ EN: dict[str, str] = {
     "Язык документов по умолчанию: код ISO 639-1 (ru, en, de…).": "Default document language: ISO 639-1 code (ru, en, de…).",
     "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)": "a translation key must be an ISO 639-1 language code (de, fr…)",
     "Не задан DLC кадра": "Frame DLC is not set",
+    "Подключаемый файл не найден или содержит недопустимые ключи": "Included file is missing or has keys that cannot be included",
+    "Таблица значений с таким именем не описана в value_tables": "No value table with this name in value_tables",
+    "include: у карты нет пути, подключать файлы не от чего": "include: the map has no path to resolve included files from",
+    "include: файл {name!r} не найден": "include: file {name!r} not found",
+    "подключаемый файл должен быть словарём YAML": "an included file must be a YAML mapping",
+    "ключ {key!r} нельзя подключать: допустимы buses и value_tables": "key {key!r} cannot be included: only buses and value_tables",
+    "таблица значений {name!r} уже описана": "value table {name!r} is already defined",
+    "шина {name!r} уже описана: подключаемый файл может только добавить ей devices и frames, а не {key!r}":
+        "bus {name!r} is already defined: an included file can only add devices and frames to it, not {key!r}",
+    "таблица значений {name!r} не описана в value_tables": "value table {name!r} is not defined in value_tables",
+    "Таблица значений (значение → имя) или имя таблицы из value_tables.":
+        "Value table (value → name) or the name of a table in value_tables.",
+    "Подключаемые файлы (пути от файла карты): их шины, устройства, кадры и value_tables "
+    "добавляются к карте.":
+        "Included files (paths relative to the map file): their buses, devices, frames and value_tables "
+        "are added to the map.",
+    "Именованные таблицы значений: в сигнале — values: <имя>.": "Named value tables: in a signal, values: <name>.",
     "кадр {name!r}: не задан dlc (длина данных, байт)": "frame {name!r}: dlc (data length, bytes) is not set",
     "Длина данных, байт. Обязательна, кроме служебных кадров CANopen "
     "(NMT, SYNC, TIME, Heartbeat, SDO): их длина задана CiA 301.":

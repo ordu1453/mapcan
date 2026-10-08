@@ -486,7 +486,11 @@ function onLayout(p: Path, start: number, length: number) {
     <DocumentRequisites v-if="kind === 'document'" />
     <HistoryEditor v-if="kind === 'history' || kind === 'revision'" :path="path" />
 
-    <ValueTable v-if="showValues" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
+    <section v-if="typeof node?.values === 'string'" class="card">
+      <h3>{{ t("Значения") }}</h3>
+      <p class="muted">{{ t("Таблица «{name}» из value_tables — правится там.", { name: node.values }) }}</p>
+    </section>
+    <ValueTable v-else-if="showValues" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
                 :readonly="readonly" :diags="diags" />
     <FlagsTable v-if="showFlags" class="card" :path="path" :flags="node?.flags" :readonly="readonly" :diags="diags" />
 

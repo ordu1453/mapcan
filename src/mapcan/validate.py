@@ -65,6 +65,8 @@ RULES = {
     "can-id-range": ("error", N_("CAN ID не помещается в 11 бит (нужно extended: true)")),
     "dlc-range": ("error", N_("Недопустимый DLC")),
     "dlc-missing": ("error", N_("Не задан DLC кадра")),
+    "include": ("error", N_("Подключаемый файл не найден или содержит недопустимые ключи")),
+    "value-table": ("error", N_("Таблица значений с таким именем не описана в value_tables")),
     "canopen-dlc": ("warning", N_("DLC служебного кадра CANopen не соответствует CiA 301")),
     "bitrate-nonstandard": ("warning", N_("Нестандартная скорость шины")),
     "bus-load": ("warning", N_("Расчётная загрузка шины циклическими кадрами выше 70 %")),

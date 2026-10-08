@@ -23,6 +23,8 @@ interface NodeFields {
   owner: string | null;
   devices: { name: string; label: string }[];
   signalEncoding: string | null;
+  /** Name of a value table from value_tables when the node's values refer to one. */
+  valueTableRef?: string | null;
   /** Frame direction computed from the map (tx/rx), also when the field is not set. */
   frameDirection: string | null;
   /** Signal length computed from the map (bits). */

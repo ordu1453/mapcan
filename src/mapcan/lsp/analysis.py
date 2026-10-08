@@ -171,7 +171,9 @@ def analyze(text: str, filename: str | None = None) -> Analysis:
     result = loads(text, filename)
     report = check(result)
     lines = text.splitlines()
-    return Analysis(text, result, report.sorted(), lines, node_ranges(result.source, lines))
+    # Сообщения о подключённых файлах (include) показываются на строке include основного
+    diags = [result.source.in_main_file(d) for d in report.sorted()]
+    return Analysis(text, result, diags, lines, node_ranges(result.source, lines))
 
 
 def diagnostic_range(a: Analysis, d: Diagnostic) -> tuple[Pos, Pos]:

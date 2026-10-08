@@ -30,7 +30,9 @@ document.
 ```yaml
 mapcan: 1                 # format version (required)
 document: {...}           # metadata and revision history
+include: [common.yaml]    # included files (optional, see below)
 lint: {...}               # style rules (optional)
+value_tables: {...}       # named value tables (optional, see below)
 buses: [...]              # one or more buses
 ```
 
@@ -339,17 +341,56 @@ The owner of an RX frame is always one of its receivers, so it does not need to 
   cells;
 * in DBC, the message transmitter and the signal receivers.
 
-## YAML anchors
+## Named value tables
 
-Repeated value tables are easiest to share with anchors:
+A value table used by several signals is described once in `value_tables` and referred to by
+name. The same works for flags and SDO values:
 
 ```yaml
-values: &dc_states
-  0: STATE_INIT
-  1: STATE_PRECHARGE
+value_tables:
+  dc_states: {0: STATE_INIT, 1: STATE_PRECHARGE, 2: STATE_RUN}
 ...
-values: *dc_states
+- {name: dc_state, encoding: enum, byte: 0, byte_length: 1, values: dc_states}
 ```
+
+An unknown name is an error (`value-table`). The editors show such a signal's values as a
+reference; the table itself is edited in `value_tables`.
+
+## Included files
+
+`include` lists files (paths relative to the map file) whose contents are added to the map,
+for example the buses and devices shared by several machines:
+
+```yaml
+# vehicle.yaml
+mapcan: 1
+include: [powertrain.yaml]
+document: {title: Vehicle, language: en}
+buses:
+  - name: can1
+    protocol: canopen
+    devices: [...]
+```
+
+```yaml
+# powertrain.yaml
+value_tables: {...}
+buses:
+  - name: can1          # already described: devices and frames are added to it
+    devices: [...]
+  - name: can2          # new bus
+    protocol: j1939
+    devices: [...]
+```
+
+An included file may contain only `buses` and `value_tables`. A bus that the main file (or an
+earlier included file) already describes can only get more `devices` and `frames`; its other
+fields, and a value table name used twice, are errors (`include`). Included files are not
+nested.
+
+Validation, documents and generated code use the whole map. Messages about an included file
+point into that file on the command line; in the editors they are shown on the `include` line
+of the main file, with the file and line in the text. The editors change the main file only.
 
 ## Validation rules
 
@@ -366,6 +407,8 @@ turned off with `--disable CODE` or `lint.disable`.
 | `number-comma` | error | Number written with a decimal comma (0,1 instead of 0.1) |
 | `number-cyrillic-x` | error | Cyrillic “х” in a hexadecimal number |
 | `number-quoted` | warning | Number written as a quoted string |
+| `include` | error | Included file not found, or it has keys that cannot be included |
+| `value-table` | error | `values` names a table that is not in `value_tables` |
 
 ### Names
 

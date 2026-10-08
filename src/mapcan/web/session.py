@@ -120,8 +120,8 @@ class EditorSession:
 
     def check_text(self, text: str) -> list[dict]:
         """Проверить текст, не применяя его (живая проверка во вкладке YAML)."""
-        report = check(loads(text.replace("\r\n", "\n"), str(self.path.name), self.path.parent))
-        return [asdict(d) for d in report.sorted()]
+        result = loads(text.replace("\r\n", "\n"), str(self.path.name), self.path.parent)
+        return [asdict(result.source.in_main_file(d)) for d in check(result).sorted()]
 
     def recheck(self) -> None:
         """Пересобрать сообщения проверки (после смены языка интерфейса)."""
@@ -240,7 +240,7 @@ class EditorSession:
                 "text": self.text,
                 "data": plain(self.doc) if self.doc is not None else None,
                 "resolved": resolved_view(self.map) if self.map else None,
-                "diagnostics": [asdict(d) for d in self._report.sorted()],
+                "diagnostics": [asdict(self._result.source.in_main_file(d)) for d in self._report.sorted()],
                 "palette": PALETTE,
                 "units": UNITS,
             }

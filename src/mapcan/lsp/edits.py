@@ -879,7 +879,7 @@ def _layout_fields(a: Analysis, path: Path_, kind: str, raw: dict, lang: str) ->
     from ..docmodel import PALETTE
     from ..web.session import frame_view
 
-    out: dict = {"frame": None, "palette": PALETTE, "valueTable": None, "flags": None}
+    out: dict = {"frame": None, "palette": PALETTE, "valueTable": None, "valueTableRef": None, "flags": None}
     frame_path = next((path[:i + 1] for i in range(len(path) - 1, 0, -1)
                        if path[i - 1] == "frames" and isinstance(path[i], int)), None)
     frame = _find(a.map, frame_path) if a.map is not None and frame_path else None
@@ -888,6 +888,8 @@ def _layout_fields(a: Analysis, path: Path_, kind: str, raw: dict, lang: str) ->
     if kind not in ("signal", "flag"):
         return out
     values = raw.get("values")
+    if isinstance(values, str):
+        out["valueTableRef"] = values          # именованная таблица из value_tables
     if isinstance(values, dict):
         rows = []
         for k, v in values.items():

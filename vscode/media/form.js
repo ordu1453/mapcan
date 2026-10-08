@@ -806,6 +806,12 @@
     el("td", { class: "act" }, el("button", { class: "icon-button secondary", title, onclick }, "✕"));
 
   function valueTable() {
+    // Значения из именованной таблицы value_tables: правятся в самой таблице, здесь только ссылка
+    if (node.valueTableRef && ["signal", "flag"].includes(node.kind)) {
+      return el("div", { class: "section" }, el("div", { class: "section-title" }, "Values"),
+        el("div", { class: "field" }, el("div", { class: "empty" },
+          `Table "${node.valueTableRef}" from value_tables (edit it there).`)));
+    }
     const rowsData = node.valueTable;
     const show = rowsData != null || node.kind === "flag" || ["enum", "flag"].includes(signalEncoding(ctx()));
     if (!show || !["signal", "flag"].includes(node.kind)) return null;

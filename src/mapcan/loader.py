@@ -34,23 +34,43 @@ Path_ = tuple
 
 @dataclass
 class SourceMap:
-    """Позиции узлов YAML: путь → (строка, колонка), 1-based."""
+    """Позиции узлов YAML: путь → (строка, колонка), 1-based.
+
+    Узлы из подключённых файлов (include) записаны в ``files``: путь → имя файла, позиция — в нём."""
 
     file: str | None
     positions: dict[Path_, tuple[int, int]] = field(default_factory=dict)
+    files: dict[Path_, str] = field(default_factory=dict)
+    includes: list[tuple[int, str]] = field(default_factory=list)   # (номер в include, файл)
 
-    def locate(self, path: Path_) -> tuple[int | None, int | None]:
-        """Позиция ближайшего существующего узла для (возможно, неточного) пути."""
+    def _nearest(self, path: Path_) -> Path_:
         cur: tuple = ()
         for el in path:
             if cur + (el,) in self.positions:
                 cur = cur + (el,)
-        pos = self.positions.get(cur)
+        return cur
+
+    def locate(self, path: Path_) -> tuple[int | None, int | None]:
+        """Позиция ближайшего существующего узла для (возможно, неточного) пути."""
+        pos = self.positions.get(self._nearest(path))
         return pos if pos else (None, None)
+
+    def file_of(self, path: Path_) -> str | None:
+        """Файл, в котором описан узел: основной или подключённый."""
+        return self.files.get(self._nearest(path), self.file)
 
     def diag(self, level, code, message, path: Path_ = ()) -> Diagnostic:
         line, col = self.locate(path)
-        return Diagnostic(level, code, message, self.file, line, col, format_path(path), list(path))
+        return Diagnostic(level, code, message, self.file_of(path), line, col, format_path(path), list(path))
+
+    def in_main_file(self, d: Diagnostic) -> Diagnostic:
+        """Сообщение о подключённом файле — для редактора основного: на строке include, с местом в тексте."""
+        if d.file is None or d.file == self.file or not self.files:
+            return d
+        include = next((i for i, f in self.includes if f == d.file), None)
+        line, col = self.positions.get(("include", include), (1, 1)) if include is not None else (1, 1)
+        where = Path(d.file).name + (f":{d.line}" if d.line else "")
+        return Diagnostic(d.level, d.code, f"{where}: {d.message}", self.file, line, col, d.path, d.node)
 
 
 def format_path(path: Path_) -> str:
@@ -255,6 +275,10 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
 
     data = _plain(raw, (), src, report)
     src.positions.setdefault((), (1, 1))
+    if isinstance(data, dict):
+        base = Path(base_dir) if base_dir is not None else Path(filename).resolve().parent if filename else None
+        _include(data, base, src, report)
+        _value_tables(data, src, report)
     try:
         cmap = MapCan.model_validate(data)
     except ValidationError as err:
@@ -267,6 +291,153 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
         cmap._base_dir = Path(filename).resolve().parent
     resolve(cmap)
     return LoadResult(cmap, report, src, raw)
+
+
+# --------------------------------------------------------------------------- #
+# Подключаемые файлы (include) и именованные таблицы значений (value_tables)
+# --------------------------------------------------------------------------- #
+
+INCLUDE_KEYS = {"buses", "value_tables"}
+# Шину, описанную в основном файле, подключаемый файл может только дополнить устройствами и кадрами
+BUS_EXTENSION_KEYS = {"name", "devices", "frames"}
+
+
+def _include(data: dict, base: Path | None, src: SourceMap, report: Report) -> None:
+    """Подключить файлы из ``include``: их шины, устройства, кадры и таблицы значений добавляются к карте.
+
+    Узлы подключённых файлов получают пути после узлов основного файла (индексы основного не меняются),
+    позиции и имя файла — из подключённого файла."""
+    files = data.get("include")
+    if files is None:
+        return
+    if not isinstance(files, list):
+        return          # тип поля проверит схема
+    for i, name in enumerate(files):
+        if not isinstance(name, str):
+            continue
+        if base is None:
+            report.add(src.diag("error", "include", _("include: у карты нет пути, подключать файлы не от чего"),
+                                ("include", i)))
+            continue
+        path = base / name
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            report.add(src.diag("error", "include", _("include: файл {name!r} не найден", name=name), ("include", i)))
+            continue
+        fname = str(path)
+        try:
+            raw = _make_yaml().load(text)
+        except MarkedYAMLError as e:
+            problem, line, col = _yaml_error(e, text)
+            report.add(Diagnostic("error", "yaml", problem, fname, line, col))
+            continue
+        sub_src = SourceMap(fname)
+        part = _plain(raw, (), sub_src, report) if raw is not None else {}
+        src.includes.append((i, fname))
+        if not isinstance(part, dict):
+            report.add(Diagnostic("error", "include", _("подключаемый файл должен быть словарём YAML"), fname, 1, 1))
+            continue
+        for key in part:
+            if key not in INCLUDE_KEYS:
+                report.add(sub_src.diag("error", "include",
+                                        _("ключ {key!r} нельзя подключать: допустимы buses и value_tables", key=key),
+                                        (key,)))
+        _merge_tables(data, part, sub_src, src, report)
+        _merge_buses(data, part, sub_src, src, report)
+
+
+def _copy_positions(sub_src: SourceMap, src: SourceMap, remap) -> None:
+    for p, pos in sub_src.positions.items():
+        q = remap(p)
+        if q is not None:
+            src.positions[q] = pos
+            src.files[q] = sub_src.file
+
+
+def _merge_tables(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, report: Report) -> None:
+    tables = part.get("value_tables")
+    if not isinstance(tables, dict):
+        return
+    own = data.setdefault("value_tables", {})
+    if not isinstance(own, dict):
+        return
+    added = set()
+    for name, table in tables.items():
+        if name in own:
+            report.add(sub_src.diag("error", "include", _("таблица значений {name!r} уже описана", name=name),
+                                    ("value_tables", name)))
+            continue
+        own[name] = table
+        added.add(name)
+    _copy_positions(sub_src, src, lambda p: p if p[:1] == ("value_tables",) and len(p) > 1 and p[1] in added
+                    else None)
+
+
+def _merge_buses(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, report: Report) -> None:
+    buses = part.get("buses")
+    if not isinstance(buses, list):
+        return
+    own = data.setdefault("buses", [])
+    if not isinstance(own, list):
+        return
+    for j, bus in enumerate(buses):
+        if not isinstance(bus, dict):
+            continue
+        target = next((k for k, b in enumerate(own) if isinstance(b, dict) and b.get("name") == bus.get("name")),
+                      None)
+        if target is None:
+            own.append(bus)
+            new = len(own) - 1
+            _copy_positions(sub_src, src, lambda p, j=j, new=new: ("buses", new) + p[2:] if p[:2] == ("buses", j)
+                            else None)
+            continue
+        for key in bus:
+            if key not in BUS_EXTENSION_KEYS:
+                report.add(sub_src.diag("error", "include",
+                                        _("шина {name!r} уже описана: подключаемый файл может только добавить "
+                                          "ей devices и frames, а не {key!r}", name=bus.get("name"), key=key),
+                                        ("buses", j, key)))
+        mine = own[target]
+        offsets = {}
+        for key in ("devices", "frames"):
+            items = bus.get(key)
+            if isinstance(items, list):
+                lst = mine.setdefault(key, [])
+                if isinstance(lst, list):
+                    offsets[key] = len(lst)
+                    lst.extend(items)
+
+        def remap(p, j=j, target=target, offsets=offsets):
+            if p[:2] != ("buses", j) or len(p) < 4 or p[2] not in offsets:
+                return None
+            return ("buses", target, p[2], p[3] + offsets[p[2]]) + p[4:]
+
+        _copy_positions(sub_src, src, remap)
+
+
+def _value_tables(data: dict, src: SourceMap, report: Report) -> None:
+    """Подставить именованные таблицы: ``values: dc_states`` → таблица из ``value_tables``."""
+    tables = data.get("value_tables") if isinstance(data.get("value_tables"), dict) else {}
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "values" and isinstance(v, str):
+                    if v in tables:
+                        node[k] = tables[v]
+                    else:
+                        report.add(src.diag("error", "value-table",
+                                            _("таблица значений {name!r} не описана в value_tables", name=v),
+                                            path + (k,)))
+                        node[k] = None
+                elif k != "value_tables":
+                    walk(v, path + (k,))
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, path + (i,))
+
+    walk(data, ())
 
 
 def load(path: str | Path) -> LoadResult:

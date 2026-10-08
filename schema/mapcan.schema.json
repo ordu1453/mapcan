@@ -464,10 +464,14 @@
               }
             },
             {
+              "type": "string"
+            },
+            {
               "type": "null"
             }
           ],
           "default": null,
+          "description": "Value table (value → name) or the name of a table in value_tables.",
           "title": "Values"
         }
       },
@@ -1098,10 +1102,14 @@
               }
             },
             {
+              "type": "string"
+            },
+            {
               "type": "null"
             }
           ],
           "default": null,
+          "description": "Value table (value → name) or the name of a table in value_tables.",
           "title": "Values"
         }
       },
@@ -1288,10 +1296,14 @@
               }
             },
             {
+              "type": "string"
+            },
+            {
               "type": "null"
             }
           ],
           "default": null,
+          "description": "Value table (value → name) or the name of a table in value_tables.",
           "title": "Values"
         },
         "flags": {
@@ -1528,11 +1540,40 @@
       "title": "mapcan",
       "type": "integer"
     },
+    "include": {
+      "description": "Included files (paths relative to the map file): their buses, devices, frames and value_tables are added to the map.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Include",
+      "type": "array"
+    },
     "document": {
       "$ref": "#/$defs/Document"
     },
     "lint": {
       "$ref": "#/$defs/LintRules"
+    },
+    "value_tables": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/EnumValue"
+            }
+          ]
+        },
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+        }
+      },
+      "description": "Named value tables: in a signal, values: <name>.",
+      "title": "Value Tables",
+      "type": "object"
     },
     "buses": {
       "items": {
