@@ -21,7 +21,7 @@
 
   /**
    * @typedef {{protocol: string, owner: string|null, devices: {name: string, label: string}[],
-   *   signalEncoding: string|null, bitLength: number|null, hasSelector: boolean, values: Record<string, any>,
+   *   signalEncoding: string|null, frameDirection: string|null, bitLength: number|null, hasSelector: boolean, values: Record<string, any>,
    *   units: string[][], lang: string, frameTypes: {type: string, label: string, taken: string|null}[]}} Ctx
    * @typedef {{key: string, label: string, type: string, half?: boolean, mono?: boolean, required?: boolean,
    *   numeric?: boolean,
@@ -33,6 +33,11 @@
   const frameType = (/** @type {Ctx} */ c) => c.values.type ?? "raw";
   const direction = (/** @type {Ctx} */ c) =>
     c.values.direction ?? (c.protocol === "canopen" ? TYPE_DIRECTION[frameType(c)] : undefined) ?? null;
+  // Empty direction: the one computed from the type (CANopen) or from sender, shown in brackets
+  const defaultDirection = (/** @type {Ctx} */ c) => {
+    const base = c.protocol === "canopen" && TYPE_DIRECTION[frameType(c)] ? "By type" : "Default";
+    return c.values.direction == null && c.frameDirection ? `${base} (${c.frameDirection.toUpperCase()})` : base;
+  };
   // Sender and receivers are devices of the bus other than the frame's owner
   const others = (/** @type {Ctx} */ c) => c.devices.filter((d) => d.name !== c.owner).map((d) => [d.name, d.label]);
   const receivers = (/** @type {Ctx} */ c) => others(c).filter(([d]) => d !== c.values.sender);
@@ -122,7 +127,7 @@
       ] },
       { title: "Routing", fields: [
         { key: "direction", label: "Direction", type: "select",
-          options: (c) => [["", c.protocol === "canopen" ? "By type" : "Not set"], ["tx", "TX (sent by the device)"], ["rx", "RX (received by the device)"]],
+          options: (c) => [["", defaultDirection(c)], ["tx", "TX (sent by the device)"], ["rx", "RX (received by the device)"]],
           when: (c) => !!c.owner && !(c.protocol === "canopen" && TYPE_DIRECTION[frameType(c)]) },
         { key: "sender", label: "Sender", type: "select", options: (c) => [["", "Outside the map"], ...others(c)],
           when: (c) => (!c.owner || direction(c) === "rx") && others(c).length > 0 },
@@ -265,7 +270,7 @@
   let shownPath = "";
 
   const ctx = () => /** @type {Ctx} */ ({
-    protocol: node.protocol, owner: node.owner, devices: node.devices, signalEncoding: node.signalEncoding,
+    protocol: node.protocol, owner: node.owner, devices: node.devices, signalEncoding: node.signalEncoding, frameDirection: node.frameDirection,
     bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector,
     values: node.values, units: node.units ?? [], lang: node.lang, frameTypes: node.frameTypes ?? [],
   });

@@ -16,7 +16,7 @@ import datetime as _dt
 from pathlib import Path
 from typing import Any, Literal, Union
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 from .i18n import N_
 
@@ -114,7 +114,7 @@ class Document(_Base):
     date: _dt.date | None = None
     author: str | None = None
     organization: str | None = None
-    language: Literal["ru", "en"] = "ru"
+    language: Literal["ru", "en"] = Field(description=N_("Язык документов по умолчанию."))
     bit_numbering: Literal["lsb0"] = Field(
         "lsb0",
         description=N_("Нумерация бит: lsb0 — бит 0 это младший бит байта 0. "
@@ -399,7 +399,8 @@ class Bus(_Base):
     title: Text | None = None
     interface: str | None = None
     bitrate: int | None = Field(None, gt=0)
-    protocol: Protocol = "canopen"
+    protocol: Protocol = Field(
+        description=N_("Протокол: canopen — ID из типа кадра и node_id, j1939 — из PGN и адреса, can — явные ID."))
     fd: bool = False
     description: Text | None = None
     frames: list[Frame] = Field(
@@ -424,9 +425,7 @@ class Bus(_Base):
 
 
 class MapCan(_Base):
-    # Ключ до переименования canmap → mapcan тоже принимается: старые карты открываются без правки.
-    mapcan: Literal[1] = Field(FORMAT_VERSION, validation_alias=AliasChoices("mapcan", "canmap"),
-                               title="mapcan", description=N_("Версия формата файла."))
+    mapcan: Literal[1] = Field(title="mapcan", description=N_("Версия формата файла."))
     document: Document
     lint: LintRules = Field(default_factory=LintRules)
     buses: list[Bus] = Field(min_length=1)

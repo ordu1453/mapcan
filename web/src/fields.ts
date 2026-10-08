@@ -22,6 +22,8 @@ export interface FieldCtx {
   deviceLabels?: Record<string, string>;
   owner?: string | null;
   direction?: string | null;
+  /** Вычисленное направление кадра, когда поле direction не задано (иначе null). */
+  defaultDirection?: string | null;
   sender?: string | null;
 }
 
@@ -79,9 +81,12 @@ export const CANOPEN_DLC: Record<string, number[]> = {
   nmt: [2], sync: [0, 1], time: [6], heartbeat: [1], sdo_tx: [8], sdo_rx: [8],
 };
 
-// «По типу» — направление из типа кадра CANopen; в других протоколах просто не задано
-const directions = (c: FieldCtx): Array<[string, string]> =>
-  [["", c.protocol === "canopen" ? N_("по типу") : N_("не задано")], ["tx", "TX"], ["rx", "RX"]];
+// Пустое направление: вычисленное из типа кадра CANopen или из sender — показывается в скобках
+const directions = (c: FieldCtx): Array<[string, string]> => {
+  const base = t(c.protocol === "canopen" ? N_("по типу") : N_("по умолчанию"));
+  const d = c.defaultDirection;
+  return [["", d ? `${base} (${d.toUpperCase()})` : base], ["tx", "TX"], ["rx", "RX"]];
+};
 
 // Отправитель и получатели — устройства шины, кроме владельца кадра (он отправитель TX-кадра и получатель RX-кадра);
 // получателем не предлагается и отправитель кадра

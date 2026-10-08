@@ -42,7 +42,7 @@ def test_example_ids():
 
 def _bus(frames: str, devices: str = "", protocol: str = "j1939") -> str:
     frames = textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10)
-    return ("mapcan: 1\ndocument:\n  title: T\nbuses:\n"
+    return ("mapcan: 1\ndocument:\n  title: T\n  language: ru\nbuses:\n"
             f"  - name: bus\n    protocol: {protocol}\n    devices:\n"
             "      - name: ecu\n        address: 0x10\n        frames:\n" + frames + "\n" + devices)
 

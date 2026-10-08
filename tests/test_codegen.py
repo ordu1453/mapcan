@@ -240,6 +240,7 @@ BOUNDS_MAP = """\
 mapcan: 1
 document:
   title: Test
+  language: ru
 buses:
   - name: bus
     protocol: can
@@ -338,7 +339,7 @@ def test_dbc_flag_comment_in_document_language():
                 bit_length: 8
                 flags: [{name: ready, bit: 3}]
 """
-    yaml_en = BOUNDS_MAP.replace("  title: Test", "  title: Test\n  language: en") + flags
+    yaml_en = BOUNDS_MAP.replace("  language: ru", "  language: en") + flags
     assert _dbc(yaml_en).get_message_by_name("f5").get_signal_by_name("ready").comment == "st, bit 3"
     assert _dbc(BOUNDS_MAP + flags).get_message_by_name("f5").get_signal_by_name("ready").comment == "st, бит 3"
 
@@ -357,7 +358,7 @@ def test_dbc_warns_about_unencodable_chars(tmp_path):
 
 SIGNED_CODES_MAP = """\
 mapcan: 1
-document: {title: Test}
+document: {title: Test, language: en}
 buses:
   - name: bus
     protocol: can

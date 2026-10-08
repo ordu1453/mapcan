@@ -26,7 +26,7 @@ def one_bus(frames: str, protocol: str = "canopen", devices_extra: str = "", lin
     frames = textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10)
     return (
         "mapcan: 1\n"
-        "document:\n  title: Тест\n"
+        "document:\n  title: Тест\n  language: ru\n"
         + (lint or "")
         + "buses:\n"
         f"  - name: bus\n    title: Шина\n    protocol: {protocol}\n    devices:\n"

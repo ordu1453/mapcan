@@ -1,6 +1,7 @@
 mapcan: 1
 document:
   title: Карта с ошибками
+  language: ru
 lint:
   signal_name: snake_case
 buses:

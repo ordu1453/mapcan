@@ -23,7 +23,7 @@ from ..validate import check
 Pos = tuple[int, int]          # 0-based (строка, колонка)
 Path_ = tuple
 
-_HEADER = re.compile(r"^(mapcan|canmap)\s*:", re.MULTILINE)
+_HEADER = re.compile(r"^mapcan\s*:", re.MULTILINE)
 _WORD = r"[^\s,\[\]{}#:]+(?::[^\s,\[\]{}#:]+)*"
 _TOKEN = re.compile(rf"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|{_WORD}(?:[ \t]+{_WORD})*)""")
 _KEY = re.compile(r"([A-Za-z_][\w]*)\s*:(?=\s|$)")

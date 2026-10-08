@@ -415,6 +415,9 @@ EN: dict[str, str] = {
         "Bus device that transmits the frame when it is not the frame's owner: for RX frames "
         "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
     "Период циклической передачи, мс.": "Cyclic transmission period, ms.",
+    "Язык документов по умолчанию.": "Default document language.",
+    "Протокол: canopen — ID из типа кадра и node_id, j1939 — из PGN и адреса, can — явные ID.":
+        "Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, can — explicit IDs.",
     "Нециклическая передача: event — по событию, on_request — по запросу.":
         "Non-cyclic transmission: event — on event, on_request — on request.",
     "Имя пользователя GitHub автора изменения.": "GitHub username of the change's author.",

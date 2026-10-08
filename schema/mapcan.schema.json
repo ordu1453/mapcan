@@ -48,7 +48,7 @@
           "title": "Bitrate"
         },
         "protocol": {
-          "default": "canopen",
+          "description": "Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, can — explicit IDs.",
           "enum": [
             "canopen",
             "j1939",
@@ -94,7 +94,8 @@
         }
       },
       "required": [
-        "name"
+        "name",
+        "protocol"
       ],
       "title": "Bus",
       "type": "object"
@@ -265,7 +266,7 @@
           "title": "Organization"
         },
         "language": {
-          "default": "ru",
+          "description": "Default document language.",
           "enum": [
             "ru",
             "en"
@@ -372,7 +373,8 @@
         }
       },
       "required": [
-        "title"
+        "title",
+        "language"
       ],
       "title": "Document",
       "type": "object"
@@ -1505,7 +1507,6 @@
   "properties": {
     "mapcan": {
       "const": 1,
-      "default": 1,
       "description": "File format version.",
       "title": "mapcan",
       "type": "integer"
@@ -1526,6 +1527,7 @@
     }
   },
   "required": [
+    "mapcan",
     "document",
     "buses"
   ],

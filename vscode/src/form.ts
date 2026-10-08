@@ -23,6 +23,8 @@ interface NodeFields {
   owner: string | null;
   devices: { name: string; label: string }[];
   signalEncoding: string | null;
+  /** Frame direction computed from the map (tx/rx), also when the field is not set. */
+  frameDirection: string | null;
   /** Signal length computed from the map (bits). */
   bitLength: number | null;
   /** Another signal of the frame is the multiplexer selector. */

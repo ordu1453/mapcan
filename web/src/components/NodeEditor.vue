@@ -43,6 +43,7 @@ const fieldCtx = computed<FieldCtx>(() => {
       .map((d: any) => [d.name, deviceLabel(d, lang.value)])),
     owner: frame?.device ?? null,
     direction: frame?.direction ?? null,
+    defaultDirection: node.value?.direction == null ? frame?.direction ?? null : null,
     sender: frame?.sender ?? null,
   };
 });

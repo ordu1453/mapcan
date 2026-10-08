@@ -28,7 +28,7 @@ def minimal() -> A.Analysis:
 
 def test_is_mapcan():
     assert A.is_mapcan(MINIMAL)
-    assert A.is_mapcan("canmap: 1\n")
+    assert not A.is_mapcan("canmap: 1\n")
     assert not A.is_mapcan("name: build\non: push\n")
 
 

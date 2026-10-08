@@ -28,7 +28,7 @@ document.
 ## File structure
 
 ```yaml
-mapcan: 1                 # format version (maps with the legacy key canmap: 1 are also accepted)
+mapcan: 1                 # format version (required)
 document: {...}           # metadata and revision history
 lint: {...}               # style rules (optional)
 buses: [...]              # one or more buses
@@ -43,7 +43,7 @@ buses: [...]              # one or more buses
 | `version` | string | Map version (default `0.1`) |
 | `date` | date `YYYY-MM-DD` | Release date |
 | `author`, `organization` | string | |
-| `language` | `ru` \| `en` | Default document language (default `ru`); `--lang` overrides it at export |
+| `language` | `ru` \| `en` | Default document language (required); `--lang` overrides it at export |
 | `bit_numbering` | `lsb0` | Explicit statement of the bit numbering |
 | `logo` | path | Company logo (PNG/JPG/SVG/GIF/WEBP), relative to the map file |
 | `designation`, `litera`, `city` | string | Document designation, letter and city for the GOST template |
@@ -76,7 +76,7 @@ lint:
 | `description` | Description |
 | `interface` | Interface (`can0`, `PCAN_USBBUS1`, …) |
 | `bitrate` | Bit rate, bit/s |
-| `protocol` | `canopen` (default): IDs are computed from the function code and `node_id`; `j1939`: from the PGN, priority and device address; `can`: IDs are set explicitly |
+| `protocol` | Required. `canopen`: IDs are computed from the function code and `node_id`; `j1939`: from the PGN, priority and device address; `can`: IDs are set explicitly |
 | `fd` | `true` for CAN FD (DLC up to 64) |
 | `frames` | Broadcast frames with no owning device (`nmt`, `sync`, `time`) |
 | `devices` | Devices |

@@ -130,9 +130,9 @@ pip install --no-index --find-links wheelhouse mapcan
 <summary><b>Moving from canmap</b></summary>
 
 The tool used to be called canmap. The Windows installer upgrades the old version by itself; with
-uv/pipx run `uv tool uninstall canmap`, then install again. Maps with the `canmap: 1` key open
-unchanged, settings move from `~/.canmap` to `~/.mapcan`, and the `canmap` PDF template is read
-as `mapcan`.
+uv/pipx run `uv tool uninstall canmap`, then install again. Settings move from `~/.canmap` to
+`~/.mapcan`, and the `canmap` PDF template is read as `mapcan`. Maps need the `mapcan: 1` key
+(see [docs/format.md](docs/format.md)).
 </details>
 
 ## Outputs

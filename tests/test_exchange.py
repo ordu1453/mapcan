@@ -19,6 +19,7 @@ CANOPEN = """
 mapcan: 1
 document:
   title: Тест
+  language: ru
 buses:
   - name: bus
     protocol: canopen
@@ -51,7 +52,7 @@ def _can(frames_a: str, frames_b: str = "") -> str:
     def block(frames: str) -> str:
         return textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10) + "\n" if frames.strip() else ""
     return (
-        "mapcan: 1\ndocument:\n  title: Тест\nbuses:\n  - name: bus\n    protocol: can\n    devices:\n"
+        "mapcan: 1\ndocument:\n  title: Тест\n  language: ru\nbuses:\n  - name: bus\n    protocol: can\n    devices:\n"
         "      - name: a\n        frames:\n" + block(frames_a)
         + "      - name: b\n        frames:" + ("\n" + block(frames_b) if frames_b.strip() else " []\n")
     )

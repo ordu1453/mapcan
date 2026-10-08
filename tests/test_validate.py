@@ -68,7 +68,7 @@ def test_yaml_dash_without_space_points_to_culprit():
             - {name: a, encoding: raw, byte: 0, byte_length: 1}
     """))
     assert d.code == "yaml" and "space after '-'" in d.message and "- ndsj:" in d.message
-    assert d.line == 16
+    assert d.line == 17
 
 
 @pytest.mark.parametrize("text, words", [
@@ -662,10 +662,16 @@ def test_examples_are_clean(path):
     assert res.map is not None and rep.errors == 0 and rep.warnings == 0, [d.format() for d in rep.diagnostics]
 
 
-def test_legacy_format_key():
-    """Карты, созданные до переименования canmap → mapcan, открываются без правки."""
-    res, rep = run(REFERENCE.read_text(encoding="utf-8").replace("mapcan: 1", "canmap: 1"))
-    assert res.map is not None and not rep.errors, [d.format() for d in rep.diagnostics]
+def test_format_key_required():
+    """Ключ версии формата обязателен; прежний ключ canmap больше не принимается."""
+    res, _ = run(REFERENCE.read_text(encoding="utf-8").replace("mapcan: 1", "canmap: 1"))
+    assert res.map is None
+
+
+@pytest.mark.parametrize(("old", "new"), [("  language: ru\n", ""), ("    protocol: canopen\n", "")])
+def test_language_and_protocol_required(old, new):
+    res, _ = run(one_bus(OK_SIGNAL).replace(old, new, 1))
+    assert res.map is None
 
 
 def test_missing_title():

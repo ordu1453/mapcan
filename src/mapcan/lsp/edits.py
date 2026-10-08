@@ -855,6 +855,8 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
                for d in bus.get("devices") or [] if isinstance(d, dict) and isinstance(d.get("name"), str)]
     # Сигнал из разобранной карты: длина в битах вычисляется из byte_length и encoding
     signal = _find(a.map, path) if a.map is not None and kind == "signal" else None
+    # Кадр из разобранной карты: направление, если оно не записано, вычисляется из типа и sender
+    frame = _find(a.map, path) if a.map is not None and kind == "frame" else None
     # Есть ли в кадре другой сигнал-селектор мультиплексора (тогда сигналу доступно поле mux)
     siblings = raw_at(a, path[:-1]) if kind == "signal" else None
     has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not raw for s in siblings or [])
@@ -862,6 +864,7 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             "owner": owner.get("name") if isinstance(owner, dict) else None,
             "signalEncoding": signal.encoding if isinstance(signal, M.Signal) else values.get("encoding"),
             "bitLength": signal.bit_length if isinstance(signal, M.Signal) else None,
+            "frameDirection": frame.direction if isinstance(frame, M.Frame) else None,
             "hasSelector": has_selector,
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
             "frameTypes": frame_types(a, path) if kind == "frame" else [],

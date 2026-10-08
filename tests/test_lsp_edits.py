@@ -170,6 +170,7 @@ def test_node_fields():
     a = A.analyze(MINIMAL, "m.yaml")
     f = E.node_fields(a, FRAME)
     assert (f["kind"], f["lang"], f["protocol"], f["owner"]) == ("frame", "en", "canopen", "pump")
+    assert f["frameDirection"] == "tx"   # не записано: из типа pdo_tx1
     assert f["values"] == {"name": "pump_state", "type": "pdo_tx1", "description": "Pump state", "cycle_ms": 100}
     assert f["devices"] == [{"name": "pump", "label": "PMP"}]
     assert E.node_fields(a, ("buses", 0))["values"]["title"] == "Demo bus"
