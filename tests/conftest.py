@@ -22,7 +22,7 @@ def ref_map():
 
 
 def one_bus(frames: str, protocol: str = "canopen", devices_extra: str = "", lint: str = "") -> str:
-    """YAML-карта с одним устройством (node_id 0x10) и заданными кадрами."""
+    """A YAML map with one device (node_id 0x10) and the given frames."""
     frames = textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10)
     return (
         "mapcan: 1\n"
@@ -47,5 +47,5 @@ def codes(yaml_text: str) -> set[str]:
 
 @pytest.fixture(autouse=True)
 def _isolated_user_config(tmp_path_factory, monkeypatch):
-    """Профиль и недавние файлы — во временной папке, а не в ~/.mapcan."""
+    """Profile and recent files in a temporary folder, not in ~/.mapcan."""
     monkeypatch.setenv("MAPCAN_CONFIG_DIR", str(tmp_path_factory.mktemp("mapcan-config")))

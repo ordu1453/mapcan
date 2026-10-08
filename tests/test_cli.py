@@ -1,4 +1,4 @@
-"""Командная строка: коды возврата, вывод и файлы каждой команды."""
+"""Command line: exit codes, output and files of every command."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def invoke(*args):
 
 @pytest.fixture
 def warning_map(tmp_path):
-    """Карта без ошибок, но с предупреждением (нестандартная скорость шины)."""
+    """A map without errors but with a warning (non-standard bus bitrate)."""
     p = tmp_path / "warn.yaml"
     p.write_text(one_bus(FRAME).replace("    protocol: canopen\n", "    protocol: canopen\n    bitrate: 300000\n"),
                  encoding="utf-8")
@@ -104,7 +104,7 @@ def test_template(tmp_path):
     assert invoke("template", "pdf", "-o", tmp_path / "pdf" / "my.typ").exit_code == 0
     assert (tmp_path / "pdf" / "my.typ").is_file() and (tmp_path / "pdf" / "lib.typ").is_file()
     assert invoke("template", "pdf", "--name", "nope", "-o", tmp_path / "x.typ").exit_code == 2
-    assert invoke("template", "md").exit_code == 2      # нужен -o
+    assert invoke("template", "md").exit_code == 2      # -o is required
 
 
 @pytest.mark.parametrize(("cmd", "name"), [
@@ -134,7 +134,7 @@ def test_generation_stops_on_errors(tmp_path):
 
 
 def test_force_generates_despite_errors(tmp_path):
-    text = one_bus(FRAME).replace("byte: 0, byte_length: 1", "byte: 0, byte_length: 2")   # не помещается в DLC
+    text = one_bus(FRAME).replace("byte: 0, byte_length: 1", "byte: 0, byte_length: 2")   # does not fit in the DLC
     p = tmp_path / "err.yaml"
     p.write_text(text, encoding="utf-8")
     assert invoke("export", "md", p, "-o", tmp_path / "x.md").exit_code == 1

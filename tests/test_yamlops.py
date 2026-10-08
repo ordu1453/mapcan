@@ -36,7 +36,7 @@ def test_hex_for_new_ids():
 def test_values_keys_become_ints():
     out = _edit("s:\n  name: x\n", [{"op": "set", "path": ["s", "values"], "value": {"0": "OFF", "0x1": "ON"}}])
     assert "values:\n    0: OFF\n    1: ON\n" in out
-    # Новая строка таблицы — тоже числовой ключ, а не строка «'2'»
+    # A new row of a table is a numeric key too, not the string "'2'"
     out = _edit(out, [{"op": "set", "path": ["s", "values", "2"], "value": "ERR"}])
     assert "    1: ON\n    2: ERR\n" in out
 
@@ -55,7 +55,7 @@ def test_layout_keys(start, length, be, expected):
 
 
 def test_layout_keys_flag_encoding_needs_explicit_length():
-    # для encoding: flag запись `byte: 1` означала бы 1 бит — нужна явная длина
+    # for encoding: flag, `byte: 1` would mean 1 bit: an explicit length is needed
     assert layout_keys(8, 8, False, "flag") != {"byte": 1}
     assert layout_keys(11, 1, False, "flag") == {"byte": 1, "bit": 3}
 

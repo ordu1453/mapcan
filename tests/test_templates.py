@@ -1,4 +1,4 @@
-"""Шаблоны PDF (mapcan, ЕСКД; черновые ЕСПД и ГОСТ 7.32), логотип предприятия, реквизиты."""
+"""PDF templates (mapcan, ESKD; draft ESPD and GOST 7.32), company logo, requisites."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from mapcan.web.session import EditorSession
 
 from .conftest import DATA, REFERENCE
 
-LOGO_PNG = DATA / "logo.png"          # нейтральный тестовый логотип
+LOGO_PNG = DATA / "logo.png"          # neutral test logo
 LOGO_SVG = DATA / "logo.svg"
 
 
@@ -46,7 +46,7 @@ def with_requisites(logo=LOGO_PNG):
 
 
 def template_arg(name):
-    """Встроенный шаблон — по имени, черновой — только по пути к .typ."""
+    """A built-in template by name, a draft one only by the path to the .typ."""
     return DRAFT_PDF_TEMPLATES[name].path if name in DRAFT_PDF_TEMPLATES else name
 
 
@@ -64,7 +64,7 @@ def test_template_with_requisites_and_logo(name, tmp_path):
 
 @pytest.mark.parametrize("name", ALL_TEMPLATES)
 def test_template_without_requisites(name, tmp_path):
-    """Шаблоны ГОСТ собираются и для карты без реквизитов и логотипа."""
+    """GOST templates build also for a map without requisites and logo."""
     m = load(REFERENCE).map
     assert export_pdf(m, tmp_path / "x.pdf", template=template_arg(name)).read_bytes().startswith(b"%PDF")
 
@@ -76,7 +76,7 @@ def test_svg_logo(name, tmp_path):
 
 
 def test_eskd_svg_pages_match_pdf(tmp_path):
-    """Постраничный экспорт (svg) даёт столько же листов, сколько PDF."""
+    """Export page by page (svg) gives as many sheets as the PDF."""
     m = with_requisites()
     n = pages(export_pdf(m, tmp_path / "x.pdf", template="gost-2.105").read_bytes())
     export_pdf(m, tmp_path / "p.svg", template="gost-2.105", fmt="svg")
@@ -86,9 +86,9 @@ def test_eskd_svg_pages_match_pdf(tmp_path):
 def test_resolve_template(tmp_path):
     assert resolve_template(None).name == "mapcan.typ"
     assert resolve_template("gost-2.105").name == "gost-2.105.typ"
-    with pytest.raises(PdfError):            # черновые шаблоны по имени недоступны
+    with pytest.raises(PdfError):            # draft templates are not available by name
         resolve_template("gost-7.32")
-    assert resolve_template("canmap").name == "mapcan.typ"   # имя до переименования
+    assert resolve_template("canmap").name == "mapcan.typ"   # the name before the rename
     custom = tmp_path / "my.typ"
     custom.write_text("x", encoding="utf-8")
     assert resolve_template(custom) == custom
@@ -145,7 +145,7 @@ def test_cli_template_list_and_copy(tmp_path):
     r = runner.invoke(cli, ["template", "pdf", "--name", "gost-2.105", "-o", str(tmp_path / "corp.typ")])
     assert r.exit_code == 0, r.output
     assert (tmp_path / "corp.typ").is_file() and (tmp_path / "lib.typ").is_file()
-    # скопированный шаблон собирается как свой
+    # a copied template builds as your own
     out = tmp_path / "x.pdf"
     r = runner.invoke(cli, ["export", "pdf", str(REFERENCE), "-o", str(out), "--template", str(tmp_path / "corp.typ")])
     assert r.exit_code == 0, r.output
@@ -170,7 +170,7 @@ def test_cli_build_several_templates(tmp_path):
     assert (tmp_path / f"{stem}-mapcan.pdf").is_file() and (tmp_path / f"{stem}-gost-2.105.pdf").is_file()
 
 
-# --------------------------------------------------------------------------- веб
+# --------------------------------------------------------------------------- web
 
 @pytest.fixture
 def client(tmp_path):
@@ -219,14 +219,14 @@ def test_web_requisites_ops(client):
     assert "signatures:\n    developed: Иванов" in st["text"]
 
 
-# Карты примеров; файлы, которые карты подключают (include), — не карты
+# Maps of the examples; files the maps include are not maps
 EXAMPLES = sorted(p for p in (REFERENCE.parent.parent.parent / "examples").rglob("*.yaml")
                   if re.search(r"^mapcan\s*:", p.read_text(encoding="utf-8"), re.MULTILINE))
 
 
 @pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.stem if p.parent.name == "examples" else p.parent.name)
 def test_build_every_example(path, tmp_path):
-    """Каждый пример собирается во все форматы и все шаблоны PDF."""
+    """Every example builds in all formats and with all PDF templates."""
     r = runner.invoke(cli, ["build", str(path), "-o", str(tmp_path), *sum(
         (["--pdf-template", t] for t in PDF_TEMPLATES), [])])
     assert r.exit_code == 0, r.output

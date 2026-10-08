@@ -1,4 +1,4 @@
-"""Справочник единиц и их перевод в документах."""
+"""Reference of units and their translation in documents."""
 
 from __future__ import annotations
 

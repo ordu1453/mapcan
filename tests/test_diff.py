@@ -90,13 +90,13 @@ def _path_of(cmap, frame: str, signal: str | None = None) -> tuple:
 
 def test_changed_paths():
     assert _paths(BASE) == {}
-    # Изменённое поле — сигнал, новое значение enum — тоже сигнал (не его кадр)
+    # A changed field marks the signal, a new enum value also the signal (not its frame)
     new = BASE.replace("factor: 0.1\n", "factor: 0.01\n", 1)
     new = new.replace("                  3: ALARM\n", "                  3: ALARM\n                  4: SERVICE\n", 1)
     m = _map(new)
     assert _paths(new) == {_path_of(m, "imd_data", "bus_voltage"): "modified",
                            _path_of(m, "cmu_state", "cmu_status"): "modified"}
-    # Удалённый сигнал помечает свой кадр
+    # A removed signal marks its frame
     new = BASE.replace("              - name: frame_request\n"
                        "                encoding: raw\n"
                        "                description: Номер повторно запрашиваемого кадра\n"
@@ -104,7 +104,7 @@ def test_changed_paths():
                        "                byte_length: 1\n", "")
     m = _map(new)
     assert _paths(new) == {_path_of(m, "cmu_request"): "modified"}
-    # Изменённый node_id — устройство и кадры с вычисленным из него ID
+    # A changed node_id marks the device and the frames whose ID is computed from it
     new = BASE.replace("node_id: 0x23\n", "node_id: 0x26\n", 1)
     m = _map(new)
     pcu = _path_of(m, "pcu_state")
@@ -118,7 +118,7 @@ def test_changed_paths_added():
     sig = next(s for b in m.buses for f in b.all_frames() for s in f.signals
                if any(x.name == "err_igbt_driver2" for x in s.flags or []))
     flag = next(x for x in sig.flags if x.name == "err_igbt_driver2")
-    # Переименованный флаг: новый добавлен, старый удалён — сигнал изменён
+    # A renamed flag: the new one added, the old one removed, the signal changed
     assert _paths(new) == {flag._path: "added", sig._path: "modified"}
 
 
@@ -128,7 +128,7 @@ def test_bump_and_message():
     assert bump_version("") == "0.1.0"
     assert bump_version("draft") == "draft"
     assert release_message("1.0.1", ["a"]) == "1.0.1: a"
-    # Заголовок — на языке интерфейса («Версия 1.0.1» или «Version 1.0.1»)
+    # The heading is in the interface language ("Версия 1.0.1" or "Version 1.0.1")
     head, *rest = release_message("1.0.1", ["a", "b"]).split("\n")
     assert head.endswith(" 1.0.1") and rest == ["", "- a", "- b"]
     assert release_message("1.0.1", []) == head
@@ -137,14 +137,14 @@ def test_bump_and_message():
 def test_release_draft():
     base = _map(BASE)
     new = _map(BASE.replace("factor: 0.1\n", "factor: 0.01\n", 1))
-    # Версия 1.0.0 записана первой в истории, но тега нет — выпускается она с записанными изменениями
+    # Version 1.0.0 is first in the history but has no tag: it is released with its recorded changes
     d = release_draft(new, base, lambda v: False)
     assert d["version"] == "1.0.0" and d["recorded"] and d["changes"][0].startswith("Карта описана в YAML")
-    # Есть тег v1.0.0 — следующая версия, изменения — с прошлого выпуска
+    # There is a tag v1.0.0: the next version, with the changes since the previous release
     d = release_draft(new, base, lambda v: v == "1.0.0")
     assert d == {"version": "1.0.1", "recorded": False,
                  "changes": ["0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01"]}
-    # Первый выпуск без истории: текущая версия, если её тега нет, иначе следующая без тега
+    # First release without history: the current version if it has no tag, otherwise the next one without a tag
     start = BASE.index("  history:\n")
     plain = _map(BASE[:start] + BASE[BASE.index("\n\n", start) + 1:])
     assert release_draft(plain, None, lambda v: False)["version"] == "1.0.0"

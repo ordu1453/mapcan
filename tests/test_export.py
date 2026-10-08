@@ -1,4 +1,4 @@
-"""Генераторы документов и CLI."""
+"""Document generators and the CLI."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ UPDATE = os.environ.get("UPDATE_GOLDEN") == "1"
 
 
 def golden(name: str, actual: str) -> None:
-    """Сравнить с эталоном; UPDATE_GOLDEN=1 перезаписывает эталоны."""
+    """Compare with the reference; UPDATE_GOLDEN=1 rewrites the references."""
     path = GOLDEN / name
     if UPDATE or not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +125,7 @@ def test_html(ref_map):
     html = render(ref_map, "html")
     assert html.startswith("<!doctype html>")
     assert 'id="frame-cmu_parse_data"' in html
-    assert "&lt;" not in html.split("<style>")[0]  # заголовок без двойного экранирования
+    assert "&lt;" not in html.split("<style>")[0]  # the title is not escaped twice
     assert "<script>alert" not in html
 
 

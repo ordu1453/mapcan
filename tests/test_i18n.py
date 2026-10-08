@@ -1,4 +1,4 @@
-"""Интерфейс на английском: полнота каталогов переводов, английские сообщения; язык документов."""
+"""English interface: completeness of the translation catalogs, English messages; document language."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def _backend_keys() -> dict[str, str]:
     return keys
 
 
-# t("…") / N_("…") с литералом — ключи фронтенда
+# t("…") / N_("…") with a literal: keys of the frontend
 _T_CALL = re.compile(r"""\b(?:t|N_)\(\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')""")
 
 
@@ -137,7 +137,7 @@ def test_export_language_choice(tmp_path):
         ru = c.get("/api/export/md?lang=ru").text
         en = c.get("/api/export/md?lang=en").text
         assert ru != en
-        # Любой код ISO 639-1; подписи документа для языков, кроме ru и en, — английские
+        # Any ISO 639-1 code; document labels for languages other than ru and en are English
         de = c.get("/api/export/md?lang=de")
         assert de.status_code == 200 and de.text == en
         assert c.get("/api/export/md?lang=1x").status_code == 400
@@ -168,11 +168,11 @@ def test_any_iso_language():
     """
     res, rep = run(one_bus(frame).replace("  language: ru", "  language: de"))
     assert res.map is not None and not rep.errors and res.map.document.language == "de"
-    # Перевода нет — английский, затем русский
+    # No translation: English, then Russian
     assert text(LocalizedText(ru="Состояние", en="State"), "fr") == "State"
     assert text(LocalizedText(ru="Состояние", de="Zustand"), "fr") == "Состояние"
     assert text(LocalizedText(de="Zustand", en="State"), "de") == "Zustand"
-    # Ключ перевода — только код языка
+    # The translation key is only a language code
     res, _ = run(one_bus(frame.replace("de: Zustand", "deutsch: Zustand")))
     assert res.map is None
     res, _ = run(one_bus(frame).replace("  language: ru", "  language: german"))

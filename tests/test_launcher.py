@@ -1,4 +1,4 @@
-"""Настольный запуск: один экземпляр, выбор порта, проверка обновлений."""
+"""Desktop launch: a single instance, port choice, update check."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def mapfile(tmp_path):
     return p
 
 
-# --------------------------------------------------------------------------- версии и обновления
+# --------------------------------------------------------------------------- versions and updates
 
 
 @pytest.mark.parametrize(("latest", "current", "newer"), [
@@ -32,7 +32,7 @@ def mapfile(tmp_path):
     ("1.0", "0.9.9", True),
     ("0.6.0", "0.6.0", False),
     ("0.5.9", "0.6.0", False),
-    ("0.7.0-rc1", "0.6.0", False),   # пред-релизы не предлагаем
+    ("0.7.0-rc1", "0.6.0", False),   # pre-releases are not offered
     ("", "0.6.0", False),
 ])
 def test_is_newer(latest, current, newer):
@@ -49,7 +49,7 @@ def test_check_uses_cache(monkeypatch):
     monkeypatch.setattr(updates, "_fetch", fake_fetch)
     first = updates.check()
     assert first["newer"] and first["latest"] == "99.0.0" and first["installer"] == "https://example/s.exe"
-    assert updates.check() == first and len(calls) == 1          # второй раз — из кеша
+    assert updates.check() == first and len(calls) == 1          # the second time from the cache
 
 
 def test_check_network_error_and_disable(monkeypatch):
@@ -66,12 +66,12 @@ def test_check_network_error_and_disable(monkeypatch):
 def test_update_endpoint(monkeypatch, mapfile):
     monkeypatch.setattr(updates, "_fetch", lambda t: {"latest": "99.0.0", "url": "u", "installer": None})
     with TestClient(create_app(EditorSession(mapfile))) as c:
-        assert c.get("/api/update").json()["newer"] is False         # по умолчанию не проверяем
+        assert c.get("/api/update").json()["newer"] is False         # not checked by default
     with TestClient(create_app(EditorSession(mapfile), check_updates=True)) as c:
         assert c.get("/api/update").json()["newer"] is True
 
 
-# --------------------------------------------------------------------------- активация экземпляра
+# --------------------------------------------------------------------------- activating the instance
 
 
 def test_activate_requires_token(mapfile):
@@ -88,12 +88,12 @@ def test_activate_focuses_and_opens(mapfile, tmp_path):
     app = create_app(EditorSession(mapfile), instance_token="secret", on_activate=lambda: focused.append(1))
     with TestClient(app) as c, c.websocket_connect("/ws") as ws:
         assert ws.receive_json()["type"] == "hello"
-        # Правок нет — файл открывает сервер (окно могло ещё не подключиться).
+        # No edits: the server opens the file (the window may not be connected yet).
         r = c.post("/api/instance/activate", json={"token": "secret", "path": str(other)})
         assert r.status_code == 200 and focused == [1]
         assert ws.receive_json()["type"] == "session"
         assert c.get("/api/meta").json()["file"] == str(other.resolve())
-        # Есть несохранённые правки — решает вкладка.
+        # There are unsaved edits: the tab decides.
         c.post("/api/text", json={"text": c.get("/api/state").json()["text"] + "\n# правка\n"})
         assert ws.receive_json()["type"] == "state"
         c.post("/api/instance/activate", json={"token": "secret", "path": str(mapfile)})
@@ -101,7 +101,7 @@ def test_activate_focuses_and_opens(mapfile, tmp_path):
         assert c.get("/api/meta").json()["file"] == str(other.resolve())
 
 
-# --------------------------------------------------------------------------- порт и сервер
+# --------------------------------------------------------------------------- port and server
 
 
 def test_pick_port_falls_back_when_busy():
@@ -144,11 +144,11 @@ def test_second_launch_activates_running_instance(mapfile):
     server = launcher.ServerThread(app, "127.0.0.1", port)
     server.start()
     try:
-        assert not launcher.activate_existing(mapfile)               # файла экземпляра ещё нет
+        assert not launcher.activate_existing(mapfile)               # no instance file yet
         launcher._write_instance(port, "tok")
         assert json.loads(launcher.instance_file().read_text(encoding="utf-8"))["port"] == port
         assert launcher.activate_existing(mapfile) and focused == [1]
-        launcher._remove_instance("other")                          # чужой токен — файл не трогаем
+        launcher._remove_instance("other")                          # another token: the file is left alone
         assert launcher.instance_file().exists()
         launcher._remove_instance("tok")
         assert not launcher.instance_file().exists()

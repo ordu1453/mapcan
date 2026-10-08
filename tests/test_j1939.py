@@ -1,4 +1,4 @@
-"""J1939, float-сигналы, получатели кадров, значения по умолчанию и «нет данных»."""
+"""J1939, float signals, frame receivers, initial values and "no data"."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ VEHICLE = ROOT / "examples" / "vehicle-can.yaml"
 @pytest.mark.parametrize("pgn, sa, prio, da, can_id", [
     (0xF004, 0x00, 3, None, 0x0CF00400),     # EEC1, PDU2
     (0xFEEE, 0x00, 6, None, 0x18FEEE00),     # ET1
-    (0xEA00, 0xF9, 6, 0x00, 0x18EA00F9),     # Request, PDU1 → двигателю
-    (0xEA00, 0xF9, 6, None, 0x18EAFFF9),     # Request всем
+    (0xEA00, 0xF9, 6, 0x00, 0x18EA00F9),     # Request, PDU1 → to the engine
+    (0xEA00, 0xF9, 6, None, 0x18EAFFF9),     # Request to all
 ])
 def test_j1939_id(pgn, sa, prio, da, can_id):
     assert j1939_id(pgn, sa, prio, da) == can_id
@@ -113,7 +113,7 @@ def test_float_initial_invalid_rules():
 
 
 def test_diagnostics_point_to_fields():
-    """Сообщения привязаны к полю, которое нужно исправить (редактор подсвечивает его)."""
+    """Messages are bound to the field to fix (the editor highlights it)."""
     _, rep = run(_bus("""
         - name: f
           dlc: 1
@@ -192,7 +192,7 @@ def test_spn_rules():
             - {name: b, encoding: raw, description: x, byte: 1, byte_length: 1, spn: 190}
     """)
     assert "j1939-spn-duplicate" in codes(two)
-    res, _ = run(_sig("spn: 600000"))     # больше 19 бит
+    res, _ = run(_sig("spn: 600000"))     # more than 19 bits
     assert res.map is None
 
 
@@ -201,16 +201,16 @@ def test_spn_in_outputs(tmp_path):
     eec1 = next(f for f in m.buses[0].all_frames() if f.name == "eec1")
     speed = next(s for s in eec1.signals if s.name == "engine_speed")
     assert speed.spn == 190
-    # Документы: SPN первой строкой кодирования
+    # Documents: SPN in the first line of the encoding
     view = build_view(m)
     sig = next(s for d in view["buses"][0]["devices"] for f in d["frames"] if f["name"] == "eec1"
                for s in f["signals"] if s["name"] == "engine_speed")
     assert sig["encoding"][0] == "SPN 190" and sig["spn"] == 190
-    # DBC: атрибут SPN сигнала
+    # DBC: the SPN attribute of the signal
     db = cantools.database.load_string(bus_database(m, m.buses[0]).as_dbc_string(), database_format="dbc")
     attr = db.get_message_by_name("eec1").get_signal_by_name("engine_speed").dbc.attributes["SPN"]
     assert attr.value == 190
-    # Код: константы
+    # Code: constants
     from mapcan.codegen.c import generate_c
     from mapcan.codegen.py import generate_py
 
@@ -244,7 +244,7 @@ def test_transport_protocol():
     """))
     tp = next(d for d in rep.diagnostics if d.code == "j1939-tp")
     assert "RTS/CTS" in tp.message
-    res, _ = run(_sig("spn: 1", dlc=1786))   # больше 255 пакетов
+    res, _ = run(_sig("spn: 1", dlc=1786))   # more than 255 packets
     assert res.map is None
 
 
@@ -253,7 +253,7 @@ def test_transport_protocol_bus_load():
 
     m = load(J1939).map
     soft = next(f for f in m.buses[0].all_frames() if f.name == "soft")
-    # 20 байт: 3 пакета TP.DT и TP.CM BAM — 4 кадра по 8 байт
+    # 20 bytes: 3 TP.DT packets and TP.CM BAM, 4 frames of 8 bytes
     assert _tp_bits(soft) == 4 * _frame_bits(8, True)
 
 

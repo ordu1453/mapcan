@@ -1,4 +1,4 @@
-"""Языковой сервер: анализ текста (диагностика, структура, hover, inlay hints, автодополнение) и протокол."""
+"""Language server: text analysis (diagnostics, outline, hover, inlay hints, completion) and the protocol."""
 
 from __future__ import annotations
 
@@ -115,13 +115,13 @@ def test_map_tree_selects_whole_blocks():
     assert [_selected(a, s) for s in f2["children"]] == [
         "{name: a, encoding: raw, byte: 0, byte_length: 1}", "{name: b, encoding: raw, byte: 1, byte_length: 1}",
         "{name: x, command: 0x40, index: 0x1000}"]
-    assert frame["range"][1] == 0   # курсор на «- » перед кадром тоже внутри узла
+    assert frame["range"][1] == 0   # the cursor on the "- " before the frame is inside the node too
 
 
 def test_map_tree_received_frames_and_pgn():
     a = A.analyze((ROOT / "examples" / "j1939.yaml").read_text(encoding="utf-8"), "j1939.yaml")
     rows = _flat(A.map_tree(a))
-    # Подписи — названия для людей, как в веб-редакторе; у принимаемого кадра — отправитель
+    # Labels are titles for people, as in the web editor; a received frame shows its sender
     assert (2, "frame", "tx", "EEC1", "PGN 0xF004", None) in rows
     assert (2, "frame", "rx", "ECU · EEC1", "0x0CF00400", "ECU") in rows
     assert (1, "device", None, "ECU · Engine control unit", "SA 0x00", None) in rows
@@ -269,7 +269,7 @@ def test_diff_command_compares_two_versions():
 
 
 class _Server:
-    """Сервер с одним открытым документом — для вызова команд без протокола."""
+    """A server with one open document, to call the commands without the protocol."""
 
     def __init__(self, text: str):
         self.a = A.analyze(text, "m.yaml")

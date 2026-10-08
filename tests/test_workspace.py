@@ -1,4 +1,4 @@
-"""Файловые операции веб-редактора, профиль пользователя, версия."""
+"""File operations of the web editor, user profile, version."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from .conftest import REFERENCE
 
 @pytest.fixture
 def empty(tmp_path):
-    """Редактор, запущенный без карты (стартовый экран)."""
+    """An editor started without a map (the start screen)."""
     with TestClient(create_app(None, cwd=tmp_path, poll_interval=0.05)) as c:
         yield c
 
@@ -103,10 +103,10 @@ def test_copy_example(empty, tmp_path):
 
 def test_copy_example_with_included_files(empty, tmp_path):
     examples = {e["name"]: e["title"] for e in empty.get("/api/meta").json()["examples"]}
-    assert "tractor" in examples and "powertrain" not in examples      # подключаемая часть — не пример
+    assert "tractor" in examples and "powertrain" not in examples      # an included part is not an example
     (tmp_path / "powertrain.yaml").write_text("x", encoding="utf-8")
     r = empty.post("/api/file/example", json={"name": "tractor", "path": "farm.yaml"})
-    assert r.status_code == 409 and r.json()["code"] == "exists"         # подключаемый файл не затирается
+    assert r.status_code == 409 and r.json()["code"] == "exists"         # an included file is not overwritten
     (tmp_path / "powertrain.yaml").unlink()
     r = empty.post("/api/file/example", json={"name": "tractor", "path": "farm.yaml"})
     assert r.status_code == 200, r.text
@@ -140,7 +140,7 @@ def test_save_as(tmp_path):
         st = r.json()["state"]
         assert st["file"] == "copy.yaml" and not st["dirty"]
         assert "version: '2.0'" in (tmp_path / "copy.yaml").read_text(encoding="utf-8")
-        assert "version: 1.0.0" in a.read_text(encoding="utf-8")          # исходник не тронут
+        assert "version: 1.0.0" in a.read_text(encoding="utf-8")          # the source is untouched
         assert c.post("/api/file/save_as", json={"path": str(a)}).json()["code"] == "exists"
         assert c.post("/api/file/save_as", json={"path": str(a), "overwrite": True}).status_code == 200
 
@@ -164,7 +164,7 @@ def test_readonly_workspace(tmp_path):
         assert c.post("/api/file/save_as", json={"path": "n.yaml"}).status_code == 403
         b = tmp_path / "b.yaml"
         shutil.copyfile(REFERENCE, b)
-        r = c.post("/api/file/open", json={"path": str(b)})          # просмотр других файлов — можно
+        r = c.post("/api/file/open", json={"path": str(b)})          # viewing other files is allowed
         assert r.status_code == 200 and r.json()["state"]["readonly"]
 
 

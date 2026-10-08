@@ -1,4 +1,4 @@
-"""Бэкенд веб-редактора: операции, сохранение комментариев, undo/redo, экспорт, diff."""
+"""Backend of the web editor: operations, keeping comments, undo/redo, export, diff."""
 
 from __future__ import annotations
 
@@ -209,7 +209,7 @@ SYNC = ["buses", 0, "frames", 0]
 
 
 def _with_refs(client):
-    """Кадр sync со ссылками на устройства imd и cmu."""
+    """A sync frame with references to the devices imd and cmu."""
     return ops(client, {"op": "set", "path": SYNC + ["sender"], "value": "imd"},
                {"op": "set", "path": SYNC + ["receivers"], "value": ["cmu", "imd"]})
 
@@ -237,7 +237,7 @@ def test_text_swap_devices_keeps_refs(client):
 
 def test_live_text_is_one_undo_step(client):
     t0 = _with_refs(client)["text"]
-    # Ввод по буквам: промежуточные имена, в том числе пустое, не должны сбить ссылки.
+    # Typing letter by letter: intermediate names, including an empty one, must not break the references.
     for name in ("im", "", "is", "iso"):
         st = client.post("/api/text", json={"text": _rename(t0, "imd", name), "live": True}).json()
     sync = st["data"]["buses"][0]["frames"][0]
@@ -245,7 +245,7 @@ def test_live_text_is_one_undo_step(client):
     final = client.post("/api/text", json={"text": _rename(t0, "imd", "iso")}).json()
     assert final["text"] == st["text"]
     st = client.post("/api/undo").json()
-    assert st["text"] == t0 and st["can_undo"]                # шаг правки ссылок формой остался
+    assert st["text"] == t0 and st["can_undo"]                # the step of the references edited in the form stays
     assert client.post("/api/undo").json()["data"]["buses"][0]["frames"][0].get("sender") is None
 
 
@@ -254,7 +254,7 @@ def test_live_text_back_to_start_leaves_no_step(client):
     client.post("/api/text", json={"text": _rename(t0, "imd", "iso"), "live": True})
     st = client.post("/api/text", json={"text": t0, "live": True}).json()
     assert st["text"] == t0
-    # Последний шаг отмены — правка ссылок формой, а не пустая серия ввода.
+    # The last undo step is the edit of the references in the form, not an empty series of typing.
     assert client.post("/api/undo").json()["data"]["buses"][0]["frames"][0].get("sender") is None
 
 
@@ -334,7 +334,7 @@ def test_git_revs_reason(client, mapfile):
                                                   "commits": [], "reason": "no-repo"}
     git("init", "-q")
     assert client.get("/api/git/revs").json()["reason"] == "untracked"
-    # Тег до появления карты в репозитории: в списке для сравнения его нет
+    # A tag from before the map was in the repository: it is not in the list to compare with
     (mapfile.parent / "other.txt").write_text("x")
     git("add", "other.txt")
     git("commit", "-q", "-m", "other")
@@ -350,10 +350,10 @@ def test_git_revs_reason(client, mapfile):
     assert r["branches"] == ["side"]
     assert client.post("/api/diff/git", json={"rev": "HEAD"}).json()["lines"] == []
     assert client.post("/api/diff/git", json={"rev": "pre"}).json()["code"] == "git-no-file"
-    # Ревизия, похожая на ключ git (--output=…), отклоняется
+    # A revision that looks like a git option (--output=…) is rejected
     assert client.post("/api/diff/git", json={"rev": "--output=x"}).status_code == 400
 
-    # Версия из git открывается в редакторе как несохранённая правка
+    # A version from git opens in the editor as an unsaved edit
     committed = mapfile.read_text(encoding="utf-8")
     ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.5})
     st = client.post("/api/git/restore", json={"rev": "v1"}).json()
@@ -376,7 +376,7 @@ def test_git_commit_tag_pull(client, mapfile, tmp_path):
     st = client.get("/api/git/status").json()
     assert st["available"] and st["file"] == "untracked" and st["last"] is None
 
-    # Несохранённые правки не коммитятся
+    # Unsaved edits are not committed
     ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.01})
     assert client.post("/api/git/commit", json={"message": "m"}).json()["code"] == "unsaved"
     assert client.post("/api/save", json={}).status_code == 200
@@ -386,7 +386,7 @@ def test_git_commit_tag_pull(client, mapfile, tmp_path):
     st = client.post("/api/git/commit", json={"message": "первая версия", "tag": "v1.0"}).json()
     assert st["file"] == "clean" and st["last"]["subject"] == "первая версия"
     assert git("tag").split() == ["v1.0"]
-    # Коммитится только карта: посторонний файл остаётся неотслеживаемым
+    # Only the map is committed: another file stays untracked
     assert "?? other.txt" in git("status", "--porcelain")
     assert client.post("/api/git/commit", json={"message": "m"}).json()["code"] == "git-nothing"
 
@@ -394,12 +394,12 @@ def test_git_commit_tag_pull(client, mapfile, tmp_path):
     client.post("/api/git/tag", json={"name": "v1.1", "message": "релиз"})
     assert git("tag").split() == ["v1.0", "v1.1"]
 
-    # pull из клона: изменения с удалённой стороны подхватываются редактором
+    # pull from a clone: changes from the remote are picked up by the editor
     remote = tmp_path / "remote.git"
     git("clone", "-q", "--bare", ".", str(remote))
     assert client.post("/api/git/push").json()["code"] == "no-remote"
     git("remote", "add", "origin", str(remote))
-    # Первый push ветки задаёт upstream
+    # The first push of the branch sets the upstream
     st = client.post("/api/git/push").json()
     assert st["remote"] == "origin" and st["upstream"] == "origin/" + st["branch"]
     assert client.post("/api/gh/create", json={"name": "-bad"}).json()["code"] == "gh-name"
@@ -418,14 +418,14 @@ def test_git_commit_tag_pull(client, mapfile, tmp_path):
     st = client.post("/api/git/commit", json={"message": "локально"}).json()
     assert st["ahead"] == 1
     assert client.post("/api/git/push").json()["ahead"] == 0
-    # Лёгкие теги не уходят с push --follow-tags, поэтому тег всегда аннотированный
+    # Lightweight tags do not go with push --follow-tags, so the tag is always annotated
     assert git("cat-file", "-t", "v1.0").strip() == "tag"
     client.post("/api/git/tag", json={"name": "v2"})
     assert git("cat-file", "-t", "v2").strip() == "tag"
     client.post("/api/git/push")
     assert "v2" in git("tag", cwd=remote).split()
 
-    # Сервер ушёл вперёд: fetch показывает отставание, push отклоняется понятным сообщением
+    # The server moved ahead: fetch shows the lag, push is rejected with a clear message
     git("pull", "-q", cwd=other)
     p.write_text(p.read_text(encoding="utf-8").replace("factor: 0.03", "factor: 0.04"), encoding="utf-8")
     git("commit", "-q", "-am", "remote 2", cwd=other)
@@ -448,7 +448,7 @@ def test_git_release(client, mapfile):
     git("init", "-q")
     git("config", "user.name", "t")
     git("config", "user.email", "t@t")
-    # Карты ещё нет в git; версия 1.0.0 уже записана в истории — выпускается она, без новой записи
+    # The map is not in git yet; version 1.0.0 is already in the history: it is released without a new entry
     d = client.get("/api/git/release").json()
     assert (d["version"], d["recorded"], d["base"]) == ("1.0.0", True, None)
     r = client.post("/api/git/release", json={"version": "1.0.0", "changes": d["changes"]}).json()
@@ -456,7 +456,7 @@ def test_git_release(client, mapfile):
     assert git("tag").split() == ["v1.0.0"]
     assert client.get("/api/state").json()["text"].count("- version: 1.0.0") == 1
 
-    # Несохранённая правка: следующая версия, изменения — с тега прошлого выпуска
+    # An unsaved edit: the next version, with the changes since the tag of the previous release
     ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.01})
     d = client.get("/api/git/release").json()
     assert (d["version"], d["recorded"], d["base"]) == ("1.0.1", False, "v1.0.0")
@@ -470,7 +470,7 @@ def test_git_release(client, mapfile):
     doc = st["data"]["document"]
     assert doc["version"] == "1.0.1" and doc["history"][0]["version"] == "1.0.1"
     assert doc["history"][0]["changes"] == d["changes"]
-    # Повторно ту же версию выпустить нельзя
+    # The same version cannot be released twice
     assert client.post("/api/git/release", json={"version": "1.0.1"}).json()["code"] == "git-tag-exists"
     assert client.post("/api/git/release", json={"version": " "}).json()["code"] == "version"
 
@@ -478,17 +478,17 @@ def test_git_release(client, mapfile):
 @pytest.mark.skipif(shutil.which("git") is None, reason="нет git")
 def test_git_logo_tag_identity(client, mapfile, monkeypatch):
     def git(*args):
-        # git пишет UTF-8; без encoding Windows читает вывод в кодировке ANSI (cp1252)
+        # git writes UTF-8; without encoding Windows reads the output in the ANSI code page (cp1252)
         return subprocess.run(["git", *args], cwd=mapfile.parent, check=True, capture_output=True,
                               text=True, encoding="utf-8").stdout
 
-    # Без глобальных настроек git автор берётся из профиля mapcan
+    # Without global git settings the author comes from the mapcan profile
     empty = mapfile.parent / "empty.gitconfig"
     empty.write_text("")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty))
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     git("init", "-q")
-    git("config", "user.useConfigOnly", "true")        # не угадывать адрес по имени компьютера
+    git("config", "user.useConfigOnly", "true")        # do not guess the address from the computer name
     logo = mapfile.parent / "assets" / "logo.png"
     logo.parent.mkdir()
     logo.write_bytes(b"\x89PNG one")
@@ -499,19 +499,19 @@ def test_git_logo_tag_identity(client, mapfile, monkeypatch):
     st = client.post("/api/git/commit", json={"message": "m", "tag": "v1"}).json()
     assert st["file"] == "clean"
     assert git("log", "-1", "--format=%an <%ae>").strip() == "Иван <ivan@users.noreply.github.com>"
-    # Логотип из подпапки попадает в коммит
+    # A logo from a subfolder goes into the commit
     assert "assets/logo.png" in git("ls-files").split()
 
-    # Изменён только логотип — это тоже незакоммиченное изменение
+    # Only the logo changed: that is an uncommitted change too
     logo.write_bytes(b"\x89PNG two")
     assert client.get("/api/git/status").json()["file"] == "modified"
-    # Занятый тег отклоняется до коммита
+    # A taken tag is rejected before the commit
     head = git("rev-parse", "HEAD")
     assert client.post("/api/git/commit", json={"message": "m2", "tag": "v1"}).json()["code"] == "git-tag-exists"
     assert git("rev-parse", "HEAD") == head
     assert client.post("/api/git/commit", json={"message": "m2"}).json()["file"] == "clean"
 
-    # Карта в .gitignore
+    # The map in .gitignore
     other = mapfile.parent / "ignored.yaml"
     other.write_text(mapfile.read_text(encoding="utf-8"), encoding="utf-8")
     (mapfile.parent / ".gitignore").write_text("ignored.yaml\n")
@@ -565,7 +565,7 @@ def test_appended_key_goes_before_blank_separator(tmp_path):
 
 
 def test_guard_rejects_foreign_host(mapfile):
-    """DNS rebinding: страница чужого домена, указывающего на 127.0.0.1, не получает API."""
+    """DNS rebinding: a page of another domain pointing to 127.0.0.1 does not get the API."""
     app = create_app(EditorSession(mapfile), allowed_hosts=("127.0.0.1", "localhost", "::1"))
     with TestClient(app, base_url="http://127.0.0.1:8765") as c:
         assert c.get("/api/state").status_code == 200
@@ -576,7 +576,8 @@ def test_guard_rejects_foreign_host(mapfile):
 
 
 def test_guard_rejects_cross_origin_writes(client):
-    """CSRF: изменяющий запрос и WebSocket с чужим Origin отклоняются, свои и без Origin — нет."""
+    """CSRF: a changing request and a WebSocket with another Origin are rejected, own ones and those without Origin are
+    not."""
     assert client.post("/api/save", json={}, headers={"origin": "http://evil.example"}).status_code == 403
     assert client.post("/api/save", json={}, headers={"origin": "http://testserver"}).status_code != 403
     assert client.post("/api/save", json={}).status_code != 403

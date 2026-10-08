@@ -1,4 +1,4 @@
-"""Названия сигналов (title) в документах и сгенерированных файлах; DLC служебных кадров CANopen."""
+"""Signal titles in documents and generated files; DLC of CANopen service frames."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from mapcan.loader import loads
 from .conftest import codes, one_bus
 from .test_codegen import GCC
 
-# Кириллица и символы, которые могли бы сломать комментарий C, строку Python или DBC
+# Cyrillic and characters that could break a C comment, a Python string or DBC
 TRICKY = 'Напряжение */ "x" \\ """'
 
 TITLED = one_bus(f"""
@@ -67,7 +67,7 @@ def test_python_module_compiles(cmap, tmp_path):
     code = path.read_text(encoding="utf-8")
     tree = ast.parse(code)
     docs = [ast.get_docstring(n) for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "volts_phys"]
-    assert docs[0] == TRICKY + ", В"  # единица — на языке документа
+    assert docs[0] == TRICKY + ", В"  # the unit in the document language
 
 
 @pytest.mark.skipif(GCC is None, reason="нет компилятора C")
@@ -88,7 +88,7 @@ def test_dbc_keeps_cyrillic_title(cmap, tmp_path):
     db = cantools.database.load_file(path, encoding="cp1251")
     msg = db.get_message_by_name("f")
     assert msg.get_signal_by_name("volts").comment == TRICKY
-    # описание главнее названия
+    # the description takes precedence over the title
     assert msg.get_signal_by_name("state").comment == "Режим работы"
 
 
@@ -103,7 +103,7 @@ def test_canopen_service_frame_dlc_from_type():
     hb, sync = res.map.buses[0].devices[0].frames
     assert (hb.dlc, sync.dlc) == (1, 0)
     assert "canopen-dlc" not in codes(one_bus(frames))
-    # явно записанный dlc главнее и проверяется
+    # an explicitly written dlc takes precedence and is checked
     assert "canopen-dlc" in codes(one_bus("""
         - name: hb
           type: heartbeat

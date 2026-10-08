@@ -19,7 +19,7 @@ def sig(**kw) -> Signal:
         ({"byte": 1, "bit": 3, "bit_length": 1}, 11, 1),
         ({"byte": 2, "bit": 4, "bit_length": 4}, 20, 4),
         ({"start_bit": 5, "bit_length": 7}, 5, 7),
-        # big-endian: byte — байт старшей части, LSB в последнем байте поля
+        # big-endian: byte is the byte of the high part, the LSB is in the last byte of the field
         ({"byte": 1, "byte_length": 2, "byte_order": "big_endian"}, 16, 16),
     ],
 )

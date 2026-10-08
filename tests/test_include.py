@@ -1,4 +1,4 @@
-"""Подключаемые файлы (include) и именованные таблицы значений (value_tables)."""
+"""Included files (include) and named value tables (value_tables)."""
 
 from __future__ import annotations
 
@@ -70,9 +70,9 @@ def test_include_merges_buses_devices_and_tables(tmp_path):
     res, rep = run(write(tmp_path))
     assert res.map is not None and not rep.errors, [d.format() for d in rep.diagnostics]
     can1, can2 = res.map.buses
-    assert [d.name for d in can1.devices] == ["vcu", "bms"]            # дополнена существующая шина
-    assert can2.name == "can2" and can2.devices[0].name == "charger"   # и добавлена новая
-    # Таблицы — и свои, и подключённые; ссылка подставляется таблицей
+    assert [d.name for d in can1.devices] == ["vcu", "bms"]            # the existing bus is extended
+    assert can2.name == "can2" and can2.devices[0].name == "charger"   # and a new one is added
+    # Tables: both own and included ones; a reference is replaced with the table
     sig = {s.name: s for b in res.map.buses for f in b.all_frames() for s in f.signals}
     assert sig["mode"].values == {0: "OFF", 1: "ON"} and sig["fault"].values == {0: "OK", 1: "FAULT"}
     assert sig["on"].values == {0: "OFF", 1: "ON"}
@@ -82,7 +82,7 @@ def test_diagnostics_point_into_included_file(tmp_path):
     res, rep = run(write(tmp_path, common=COMMON.replace("id: 0x200", "id: 0x100")))
     dup = next(d for d in rep.diagnostics if d.code == "duplicate-can-id")
     assert dup.file.endswith("common.yaml") and dup.line == 9
-    # Для редактора основного файла — на строке include, с местом в тексте сообщения
+    # For the editor of the main file: on the include line, with the place in the message text
     moved = res.source.in_main_file(dup)
     assert moved.file == str(tmp_path / "main.yaml") and moved.line == 2
     assert moved.message.startswith("common.yaml:9: ")
@@ -95,15 +95,15 @@ def test_unknown_value_table(tmp_path):
 
 
 def test_include_errors(tmp_path):
-    # Нет файла
+    # No file
     _, rep = run(write(tmp_path, main=MAIN.replace("[common.yaml]", "[missing.yaml]")))
     assert "include" in rep.codes()
-    # Недопустимый ключ и попытка переопределить уже описанную шину
+    # A key that is not allowed, and an attempt to redefine a bus that is already described
     bad = "document: {title: X}\n" + COMMON.replace("  - name: can1\n", "  - name: can1\n    protocol: j1939\n", 1)
     _, rep = run(write(tmp_path, common=bad))
     msgs = [d.message for d in rep.diagnostics if d.code == "include"]
     assert any("'document'" in m for m in msgs) and any("'protocol'" in m for m in msgs)
-    # Повтор имени таблицы
+    # A repeated table name
     _, rep = run(write(tmp_path, common=COMMON.replace("faults:", "states:")))
     assert any(d.code == "include" and "'states'" in d.message for d in rep.diagnostics)
 
@@ -134,13 +134,13 @@ def _walk(nodes):
 def test_tree_shows_included_nodes(tmp_path):
     a, nodes = _tree(tmp_path)
     common = str(tmp_path / "common.yaml")
-    # Свой узел — без файла, подключённые — с файлом и областью в нём
+    # An own node has no file, included ones have the file and their range in it
     assert "file" not in nodes["vcu"] and "file" not in nodes["mode"]
     assert nodes["bms"]["file"] == common and nodes["bms"]["path"] == ["buses", 0, "devices", 1]
-    assert nodes["bms"]["selection"][0] == 5                    # «- name: bms» в common.yaml
+    assert nodes["bms"]["selection"][0] == 5                    # "- name: bms" in common.yaml
     assert nodes["fault"]["file"] == common and nodes["can2"]["file"] == common
     assert nodes["charger_state"]["path"] == ["buses", 1, "devices", 0, "frames", 0]
-    # Области основного файла не сбиты позициями подключённого
+    # Ranges of the main file are not shifted by the positions of the included one
     assert a.path_at((13, 16))[:6] == ("buses", 0, "devices", 0, "frames", 0)
 
 
@@ -152,7 +152,7 @@ def test_included_node_fields_are_read_only(tmp_path):
     path = tuple(nodes["fault"]["path"])
     f = node_fields(a, path)
     assert f["file"] == str(tmp_path / "common.yaml") and f["values"]["name"] == "fault"
-    # Устройства шины основного файла — вместе с подключёнными (получатели, отправитель)
+    # Devices of a bus of the main file come with the included ones (receivers, sender)
     assert [d["name"] for d in node_fields(a, ("buses", 0, "devices", 0, "frames", 0))["devices"]] == ["vcu", "bms"]
     assert set_field(a, path + ("name",), "x") == []
     assert add_node(a, tuple(nodes["bms"]["path"]), "frame") is None
@@ -169,6 +169,6 @@ def test_web_state_has_included_nodes(tmp_path):
     assert st["included"] == [{"path": ["buses", 0, "devices", 1], "file": "common.yaml"},
                               {"path": ["buses", 1], "file": "common.yaml"}]
     assert [b["name"] for b in st["included_buses"]] == ["can1", "can2"]
-    assert len(st["data"]["buses"]) == 1                         # данные основного файла — без подключённых
+    assert len(st["data"]["buses"]) == 1                         # data of the main file, without the included ones
     with pytest.raises(OpError):
         s.apply([{"op": "set", "path": ["buses", 1, "name"], "value": "x"}])

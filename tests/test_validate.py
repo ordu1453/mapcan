@@ -1,4 +1,4 @@
-"""По тесту на каждое правило валидатора."""
+"""A test for every rule of the validator."""
 
 import re
 
@@ -30,7 +30,7 @@ def test_minimal_ok():
     assert codes(one_bus(OK_SIGNAL)) <= {"missing-description"}
 
 
-# --------------------------------------------------------------- синтаксис
+# --------------------------------------------------------------- syntax
 
 
 def test_yaml_syntax_error_has_line():
@@ -62,7 +62,7 @@ def _yaml_diag(text: str):
 
 
 def test_yaml_dash_without_space_points_to_culprit():
-    """«-name:» без пробела: сообщение и строка — у виновника, а не у следующего элемента."""
+    """"-name:" without a space: the message and line are at the culprit, not at the next item."""
     d = _yaml_diag(one_bus("""
         - name: f
           type: pdo_tx1
@@ -161,7 +161,7 @@ def test_number_quoted_hex():
     """))
 
 
-# --------------------------------------------------------------- имена
+# --------------------------------------------------------------- names
 
 
 def test_invalid_identifier():
@@ -232,7 +232,7 @@ def test_duplicate_signal_name():
 
 
 def test_duplicate_flag_vs_signal_name():
-    """Случай 0x1A3: флаг битового поля назван как сигнал кадра."""
+    """Case 0x1A3: a flag of a bit field is named like a signal of the frame."""
     assert "duplicate-signal-name" in codes(one_bus("""
         - name: f
           type: pdo_tx1
@@ -259,7 +259,7 @@ def test_duplicate_enum_name():
     """))
 
 
-# --------------------------------------------------------------- шина
+# --------------------------------------------------------------- bus
 
 
 def test_duplicate_can_id():
@@ -306,7 +306,7 @@ def test_frame_id_missing():
 
 
 def test_frame_id_missing_points_to_field():
-    """Редактор подсвечивает поле по пути сообщения: для raw-кадра — поле id."""
+    """The editor highlights the field by the message's path: for a raw frame, the id field."""
     _, rep = run(one_bus("""
         - name: f
           type: raw
@@ -366,7 +366,7 @@ def test_cycle_rules():
     """))
 
 
-# --------------------------------------------------------------- раскладка
+# --------------------------------------------------------------- layout
 
 
 def test_signal_out_of_frame():
@@ -600,7 +600,7 @@ def test_canopen_dlc():
 def test_dlc_missing():
     no_dlc = OK_SIGNAL.replace("          dlc: 8\n", "")
     assert "dlc-missing" in codes(one_bus(no_dlc))
-    # Служебный кадр CANopen: длина из CiA 301
+    # A CANopen service frame: its length is from CiA 301
     res, rep = run(one_bus(no_dlc.replace("pdo_tx1", "heartbeat")))
     assert "dlc-missing" not in rep.codes() and res.map.buses[0].devices[0].frames[0].dlc == 1
 
@@ -614,7 +614,7 @@ def test_bitrate_nonstandard():
 def test_bus_load():
     text = one_bus(OK_SIGNAL.replace("cycle_ms: 100", "cycle_ms: CYCLE")).replace(
         "    protocol: canopen\n", "    protocol: canopen\n    bitrate: 125000\n")
-    # 8 байт, 11-битный ID: до 135 бит → 1 мс на 125 кбит/с ≈ 108 %
+    # 8 bytes, 11-bit ID: up to 135 bits → 1 ms at 125 kbit/s ≈ 108 %
     assert "bus-load" in codes(text.replace("CYCLE", "1"))
     assert "bus-load" not in codes(text.replace("CYCLE", "10"))
     fd = text.replace("    bitrate: 125000\n", "    bitrate: 125000\n    fd: true\n")
@@ -678,7 +678,7 @@ def test_info_rules():
     assert {"missing-description", "empty-frame"} <= infos
 
 
-# --------------------------------------------------------------- файл с ошибками
+# --------------------------------------------------------------- file with errors
 
 
 def test_bad_map_finds_all_problems():
@@ -693,7 +693,7 @@ def test_bad_map_finds_all_problems():
 
 
 def test_legacy_map_rejected():
-    """Старый формат не проходит схему, а не молча принимается."""
+    """The old format does not pass the schema rather than being accepted silently."""
     _, rep = validate_file(DATA / "legacy.yaml")
     assert rep.errors > 0
 
@@ -725,7 +725,7 @@ def test_examples_are_clean(path):
 
 
 def test_format_key_required():
-    """Ключ версии формата обязателен; прежний ключ canmap больше не принимается."""
+    """The format version key is required; the former key canmap is no longer accepted."""
     res, _ = run(REFERENCE.read_text(encoding="utf-8").replace("mapcan: 1", "canmap: 1"))
     assert res.map is None
 
@@ -744,7 +744,7 @@ def test_missing_title():
 
 
 def test_signed_code_range():
-    # В обратном и прямом коде у нуля два представления: −128 в 8 битах не выразить
+    # In ones' complement and sign-magnitude zero has two forms: −128 cannot be expressed in 8 bits
     text = one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, signed: true, signed_code: CODE,"
                                      " values: {-128: MIN}}").replace("encoding: raw", "encoding: enum"))
     assert "enum-overflow" in codes(text.replace("CODE", "ones_complement"))

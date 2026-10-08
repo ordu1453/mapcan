@@ -1,4 +1,4 @@
-"""Round-trip pack → unpack для каждого кадра: Python-модуль, C-код, DBC."""
+"""Round trip pack → unpack for every frame: Python module, C code, DBC."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _value(s, i: int) -> int:
 
 
 def sample(frame) -> dict:
-    """Значения сигналов для теста; селектор выбирает первый мультиплексный набор."""
+    """Signal values for the test; the selector picks the first multiplexed set."""
     vals = {}
     sel = selector_of(frame)
     for i, s in enumerate(frame.layout):
@@ -117,7 +117,7 @@ def test_python_enums(py_modules):
 
 
 def test_dbc_matches_python(cmap, py_modules):
-    """cantools кодирует те же байты, что и сгенерированный модуль."""
+    """cantools encodes the same bytes as the generated module."""
     for bus in cmap.buses:
         db = bus_database(cmap, bus)
         dbc = cantools.database.load_string(db.as_dbc_string(), "dbc")
@@ -127,7 +127,7 @@ def test_dbc_matches_python(cmap, py_modules):
                 continue
             vals = sample(f)
             if any(is_byte_array(s) for s in present(f, vals)):
-                continue  # байтовые массивы в DBC — целые 56 бит, проверяются отдельно
+                continue  # byte arrays in DBC are whole 56-bit integers, checked separately
             ours = getattr(mod, _cls(f.name))(**vals).pack()
             msg = dbc.get_message_by_frame_id(f.can_id)
             decoded = msg.decode(ours, decode_choices=False, scaling=False)
@@ -199,7 +199,7 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
                     main.append(f'        hex("{f.name}.{s.name}", u.{s.name}, {s.bit_length // 8});')
                     expected.append(f"{f.name}.{s.name}" + "".join(f" {b:02X}" for b in vals[s.name]))
                 elif s.encoding == "float":
-                    # Сравнение по точным битам IEEE 754.
+                    # Compared by the exact IEEE 754 bits.
                     w = 64 if s.bit_length == 64 else 32
                     main.append(f'        printf("{f.name}.{s.name} %" PRIu64 "\\n", '
                                 f'(uint64_t)mapcan_f{w}_to_bits(u.{s.name}));')
@@ -273,14 +273,14 @@ buses:
 
 @pytest.mark.skipif(GCC is None, reason="нет компилятора C")
 def test_c_from_phys_bounds(tmp_path):
-    """Насыщение на границах разрядности и точность длинных полей (double, а не float)."""
+    """Saturation at the limits of the width and precision of long fields (double, not float)."""
     from mapcan.loader import loads
 
     cmap = loads(BOUNDS_MAP, "bounds.yaml").map
     sources = [p for p in generate_c(cmap, tmp_path) if p.suffix == ".c"]
     checks = [
-        ("f1_u28_from_phys(1e12)", 268435455),        # раньше 2^28: старший бит терялся при упаковке
-        ("f1_u28_from_phys(16777217.0)", 16777217),   # во float округлилось бы до 16777216
+        ("f1_u28_from_phys(1e12)", 268435455),        # used to be 2^28: the top bit was lost when packing
+        ("f1_u28_from_phys(16777217.0)", 16777217),   # in float it would round to 16777216
         ("f1_u28_from_phys(-5.0)", 0),
         ("f1_s32_from_phys(1e12)", 2**31 - 1),
         ("f1_s32_from_phys(-1e12)", -(2**31)),
@@ -313,7 +313,7 @@ def _dbc(yaml_text: str):
 
 
 def test_dbc_attributes_for_plain_can():
-    """Период, режим передачи, стартовое значение и скорость шины не теряются на шине без J1939."""
+    """Period, transmission mode, initial value and bus bitrate are not lost on a bus without J1939."""
     db = _dbc(BOUNDS_MAP.replace("protocol: can", "protocol: can\n    bitrate: 250000").replace(
         "id: 0x101", "id: 0x101\n            cycle_ms: 50\n            comment: Note").replace(
         "id: 0x102", "id: 0x102\n            trigger: event").replace(
@@ -378,7 +378,7 @@ buses:
           - {name: s16, encoding: raw, byte: 4, byte_length: 2, byte_order: big_endian, signed: true,
              signed_code: sign_magnitude}
 """
-# Байты рассчитаны вручную: обратный код −5 = 0xFA, прямой −5 = 0x85, 12 бит −100 = 0xF9B, −300 = 0x812C
+# Bytes computed by hand: ones' complement −5 = 0xFA, sign-magnitude −5 = 0x85, 12 bits −100 = 0xF9B, −300 = 0x812C
 SIGNED_CASES = [
     ({"o8": -5, "s8": -5, "o12": -100, "s16": -300}, "FA 85 9B 0F 81 2C 00 00"),
     ({"o8": 5, "s8": 5, "o12": 100, "s16": 300}, "05 05 64 00 01 2C 00 00"),

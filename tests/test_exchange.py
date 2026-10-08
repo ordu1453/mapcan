@@ -1,4 +1,4 @@
-"""Отправитель и получатели кадров: sender, вычисляемые сводки обмена, правила, DBC, документы."""
+"""Sender and receivers of frames: sender, computed exchange summaries, rules, DBC, documents."""
 
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ from mapcan.loader import loads
 
 from .conftest import codes, run
 
-# Шина из своих устройств: мастер шлёт PDO RX узлу (ID от node_id узла) и NMT, узел отвечает PDO TX.
+# A bus of our own devices: the master sends a PDO RX to the node (ID from the node's node_id) and NMT, the node answers
+# with a PDO TX.
 CANOPEN = """
 mapcan: 1
 document:
@@ -51,7 +52,7 @@ buses:
 
 
 def _can(frames_a: str, frames_b: str = "") -> str:
-    """Шина can из двух устройств a и b с заданными кадрами."""
+    """A can bus of two devices a and b with the given frames."""
     def block(frames: str) -> str:
         return textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10) + "\n" if frames.strip() else ""
     return (
@@ -70,7 +71,7 @@ def _map(text: str):
 def test_sender_and_receivers_resolved():
     bus = _map(CANOPEN).buses[0]
     frames = {f.name: f for f in bus.all_frames()}
-    assert frames["node_command"].can_id == 0x205          # ID по-прежнему от node_id получателя
+    assert frames["node_command"].can_id == 0x205          # the ID is still from the receiver's node_id
     assert frames["node_command"].sender_name == "master"
     assert frames["node_command"].receiver_names == ["node"]
     assert frames["master_status"].sender_name == "master"
@@ -144,8 +145,8 @@ def test_rx_duplicate_replaces_duplicate_can_id():
     c = rep.codes()
     assert "rx-duplicate" in c and "duplicate-can-id" not in c
     [d] = [d for d in rep.diagnostics if d.code == "rx-duplicate"]
-    assert d.node[-1] == 0 and d.node[-3] == 1             # на RX-кадре устройства b
-    # Два TX-кадра с одним ID — по-прежнему duplicate-can-id
+    assert d.node[-1] == 0 and d.node[-3] == 1             # on the RX frame of device b
+    # Two TX frames with one ID: still duplicate-can-id
     assert "duplicate-can-id" in codes(_can("""
         - name: st
           id: 0x100
@@ -166,7 +167,7 @@ def test_rx_no_sender_hint():
     """))
     [d] = [d for d in rep.diagnostics if d.code == "rx-no-sender"]
     assert d.level == "info" and d.node[-1] == "sender"
-    # RX-кадры CANopen без sender (мастер вне карты) — без замечания
+    # CANopen RX frames without sender (the master is outside the map): no note
     assert "rx-no-sender" not in codes(CANOPEN.replace("            sender: master\n", ""))
 
 
@@ -188,7 +189,7 @@ def test_document_exchange_view():
     assert [(c["name"], c["peer"]) for c in master["sends_other"]] == [
         ("nmt", "Широковещательные"), ("node_command", "NODE 0x05")]
     assert node["frames"][0]["sender"] == "MASTER 0x01"
-    assert node["frames"][1]["sender"] == ""                # у TX-кадра отправитель очевиден
+    assert node["frames"][1]["sender"] == ""                # a TX frame's sender is obvious
     ex = bus["exchange"]
     assert ex["columns"] == ["MASTER 0x01", "NODE 0x05"]
     assert {r["name"]: r["cells"] for r in ex["rows"]} == {

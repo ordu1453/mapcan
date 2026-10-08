@@ -1,4 +1,4 @@
-"""Импорт DBC: карта без ошибок, а экспорт импортированной карты совпадает с исходным DBC."""
+"""DBC import: a map without errors, and the export of the imported map matches the source DBC."""
 
 from __future__ import annotations
 
@@ -86,18 +86,18 @@ def test_import_details(tmp_path):
     assert (status.can_id, status.dlc, status.receivers) == (0x100, 4, ["TESTER"])
     sig = {s.name: s for s in status.signals}
     assert sig["Mode"].encoding == "enum" and sig["Mode"].description == "Operating mode"
-    # Имена значений — идентификаторы; исходный текст — в описании
+    # Value names are identifiers; the source text goes to the description
     names = {k: (v if isinstance(v, str) else v.name) for k, v in sig["Mode"].values.items()}
     assert names == {0: "OFF", 1: "NOT_AVAILABLE", 2: "V_3RD_STATE"}
     assert sig["Mode"].values[1].description == "Not available"
     assert sig["Ready"].encoding == "flag" and sig["Ready"].bit_length == 1
     speed = sig["Speed"]
     assert (speed.encoding, speed.byte_order, speed.factor, speed.unit) == ("scaled", "big_endian", 0.5, "km/h")
-    assert (speed.start_bit, speed.bit_length) == (24, 16)      # MSB в бите 23, байты 2..3
+    assert (speed.start_bit, speed.bit_length) == (24, 16)      # MSB in bit 23, bytes 2..3
     command = tester.frames[0]
     assert command.extended and command.can_id == 0x18FEF100 and command.trigger == "event"
     assert command.signals[0].signed
-    # Кадр без известного отправителя — на шине, с предупреждением
+    # A frame without a known sender: on the bus, with a warning
     assert [f.name for f in bus.frames] == ["Unknown"] and any("OTHER" in w for w in warnings)
 
 
@@ -108,7 +108,7 @@ def test_import_cli(tmp_path):
     run = CliRunner().invoke
     r = run(app, ["import", "dbc", str(p), "-o", str(out)])
     assert r.exit_code == 0 and out.is_file() and "errors: 0" in r.stdout
-    assert run(app, ["import", "dbc", str(p), "-o", str(out)]).exit_code == 1      # не перезаписывает
+    assert run(app, ["import", "dbc", str(p), "-o", str(out)]).exit_code == 1      # does not overwrite
     assert run(app, ["import", "dbc", str(p), "-o", str(out), "--force", "--lang", "de"]).exit_code == 0
     assert "language: de" in out.read_text(encoding="utf-8")
 

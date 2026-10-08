@@ -1,4 +1,4 @@
-"""Языковой сервер: быстрые исправления, ссылки и переименование, правки дерева карты."""
+"""Language server: quick fixes, references and renaming, edits of the map tree."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ FRAME = DEV + ("frames", 0)
 
 
 def apply(text: str, edits: list[E.Edit]) -> str:
-    """Применить правки (в обратном порядке, чтобы позиции не сдвигались)."""
+    """Apply the edits (in reverse order so that the positions do not shift)."""
     lines = text.splitlines(keepends=True)
 
     def offset(p: A.Pos) -> int:
@@ -90,7 +90,7 @@ def test_extended_and_style_fixes():
     assert "can-id-range" not in errors(out) and "name-style" not in errors(out)
 
 
-# --------------------------------------------------------------------------- ссылки и переименование
+# --------------------------------------------------------------------------- references and renaming
 
 
 def _pos(text: str, needle: str, offset: int = 0) -> A.Pos:
@@ -125,7 +125,7 @@ def test_rename_signal_is_local():
     assert '- name: "pressure out"' in out
 
 
-# --------------------------------------------------------------------------- правки дерева
+# --------------------------------------------------------------------------- edits of the tree
 
 
 def _change(text: str, change: E.TextChange | None) -> str:
@@ -171,14 +171,14 @@ def test_node_fields():
     a = A.analyze(MINIMAL, "m.yaml")
     f = E.node_fields(a, FRAME)
     assert (f["kind"], f["lang"], f["protocol"], f["owner"]) == ("frame", "en", "canopen", "pump")
-    assert f["frameDirection"] == "tx"   # не записано: из типа pdo_tx1
+    assert f["frameDirection"] == "tx"   # not written: from the type pdo_tx1
     assert f["values"] == {"name": "pump_state", "type": "pdo_tx1", "description": "Pump state", "dlc": 8,
                            "cycle_ms": 100}
     assert f["devices"] == [{"name": "pump", "label": "PMP"}]
     assert E.node_fields(a, ("buses", 0))["values"]["title"] == "Demo bus"
     assert E.node_fields(a, FRAME + ("signals", 0))["units"][0] == ["В", "V"]
     assert E.node_fields(a, FRAME + ("signals",)) is None
-    # Длина сигнала из разобранной карты (для поля «Порядок байт») и наличие селектора mux в кадре
+    # Length of the signal from the parsed map (for the Byte order field) and whether the frame has a mux selector
     f = E.node_fields(a, FRAME + ("signals", 2))
     assert (f["bitLength"], f["hasSelector"]) == (16, False)
     pad = " " * 16
@@ -189,7 +189,7 @@ def test_node_fields():
 
 def test_layout_and_tables():
     a = A.analyze(MINIMAL, "m.yaml")
-    # Кадр и его сигнал — одна раскладка (как в веб-редакторе): биты сигналов и флагов
+    # The frame and its signal have one layout (as in the web editor): bits of the signals and flags
     frame = E.node_fields(a, FRAME)["frame"]
     assert (frame["name"], frame["dlc"], frame["path"]) == ("pump_state", 8, list(FRAME))
     assert [s["name"] for s in frame["signals"]][:3] == ["mode", "alarms", "pressure"]
@@ -202,7 +202,7 @@ def test_layout_and_tables():
     assert f["valueTable"] is None
     assert [(x["bit"], x["bit_length"], x["name"]) for x in f["flags"]] == \
         [(0, None, "overheat"), (1, None, "dry_run"), (4, 2, "sensor_state")]
-    # Таблица значений флага
+    # Value table of a flag
     flag = E.node_fields(a, FRAME + ("signals", 1, "flags", 2))
     assert [(r["value"], r["name"], r["raw"]) for r in flag["valueTable"]] == [(0, "OK", "OK"), (1, "OPEN", "OPEN"),
                                                                               (2, "SHORT", "SHORT")]
@@ -215,7 +215,7 @@ def test_apply_ops():
     out = E.apply_ops(a, [{"op": "set", "path": [*sig, "values", "3"], "value": "SERVICE"},
                           {"op": "rename_key", "path": [*sig, "values", "2"], "new_key": "5"}])
     assert "                  5: {name: FAULT, description: fault}\n                  3: SERVICE\n" in out
-    # Новый сигнал перетаскиванием по сетке: вставка и позиция в одной правке, остальное — как было
+    # A new signal dragged on the grid: the insert and the position in one edit, the rest as it was
     n = len(E.raw_at(a, FRAME + ("signals",)))
     out = E.apply_ops(a, [{"op": "insert", "path": [*FRAME, "signals"], "value": {"name": "extra", "encoding": "raw"}},
                           {"op": "set_layout", "path": [*FRAME, "signals", n], "start_bit": 60, "bit_length": 4}])
@@ -237,24 +237,24 @@ def test_sdo_value_fields():
     f = E.node_fields(a, sdo)
     assert f["values"]["value.name"] == "alarm_resistance"
     assert (f["values"]["value.bit_length"], f["values"]["value.unit"]) == (16, "кОм")
-    # Поле существующего значения
+    # A field of an existing value
     out = apply(text, E.set_field(a, sdo + ("value", "factor"), 0.1))
     assert "изоляции, factor: 0.1}" in out
     assert errors(out) == errors(text)
-    # Значения ещё нет: словарь добавляется вместе с первым полем
+    # No value yet: the mapping is added together with the first field
     bare = next(p for p in a.nodes if E.node_kind(p) == "sdo" and E.raw_at(a, p + ("value",)) is None)
     out = apply(text, E.set_field(a, bare + ("value", "name"), "ack"))
     assert "value: {name: ack, encoding: raw, bit_length: 32}" in out
     assert errors(out) == errors(text)
     assert E.set_field(a, bare + ("value", "name"), None) == []
-    # Последнее поле значения удаляется вместе со словарём
+    # The last field of the value is removed together with the mapping
     b = A.analyze(out, "r.yaml")
     assert apply(out, E.set_field(b, bare + ("value", "name"), None)) == text
 
 
 def test_set_field():
     a = A.analyze(MINIMAL, "m.yaml")
-    # Новое поле — рядом с остальными полями, перед списком сигналов
+    # A new field goes next to the other fields, before the list of signals
     out = apply(MINIMAL, E.set_field(a, FRAME + ("title",), "Pump state"))
     assert "            cycle_ms: 100\n            title: Pump state\n            signals:\n" in out
     out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 0, "unit"), "rpm"))
@@ -267,14 +267,14 @@ def test_set_field():
     assert "signed: false" in out
     out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 2, "factor"), 0.1))
     assert "factor: 0.1\n" in out
-    # Имя устройства меняется вместе со ссылками на него
+    # A device's name changes together with the references to it
     assert E.set_field(a, DEV + ("name",), "pump") == []
     assert [e.text for e in E.set_field(a, DEV + ("name",), "pump2")] == ["pump2"]
-    # Текст на нескольких языках меняется только на языке документа
+    # A text in several languages changes only in the document language
     text = MINIMAL.replace("    title: Demo bus", "    title: {ru: Шина, en: Demo bus}")
     b = A.analyze(text, "m.yaml")
     assert "    title: {ru: Шина, en: CAN 1}\n" in apply(text, E.set_field(b, ("buses", 0, "title"), "CAN 1"))
-    # Получатели: блочный список заменяется записью «[…]»
+    # Receivers: a block list is replaced with "[…]"
     text = MINIMAL.replace("            cycle_ms: 100\n",
                            "            cycle_ms: 100\n            receivers:\n              - a\n")
     c = A.analyze(text, "m.yaml")
@@ -336,7 +336,7 @@ def test_map_tree_nodes_have_paths():
 def test_add_history_entry():
     entry = {"version": "0.2.0", "date": "2026-10-07", "author": "Jane Smith", "github": None}
     changes = ["0x1A1 pump_state: added signal speed (bits 40–55)"]
-    # Без истории: список создаётся в document, версия и дата документа — из записи
+    # Without history: the list is created in document, the document's version and date come from the entry
     a = A.analyze(MINIMAL, "m.yaml")
     change = E.add_history(a, entry, changes)
     out = _change(MINIMAL, change)
@@ -346,28 +346,28 @@ def test_add_history_entry():
     assert (first.version, first.author, first.github) == ("0.2.0", "Jane Smith", None)
     assert first.changes == changes
     assert b.lines[change.cursor[0]].strip() == "- version: 0.2.0"
-    # Новая запись — первой, перед прежними
+    # The new entry goes first, before the earlier ones
     entry2 = {**entry, "version": "0.3.0"}
     c = A.analyze(out, "r.yaml")
     out2 = _change(out, E.add_history(c, entry2, ["x"]))
     assert [h.version for h in A.analyze(out2, "r.yaml").map.document.history] == ["0.3.0", "0.2.0"]
     assert errors(out2) == errors(MINIMAL)
-    # Запись «[…]» в одну строку не дополняется
+    # A one-line "[…]" entry is not extended
     flow = MINIMAL.replace("  version: 0.1.0\n", "  version: 0.1.0\n  history: [{version: 0.1.0}]\n")
     assert E.add_history(A.analyze(flow, "m.yaml"), entry, changes) is None
 
 
 def test_new_frame_like_web_editor():
-    # Кадр устройства CANopen — первый свободный тип PDO (pdo_tx1 уже занят), ID вычисляется
+    # A frame of a CANopen device: the first free PDO type (pdo_tx1 is taken), the ID is computed
     a = A.analyze(MINIMAL, "m.yaml")
     out = _change(MINIMAL, E.add_node(a, DEV, "frame"))
     frame = A.analyze(out, "r.yaml").result.raw["buses"][0]["devices"][0]["frames"][-1]
     assert frame == {"name": "pump_frame", "type": "pdo_tx2", "dlc": 8, "cycle_ms": 100, "signals": []}
-    # Кадр шины — с явным ID
+    # A frame of the bus: with an explicit ID
     bus_frame = _change(MINIMAL, E.add_node(a, ("buses", 0), "frame"))
     raw = A.analyze(bus_frame, "r.yaml").result.raw["buses"][0]["frames"][-1]
     assert raw["name"] == "frame" and isinstance(raw["id"], int) and "type" not in raw
-    # J1939 — свободный PGN и приоритет
+    # J1939: a free PGN and a priority
     j1939 = (ROOT / "examples" / "j1939.yaml").read_text(encoding="utf-8")
     b = A.analyze(j1939, "j.yaml")
     dev = next(p for p in b.nodes if len(p) == 4 and p[2] == "devices")
@@ -382,7 +382,7 @@ def test_frame_type_change_drops_invalid_dlc():
     a = A.analyze(text, "m.yaml")
     out = apply(text, E.set_field(a, FRAME + ("type",), "sdo_tx"))
     assert "type: sdo_tx\n" in out and "dlc: 7" not in out
-    # Допустимый DLC остаётся
+    # An allowed DLC stays
     out = apply(text, E.set_field(a, FRAME + ("type",), "pdo_tx2"))
     assert "type: pdo_tx2\n" in out and "dlc: 7\n" in out
 
@@ -390,13 +390,13 @@ def test_frame_type_change_drops_invalid_dlc():
 def test_frame_types_mark_taken_ids():
     a = A.analyze(MINIMAL, "m.yaml")
     types = {t["type"]: t["taken"] for t in E.frame_types(a, FRAME)}
-    assert types["pdo_tx1"] is None             # тип самого кадра не занят им же
+    assert types["pdo_tx1"] is None             # the frame's own type is not taken by itself
     second = MINIMAL.replace("          - name: pump_state", (
         "          - name: other\n            type: pdo_tx2\n            signals: []\n          - name: pump_state"))
     b = A.analyze(second, "m.yaml")
     types = {t["type"]: t["taken"] for t in E.frame_types(b, DEV + ("frames", 1))}
     assert types["pdo_tx2"] == "other" and types["pdo_rx1"] is None
-    # У кадра шины нет node_id: только типы, ID которых не зависит от узла
+    # A frame of the bus has no node_id: only the types whose ID does not depend on the node
     bus_frame = E.frame_types(a, ("buses", 0, "frames", 0))
     assert [t["type"] for t in bus_frame] == ["raw", "nmt", "sync", "time"]
 
@@ -404,7 +404,7 @@ def test_frame_types_mark_taken_ids():
 def test_duplicate_pdo_type_quick_fix():
     text = MINIMAL + ("          - name: pump_frame\n            type: pdo_tx1\n            dlc: 8\n"
                       "            signals: []\n")
-    # Первое (предпочтительное) — свободный PDO того же направления; PDO RX не предлагается
+    # The first (preferred) one is a free PDO of the same direction; PDO RX is not offered
     assert "            type: pdo_tx2\n            dlc: 8\n" in fixed(text, "duplicate-can-id")
     titles = [t for c, t, _ in fixes(text) if c == "duplicate-can-id"]
     assert titles and all("pdo_tx" in t for t in titles)
