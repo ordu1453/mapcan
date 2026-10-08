@@ -98,7 +98,8 @@ def test_map_tree_selects_whole_blocks():
         "          # next frame\n"
         "          - name: f2\n"
         "            id: 0x300\n"
-        "            signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}, {name: b, encoding: raw, byte: 1, byte_length: 1}]\n"
+        "            signals: [{name: a, encoding: raw, byte: 0, byte_length: 1},\n"
+        "                      {name: b, encoding: raw, byte: 1, byte_length: 1}]\n"
         "            sdo:\n"
         "              - {name: x, command: 0x40, index: 0x1000}\n"))
     a = A.analyze(text, "t.yaml")

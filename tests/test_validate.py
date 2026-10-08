@@ -406,7 +406,8 @@ def test_mux_signals_do_not_overlap():
           type: pdo_tx1
           dlc: 8
           signals:
-            - {name: sel, encoding: enum, description: x, byte: 0, byte_length: 1, multiplexer: true, values: {0: A, 1: B}}
+            - {name: sel, encoding: enum, description: x, byte: 0, byte_length: 1, multiplexer: true,
+               values: {0: A, 1: B}}
             - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 0}
             - {name: b, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 1}
     """))
@@ -450,7 +451,8 @@ def test_mux_rules():
           type: pdo_tx1
           dlc: 8
           signals:
-            - {name: sel, encoding: enum, description: x, start_bit: 0, bit_length: 1, multiplexer: true, values: {0: A, 1: B}}
+            - {name: sel, encoding: enum, description: x, start_bit: 0, bit_length: 1, multiplexer: true,
+               values: {0: A, 1: B}}
             - {name: sel2, encoding: raw, description: x, byte: 2, byte_length: 1, multiplexer: true, mux: 1}
             - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 2}
             - {name: b, encoding: raw, description: x, byte: 3, byte_length: 1, mux: 1}
@@ -529,7 +531,8 @@ def test_scaled_rules():
           type: pdo_tx1
           dlc: 8
           signals:
-            - {name: a, encoding: scaled, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: В, min: 0, max: 100}
+            - {name: a, encoding: scaled, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: В,
+               min: 0, max: 100}
             - {name: b, encoding: scaled, description: x, byte: 1, byte_length: 1, factor: 0}
             - {name: c, encoding: scaled, description: x, byte: 2, byte_length: 1, unit: В, min: 10, max: 5}
     """))
@@ -549,7 +552,8 @@ def test_sdo_rules():
 
 
 def _sig(extra: str, encoding: str = "raw") -> str:
-    return one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, " + extra + "}").replace("encoding: raw", f"encoding: {encoding}"))
+    text = OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, " + extra + "}")
+    return one_bus(text.replace("encoding: raw", f"encoding: {encoding}"))
 
 
 @pytest.mark.parametrize("name", ["default", "class", "unsigned", "pack", "DLC"])

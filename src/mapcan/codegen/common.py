@@ -36,7 +36,8 @@ CODE_TEXT = {
         "ieee_note": "/* IEEE 754: float/double <-> raw bits (via a union, without memcpy or libc). */",
         "f2b": "float → raw IEEE 754 bits.",
         "ones_c": "/* Ones' complement (signed_code: ones_complement): a negative value is its magnitude inverted. */",
-        "sm_c": "/* Sign and magnitude (signed_code: sign_magnitude): the top bit is the sign, the rest the magnitude. */",
+        "sm_c": "/* Sign and magnitude (signed_code: sign_magnitude): the top bit is the sign, "
+                "the rest the magnitude. */",
         "ones_py": "Negative value in ones' complement (signed_code: ones_complement).",
         "sm_py": "Negative value in sign and magnitude (signed_code: sign_magnitude).",
         "b2f": "Raw IEEE 754 bits → float.",

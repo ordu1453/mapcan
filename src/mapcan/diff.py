@@ -50,7 +50,8 @@ class MapDiff:
 DEVICE_FIELDS = ("node_id", "address", "short", "title")
 FRAME_FIELDS = ("can_id", "type", "dlc", "direction", "mode", "cycle_ms", "extended", "device",
                 "pgn", "priority", "sender", "receivers", "description")
-SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "signed", "signed_code", "encoding", "factor", "offset", "unit",
+SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "signed", "signed_code", "encoding", "factor", "offset",
+                 "unit",
                  "min", "max", "initial", "invalid", "multiplexer", "mux", "description")
 FLAG_FIELDS = ("bit", "bit_length", "description")
 

@@ -367,7 +367,8 @@ def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None)
     candidates.append({"start_bit": start, "bit_length": length})
     for c in candidates:
         try:
-            s = Signal(name="x", encoding=encoding or "raw", byte_order="big_endian" if big_endian else "little_endian", **c)
+            s = Signal(name="x", encoding=encoding or "raw",
+                       byte_order="big_endian" if big_endian else "little_endian", **c)
         except ValueError:
             continue
         if (s.start_bit, s.bit_length) == (start, length):

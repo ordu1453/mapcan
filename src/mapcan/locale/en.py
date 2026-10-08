@@ -9,7 +9,8 @@ EN: dict[str, str] = {
     "Экспорт документов и файлов для сторонних инструментов.": "Export documents and files for third-party tools.",
     "Генерация кода.": "Code generation.",
     "YAML-файл карты.": "Map YAML file.",
-    "Язык документа (код ISO 639-1: ru, en, de…); по умолчанию из карты.": "Document language (ISO 639-1 code: ru, en, de…); defaults to the map's language.",
+    "Язык документа (код ISO 639-1: ru, en, de…); по умолчанию из карты.":
+        "Document language (ISO 639-1 code: ru, en, de…); defaults to the map's language.",
     "Генерировать, даже если есть ошибки проверки.": "Generate even if validation reports errors.",
     "Проверить карту. Код возврата 1 при ошибках (и предупреждениях с --strict).":
         "Validate the map. Exit code 1 on errors (and on warnings with --strict).",
@@ -412,8 +413,10 @@ EN: dict[str, str] = {
         "Bus device that transmits the frame when it is not the frame's owner: for RX frames "
         "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
     "Период циклической передачи, мс.": "Cyclic transmission period, ms.",
-    "Язык документов по умолчанию: код ISO 639-1 (ru, en, de…).": "Default document language: ISO 639-1 code (ru, en, de…).",
-    "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)": "a translation key must be an ISO 639-1 language code (de, fr…)",
+    "Язык документов по умолчанию: код ISO 639-1 (ru, en, de…).":
+        "Default document language: ISO 639-1 code (ru, en, de…).",
+    "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)":
+        "a translation key must be an ISO 639-1 language code (de, fr…)",
     "Не задан DLC кадра": "Frame DLC is not set",
     "Один и тот же SPN у нескольких сигналов шины": "The same SPN on several signals of the bus",
     "Объект словаря CANopen у сигнала не PDO, вне 0x2000..0x9FFF или big-endian":
@@ -426,9 +429,12 @@ EN: dict[str, str] = {
         "{name!r}: index {index:#06x} is outside the manufacturer and profile areas (0x2000..0x9FFF)",
     "{name!r}: PDO CANopen передаёт данные little-endian": "{name!r}: CANopen PDOs carry little-endian data",
     "объект {index:04X}:{sub:02X} уже у сигнала {other}": "object {index:04X}:{sub:02X} is already mapped by {other}",
-    "CANopen: индекс объекта словаря, отображённого в PDO.": "CANopen: index of the dictionary object mapped into the PDO.",
-    "CANopen: субиндекс объекта словаря (по умолчанию 0).": "CANopen: subindex of the dictionary object (0 by default).",
-    "Сигнал длиннее 64 бит, но не выровненный массив байт": "Signal longer than 64 bits that is not an aligned byte array",
+    "CANopen: индекс объекта словаря, отображённого в PDO.":
+        "CANopen: index of the dictionary object mapped into the PDO.",
+    "CANopen: субиндекс объекта словаря (по умолчанию 0).":
+        "CANopen: subindex of the dictionary object (0 by default).",
+    "Сигнал длиннее 64 бит, но не выровненный массив байт":
+        "Signal longer than 64 bits that is not an aligned byte array",
     "сигнал {name!r} длиной {bits} бит: длиннее 64 бит может быть только "
     "массив байт (encoding: bytes, little-endian, с границы байта)":
         "signal {name!r} is {bits} bits long: only a byte array (encoding: bytes, little-endian, "
@@ -465,12 +471,15 @@ EN: dict[str, str] = {
     "{frame}: отправитель {name!r} не описан как узел DBC": "{frame}: sender {name!r} is not a DBC node",
     "{frame}.{signal}: вложенное мультиплексирование перенесено одним уровнем":
         "{frame}.{signal}: nested multiplexing is imported as one level",
-    "Подключаемый файл не найден или содержит недопустимые ключи": "Included file is missing or has keys that cannot be included",
+    "Подключаемый файл не найден или содержит недопустимые ключи":
+        "Included file is missing or has keys that cannot be included",
     "Таблица значений с таким именем не описана в value_tables": "No value table with this name in value_tables",
-    "include: у карты нет пути, подключать файлы не от чего": "include: the map has no path to resolve included files from",
+    "include: у карты нет пути, подключать файлы не от чего":
+        "include: the map has no path to resolve included files from",
     "include: файл {name!r} не найден": "include: file {name!r} not found",
     "подключаемый файл должен быть словарём YAML": "an included file must be a YAML mapping",
-    "ключ {key!r} нельзя подключать: допустимы buses и value_tables": "key {key!r} cannot be included: only buses and value_tables",
+    "ключ {key!r} нельзя подключать: допустимы buses и value_tables":
+        "key {key!r} cannot be included: only buses and value_tables",
     "таблица значений {name!r} уже описана": "value table {name!r} is already defined",
     "шина {name!r} уже описана: подключаемый файл может только добавить ей devices и frames, а не {key!r}":
         "bus {name!r} is already defined: an included file can only add devices and frames to it, not {key!r}",
@@ -492,7 +501,8 @@ EN: dict[str, str] = {
     "Сокращение устройства, напр. «BMS»: в таблицах документов и в дереве перед названием.":
         "Device abbreviation, e.g. \"BMS\": in document tables and before the name in the tree.",
     "Протокол: canopen — ID из типа кадра и node_id, j1939 — из PGN и адреса, can — явные ID.":
-        "Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, can — explicit IDs.",
+        "Protocol: canopen — IDs from the frame type and node_id, j1939 — from the PGN and address, "
+        "can — explicit IDs.",
     "Нециклическая передача: event — по событию, on_request — по запросу.":
         "Non-cyclic transmission: event — on event, on_request — on request.",
     "Имя пользователя GitHub автора изменения.": "GitHub username of the change's author.",
