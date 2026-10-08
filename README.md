@@ -282,6 +282,10 @@ needed.
 
 ## Development
 
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the setup, tests and conventions;
+[ARCHITECTURE.md](ARCHITECTURE.md) explains how the code is organized and what to change to add a
+field to the format.
+
 ```sh
 uv sync                           # environment from uv.lock (with the lsp and desktop extras)
 uv run pre-commit install         # run ruff before every commit
