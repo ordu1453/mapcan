@@ -136,7 +136,7 @@ CANopen ID computation:
 | `name` | Identifier (unique within the frame, together with flag names) |
 | `title` | Human-readable name ("Battery voltage"); the editor tree shows it instead of the identifier |
 | `description` | Description |
-| `encoding` | Required: `enum`, `flag`, `bitfield`, `metric`, `raw`, `float`, `bytes` |
+| `encoding` | Required: `enum`, `flag`, `bitfield`, `scaled`, `raw`, `float`, `bytes` |
 | `start_bit` + `bit_length` | Canonical position |
 | `byte` [+ `bit`] + `byte_length` \| `bit_length` | Shorthand position (see below) |
 | `byte_order` | `little_endian` (default) or `big_endian` |
@@ -159,7 +159,7 @@ CANopen ID computation:
 | `encoding` | Meaning | Value fields |
 |---|---|---|
 | `raw` | Integer as is | `signed`, `unit`, `min`, `max`, `invalid`, `initial` |
-| `metric` | Scaled physical value: `raw * factor + offset` | `signed`, `factor`, `offset`, `unit`, `min`, `max`, `invalid`, `initial` |
+| `scaled` | Scaled physical value: `raw * factor + offset` | `signed`, `factor`, `offset`, `unit`, `min`, `max`, `invalid`, `initial` |
 | `enum` | Value from the `values` table | `values`, `value_format`, `signed`, `invalid`, `initial` |
 | `flag` | One yes/no bit | `values`, `initial` |
 | `bitfield` | Set of flags | `flags` |
@@ -245,7 +245,7 @@ buses:
             cycle_ms: 20
             receivers: [cluster]
             signals:
-              - {name: engine_speed, encoding: metric, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid: 0xFFFF}
+              - {name: engine_speed, encoding: scaled, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid: 0xFFFF}
       - name: cluster
         address: 0x17
       - name: diag
@@ -270,10 +270,10 @@ For `sdo_rx`/`sdo_tx` frames you can describe expedited SDO exchanges instead of
       command: 0x2B          # CCS: write 2 bytes
       index: 0x4010
       subindex: 0x01
-      value: {name: alarm_resistance, encoding: metric, bit_length: 16, unit: kOhm}
+      value: {name: alarm_resistance, encoding: scaled, bit_length: 16, unit: kOhm}
 ```
 
-The value's `encoding` (`enum`, `metric` or `raw`) and `bit_length` (8, 16, 24 or 32) are required.
+The value's `encoding` (`enum`, `scaled` or `raw`) and `bit_length` (8, 16, 24 or 32) are required.
 
 mapcan builds the frame layout itself: byte 0 is the command, bytes 1–2 the index
 (little-endian), byte 3 the subindex (the multiplexer selector when all exchanges share one
@@ -419,8 +419,8 @@ turned off with `--disable CODE` or `lint.disable`.
 | Code | Severity | What is checked |
 |---|---|---|
 | `enum-overflow` | error | Enum value does not fit in the field width |
-| `metric-factor` | error | Zero factor |
-| `metric-range` | warning | min/max outside the range the field can represent |
+| `zero-factor` | error | Zero factor |
+| `range-overflow` | warning | min/max outside the range the field can represent |
 | `min-max` | error | min is greater than max |
 | `initial-range` | warning | Default value outside the signal's range |
 | `invalid-overflow` | error | invalid value does not fit in the signal width |

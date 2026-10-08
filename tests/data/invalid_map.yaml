@@ -16,7 +16,7 @@ buses:
             cycle_ms: 100
             signals:
               - name: bus_voltage
-                encoding: metric
+                encoding: scaled
                 description: Напряжение
                 byte: 6
                 byte_length: 2

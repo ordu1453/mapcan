@@ -56,7 +56,7 @@ def test_symbols(minimal):
     assert (bus.kind, bus.name, bus.detail) == ("bus", "demo", "canopen")
     frame = bus.children[0].children[0]
     assert (frame.kind, frame.name, frame.detail) == ("frame", "pump_state", "0x1A1")
-    assert frame.children[2].detail == "metric · bits 16–31"
+    assert frame.children[2].detail == "scaled · bits 16–31"
     assert [s.name for s in frame.children] == ["mode", "alarms", "pressure", "temperature", "speed", "counter"]
     assert [f.name for f in frame.children[1].children] == ["overheat", "dry_run", "sensor_state"]
     sel = frame.selection
@@ -139,7 +139,7 @@ def test_hover_field_description(minimal):
 
 def test_hover_signal_and_frame(minimal):
     sig = A.hover(minimal, at("name: pressure", 8))
-    assert sig.startswith("**pressure** · `metric` · bits 16–31 · 16 bit")
+    assert sig.startswith("**pressure** · `scaled` · bits 16–31 · 16 bit")
     assert "phys = raw × 0.01 + 0" in sig and "unit: bar" in sig
     frame = A.hover(minimal, at("name: pump_state", 8))
     assert frame.startswith("**pump_state** · `0x1A1` · DLC 8")

@@ -128,7 +128,7 @@ def test_number_comma():
         - name: f
           type: pdo_tx1
           signals:
-            - {name: v, encoding: metric, description: x, byte: 0, byte_length: 1, factor: "0,1"}
+            - {name: v, encoding: scaled, description: x, byte: 0, byte_length: 1, factor: "0,1"}
     """)
     _, rep = run(text)
     d = next(d for d in rep.diagnostics if d.code == "number-comma")
@@ -481,16 +481,16 @@ def test_flags_rules():
     """))
 
 
-def test_metric_rules():
+def test_scaled_rules():
     c = codes(one_bus("""
         - name: f
           type: pdo_tx1
           signals:
-            - {name: a, encoding: metric, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: В, min: 0, max: 100}
-            - {name: b, encoding: metric, description: x, byte: 1, byte_length: 1, factor: 0}
-            - {name: c, encoding: metric, description: x, byte: 2, byte_length: 1, unit: В, min: 10, max: 5}
+            - {name: a, encoding: scaled, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: В, min: 0, max: 100}
+            - {name: b, encoding: scaled, description: x, byte: 1, byte_length: 1, factor: 0}
+            - {name: c, encoding: scaled, description: x, byte: 2, byte_length: 1, unit: В, min: 10, max: 5}
     """))
-    assert {"metric-range", "metric-factor", "min-max"} <= c
+    assert {"range-overflow", "zero-factor", "min-max"} <= c
 
 
 def test_sdo_rules():
@@ -530,7 +530,7 @@ def test_name_collision():
         - name: f
           type: pdo_tx1
           signals:
-            - {name: speed, encoding: metric, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: km/h}
+            - {name: speed, encoding: scaled, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: km/h}
             - {name: speed_phys, encoding: raw, description: x, byte: 1, byte_length: 1}
     """))
     assert "name-collision" in codes(_sig("values: {0: OK, 1: Ok}", "enum"))
@@ -563,13 +563,13 @@ def test_bus_load():
 
 
 def test_invalid_in_range():
-    assert "invalid-in-range" in codes(_sig("factor: 0.5, unit: V, min: 0, max: 200, invalid: 0xFF", "metric"))
-    assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid: 0xFF", "metric"))
+    assert "invalid-in-range" in codes(_sig("factor: 0.5, unit: V, min: 0, max: 200, invalid: 0xFF", "scaled"))
+    assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid: 0xFF", "scaled"))
 
 
 def test_missing_unit():
-    assert "missing-unit" in codes(_sig("factor: 0.1", "metric"))
-    assert "missing-unit" not in codes(_sig("factor: 0.1, unit: V", "metric"))
+    assert "missing-unit" in codes(_sig("factor: 0.1", "scaled"))
+    assert "missing-unit" not in codes(_sig("factor: 0.1, unit: V", "scaled"))
 
 
 @pytest.mark.parametrize(("extra", "encoding"), [
@@ -582,7 +582,7 @@ def test_encoding_field_rejected(extra, encoding):
 
 @pytest.mark.parametrize(("extra", "encoding"), [
     ("unit: ms, min: 0, max: 100", "raw"), ("values: {0: OFF, 1: ON}", "flag"), ("factor: 0.5", "float"),
-    ("signed: true, values: {-1: NEG}", "enum"), ("invalid: 0xFF", "metric"),
+    ("signed: true, values: {-1: NEG}", "enum"), ("invalid: 0xFF", "scaled"),
 ])
 def test_encoding_field_allowed(extra, encoding):
     assert "encoding-field" not in codes(_sig(extra, encoding))

@@ -430,9 +430,9 @@ EN: dict[str, str] = {
     "Один SDO-обмен (expedited): команда, индекс, субиндекс, значение.":
         "One SDO transfer (expedited): command, index, subindex, value.",
     "Байт команды (CCS/SCS), напр. 0x2B.": "Command byte (CCS/SCS), e.g. 0x2B.",
-    "Кодирование значения: enum, metric, raw.": "Value encoding: enum, metric, raw.",
-    "Кодирование сигнала: enum, flag, bitfield, metric, raw, float, bytes.":
-        "Signal encoding: enum, flag, bitfield, metric, raw, float, bytes.",
+    "Кодирование значения: enum, scaled, raw.": "Value encoding: enum, scaled, raw.",
+    "Кодирование сигнала: enum, flag, bitfield, scaled, raw, float, bytes.":
+        "Signal encoding: enum, flag, bitfield, scaled, raw, float, bytes.",
     "Позиция младшего бита (LSB) сигнала в нумерации lsb0.":
         "Position of the signal's least significant bit (LSB) in lsb0 numbering.",
     "Первый байт сигнала.": "First byte of the signal.",

@@ -81,7 +81,7 @@ def selector_of(frame: Frame) -> Signal | None:
 
 
 def physical(s: Signal) -> bool:
-    return s.factor != 1 or s.offset != 0 or s.encoding == "metric"
+    return s.factor != 1 or s.offset != 0 or s.encoding == "scaled"
 
 
 def num(x: float) -> str:

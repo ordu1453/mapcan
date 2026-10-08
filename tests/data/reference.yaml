@@ -59,13 +59,13 @@ buses:
         trigger: event
         signals:
           - name: ms_after_midnight
-            encoding: metric
+            encoding: scaled
             description: Миллисекунды с начала суток
             start_bit: 0
             bit_length: 28
             unit: мс
           - name: days_since_1984
-            encoding: metric
+            encoding: scaled
             description: Дни с 1 января 1984 г.
             byte: 4
             byte_length: 2
@@ -143,7 +143,7 @@ buses:
                   0: {name: NOT_CALCULATED, description: значения сопротивлений изоляции не рассчитаны}
                   1: {name: CALCULATED, description: значения сопротивлений изоляции рассчитаны}
               - name: resistance_plus
-                encoding: metric
+                encoding: scaled
                 description: Изоляция между «плюсом» шины питания и корпусом
                 byte: 1
                 byte_length: 2
@@ -152,7 +152,7 @@ buses:
                 min: 0
                 max: 10000
               - name: resistance_minus
-                encoding: metric
+                encoding: scaled
                 description: Изоляция между «минусом» шины питания и корпусом
                 byte: 3
                 byte_length: 2
@@ -169,7 +169,7 @@ buses:
                   0: {name: NOT_CALCULATED, description: значение напряжения не рассчитано}
                   1: {name: CALCULATED, description: значение напряжения рассчитано}
               - name: bus_voltage
-                encoding: metric
+                encoding: scaled
                 description: Напряжение шины питания
                 byte: 6
                 byte_length: 2
@@ -215,14 +215,14 @@ buses:
                 command: 0x2B
                 index: 0x4010
                 subindex: 0x01
-                value: {name: alarm_resistance, encoding: metric, bit_length: 16, unit: кОм,
+                value: {name: alarm_resistance, encoding: scaled, bit_length: 16, unit: кОм,
                         description: Порог аварийного сопротивления изоляции}
               - name: set_warning_resistance
                 description: Установка WARNING_RESISTANCE
                 command: 0x2B
                 index: 0x4010
                 subindex: 0x02
-                value: {name: warning_resistance, encoding: metric, bit_length: 16, unit: кОм,
+                value: {name: warning_resistance, encoding: scaled, bit_length: 16, unit: кОм,
                         description: Порог предупредительного сопротивления изоляции}
 
           - name: imd_sdo_response
@@ -418,10 +418,10 @@ buses:
             description: Данные о работе
             cycle_ms: 100
             signals:
-              - {name: dc_output_voltage, encoding: metric, description: Выходное напряжение, byte: 0, byte_length: 2, factor: 10, unit: В}
-              - {name: dc_input_voltage, encoding: metric, description: Входное напряжение, byte: 2, byte_length: 2, factor: 10, unit: В}
-              - {name: dc_output_current, encoding: metric, description: Выходной ток, byte: 4, byte_length: 2, factor: 10, unit: А}
-              - {name: dc_input_current, encoding: metric, description: Входной ток, byte: 6, byte_length: 2, factor: 10, unit: А}
+              - {name: dc_output_voltage, encoding: scaled, description: Выходное напряжение, byte: 0, byte_length: 2, factor: 10, unit: В}
+              - {name: dc_input_voltage, encoding: scaled, description: Входное напряжение, byte: 2, byte_length: 2, factor: 10, unit: В}
+              - {name: dc_output_current, encoding: scaled, description: Выходной ток, byte: 4, byte_length: 2, factor: 10, unit: А}
+              - {name: dc_input_current, encoding: scaled, description: Входной ток, byte: 6, byte_length: 2, factor: 10, unit: А}
 
           - name: pcu_command
             type: pdo_rx1
@@ -437,7 +437,7 @@ buses:
                 byte_length: 1
                 values: *dc_states
               - name: target_voltage
-                encoding: metric
+                encoding: scaled
                 description: Целевое значение напряжения
                 byte: 1
                 byte_length: 1

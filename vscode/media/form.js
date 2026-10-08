@@ -15,7 +15,7 @@
     pdo_tx1: "tx", pdo_tx2: "tx", pdo_tx3: "tx", pdo_tx4: "tx", pdo_rx1: "rx", pdo_rx2: "rx", pdo_rx3: "rx", pdo_rx4: "rx",
   };
   const ENCODINGS = [
-    ["enum", "Enum"], ["flag", "Flag"], ["bitfield", "Bit field"], ["metric", "Quantity"],
+    ["enum", "Enum"], ["flag", "Flag"], ["bitfield", "Bit field"], ["scaled", "Scaled"],
     ["raw", "Integer"], ["float", "Float (IEEE 754)"], ["bytes", "Bytes"],
   ];
 
@@ -42,7 +42,7 @@
   const others = (/** @type {Ctx} */ c) => c.devices.filter((d) => d.name !== c.owner).map((d) => [d.name, d.label]);
   const receivers = (/** @type {Ctx} */ c) => others(c).filter(([d]) => d !== c.values.sender);
   const signalEncoding = (/** @type {Ctx} */ c) => c.values.encoding ?? c.signalEncoding ?? "raw";
-  const numeric = (/** @type {Ctx} */ c) => ["metric", "raw", "float"].includes(signalEncoding(c));
+  const numeric = (/** @type {Ctx} */ c) => ["scaled", "raw", "float"].includes(signalEncoding(c));
   const byBytes = (/** @type {Ctx} */ c) => c.values.start_bit == null;
   // Length as typed in the form, else as the server computed it from the map
   const bitLength = (/** @type {Ctx} */ c) =>
@@ -156,7 +156,7 @@
       ] },
       { title: "Value", fields: [
         { key: "unit", label: "Unit", type: "unit", half: true, when: numeric },
-        { key: "signed", label: "Signed", type: "bool", half: true, when: (c) => ["raw", "metric"].includes(signalEncoding(c)) },
+        { key: "signed", label: "Signed", type: "bool", half: true, when: (c) => ["raw", "scaled"].includes(signalEncoding(c)) },
         { key: "signed_code", label: "Signed code", type: "select", half: true,
           options: () => [["", "Two's complement"], ["ones_complement", "Ones' complement"], ["sign_magnitude", "Sign and magnitude"]],
           when: (c) => !!c.values.signed },
@@ -167,7 +167,7 @@
         { key: "initial", label: "Default", type: "float", half: true, tip: "Physical value",
           when: (c) => !["bitfield", "bytes"].includes(signalEncoding(c)) },
         { key: "invalid", label: "No data (raw)", type: "intlist", half: true, mono: true, placeholder: "0xFF",
-          tip: "Raw value(s) meaning \"no data\": 0xFF or 0xFE, 0xFF", when: (c) => ["raw", "metric", "enum"].includes(signalEncoding(c)) },
+          tip: "Raw value(s) meaning \"no data\": 0xFF or 0xFE, 0xFF", when: (c) => ["raw", "scaled", "enum"].includes(signalEncoding(c)) },
         { key: "value_format", label: "Values in documents", type: "select", half: true,
           options: () => [["", "Decimal"], ["hex", "Hex"]], when: (c) => signalEncoding(c) === "enum" },
       ] },
@@ -200,7 +200,7 @@
           tip: "Empty: the exchange carries no value" },
         { key: "value.encoding", label: "Encoding", type: "select", when: hasValue,
           options: (c) => [...(c.values["value.encoding"] == null ? [["", "Not set"]] : []),
-            ["enum", "Enum"], ["metric", "Quantity"], ["raw", "Integer"]] },
+            ["enum", "Enum"], ["scaled", "Scaled"], ["raw", "Integer"]] },
         { key: "value.bit_length", label: "Length, bits", type: "select", half: true, numeric: true,
           options: (c) => [...(c.values["value.bit_length"] == null ? [["", "Not set"]] : []),
             ["8", "8"], ["16", "16"], ["24", "24"], ["32", "32"]], when: hasValue },

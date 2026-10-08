@@ -250,20 +250,20 @@ buses:
           - name: f1
             id: 0x101
             signals:
-              - {name: u28, encoding: metric, start_bit: 0, bit_length: 28, unit: ms}
-              - {name: s32, encoding: metric, start_bit: 28, bit_length: 32, signed: true, factor: 0.5}
+              - {name: u28, encoding: scaled, start_bit: 0, bit_length: 28, unit: ms}
+              - {name: s32, encoding: scaled, start_bit: 28, bit_length: 32, signed: true, factor: 0.5}
           - name: f2
             id: 0x102
             signals:
-              - {name: u64, encoding: metric, start_bit: 0, bit_length: 64, factor: 2}
+              - {name: u64, encoding: scaled, start_bit: 0, bit_length: 64, factor: 2}
           - name: f3
             id: 0x103
             signals:
-              - {name: s64, encoding: metric, start_bit: 0, bit_length: 64, signed: true, factor: 2}
+              - {name: s64, encoding: scaled, start_bit: 0, bit_length: 64, signed: true, factor: 2}
           - name: f4
             id: 0x104
             signals:
-              - {name: s8, encoding: metric, start_bit: 0, bit_length: 8, signed: true, factor: 0.5}
+              - {name: s8, encoding: scaled, start_bit: 0, bit_length: 8, signed: true, factor: 0.5}
 """
 
 

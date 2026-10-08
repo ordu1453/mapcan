@@ -77,7 +77,7 @@ def test_flow_mapping_untouched_when_neighbour_changes(client):
     st = ops(client, {"op": "set", "path": ["buses", 0, "devices", 0, "frames", 3, "description"],
                       "value": "Настройка"})
     assert len(_changed_lines(before, st["text"])) == 2
-    assert "                value: {name: alarm_resistance, encoding: metric, bit_length: 16, unit: кОм,\n" in st["text"]
+    assert "                value: {name: alarm_resistance, encoding: scaled, bit_length: 16, unit: кОм,\n" in st["text"]
 
 
 def test_hex_kept(client):

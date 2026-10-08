@@ -979,10 +979,10 @@
           "type": "string"
         },
         "encoding": {
-          "description": "Value encoding: enum, metric, raw.",
+          "description": "Value encoding: enum, scaled, raw.",
           "enum": [
             "enum",
-            "metric",
+            "scaled",
             "raw"
           ],
           "title": "Encoding",
@@ -1137,12 +1137,12 @@
           "title": "Description"
         },
         "encoding": {
-          "description": "Signal encoding: enum, flag, bitfield, metric, raw, float, bytes.",
+          "description": "Signal encoding: enum, flag, bitfield, scaled, raw, float, bytes.",
           "enum": [
             "enum",
             "flag",
             "bitfield",
-            "metric",
+            "scaled",
             "raw",
             "bytes",
             "float"

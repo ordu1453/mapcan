@@ -38,7 +38,7 @@ LABELS = {
         "cyclic": "цикл {ms} мс", "event": "по событию", "on_request": "по запросу",
         "tx": "TX", "rx": "RX", "no_signals": "Сигналы не описаны.",
         "unused": "не используется", "little_endian": "little-endian", "big_endian": "big-endian",
-        "enum": "перечисление", "flag": "флаг", "bitfield": "битовое поле", "metric": "величина",
+        "enum": "перечисление", "flag": "флаг", "bitfield": "битовое поле", "scaled": "масштабированное",
         "raw": "целое", "bytes": "байт", "signed": "знаковое", "per_bit": "/бит",
         "ones_complement": "обратный код", "sign_magnitude": "прямой код",
         "range": "диапазон", "offset": "смещение", "phys": "физ. = raw × {f}{o}",
@@ -71,7 +71,7 @@ LABELS = {
         "cyclic": "every {ms} ms", "event": "on event", "on_request": "on request",
         "tx": "TX", "rx": "RX", "no_signals": "No signals defined.",
         "unused": "unused", "little_endian": "little-endian", "big_endian": "big-endian",
-        "enum": "enum", "flag": "flag", "bitfield": "bit field", "metric": "value",
+        "enum": "enum", "flag": "flag", "bitfield": "bit field", "scaled": "scaled",
         "raw": "integer", "bytes": "bytes", "signed": "signed", "per_bit": "/bit",
         "ones_complement": "ones' complement", "sign_magnitude": "sign-magnitude",
         "range": "range", "offset": "offset", "phys": "phys = raw × {f}{o}",
@@ -371,7 +371,7 @@ class ViewBuilder:
         bits_label = _range(lo, hi)
 
         enc = []
-        if s.encoding in ("enum", "raw", "metric", "flag"):
+        if s.encoding in ("enum", "raw", "scaled", "flag"):
             if s.bit_length in (8, 16, 32, 64) and whole_bytes:
                 enc.append(("int" if s.signed else "uint") + str(s.bit_length))
             else:
@@ -387,7 +387,7 @@ class ViewBuilder:
         elif s.encoding == "bytes":
             enc.append(f"{s.bit_length // 8} {L['bytes']}" if whole_bytes else f"{s.bit_length} {L['bit']}")
         unit = self.unit(s.unit)
-        if s.encoding == "metric" or s.factor != 1 or s.offset != 0:
+        if s.encoding == "scaled" or s.factor != 1 or s.offset != 0:
             enc.append(f"{fmt_num(s.factor)} {unit}{L['per_bit']}".replace(" /", "/"))
             if s.offset:
                 enc.append(f"{L['offset']} {fmt_num(s.offset)} {unit}".strip())

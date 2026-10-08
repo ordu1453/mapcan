@@ -80,8 +80,8 @@ RULES = {
     "flag-out-of-field": ("error", N_("Флаг выходит за пределы битового поля")),
     "flag-overlap": ("error", N_("Пересечение флагов внутри битового поля")),
     "flag-length": ("warning", N_("Сигнал типа flag длиной больше 1 бита")),
-    "metric-factor": ("error", N_("Нулевой масштаб")),
-    "metric-range": ("warning", N_("min/max вне диапазона, представимого полем")),
+    "zero-factor": ("error", N_("Нулевой масштаб")),
+    "range-overflow": ("warning", N_("min/max вне диапазона, представимого полем")),
     "min-max": ("error", N_("min больше max")),
     "invalid-in-range": ("warning", N_("Значение invalid попадает в рабочий диапазон min..max")),
     "missing-unit": ("info", N_("Физическая величина без единицы измерения")),
@@ -418,7 +418,7 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
     # Имена
     names: dict[str, tuple] = {}
     upper: dict[str, str] = {}
-    phys = {s.name + "_phys": s.name for s in sigs if s.factor != 1 or s.offset != 0 or s.encoding == "metric"}
+    phys = {s.name + "_phys": s.name for s in sigs if s.factor != 1 or s.offset != 0 or s.encoding == "scaled"}
     for s in sigs:
         if s.name in C_KEYWORDS or s.name in PY_KEYWORDS:
             ctx.emit("reserved-identifier", _("имя сигнала {name!r} — ключевое слово C/Python: "
@@ -490,22 +490,22 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
         _check_flags(ctx, s)
 
         if s.factor == 0:
-            ctx.emit("metric-factor", "factor = 0", sp + ("factor",))
-        elif s.encoding == "metric":
+            ctx.emit("zero-factor", "factor = 0", sp + ("factor",))
+        elif s.encoding == "scaled":
             phys = sorted((lo * s.factor + s.offset, hi * s.factor + s.offset))
             if s.min is not None and s.max is not None and s.min > s.max:
                 ctx.emit("min-max", _("min {min} > max {max}", min=s.min, max=s.max), sp + ("min",))
             for k in ("min", "max"):
                 val = getattr(s, k)
                 if val is not None and not phys[0] - 1e-9 <= val <= phys[1] + 1e-9:
-                    ctx.emit("metric-range",
+                    ctx.emit("range-overflow",
                              _("{key} = {value:g} вне представимого диапазона {lo:g}..{hi:g} {unit}",
                                key=k, value=val, lo=phys[0], hi=phys[1], unit=s.unit or "").rstrip(), sp + (k,))
 
         if s.encoding == "float" and s.bit_length not in (32, 64):
             ctx.emit("float-length", _("сигнал {name!r}: float — 32 или 64 бита, задано {bits}",
                                        name=s.name, bits=s.bit_length), sp + ("bit_length",))
-        if s.encoding == "metric" and not s.unit and (s.factor != 1 or s.offset != 0):
+        if s.encoding == "scaled" and not s.unit and (s.factor != 1 or s.offset != 0):
             ctx.emit("missing-unit", _("у физической величины {name!r} не указана единица (unit)", name=s.name),
                      sp + ("unit",))
         raw_lo, raw_hi = (lo, hi) if s.encoding != "float" else (None, None)
@@ -579,17 +579,17 @@ def _dup_enum_names(ctx: _Ctx, values, path) -> None:
 
 # Кодирования, к которым применимо поле сигнала (поле задано, если отличается от значения по умолчанию)
 ENCODING_FIELDS = {
-    "factor": ("metric", "float"),
-    "offset": ("metric", "float"),
-    "unit": ("raw", "metric", "float"),
-    "min": ("raw", "metric", "float"),
-    "max": ("raw", "metric", "float"),
+    "factor": ("scaled", "float"),
+    "offset": ("scaled", "float"),
+    "unit": ("raw", "scaled", "float"),
+    "min": ("raw", "scaled", "float"),
+    "max": ("raw", "scaled", "float"),
     "values": ("enum", "flag"),
     "flags": ("bitfield",),
-    "signed": ("raw", "metric", "enum"),
-    "signed_code": ("raw", "metric", "enum"),
-    "invalid": ("raw", "metric", "enum"),
-    "initial": ("raw", "metric", "enum", "flag", "float"),
+    "signed": ("raw", "scaled", "enum"),
+    "signed_code": ("raw", "scaled", "enum"),
+    "invalid": ("raw", "scaled", "enum"),
+    "initial": ("raw", "scaled", "enum", "flag", "float"),
 }
 
 

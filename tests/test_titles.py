@@ -26,7 +26,7 @@ TITLED = one_bus(f"""
       dlc: 2
       signals:
         - name: volts
-          encoding: metric
+          encoding: scaled
           title: '{TRICKY}'
           byte: 0
           byte_length: 1

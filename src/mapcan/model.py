@@ -24,7 +24,7 @@ FORMAT_VERSION = 1
 
 ByteOrder = Literal["little_endian", "big_endian"]
 SignedCode = Literal["twos_complement", "ones_complement", "sign_magnitude"]
-SignalEncoding = Literal["enum", "flag", "bitfield", "metric", "raw", "bytes", "float"]
+SignalEncoding = Literal["enum", "flag", "bitfield", "scaled", "raw", "bytes", "float"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
 Trigger = Literal["event", "on_request"]
@@ -183,7 +183,7 @@ class Signal(_Base):
     title: Text | None = Field(None, description=N_("Название сигнала для людей, напр. «Напряжение батареи»."))
     description: Text | None = None
     encoding: SignalEncoding = Field(
-        description=N_("Кодирование сигнала: enum, flag, bitfield, metric, raw, float, bytes."))
+        description=N_("Кодирование сигнала: enum, flag, bitfield, scaled, raw, float, bytes."))
 
     # Позиция: каноническая запись
     start_bit: int | None = Field(
@@ -284,7 +284,7 @@ class Signal(_Base):
 
 class SdoValue(_Base):
     name: str
-    encoding: Literal["enum", "metric", "raw"] = Field(description=N_("Кодирование значения: enum, metric, raw."))
+    encoding: Literal["enum", "scaled", "raw"] = Field(description=N_("Кодирование значения: enum, scaled, raw."))
     description: Text | None = None
     bit_length: Literal[8, 16, 24, 32]
     signed: bool = False

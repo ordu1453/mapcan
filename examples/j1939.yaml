@@ -42,7 +42,7 @@ buses:
                   2: {name: CRUISE, description: cruise control}
                   15: {name: NOT_AVAILABLE, description: not available}
               - name: demand_torque
-                encoding: metric
+                encoding: scaled
                 description: Driver's demand torque
                 byte: 1
                 byte_length: 1
@@ -52,7 +52,7 @@ buses:
                 max: 125
                 invalid: 0xFF
               - name: actual_torque
-                encoding: metric
+                encoding: scaled
                 description: Actual engine torque
                 byte: 2
                 byte_length: 1
@@ -62,7 +62,7 @@ buses:
                 max: 125
                 invalid: 0xFF
               - name: engine_speed
-                encoding: metric
+                encoding: scaled
                 description: Engine speed
                 byte: 3
                 byte_length: 2
@@ -87,7 +87,7 @@ buses:
             receivers: [cluster]
             signals:
               - name: coolant_temp
-                encoding: metric
+                encoding: scaled
                 description: Coolant temperature
                 byte: 0
                 byte_length: 1
@@ -97,7 +97,7 @@ buses:
                 max: 210
                 invalid: 0xFF
               - name: fuel_temp
-                encoding: metric
+                encoding: scaled
                 description: Fuel temperature
                 byte: 1
                 byte_length: 1
@@ -105,7 +105,7 @@ buses:
                 unit: °C
                 invalid: 0xFF
               - name: oil_temp
-                encoding: metric
+                encoding: scaled
                 description: Oil temperature
                 byte: 2
                 byte_length: 2
@@ -127,7 +127,7 @@ buses:
             receivers: [engine]
             signals:
               - name: fuel_level
-                encoding: metric
+                encoding: scaled
                 description: Fuel level
                 byte: 1
                 byte_length: 1
