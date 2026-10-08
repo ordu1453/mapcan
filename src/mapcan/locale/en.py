@@ -156,7 +156,7 @@ EN: dict[str, str] = {
     "Пересечение сигналов по битам (с учётом мультиплексирования)": "Overlapping signals (multiplexing-aware)",
     "Значение enum не помещается в разрядность поля": "Enum value does not fit in the field width",
     "Одинаковое имя у разных значений enum": "Same name for different enum values",
-    "flags задан у сигнала с кодированием не bitfield": "flags set on a signal whose encoding is not bitfield",
+    "Поле не применимо к кодированию сигнала": "Field does not apply to the signal encoding",
     "Флаг выходит за пределы битового поля": "Flag extends beyond the bit field",
     "Пересечение флагов внутри битового поля": "Flags overlap inside the bit field",
     "Сигнал типа flag длиной больше 1 бита": "Flag signal longer than 1 bit",
@@ -319,7 +319,7 @@ EN: dict[str, str] = {
     "селектор {name!r} не может иметь mux": "selector {name!r} cannot have mux",
     "сигнал {name!r} занимает байты {first}..{last}, а DLC = {dlc}":
         "signal {name!r} occupies bytes {first}..{last}, but DLC = {dlc}",
-    "flags у сигнала с кодированием {encoding}": "flags set on a signal with encoding {encoding}",
+    "{key} не применяется при encoding: {encoding}": "{key} does not apply to encoding: {encoding}",
     "сигнал-флаг {name!r} длиной {bits} бит": "flag signal {name!r} is {bits} bits long",
     "сигнал {name!r}: float — 32 или 64 бита, задано {bits}":
         "signal {name!r}: float must be 32 or 64 bits, got {bits}",

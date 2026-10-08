@@ -462,7 +462,7 @@ def test_flags_rules():
                 - {bit: 8, name: f2}
     """))
     assert {"flag-overlap", "flag-out-of-field"} <= c
-    assert "flags-encoding" in codes(one_bus("""
+    assert "encoding-field" in codes(one_bus("""
         - name: f
           type: pdo_tx1
           signals:
@@ -565,6 +565,22 @@ def test_invalid_in_range():
 def test_missing_unit():
     assert "missing-unit" in codes(_sig("factor: 0.1", "metric"))
     assert "missing-unit" not in codes(_sig("factor: 0.1, unit: V", "metric"))
+
+
+@pytest.mark.parametrize(("extra", "encoding"), [
+    ("factor: 0.1", "raw"), ("offset: -40", "enum"), ("unit: V", "enum"), ("min: 0", "bitfield"),
+    ("values: {0: OFF}", "raw"), ("signed: true", "float"), ("invalid: 0xFF", "bytes"), ("initial: 1", "bitfield"),
+])
+def test_encoding_field_rejected(extra, encoding):
+    assert "encoding-field" in codes(_sig(extra, encoding))
+
+
+@pytest.mark.parametrize(("extra", "encoding"), [
+    ("unit: ms, min: 0, max: 100", "raw"), ("values: {0: OFF, 1: ON}", "flag"), ("factor: 0.5", "float"),
+    ("signed: true, values: {-1: NEG}", "enum"), ("invalid: 0xFF", "metric"),
+])
+def test_encoding_field_allowed(extra, encoding):
+    assert "encoding-field" not in codes(_sig(extra, encoding))
 
 
 def test_no_receivers_and_duplicate_short():

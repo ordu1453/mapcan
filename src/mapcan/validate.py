@@ -76,7 +76,7 @@ RULES = {
     "bit-overlap": ("error", N_("Пересечение сигналов по битам (с учётом мультиплексирования)")),
     "enum-overflow": ("error", N_("Значение enum не помещается в разрядность поля")),
     "duplicate-enum-name": ("warning", N_("Одинаковое имя у разных значений enum")),
-    "flags-encoding": ("error", N_("flags задан у сигнала с кодированием не bitfield")),
+    "encoding-field": ("error", N_("Поле не применимо к кодированию сигнала")),
     "flag-out-of-field": ("error", N_("Флаг выходит за пределы битового поля")),
     "flag-overlap": ("error", N_("Пересечение флагов внутри битового поля")),
     "flag-length": ("warning", N_("Сигнал типа flag длиной больше 1 бита")),
@@ -486,8 +486,9 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                          sp + ("values", v))
         _dup_enum_names(ctx, s.values, sp)
 
-        if s.flags and s.encoding != "bitfield":
-            ctx.emit("flags-encoding", _("flags у сигнала с кодированием {encoding}", encoding=s.encoding), sp + ("flags",))
+        for key in _misplaced_fields(s):
+            ctx.emit("encoding-field", _("{key} не применяется при encoding: {encoding}", key=key, encoding=s.encoding),
+                     sp + (key,))
         if s.encoding == "flag" and s.bit_length != 1:
             ctx.emit("flag-length", _("сигнал-флаг {name!r} длиной {bits} бит", name=s.name, bits=s.bit_length),
                      sp + ("bit_length",))
@@ -579,6 +580,29 @@ def _dup_enum_names(ctx: _Ctx, values, path) -> None:
                      path + ("values", v))
         seen[ev.name] = v
         upper.setdefault(ev.name.upper(), ev.name)
+
+
+# Кодирования, к которым применимо поле сигнала (поле задано, если отличается от значения по умолчанию)
+ENCODING_FIELDS = {
+    "factor": ("metric", "float"),
+    "offset": ("metric", "float"),
+    "unit": ("raw", "metric", "float"),
+    "min": ("raw", "metric", "float"),
+    "max": ("raw", "metric", "float"),
+    "values": ("enum", "flag"),
+    "flags": ("bitfield",),
+    "signed": ("raw", "metric", "enum"),
+    "signed_code": ("raw", "metric", "enum"),
+    "invalid": ("raw", "metric", "enum"),
+    "initial": ("raw", "metric", "enum", "flag", "float"),
+}
+
+
+def _misplaced_fields(s: Signal) -> list[str]:
+    """Поля сигнала, которые заданы, но не применяются при его кодировании."""
+    defaults = {k: Signal.model_fields[k].default for k in ENCODING_FIELDS}
+    return [k for k, allowed in ENCODING_FIELDS.items()
+            if s.encoding not in allowed and getattr(s, k) not in (defaults[k], None, [], {})]
 
 
 def _check_flags(ctx: _Ctx, s: Signal) -> None:

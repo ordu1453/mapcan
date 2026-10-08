@@ -152,6 +152,22 @@ CANopen ID computation:
 | `invalid` | Raw value (or list) meaning "not available / invalid", e.g. `0xFF` |
 | `comment` | Note |
 
+#### Encodings
+
+`encoding` says how the bits are read, and which value fields apply:
+
+| `encoding` | Meaning | Value fields |
+|---|---|---|
+| `raw` | Integer as is | `signed`, `unit`, `min`, `max`, `invalid`, `initial` |
+| `metric` | Scaled physical value: `raw * factor + offset` | `signed`, `factor`, `offset`, `unit`, `min`, `max`, `invalid`, `initial` |
+| `enum` | Value from the `values` table | `values`, `value_format`, `signed`, `invalid`, `initial` |
+| `flag` | One yes/no bit | `values`, `initial` |
+| `bitfield` | Set of flags | `flags` |
+| `float` | IEEE 754 | `factor`, `offset`, `unit`, `min`, `max`, `initial` |
+| `bytes` | Byte array | — |
+
+A field that does not apply is an error (`encoding-field`). `signed_code` follows `signed`.
+
 If no length is given, a signal is 8 bits long; a `float` is 32 bits, and a `flag` or a
 `byte` + `bit` position without `bit_length` is 1 bit.
 
@@ -414,7 +430,7 @@ turned off with `--disable CODE` or `lint.disable`.
 
 | Code | Severity | What is checked |
 |---|---|---|
-| `flags-encoding` | error | flags set on a signal whose encoding is not `bitfield` |
+| `encoding-field` | error | A field is set that does not apply to the signal's encoding (see [Encodings](#encodings)) |
 | `flag-out-of-field` | error | Flag extends beyond the bit field |
 | `flag-overlap` | error | Flags overlap inside the bit field |
 | `flag-length` | warning | Flag signal longer than 1 bit |
