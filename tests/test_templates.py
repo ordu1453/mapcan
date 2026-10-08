@@ -219,7 +219,9 @@ def test_web_requisites_ops(client):
     assert "signatures:\n    developed: Иванов" in st["text"]
 
 
-EXAMPLES = sorted((REFERENCE.parent.parent.parent / "examples").rglob("*.yaml"))
+# Карты примеров; файлы, которые карты подключают (include), — не карты
+EXAMPLES = sorted(p for p in (REFERENCE.parent.parent.parent / "examples").rglob("*.yaml")
+                  if re.search(r"^mapcan\s*:", p.read_text(encoding="utf-8"), re.MULTILINE))
 
 
 @pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.stem if p.parent.name == "examples" else p.parent.name)

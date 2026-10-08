@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=../../schema/mapcan.schema.json
+#
+# Tractor: a map split into files. This file describes the cab bus and its controller;
+# powertrain.yaml (included below) adds the J1939 powertrain bus, a gateway on the cab bus
+# and the value tables both files use. Validation, documents and code cover the whole map.
+
+mapcan: 1
+
+include: [powertrain.yaml]
+
+document:
+  title: Tractor
+  subtitle: Cab and powertrain
+  version: 0.1.0
+  language: en
+  organization: Example Machines
+
+buses:
+  - name: cab
+    title: Cab bus
+    bitrate: 250000
+    protocol: can
+    devices:
+      - name: cab_ctrl
+        short: CAB
+        title: Cab controller
+        frames:
+          - name: cab_controls
+            title: Cab controls
+            id: 0x300
+            dlc: 2
+            cycle_ms: 100
+            receivers: [gateway]          # the gateway is described in powertrain.yaml
+            signals:
+              - name: pto_request
+                encoding: enum
+                title: PTO request
+                description: Power take-off switch in the cab
+                byte: 0
+                byte_length: 1
+                values: switch_states     # named table from powertrain.yaml
+              - name: hitch_position
+                encoding: scaled
+                title: Hitch position request
+                description: Rear hitch lever position
+                byte: 1
+                byte_length: 1
+                factor: 0.4
+                unit: "%"
+                min: 0
+                max: 100
+                invalid: 0xFF

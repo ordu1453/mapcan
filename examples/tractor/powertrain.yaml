@@ -1,0 +1,98 @@
+# Powertrain of the tractor, included by tractor.yaml. An included file holds only buses and
+# value tables: a bus the main file already describes (cab) gets more devices and frames here,
+# a new bus (powertrain) is described in full.
+
+value_tables:
+  switch_states:
+    0: {name: OFF, description: switched off}
+    1: {name: ON, description: switched on}
+    2: {name: ERROR, description: error}
+    3: {name: NOT_AVAILABLE, description: not available}
+
+buses:
+  - name: cab                             # described in tractor.yaml
+    devices:
+      - name: gateway
+        short: GW
+        title: Powertrain gateway
+        frames:
+          - name: engine_summary
+            title: Engine summary
+            id: 0x310
+            dlc: 3
+            cycle_ms: 100
+            receivers: [cab_ctrl]
+            signals:
+              - name: engine_speed
+                encoding: scaled
+                title: Engine speed
+                description: Engine speed from EEC1
+                byte: 0
+                byte_length: 2
+                factor: 0.125
+                unit: rpm
+                min: 0
+                max: 8031.875
+                invalid: 0xFFFF
+              - name: pto_state
+                encoding: enum
+                title: PTO state
+                description: Rear power take-off engaged
+                byte: 2
+                byte_length: 1
+                values: switch_states
+
+  - name: powertrain
+    title: Powertrain bus
+    bitrate: 250000
+    protocol: j1939
+    devices:
+      - name: engine
+        short: ECU
+        title: Engine control unit
+        address: 0x00
+        frames:
+          - name: eec1
+            title: EEC1
+            description: Electronic Engine Controller 1
+            pgn: 0xF004
+            priority: 3
+            dlc: 8
+            cycle_ms: 20
+            receivers: [pt_gateway]
+            signals:
+              - name: engine_speed
+                encoding: scaled
+                title: Engine speed
+                description: Engine speed
+                spn: 190
+                byte: 3
+                byte_length: 2
+                factor: 0.125
+                unit: rpm
+                min: 0
+                max: 8031.875
+                invalid: 0xFFFF
+
+      - name: pt_gateway
+        short: GW
+        title: Powertrain gateway
+        address: 0x27
+        frames:
+          - name: pto_command
+            title: PTO command
+            description: Rear power take-off request from the cab
+            pgn: 0xFE43
+            priority: 6
+            dlc: 8
+            cycle_ms: 100
+            receivers: [engine]
+            signals:
+              - name: rear_pto
+                encoding: enum
+                title: Rear PTO
+                description: Rear power take-off engagement request
+                spn: 1873
+                start_bit: 0
+                bit_length: 2
+                values: switch_states

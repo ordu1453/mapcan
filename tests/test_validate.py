@@ -1,5 +1,7 @@
 """По тесту на каждое правило валидатора."""
 
+import re
+
 import pytest
 
 from mapcan.docmodel import build_view
@@ -714,7 +716,8 @@ def test_every_rule_documented(code):
     assert level in {"error", "warning", "info"} and desc
 
 
-@pytest.mark.parametrize("path", sorted((DATA.parent.parent / "examples").rglob("*.yaml")),
+@pytest.mark.parametrize("path", [p for p in sorted((DATA.parent.parent / "examples").rglob("*.yaml"))
+                                  if re.search(r"^mapcan\s*:", p.read_text(encoding="utf-8"), re.MULTILINE)],
                          ids=lambda p: p.relative_to(DATA.parent.parent / "examples").as_posix())
 def test_examples_are_clean(path):
     res, rep = validate_file(path)

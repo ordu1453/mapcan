@@ -227,6 +227,7 @@ changed. More in [docs/web.md](docs/web.md).
 | [minimal.yaml](examples/minimal.yaml) | Every kind of signal in one CANopen frame: enum, bit field, quantities, big-endian |
 | [j1939.yaml](examples/j1939.yaml) | SAE J1939: engine (EEC1, ET1), instrument cluster, addressed PDU1 request, "not available" 0xFF/0xFFFF |
 | [canopen-node.yaml](examples/canopen-node.yaml) | CANopen drive: PDO signals mapped to CiA 402 and manufacturer objects, EDS export |
+| [tractor/](examples/tractor/tractor.yaml) | A map in two files: `include` adds a J1939 powertrain bus, a device on the main file's bus and shared value tables |
 | [vehicle-can.yaml](examples/vehicle-can.yaml) | Explicit 11/29-bit IDs: float32, multiplexed cell voltages, receivers, CAN FD with DLC 64 and float64 |
 
 The same examples are on the editor's start screen: pick one, choose where to save a copy, and it

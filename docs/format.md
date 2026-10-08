@@ -430,6 +430,8 @@ buses:
     devices: [...]
 ```
 
+See [examples/tractor/](../examples/tractor/tractor.yaml) for a complete map in two files.
+
 An included file may contain only `buses` and `value_tables`. A bus that the main file (or an
 earlier included file) already describes can only get more `devices` and `frames`; its other
 fields, and a value table name used twice, are errors (`include`). Included files are not

@@ -30,7 +30,7 @@ from ..i18n import _, normalize_language
 from ..loader import loads
 from ..model import MapCan
 from ..userconfig import UserConfig, normalize_github
-from .examples import example_text, list_examples
+from .examples import example_includes, example_text, list_examples
 from .newmap import new_map_text, template_labels
 from .session import ConflictError, EditorSession, ReadOnlyError
 from .yamlops import OpError
@@ -620,18 +620,25 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                                _("не удалось прочитать {name}: {error}", name=path.name, error=e)) from e
             return await session_changed()
 
-    async def create_file(raw_path: str, force: bool, overwrite: bool, make_text: Callable[[Path], str]) -> dict:
+    async def create_file(raw_path: str, force: bool, overwrite: bool, make_text: Callable[[Path], str],
+                          extra: dict[str, str] | None = None) -> dict:
+        """Создать карту и открыть её; ``extra`` — файлы рядом с ней (путь относительно карты → текст)."""
         writable()
         async with lock:
             path = yaml_path(raw_path)
-            if path.exists() and not overwrite:
-                raise AppError(409, "exists", _("файл уже существует: {path}", path=path))
+            others = {(path.parent / name).resolve(): text for name, text in (extra or {}).items()}
+            for target in [path, *others]:
+                if target.exists() and not overwrite:
+                    raise AppError(409, "exists", _("файл уже существует: {path}", path=target))
             wsp.check_unsaved(force)
             try:
                 text = make_text(path)
             except ValueError as e:
                 raise AppError(400, "template", str(e)) from e
             try:
+                for target, other in others.items():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text(other, encoding="utf-8", newline="\n")
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(text, encoding="utf-8", newline="\n")
             except OSError as e:
@@ -647,7 +654,12 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
 
     @app.post("/api/file/example")
     async def file_example(body: ExampleBody) -> dict:
-        return await create_file(body.path, body.force, body.overwrite, lambda _path: example_text(body.name))
+        try:
+            included = example_includes(body.name)
+        except ValueError as e:
+            raise AppError(400, "template", str(e)) from e
+        return await create_file(body.path, body.force, body.overwrite, lambda _path: example_text(body.name),
+                                 included)
 
     @app.post("/api/file/save_as")
     async def file_save_as(body: SaveAsBody) -> dict:

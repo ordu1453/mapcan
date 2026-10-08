@@ -101,6 +101,21 @@ def test_copy_example(empty, tmp_path):
         assert r.status_code == 400 and r.json()["code"] == "template"
 
 
+def test_copy_example_with_included_files(empty, tmp_path):
+    examples = {e["name"]: e["title"] for e in empty.get("/api/meta").json()["examples"]}
+    assert "tractor" in examples and "powertrain" not in examples      # подключаемая часть — не пример
+    (tmp_path / "powertrain.yaml").write_text("x", encoding="utf-8")
+    r = empty.post("/api/file/example", json={"name": "tractor", "path": "farm.yaml"})
+    assert r.status_code == 409 and r.json()["code"] == "exists"         # подключаемый файл не затирается
+    (tmp_path / "powertrain.yaml").unlink()
+    r = empty.post("/api/file/example", json={"name": "tractor", "path": "farm.yaml"})
+    assert r.status_code == 200, r.text
+    assert (tmp_path / "powertrain.yaml").is_file()
+    st = r.json()["state"]
+    assert not st["diagnostics"]
+    assert [b["name"] for b in st["included_buses"]] == ["cab", "powertrain"]
+
+
 def test_unsaved_guard(tmp_path):
     a, b = tmp_path / "a.yaml", tmp_path / "b.yaml"
     shutil.copyfile(REFERENCE, a)
