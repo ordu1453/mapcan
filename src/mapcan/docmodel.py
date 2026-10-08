@@ -442,8 +442,10 @@ class ViewBuilder:
             "bits": bits_label,
             "byte_first": b0,
             "byte_last": b1,
-            "encoding": ([f"SPN {s.spn}"] if s.spn is not None else []) + enc,
+            "encoding": ([f"SPN {s.spn}"] if s.spn is not None else [])
+            + ([f"OD 0x{s.index:04X}:{s.subindex or 0:02X}"] if s.index is not None else []) + enc,
             "spn": s.spn,
+            "od": f"0x{s.index:04X}:{s.subindex or 0:02X}" if s.index is not None else None,
             "values": values,
             "mux": mux,
             "comment": self.t(s.comment),

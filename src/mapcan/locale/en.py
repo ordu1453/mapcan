@@ -416,6 +416,18 @@ EN: dict[str, str] = {
     "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)": "a translation key must be an ISO 639-1 language code (de, fr…)",
     "Не задан DLC кадра": "Frame DLC is not set",
     "Один и тот же SPN у нескольких сигналов шины": "The same SPN on several signals of the bus",
+    "Объект словаря CANopen у сигнала не PDO, вне 0x2000..0x9FFF или big-endian":
+        "CANopen dictionary object on a non-PDO signal, outside 0x2000..0x9FFF or big-endian",
+    "Один объект словаря у нескольких сигналов устройства": "The same dictionary object on several signals of a device",
+    "{name!r}: объект словаря задаётся только у сигналов PDO устройства на шине CANopen":
+        "{name!r}: a dictionary object is set only on PDO signals of a device on a CANopen bus",
+    "{name!r}: subindex без index": "{name!r}: subindex without index",
+    "{name!r}: индекс {index:#06x} вне областей производителя и профилей (0x2000..0x9FFF)":
+        "{name!r}: index {index:#06x} is outside the manufacturer and profile areas (0x2000..0x9FFF)",
+    "{name!r}: PDO CANopen передаёт данные little-endian": "{name!r}: CANopen PDOs carry little-endian data",
+    "объект {index:04X}:{sub:02X} уже у сигнала {other}": "object {index:04X}:{sub:02X} is already mapped by {other}",
+    "CANopen: индекс объекта словаря, отображённого в PDO.": "CANopen: index of the dictionary object mapped into the PDO.",
+    "CANopen: субиндекс объекта словаря (по умолчанию 0).": "CANopen: subindex of the dictionary object (0 by default).",
     "Сигнал длиннее 64 бит, но не выровненный массив байт": "Signal longer than 64 bits that is not an aligned byte array",
     "сигнал {name!r} длиной {bits} бит: длиннее 64 бит может быть только "
     "массив байт (encoding: bytes, little-endian, с границы байта)":
@@ -433,6 +445,12 @@ EN: dict[str, str] = {
         "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, "
         "SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol.",
     "Импорт карты из форматов других инструментов.": "Import a map from other tools' formats.",
+    "EDS (CiA 306) на каждое устройство шин CANopen: объекты PDO и их отображение.":
+        "EDS (CiA 306) for every device of the CANopen buses: PDO objects and their mapping.",
+    "Каталог для .eds.": "Directory for the .eds files.",
+    "{frame}: мультиплексированный PDO в EDS не отображается": "{frame}: a multiplexed PDO is not mapped in the EDS",
+    "{frame}.{signal}: пересекается с предыдущим объектом, в EDS не отображён":
+        "{frame}.{signal}: overlaps the previous object and is not mapped in the EDS",
     "DBC → YAML-карта: узлы, кадры, сигналы, таблицы значений, режимы передачи.":
         "DBC → YAML map: nodes, frames, signals, value tables, transmission modes.",
     "DBC-файл.": "DBC file.",

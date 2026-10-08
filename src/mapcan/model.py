@@ -248,6 +248,10 @@ class Signal(_Base):
     comment: Text | None = Field(None, description=COMMENT)
     spn: int | None = Field(None, ge=0, le=0x7FFFF,
                             description=N_("J1939: номер параметра (SPN) по SAE J1939-71."))
+    index: int | None = Field(None, ge=0, le=0xFFFF,
+                              description=N_("CANopen: индекс объекта словаря, отображённого в PDO."))
+    subindex: int | None = Field(None, ge=0, le=0xFF,
+                                 description=N_("CANopen: субиндекс объекта словаря (по умолчанию 0)."))
 
     @property
     def invalid_values(self) -> list[int]:

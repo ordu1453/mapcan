@@ -106,6 +106,8 @@ RULES = {
     "j1939-field-protocol": ("warning", N_("pgn/priority/destination/address/spn на шине не J1939")),
     "j1939-spn-duplicate": ("warning", N_("Один и тот же SPN у нескольких сигналов шины")),
     "j1939-tp": ("info", N_("PGN длиннее 8 байт передаётся транспортным протоколом J1939-21")),
+    "canopen-od": ("warning", N_("Объект словаря CANopen у сигнала не PDO, вне 0x2000..0x9FFF или big-endian")),
+    "od-duplicate": ("warning", N_("Один объект словаря у нескольких сигналов устройства")),
     "unknown-receiver": ("error", N_("Получатель кадра не описан на шине")),
     "unknown-sender": ("error", N_("Отправитель кадра не описан на шине")),
     "sender-mismatch": ("warning", N_("sender противоречит направлению кадра или совпадает с получателем")),
@@ -291,7 +293,41 @@ def _check_bus(ctx: _Ctx, bus) -> None:
         if frame.can_id > 0x7FF and not frame.extended:
             ctx.emit("can-id-range", _("CAN ID {can_id:#x} > 0x7FF", can_id=frame.can_id), p + ("id",))
     _check_spn(ctx, bus)
+    _check_od(ctx, bus)
     _check_bus_load(ctx, bus)
+
+
+def _check_od(ctx: _Ctx, bus) -> None:
+    """Объекты словаря CANopen, отображённые в PDO: index/subindex сигналов."""
+    for frame in bus.all_frames():
+        pdo = bus.protocol == "canopen" and frame.device is not None and frame.type.startswith("pdo_")
+        for s in frame.signals:
+            if s.index is None and s.subindex is None:
+                continue
+            p = s._path + (("index",) if s.index is not None else ("subindex",))
+            if not pdo:
+                ctx.emit("canopen-od", _("{name!r}: объект словаря задаётся только у сигналов PDO устройства "
+                                         "на шине CANopen", name=s.name), p)
+            elif s.index is None:
+                ctx.emit("canopen-od", _("{name!r}: subindex без index", name=s.name), p)
+            elif not 0x2000 <= s.index <= 0x9FFF:
+                ctx.emit("canopen-od", _("{name!r}: индекс {index:#06x} вне областей производителя и профилей "
+                                         "(0x2000..0x9FFF)", name=s.name, index=s.index), p)
+            elif s.byte_order == "big_endian":
+                ctx.emit("canopen-od", _("{name!r}: PDO CANopen передаёт данные little-endian", name=s.name),
+                         s._path + ("byte_order",))
+    for dev in bus.devices:
+        seen: dict[tuple[int, int], str] = {}
+        for frame in dev.frames:
+            for s in frame.signals:
+                if s.index is None:
+                    continue
+                key = (s.index, s.subindex or 0)
+                if key in seen:
+                    ctx.emit("od-duplicate", _("объект {index:04X}:{sub:02X} уже у сигнала {other}", index=key[0],
+                                               sub=key[1], other=seen[key]), s._path + ("index",))
+                else:
+                    seen[key] = f"{frame.name}.{s.name}"
 
 
 def _check_spn(ctx: _Ctx, bus) -> None:

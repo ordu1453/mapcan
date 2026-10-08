@@ -1464,6 +1464,36 @@
           "default": null,
           "description": "J1939: suspect parameter number (SPN) per SAE J1939-71.",
           "title": "Spn"
+        },
+        "index": {
+          "anyOf": [
+            {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CANopen: index of the dictionary object mapped into the PDO.",
+          "title": "Index"
+        },
+        "subindex": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CANopen: subindex of the dictionary object (0 by default).",
+          "title": "Subindex"
         }
       },
       "required": [

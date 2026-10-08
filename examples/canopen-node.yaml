@@ -1,0 +1,113 @@
+# yaml-language-server: $schema=../schema/mapcan.schema.json
+# CANopen drive: PDO signals mapped to dictionary objects (CiA 402 and manufacturer),
+# enough for `mapcan export eds` to write the drive's EDS file.
+
+mapcan: 1
+
+document:
+  title: CANopen drive
+  version: 0.1.0
+  language: en
+  organization: Example Motors
+
+buses:
+  - name: drive_bus
+    title: Drive bus
+    bitrate: 500000
+    protocol: canopen
+    devices:
+      - name: controller
+        title: Vehicle controller
+        node_id: 0x01
+
+      - name: drive
+        title: Traction drive
+        node_id: 0x05
+        frames:
+          - name: drive_status            # TPDO1, ID 0x185
+            type: pdo_tx1
+            dlc: 6
+            cycle_ms: 10
+            receivers: [controller]
+            signals:
+              - name: statusword
+                encoding: raw
+                title: Statusword
+                description: CiA 402 statusword
+                index: 0x6041
+                byte: 0
+                byte_length: 2
+              - name: actual_velocity
+                encoding: scaled
+                title: Velocity actual value
+                description: Motor speed
+                index: 0x606C
+                byte: 2
+                byte_length: 4
+                signed: true
+                unit: rpm
+
+          - name: drive_measurements      # TPDO2, ID 0x285
+            type: pdo_tx2
+            dlc: 4
+            cycle_ms: 100
+            receivers: [controller]
+            signals:
+              - name: motor_temp
+                encoding: scaled
+                title: Motor temperature
+                description: Motor winding temperature
+                index: 0x2100
+                subindex: 1
+                byte: 0
+                byte_length: 1
+                offset: -40
+                unit: °C
+              - name: inverter_temp
+                encoding: scaled
+                title: Inverter temperature
+                description: Power stage temperature
+                index: 0x2100
+                subindex: 2
+                byte: 1
+                byte_length: 1
+                offset: -40
+                unit: °C
+              - name: dc_voltage
+                encoding: scaled
+                title: DC link voltage
+                description: DC link voltage
+                index: 0x2100
+                subindex: 3
+                byte: 2
+                byte_length: 2
+                factor: 0.1
+                unit: V
+
+          - name: drive_command           # RPDO1, ID 0x205, sent by the controller
+            type: pdo_rx1
+            sender: controller
+            dlc: 6
+            cycle_ms: 10
+            signals:
+              - name: controlword
+                encoding: raw
+                title: Controlword
+                description: CiA 402 controlword
+                index: 0x6040
+                byte: 0
+                byte_length: 2
+              - name: target_velocity
+                encoding: scaled
+                title: Target velocity
+                description: Requested motor speed
+                index: 0x60FF
+                byte: 2
+                byte_length: 4
+                signed: true
+                unit: rpm
+
+          - name: drive_heartbeat
+            type: heartbeat
+            cycle_ms: 500
+            receivers: [controller]

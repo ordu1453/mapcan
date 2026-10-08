@@ -146,6 +146,7 @@ uv/pipx run `uv tool uninstall canmap`, then install again. Settings move from `
 | 📄 PDF: title page, contents, bit diagrams, tables | `mapcan export pdf my-map.yaml` |
 | 📝 Markdown for a README or wiki, HTML page with search | `mapcan export md` / `mapcan export html` |
 | 🔌 DBC for CANalyzer, SavvyCAN, PCAN-View, Wireshark | `mapcan export dbc my-map.yaml -o dbc/` |
+| 🧩 EDS of each CANopen device: mapped objects and PDO parameters | `mapcan export eds my-map.yaml -o eds/` |
 | ⚙️ C: ID `#define`s, `enum`s, masks, structs, `pack`/`unpack` | `mapcan gen c my-map.yaml -o firmware/` |
 | 🐍 Python module for tests and test benches | `mapcan gen py my-map.yaml -o tools/` |
 | 📦 Everything at once, for CI | `mapcan build my-map.yaml -o build/` |
@@ -225,6 +226,7 @@ changed. More in [docs/web.md](docs/web.md).
 |---|---|
 | [minimal.yaml](examples/minimal.yaml) | Every kind of signal in one CANopen frame: enum, bit field, quantities, big-endian |
 | [j1939.yaml](examples/j1939.yaml) | SAE J1939: engine (EEC1, ET1), instrument cluster, addressed PDU1 request, "not available" 0xFF/0xFFFF |
+| [canopen-node.yaml](examples/canopen-node.yaml) | CANopen drive: PDO signals mapped to CiA 402 and manufacturer objects, EDS export |
 | [vehicle-can.yaml](examples/vehicle-can.yaml) | Explicit 11/29-bit IDs: float32, multiplexed cell voltages, receivers, CAN FD with DLC 64 and float64 |
 
 The same examples are on the editor's start screen: pick one, choose where to save a copy, and it
@@ -241,9 +243,10 @@ mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|my.typ] [--font-p
 mapcan export md   FILE [-o OUT] [--template my.md.j2] [--lang en]
 mapcan export html FILE [-o OUT] [--template my.html.j2] [--lang en]
 mapcan export dbc  FILE [-o DIR|file.dbc] [--bus NAME]
+mapcan export eds  FILE [-o DIR] [--bus NAME]
 mapcan gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
 mapcan gen py      FILE [-o DIR] [--bus NAME]
-mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py] [--pdf-template NAME]
+mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,eds,c,py] [--pdf-template NAME]
 mapcan diff        OLD NEW [--format text|md|json]
 mapcan import dbc  FILE.dbc [-o FILE.yaml] [--title TEXT] [--lang en] [--force]
 mapcan schema      [-o schema.json]

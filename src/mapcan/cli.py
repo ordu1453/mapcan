@@ -346,6 +346,19 @@ def export_dbc_cmd(
     _done(export_dbc(res.map, out or Path("."), bus, warn=_warn))
 
 
+@export_app.command("eds", help=_("EDS (CiA 306) на каждое устройство шин CANopen: объекты PDO и их отображение."))
+def export_eds_cmd(
+    path: Path = MapArg,
+    out: Path = typer.Option(Path("."), "-o", "--output", help=_("Каталог для .eds.")),
+    bus: Optional[str] = typer.Option(None, "--bus", help=_("Только указанная шина.")),
+    force: bool = ForceOpt,
+) -> None:
+    from .export.eds import export_eds
+
+    res = _load_checked(path, force)
+    _done(export_eds(res.map, out, bus, warn=_warn))
+
+
 @gen_app.command("c", help=_("C: #define ID, enum, маски, структуры, pack/unpack."))
 def gen_c_cmd(
     path: Path = MapArg,
@@ -403,7 +416,7 @@ def import_dbc_cmd(
     typer.echo(_summary(report))
 
 
-ALL_FORMATS = ["xlsx", "pdf", "md", "html", "dbc", "c", "py"]
+ALL_FORMATS = ["xlsx", "pdf", "md", "html", "dbc", "eds", "c", "py"]
 
 
 @app.command(help=_("Проверить карту и собрать все артефакты (для CI)."))
@@ -418,6 +431,7 @@ def build(
     from .codegen.c import generate_c
     from .codegen.py import generate_py
     from .export.dbc import export_dbc
+    from .export.eds import export_eds
     from .export.pdf import export_pdf
     from .export.text import export_text
     from .export.xlsx import export_xlsx
@@ -436,6 +450,7 @@ def build(
         "md": lambda: export_text(m, out / f"{stem}.md", "md"),
         "html": lambda: export_text(m, out / f"{stem}.html", "html"),
         "dbc": lambda: export_dbc(m, out / "dbc", warn=_warn),
+        "eds": lambda: export_eds(m, out / "eds", warn=_warn),
         "c": lambda: generate_c(m, out / "c"),
         "py": lambda: generate_py(m, out / "py"),
     }

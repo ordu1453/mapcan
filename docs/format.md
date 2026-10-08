@@ -166,6 +166,7 @@ CANopen ID computation:
 | `mux` | Selector value (or list of values) for which the signal is present |
 | `initial` | Default value in physical units (`…_INITIAL_RAW` in C, `GenSigStartValue` in DBC) |
 | `invalid` | Raw value (or list) meaning "not available / invalid", e.g. `0xFF` |
+| `index`, `subindex` | CANopen dictionary object mapped into the PDO (see [Object dictionary and EDS](#object-dictionary-and-eds)) |
 | `spn` | J1939 suspect parameter number (SAE J1939-71), 0..524287. Shown in documents, written to DBC as the `SPN` signal attribute and to code as `<FRAME>_<SIGNAL>_SPN` |
 | `comment` | A note or caveat (see [Text fields](#text-fields)) |
 
@@ -294,6 +295,31 @@ and unpacks the whole payload; splitting it into packets is the job of the J1939
 
 A signal longer than 64 bits can only be a byte array (`encoding: bytes`, little-endian, starting
 at a byte boundary).
+
+### Object dictionary and EDS
+
+A signal of a device's PDO can name the dictionary object it carries: `index` and, for an entry of
+a record, `subindex` (0 by default). Signals sharing an `index` with different subindices form a
+record. Documents show the object (`OD 0x6041:00`), and `mapcan export eds` writes an EDS file
+(CiA 306) per device of a CANopen bus: the mandatory objects (1000, 1001, 1018), the producer
+heartbeat time (1017, from a heartbeat frame's `cycle_ms`), the communication and mapping
+parameters of each PDO with mapped signals (1400/1600 for RPDOs, 1800/1A00 for TPDOs; COB-ID
+`$NODEID+base`, event timer from `cycle_ms`) and the objects themselves. Gaps between mapped
+signals are filled with dummy objects.
+
+```yaml
+- name: drive_status
+  type: pdo_tx1
+  dlc: 6
+  cycle_ms: 10
+  signals:
+    - {name: statusword, encoding: raw, index: 0x6041, byte: 0, byte_length: 2}
+    - {name: actual_velocity, encoding: scaled, index: 0x606C, byte: 2, byte_length: 4, signed: true, unit: rpm}
+```
+
+The object's data type is the smallest standard type that holds the signal (`UNSIGNED16`,
+`INTEGER32`, `REAL32`, `BOOLEAN` for one bit…). Objects of a TPDO are read-only (`ro`), of an
+RPDO writable (`rww`). See [examples/canopen-node.yaml](../examples/canopen-node.yaml).
 
 ### SDO (`sdo[]`)
 
@@ -473,6 +499,8 @@ turned off with `--disable CODE` or `lint.disable`.
 | `j1939-field-protocol` | warning | pgn/priority/destination/address/spn on a non-J1939 bus |
 | `j1939-spn-duplicate` | warning | The same SPN on several signals of the bus |
 | `j1939-tp` | info | A PGN longer than 8 bytes is sent with the J1939-21 transport protocol |
+| `canopen-od` | warning | Dictionary object on a signal outside a device's PDO, outside 0x2000..0x9FFF, or big-endian |
+| `od-duplicate` | warning | The same dictionary object on several signals of a device |
 
 ### Sender and receivers
 

@@ -9,6 +9,7 @@ import { webviewHtml } from "./webview";
 
 export const FORMATS: { id: string; label: string; detail: string }[] = [
   { id: "dbc", label: "DBC", detail: "One .dbc file per bus, for CANalyzer, BusMaster, SavvyCAN" },
+  { id: "eds", label: "EDS", detail: "One .eds file per CANopen device: mapped objects and PDOs" },
   { id: "c", label: "C", detail: "Headers and sources: IDs, enums, structs, pack/unpack" },
   { id: "py", label: "Python", detail: "The same structures for tests and test benches" },
   { id: "xlsx", label: "Excel", detail: "Communication matrix, bit maps, changes" },

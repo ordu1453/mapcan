@@ -44,6 +44,7 @@ EXPORT_FORMATS = {
     "md": ("text/markdown; charset=utf-8", ".md"),
     "html": ("text/html; charset=utf-8", ".html"),
     "dbc": ("application/zip", ".zip"),
+    "eds": ("application/zip", ".zip"),
     "c": ("application/zip", ".zip"),
     "py": ("application/zip", ".zip"),
 }
@@ -306,6 +307,10 @@ def build_export(cmap: MapCan, fmt: str, stem: str, lang: str | None, template: 
             return export_pdf(cmap, root / f"{stem}.pdf", template=template, lang=lang).read_bytes()
         if fmt == "dbc":
             return _zip(export_dbc(cmap, root), root)
+        if fmt == "eds":
+            from ..export.eds import export_eds
+
+            return _zip(export_eds(cmap, root), root)
         if fmt == "c":
             return _zip(generate_c(cmap, root), root)
         if fmt == "py":

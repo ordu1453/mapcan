@@ -41,6 +41,7 @@ const DOCUMENTS: ExportItem[] = [
 ];
 const DEV: ExportItem[] = [
   { fmt: "dbc", label: "DBC", hint: ".zip" },
+  { fmt: "eds", label: "EDS", hint: ".zip" },
   { fmt: "c", label: N_("C-код"), hint: ".zip" },
   { fmt: "py", label: N_("Python-модуль"), hint: ".zip" },
 ];
