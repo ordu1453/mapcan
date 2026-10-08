@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Публикация репозитория карты на GitHub через GitHub CLI (gh repo create --source --push).
+// Publishing the map's repository on GitHub with the GitHub CLI (gh repo create --source --push).
 import { computed, onMounted, ref } from "vue";
 import { api } from "../api";
 import { actions, store, toast } from "../store";

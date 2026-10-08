@@ -11,7 +11,7 @@ const props = defineProps<{
   node: TreeNode;
   depth: number;
   expanded: Set<string>;
-  visible: Set<string> | null; // null — фильтра нет
+  visible: Set<string> | null; // null: no filter
   query: string;
 }>();
 const emit = defineEmits<{ toggle: [key: string] }>();
@@ -35,26 +35,26 @@ const nested = computed(() => {
   }
   return lvl;
 });
-// Кадр, выбранный через ссылку, подсвечивается только в ссылке, а не у отправителя (и наоборот)
+// A frame selected through a link is highlighted only in the link, not at its sender (and the other way round)
 const selected = computed(() => samePath(store.selected, props.node.path)
   && (store.selectedVia ?? undefined) === props.node.receiver);
 const onPath = computed(() => !selected.value && startsWith(store.selected, props.node.path));
 const match = computed(() => props.query !== "" && props.node.search.includes(props.query));
 
-// В дереве видны названия для людей (title), а не идентификаторы: двойной щелчок правит то, что видно.
-// У устройства подпись «short · title» — каждая часть правится своим двойным щелчком; у флагов и SDO названия нет — правится имя.
+// The tree shows titles for people, not identifiers: a double click edits what is visible.
+// A device is labeled "short · title", each part edited with its own double click; flags and SDO have no title, so the name is edited.
 type Part = "name" | "short" | "title";
 const renaming = ref<Part | null>(null);
 const nodeData = computed(() => (viewData.value ? getAt(viewData.value, props.node.path) : null));
 const titled = computed(() => ["bus", "device", "frame", "signal"].includes(props.node.kind));
 const title = computed(() => txt(nodeData.value?.title, lang.value));
-// Названия ещё нет — поле правки открывается с идентификатором, который сейчас виден в дереве
+// No title yet: the edit field opens with the identifier the tree shows now
 const partValue = (p: Part) => (p === "title" ? title.value || nodeData.value?.name || "" : nodeData.value?.[p] ?? "");
 function startRename(field: Part) {
   if (props.node.from === undefined && canRename(props.node.path)) renaming.value = field;
 }
 
-// Новая шина или устройство: сразу открыть правку названия (оно обязательно и подставлено по умолчанию)
+// A new bus or device: open the title for editing right away (it is required and filled in by default)
 watch(() => store.renameRequest, (p) => {
   if (p && props.node.from === undefined && samePath(p, props.node.path)) {
     store.renameRequest = null;
@@ -70,7 +70,7 @@ function click() {
 
 <template>
   <li>
-    <!-- У ссылки на чужой кадр data-key свой: прокрутка к выбранному кадру идёт к оригиналу -->
+    <!-- A link to another device's frame has its own data-key: scrolling to the selected frame goes to the original -->
     <div class="tree-row" :class="{ selected, 'on-path': onPath, match, link: node.from !== undefined, included: !!node.file }"
          :style="{ paddingLeft: depth * 14 + 6 + 'px' }"
          :data-key="node.from !== undefined ? node.key : pathKey(node.path)" @click="click"

@@ -1,4 +1,4 @@
-"""Точка входа mapcan-app.exe (окно редактора, без консоли)."""
+"""Entry point of mapcan-app.exe (the editor window, without a console)."""
 
 import sys
 

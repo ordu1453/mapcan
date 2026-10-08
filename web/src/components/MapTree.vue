@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Дерево «документ → история; шина → устройство → кадр → сигнал → флаг» с поиском по имени, ID и описанию.
+// Tree "document → history; bus → device → frame → signal → flag" with search by name, ID and description.
 import { computed, nextTick, ref, watch } from "vue";
 import { pathKey, type TreeNode } from "../model";
 import { store, tree } from "../store";
@@ -11,7 +11,7 @@ const expanded = ref(new Set<string>(["document", "buses/0"]));
 
 const q = computed(() => query.value.trim().toLowerCase());
 
-/** Узлы, которые видны при фильтре: совпавшие и их предки. */
+/** Nodes visible with the filter: the matching ones and their ancestors. */
 const visible = computed<Set<string> | null>(() => {
   if (!q.value) return null;
   const terms = q.value.split(/\s+/);
@@ -37,7 +37,7 @@ function toggle(key: string) {
   expanded.value = s;
 }
 
-// Раскрыть предков выбранного узла (переход из диагностики, Diff и т.п.) и прокрутить к нему.
+// Expand the ancestors of the selected node (going here from diagnostics, Diff etc.) and scroll to it.
 watch(
   () => store.selected,
   async (p) => {
@@ -45,7 +45,7 @@ watch(
     for (let n = 1; n < p.length; n++) s.add(pathKey(p.slice(0, n)));
     expanded.value = s;
     await nextTick();
-    // Кадр, выбранный через ссылку, — прокручиваем к ссылке
+    // A frame selected through a link: scroll to the link
     (document.querySelector(".tree-row.selected")
       ?? document.querySelector(`.tree-row[data-key="${CSS.escape(pathKey(p))}"]`))?.scrollIntoView({ block: "nearest" });
   },

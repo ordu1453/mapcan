@@ -1,7 +1,7 @@
-// Шаблон «mapcan» — техническое оформление без требований ГОСТ.
+// The "mapcan" template: technical styling without GOST requirements.
 //
-// Данные карты — JSON в `sys.inputs.data` (см. mapcan/docmodel.py), общие элементы — lib.typ.
-// Своя версия: `mapcan template pdf -o my.typ` (рядом скопируется lib.typ), затем
+// The map's data is JSON in `sys.inputs.data` (see mapcan/docmodel.py), shared elements are in lib.typ.
+// Your own version: `mapcan template pdf -o my.typ` (lib.typ is copied next to it), then
 // `mapcan export pdf map.yaml --template my.typ`.
 
 #import "lib.typ": *
@@ -41,7 +41,7 @@
   },
 )
 
-// ---------------------------------------------------------------- титул
+// ---------------------------------------------------------------- title page
 #page(header: none)[
   #logo(doc, height: 18mm)
   #if doc.organization != "" { v(2mm); text(size: 11pt, fill: luma(80), doc.organization) }
@@ -62,7 +62,7 @@
 
 #outline(title: L.contents, depth: 3, indent: auto)
 
-// ---------------------------------------------------------------- кадры
+// ---------------------------------------------------------------- frames
 
 #let frame-section(fr) = {
   block(breakable: false, {
@@ -96,7 +96,7 @@
   heading(level: 2, L.addressing)
   addressing-table(bus, L, th: th)
 
-  // Как читать битовые диаграммы — перед первой из них в каждой шине.
+  // How to read the bit diagrams: before the first of them in each bus.
   v(3mm)
   block(fill: rgb("#F2F6FA"), inset: 6pt, radius: 3pt, width: 100%, text(size: 8.5pt, doc.bit_note))
 
@@ -109,7 +109,7 @@
   }
 }
 
-// ---------------------------------------------------------------- приложение
+// ---------------------------------------------------------------- appendix
 
 #if doc.history.len() > 0 {
   heading(level: 1, numbering: none, L.history)

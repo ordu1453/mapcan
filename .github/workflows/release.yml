@@ -1,17 +1,17 @@
 name: release
 
-# Выпуск версии: поднять версию (pyproject.toml, src/mapcan/__init__.py, web/package.json),
-# закоммитить и запушить тег vX.Y.Z. Workflow проверит, соберёт и опубликует GitHub Release:
-#   mapcan-X.Y.Z-setup.exe          — установщик для Windows
-#   mapcan-X.Y.Z-windows-x64.zip    — та же сборка без установки
-#   mapcan-X.Y.Z-linux-x64.tar.gz   — сборка для Linux (редактор открывается в браузере)
-#   mapcan-X.Y.Z-py3-none-any.whl   — для uv tool install / pipx
-#   Docker-образ ghcr.io/<владелец>/mapcan:X.Y.Z и :latest
-# Ручной запуск (Actions → release → Run workflow) — пробная сборка без публикации.
+# Releasing a version: bump the version (pyproject.toml, src/mapcan/__init__.py, web/package.json),
+# commit, and push the tag vX.Y.Z. The workflow checks, builds and publishes a GitHub Release:
+#   mapcan-X.Y.Z-setup.exe          the Windows installer
+#   mapcan-X.Y.Z-windows-x64.zip    the same build without installing
+#   mapcan-X.Y.Z-linux-x64.tar.gz   the Linux build (the editor opens in the browser)
+#   mapcan-X.Y.Z-py3-none-any.whl   for uv tool install / pipx
+#   Docker image ghcr.io/<owner>/mapcan:X.Y.Z and :latest
+# A manual run (Actions → release → Run workflow) is a trial build without publishing.
 #
-# Раннеры — как в ci.yml: свой self-hosted Windows, а при CI_RUNNER=github — раннеры GitHub.
-# Docker-образ и Linux-сборка идут на ubuntu-latest и публикацию релиза не задерживают:
-# архив для Linux догружается в уже опубликованный релиз (linux-upload).
+# Runners as in ci.yml: the own self-hosted Windows one, or GitHub runners with CI_RUNNER=github.
+# The Docker image and the Linux build run on ubuntu-latest and do not hold up publishing the release:
+# the Linux archive is uploaded to the already published release (linux-upload).
 
 on:
   push:
@@ -47,17 +47,17 @@ jobs:
           web=$(node -p "require('./web/package.json').version")
           echo "pyproject=$v __init__=$init web=$web ref=$GITHUB_REF_NAME"
           if [ "$v" != "$init" ] || [ "$v" != "$web" ]; then
-            echo "::error::версии в pyproject.toml, src/mapcan/__init__.py и web/package.json различаются"; exit 1
+            echo "::error::the versions in pyproject.toml, src/mapcan/__init__.py and web/package.json differ"; exit 1
           fi
           if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then
-            echo "::error::тег $GITHUB_REF_NAME не совпадает с версией пакета $v"; exit 1
+            echo "::error::the tag $GITHUB_REF_NAME does not match the package version $v"; exit 1
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
   ci:
     uses: ./.github/workflows/ci.yml
     with:
-      skip-linux: true   # Linux-тест идёт в ci на main; релиз не ждёт облачные раннеры
+      skip-linux: true   # the Linux test runs in ci on main; the release does not wait for cloud runners
 
   python:
     needs: [version, ci]
@@ -109,7 +109,7 @@ jobs:
       - name: Installer (Inno Setup)
         shell: powershell
         run: |
-          # Установленный Inno Setup или своя копия в кэше инструментов раннера (ставится без прав администратора).
+          # Installed Inno Setup or an own copy in the runner's tool cache (installed without administrator rights).
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           $local = Join-Path $env:RUNNER_TOOL_CACHE "innosetup"
           if (-not (Test-Path $iscc)) { $iscc = Join-Path $local "ISCC.exe" }
@@ -119,7 +119,7 @@ jobs:
             Invoke-WebRequest -UseBasicParsing -OutFile $setup `
               "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
             Start-Process $setup -Wait -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/DIR=`"$local`""
-            if (-not (Test-Path $iscc)) { Write-Error "Inno Setup не установился в $local"; exit 1 }
+            if (-not (Test-Path $iscc)) { Write-Error "Inno Setup was not installed to $local"; exit 1 }
           }
           & $iscc /Qp "/DAppVersion=$env:VERSION" packaging\mapcan.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -145,7 +145,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        # Без extra desktop: pywebview на Linux требует GTK/Qt, без него mapcan-app открывает браузер.
+        # Without the desktop extra: pywebview on Linux needs GTK/Qt; without it mapcan-app opens the browser.
         run: uv sync --locked --no-dev --group package
       - name: Build (PyInstaller)
         run: uv run --no-sync pyinstaller packaging/mapcan.spec --noconfirm
@@ -220,7 +220,7 @@ jobs:
         run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - name: Release notes
         run: |
-          # checkout оставляет облегчённую копию тега — забираем аннотацию заново.
+          # checkout leaves a lightweight copy of the tag: fetch the annotation again.
           git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
           {
             git tag -l --format='%(contents)' "$TAG" | sed '/-----BEGIN PGP SIGNATURE-----/,$d'
@@ -257,7 +257,7 @@ jobs:
       - name: Upload to the release
         working-directory: assets
         run: |
-          # Если сборка Linux закончилась раньше publish, архив и его сумма уже в релизе
+          # If the Linux build finished before publish, the archive and its checksum are already in the release
           if gh release view "$TAG" --json assets --jq '.assets[].name' | grep -q -- '-linux-x64\.tar\.gz$'; then
             echo "Linux archive is already in the release"
             exit 0

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Правка YAML целиком. Текст без синтаксических ошибок применяется по ходу ввода (дерево и проверка
-// обновляются сразу), Ctrl+Enter или кнопка — применить немедленно; проверка та же, что в CLI.
+// Editing the whole YAML. Text without syntax errors is applied while typing (the tree and validation
+// update right away), Ctrl+Enter or the button applies it immediately; validation is the same as in the CLI.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { api } from "../api";
 import { actions, diagnostics as diags, store, tree, yamlLocal as local } from "../store";
@@ -9,7 +9,7 @@ import { highlight, keyEdit, nodeAtLine, nodeLines, type TextEdit } from "../yam
 import { complete, type CompletionList, type Schema } from "../yamlcomplete";
 import { t } from "../i18n";
 
-// Черновик живёт в store: при переходе на другую вкладку он не теряется, а применяется.
+// The draft lives in the store: going to another tab does not lose it but applies it.
 const text = computed({
   get: () => store.yaml.draft ?? store.state?.text ?? "",
   set: (v: string) => { store.yaml.draft = v; },
@@ -25,11 +25,11 @@ const LINE = 20;
 const lines = computed(() => text.value.split("\n").length);
 const html = computed(() => highlight(text.value).join("\n") + "\n");
 
-// Строки узла, выбранного в дереве.
+// Lines of the node selected in the tree.
 const range = computed(() => (store.state?.data ? nodeLines(text.value, store.selected) : null));
 const inRange = (n: number) => !!range.value && n >= range.value.first && n <= range.value.last;
 
-// При выборе в дереве — прокрутить к узлу, если он вне видимой области.
+// On a selection in the tree, scroll to the node if it is outside the visible area.
 watch(() => store.selected, async () => {
   await nextTick();
   const r = range.value;
@@ -43,7 +43,7 @@ watch(() => store.selected, async () => {
   }
 }, { immediate: true });
 
-// Обратно: курсор в тексте выбирает в дереве узел, которому принадлежит строка.
+// The other way: the cursor in the text selects the tree node the line belongs to.
 const treePaths = computed(() => {
   const out: TreeNode["path"][] = [];
   const walk = (ns: TreeNode[]) => ns.forEach((n) => { out.push(n.path); walk(n.children); });
@@ -66,7 +66,7 @@ function onKeyUp(e: KeyboardEvent) {
   }
 }
 
-// ---- подсказки ключей и значений по схеме формата (Ctrl+Space — показать вручную)
+// ---- suggestions of keys and values from the format's schema (Ctrl+Space shows them by hand)
 let schema: Schema | null = null;
 const hint = ref<CompletionList | null>(null);
 const hintIdx = ref(0);
@@ -83,7 +83,7 @@ onMounted(async () => {
   try {
     schema = await api.schema();
   } catch {
-    /* без схемы — без подсказок */
+    /* no schema, no suggestions */
   }
 });
 
@@ -97,7 +97,7 @@ function showHint(force = false) {
 function onInput(e: Event) {
   const kind = (e as InputEvent).inputType ?? "";
   const el = ta.value;
-  // Новый элемент списка «- », начало «{» или следующий ключ после «, » — сразу поля
+  // A new list item "- ", an opening "{" or the next key after ", ": fields right away
   const lineHead = el ? el.value.slice(el.value.lastIndexOf("\n", el.selectionStart - 1) + 1, el.selectionStart) : "";
   if (kind === "insertText" && (/^\s*-\s$/.test(lineHead) || /(\{|,\s)$/.test(lineHead))) showHint(true);
   else if (kind.startsWith("insert") && kind !== "insertFromPaste") showHint();
@@ -114,7 +114,7 @@ function acceptHint(i: number) {
   if (c.chain) showHint(true);
 }
 
-// Список — под строкой курсора, у начала слова; у нижнего края — над строкой.
+// The list goes below the cursor's line at the start of the word; at the bottom edge, above the line.
 const hintStyle = computed(() => {
   const h = hint.value;
   if (!h) return {};
@@ -131,9 +131,9 @@ watch(hintIdx, async () => {
   box.value?.querySelector(".yaml-suggest li.active")?.scrollIntoView({ block: "nearest" });
 });
 
-// Живая проверка: неприменённый текст проверяется на сервере с задержкой после ввода
-// и, если он разбирается, применяется (одним шагом отмены на всю серию ввода). Результат проверки
-// лежит в store — его показывает и панель «Проверка».
+// Live validation: the unapplied text is validated on the server with a delay after typing
+// and, if it parses, applied (one undo step for the whole series of typing). The result of the validation
+// is in the store, and the Validation panel shows it too.
 let checkTimer: ReturnType<typeof setTimeout> | undefined;
 let checkSeq = 0;
 watch(text, (value) => {
@@ -150,15 +150,15 @@ watch(text, (value) => {
       if (store.yaml.draft === value) store.yaml.diags = r.diagnostics;
       if (!store.state?.readonly && !r.diagnostics.some((d) => d.code === "yaml")) await actions.setText(value, true);
     } catch {
-      /* нет связи — пометки остаются прежними */
+      /* no connection: the marks stay as they were */
     }
   }, 400);
 });
 
 onBeforeUnmount(() => clearTimeout(checkTimer));
 
-// Синтаксические ошибки черновика — строкой в панели инструментов (высота не меняется, редактор не сдвигается).
-// Остальные сообщения — на полях строк и в панели «Проверка».
+// Syntax errors of the draft are a line in the toolbar (the height does not change, the editor does not move).
+// Other messages are in the line gutter and in the Validation panel.
 const syntaxErrors = computed(() => (local.value ? (store.yaml.diags ?? []).filter((d) => d.code === "yaml") : []));
 
 const marks = computed(() => {
@@ -215,7 +215,7 @@ async function apply() {
   clearTimeout(checkTimer);
   checkSeq++;
   await actions.flushYaml();
-  // Поле перешло на текст сервера — курсор и прокрутка остаются на месте.
+  // The field switched to the server's text: the cursor and the scroll stay in place.
   await nextTick();
   if (el && sel && document.activeElement === el) {
     el.setSelectionRange(sel[0], sel[1]);
@@ -224,12 +224,12 @@ async function apply() {
   }
 }
 
-// Отменить ввод, ещё не применённый на сервере.
+// Cancel the input not applied on the server yet.
 function revert() {
   store.yaml = { draft: null, applied: null, diags: null };
 }
 
-// Правка через execCommand попадает в историю отмены textarea (Ctrl+Z); присваивание text — нет.
+// An edit through execCommand goes into the textarea's undo history (Ctrl+Z); assigning text does not.
 function replace(el: HTMLTextAreaElement, ed: TextEdit) {
   el.setSelectionRange(ed.from, ed.to);
   const ok = ed.insert ? document.execCommand("insertText", false, ed.insert)
@@ -241,7 +241,7 @@ function replace(el: HTMLTextAreaElement, ed: TextEdit) {
   el.setSelectionRange(ed.selStart, ed.selEnd);
 }
 
-// После Esc клавиша Tab уводит фокус из поля, как в обычной форме.
+// After Esc, Tab moves the focus out of the field, as in an ordinary form.
 let tabLeaves = false;
 
 function onKey(e: KeyboardEvent) {
@@ -307,7 +307,7 @@ function onKey(e: KeyboardEvent) {
              :style="{ height: LINE + 'px' }">{{ n }}</div>
       </div>
       <div ref="box" class="yaml-code">
-        <!-- Подсветка — слои под прозрачным текстом textarea; прокрутка синхронизируется. -->
+        <!-- Highlighting is layers under the transparent text of the textarea; scrolling is synchronized. -->
         <div v-if="range" class="yaml-node" :style="{ top: 6 + (range.first - 1) * LINE - scrollTop + 'px',
              height: (range.last - range.first + 1) * LINE + 'px' }" />
         <pre ref="code" class="yaml-hl mono" aria-hidden="true" :style="{ lineHeight: LINE + 'px' }"><code v-html="html" /></pre>

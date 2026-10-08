@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Открыть / создать / сохранить как: обзор папок, недавние файлы, ввод пути вручную.
+// Open / create / save as: browsing folders, recent files, typing a path by hand.
 import { computed, nextTick, onMounted, ref } from "vue";
 import { api } from "../api";
 import { actions, store, toast } from "../store";
@@ -63,7 +63,7 @@ onMounted(async () => {
 const fullPath = computed(() => {
   const n = name.value.trim();
   if (!n) return "";
-  if (/^([a-zA-Z]:[\\/]|[\\/]|~)/.test(n)) return n;   // введён полный путь
+  if (/^([a-zA-Z]:[\\/]|[\\/]|~)/.test(n)) return n;   // a full path was typed
   const d = listing.value?.dir ?? "";
   return d.endsWith(sep.value) ? d + n : d + sep.value + n;
 });
@@ -95,8 +95,8 @@ async function submit() {
 
 const canBrowse = hasNativeDialog();
 
-// Проводник ОС. Выбор в нём — уже подтверждение (о перезаписи спрашивает сам проводник),
-// кроме новой карты: для неё ещё нужны шаблон и название.
+// The OS file dialog. A choice in it is already a confirmation (the dialog itself asks about overwriting),
+// except for a new map: it also needs a template and a title.
 async function browse() {
   const base = name.value.trim().split(/[\\/]/).pop() ?? "";
   const p = await nativePick(props.mode === "open" ? "open" : "save", listing.value?.dir ?? "", base);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Одно поле формы. Значение фиксируется по Enter / потере фокуса (событие change) — одна правка = один шаг undo.
+// One form field. The value is committed on Enter / losing focus (the change event): one edit = one undo step.
 import { computed, nextTick, ref, watch } from "vue";
 import { formatValue, parseInput, ParseError, selectValue } from "../form/input";
 import type { FieldDef, Option } from "../form/spec";
@@ -18,7 +18,7 @@ const props = defineProps<{
   readonly?: boolean;
   placeholder?: string;
   lang?: string;
-  /** Полный путь поля в карте — для перехода к полю из панели «Проверка». */
+  /** Full path of the field in the map, to go to the field from the Validation panel. */
   path?: Path;
   required?: boolean;
 }>();
@@ -27,10 +27,10 @@ const emit = defineEmits<{ commit: [value: unknown] }>();
 const error = ref("");
 const draft = ref("");
 
-// Текст на нескольких языках правится на языке документа; переводы на другие языки сохраняются как есть
+// A text in several languages is edited in the document language; translations to other languages stay as they are
 const locMap = computed(() => (props.value && typeof props.value === "object" && !Array.isArray(props.value)
   ? props.value as Record<string, string> : null));
-/** Текст на другом языке — подсказка в пустом поле, если на языке документа его ещё нет. */
+/** Text in another language: a hint in the empty field while there is none in the document language. */
 const locFallback = computed(() => (locMap.value ? Object.values(locMap.value).find((x) => x) ?? "" : ""));
 
 function syncFromValue() {
@@ -57,7 +57,7 @@ function commit() {
     const next = parseInput(props.def.type, draft.value);
     const old = props.value ?? null;
     if (JSON.stringify(next) !== JSON.stringify(old)) emit("commit", next);
-    // Нормализуем ввод сразу («1,5» → «1.5»): если значение не изменилось, обновления с сервера не будет
+    // Normalize the input right away ("1,5" → "1.5"): if the value did not change, no update comes from the server
     draft.value = formatValue(props.def.type, next);
     error.value = "";
   } catch (e) {
@@ -69,7 +69,7 @@ function onSelect(e: Event) {
   emit("commit", selectValue((e.target as HTMLSelectElement).value, props.def.numeric));
 }
 
-// Набор устройств: варианты в порядке options, неизвестные имена из карты — в конце (их можно снять)
+// Set of devices: the options in their order, unknown names from the map at the end (they can be unset)
 const chosen = computed<string[]>(() => (Array.isArray(props.value) ? props.value.map(String) : []));
 const chips = computed<Array<[string, string, boolean]>>(() => {
   const opts = props.options ?? [];
@@ -89,15 +89,15 @@ function onBool(e: Event) {
   emit("commit", (e.target as HTMLInputElement).checked ? true : null);
 }
 
-// Подсказки единиц: обозначение на языке документов карты, перевод — во всплывающей подписи.
-// Свой список вместо <datalist>: тот не стилизуется (слишком высокий) и при заполненном поле показывает только совпадения.
+// Unit suggestions: the symbol in the map's document language, the translation in the tooltip.
+// Own list instead of <datalist>: that one cannot be styled (too tall) and shows only matches when the field is filled.
 const suggestions = computed<Array<[string, string]>>(() => {
   if (props.def.type !== "unit") return [];
   const en = docLang.value === "en";
   return (store.state?.units ?? []).map(([ru, e]) => (en ? [e, ru] : [ru, e]) as [string, string]);
 });
 const listOpen = ref(false);
-const filter = ref("");          // текст, набранный после открытия; пусто — показываем всё
+const filter = ref("");          // text typed after opening; empty shows everything
 const shown = computed(() => {
   const q = filter.value.trim().toLowerCase();
   return q ? suggestions.value.filter(([v, o]) => v.toLowerCase().includes(q) || o.toLowerCase().includes(q))
@@ -140,7 +140,7 @@ const level = computed(() => {
   return missing.value ? "missing" : "";
 });
 
-// Переход из панели «Проверка»: прокрутить к полю, поставить фокус и коротко подсветить
+// Going here from the Validation panel: scroll to the field, focus it and highlight it briefly
 const root = ref<HTMLElement | null>(null);
 const flash = ref(false);
 watch(() => store.focusPath, async (fp) => {
@@ -157,7 +157,7 @@ watch(() => store.focusPath, async (fp) => {
 </script>
 
 <template>
-  <!-- Переключатели — не внутри label: щелчок по подписи нажимал бы первую кнопку -->
+  <!-- Toggles are not inside a label: a click on the label would press the first button -->
   <component :is="def.type === 'devices' ? 'div' : 'label'" ref="root" class="field" :class="[{ wide: def.wide, flash }, level]">
     <span class="field-label"><HelpTip v-if="def.help" :text="def.help" />{{ t(def.label) }}<span
       v-if="required" class="req" :title="t('Required field')">*</span></span>

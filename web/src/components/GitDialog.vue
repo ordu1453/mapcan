@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Коммит карты в git (с необязательным тегом версии) или отдельный тег на текущий коммит.
-// Описание и тег подставляются из последней записи истории изменений, если её версия ещё без тега.
+// Commit of the map to git (with an optional version tag) or a separate tag on the current commit.
+// The message and the tag come from the last revision history entry if its version has no tag yet.
 import { computed, onMounted, ref } from "vue";
 import { api } from "../api";
 import { actions, store } from "../store";
@@ -16,7 +16,7 @@ const tag = ref("");
 const allTags = ref<string[]>([]);
 
 const tagTaken = computed(() => !!tag.value.trim() && allTags.value.includes(tag.value.trim()));
-// Тег ставится на последний коммит, а в карте есть изменения после него
+// The tag goes on the last commit, but the map has changes after it
 const tagStale = computed(() => props.mode === "tag" && !!store.git?.available && store.git.file !== "clean");
 const canSubmit = computed(() => !store.busy && !tagTaken.value
   && (props.mode === "commit" ? !!message.value.trim() : !!tag.value.trim()));
@@ -25,13 +25,13 @@ onMounted(async () => {
   try {
     allTags.value = (await api.gitRevs()).all_tags ?? [];
   } catch {
-    /* без списка тегов просто не подставляем имя */
+    /* without the list of tags the name is just not filled in */
   }
   const doc = store.state?.data?.document ?? {};
   const version = String(doc.version ?? "").trim();
   if (!version) return;
   const name = `v${version}`;
-  if (allTags.value.includes(name) || allTags.value.includes(version)) return;   // эта версия уже помечена
+  if (allTags.value.includes(name) || allTags.value.includes(version)) return;   // this version is tagged already
   tag.value = name;
   const entry = (doc.history ?? [])[0];
   if (entry && String(entry.version ?? "").trim() === version) {

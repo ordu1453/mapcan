@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Предпросмотр документов из текущего (в т.ч. несохранённого) состояния карты.
-// Для PDF — выбор шаблона оформления (mapcan, ЕСКД); язык документа — для всех,
-// кроме шаблона ЕСКД (он только на русском).
+// Preview of the documents from the current (also unsaved) state of the map.
+// For PDF, the choice of the template (mapcan, ESKD); the document language for all
+// but the ESKD template (it is Russian only).
 import { computed, onMounted, ref, watch } from "vue";
 import { api } from "../api";
 import { actions, exportLang, lang, store } from "../store";
@@ -21,7 +21,7 @@ const template = computed(() => (props.fmt === "pdf" ? store.pdfTemplate : undef
 const current = computed(() => store.pdfTemplates.find((t) => t.name === store.pdfTemplate));
 const docLang = computed(() => exportLang(props.fmt));
 const langFixed = computed(() => props.fmt === "pdf" && !!current.value?.lang);
-// Метка версии в URL, чтобы браузер не показывал старый документ из кэша.
+// A version mark in the URL, so the browser does not show an old document from its cache.
 const src = computed(() => {
   const url = api.exportUrl(props.fmt, false, template.value, docLang.value);
   return `${url}${url.includes("?") ? "&" : "?"}v=${store.state?.version ?? 0}`;

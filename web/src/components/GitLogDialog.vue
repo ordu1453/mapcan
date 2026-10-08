@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Журнал версий карты в git: коммиты с этим файлом и их теги; сравнение с текущей картой и открытие версии.
+// Version log of the map in git: the commits with this file and their tags; comparing with the current map and opening a version.
 import { onMounted, ref } from "vue";
 import { api } from "../api";
 import { actions, store } from "../store";

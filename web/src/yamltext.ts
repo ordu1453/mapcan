@@ -1,5 +1,5 @@
-// Работа с текстом YAML без полного разбора: подсветка синтаксиса и поиск строк узла по пути.
-// Рассчитано на блочный стиль, в котором карту пишут руками и сохраняет редактор.
+// Working with YAML text without a full parse: syntax highlighting and finding the lines of a node by path.
+// Made for the block style in which maps are written by hand and saved by the editor.
 import type { Path } from "./types";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -24,7 +24,7 @@ function scalar(s: string): string {
   return esc(lead) + span(cls, t) + esc(tail);
 }
 
-// Значение после «ключ:» или «- »: скаляр, комментарий или flow-коллекция {…}/[…].
+// A value after "key:" or "- ": a scalar, a comment or a flow collection {…}/[…].
 function value(s: string): string {
   const t = s.trimStart();
   if (!/^[{[]/.test(t)) {
@@ -53,10 +53,10 @@ function value(s: string): string {
 const indentOf = (l: string) => l.length - l.trimStart().length;
 const isContent = (l: string) => /^\s*[^\s#]/.test(l);
 
-/** HTML подсветки по строкам (без завершающих переводов строк). */
+/** Highlighting HTML per line (without the trailing line breaks). */
 export function highlight(text: string): string[] {
   const out: string[] = [];
-  let blockIndent = -1;          // отступ строки с «|» / «>»: более глубокие строки — текст
+  let blockIndent = -1;          // indent of the line with "|" / ">": deeper lines are text
   for (const line of text.split("\n")) {
     if (blockIndent >= 0) {
       if (!isContent(line) && !line.trim()) { out.push(esc(line)); continue; }
@@ -79,14 +79,14 @@ export function highlight(text: string): string[] {
       rest = line.slice(k[0].length);
     }
     html += value(rest);
-    // Текст блочного скаляра — строки глубже ключа (или «-» элемента-скаляра).
+    // Text of a block scalar: lines deeper than the key (or than the "-" of a scalar item).
     if (BLOCK_RE.test(rest.replace(/\s+#.*$/, "").trim())) blockIndent = k ? keyCol(line) : indentOf(line);
     out.push(html);
   }
   return out;
 }
 
-// ------------------------------------------------------------------ строки узла по пути
+// ------------------------------------------------------------------ lines of a node by path
 
 function keyText(raw: string): string {
   if (raw.startsWith('"')) {
@@ -102,41 +102,41 @@ function keyMatches(raw: string, el: string | number): boolean {
   return typeof el === "number" && t.trim() !== "" && Number(t.replace(/_/g, "")) === el;
 }
 
-/** Столбец, с которого начинается ключ строки (после маркеров «- »). */
+/** Column where the line's key starts (after the "- " markers). */
 function keyCol(line: string): number {
   return /^\s*(?:-\s+)*/.exec(line)![0].length;
 }
 
-/** Конец значения ключа/элемента, начатого в строке `from` со столбцом `col`: первая строка, вышедшая из блока. */
+/** End of the value of a key/item started on line `from` at column `col`: the first line that left the block. */
 function blockEnd(lines: string[], from: number, end: number, col: number, item: boolean): number {
   for (let i = from + 1; i < end; i++) {
     const l = lines[i];
     if (!isContent(l)) continue;
     const ind = indentOf(l);
-    // Элемент списка заканчивается на следующем «-» того же уровня; значение ключа может быть
-    // списком без отступа («key:\n- a»), поэтому для ключа строка «-» на том же уровне — ещё его значение.
+    // A list item ends at the next "-" of the same level; the value of a key can be
+    // a list without an indent ("key:\n- a"), so for a key a "-" line at the same level is still its value.
     if (ind < col || (ind === col && (item || !l.trimStart().startsWith("-")))) return i;
   }
   return end;
 }
 
-/** Обрезать хвостовые пустые строки и комментарии. */
+/** Trim trailing empty lines and comments. */
 function trimEnd(lines: string[], start: number, end: number): number {
   while (end > start + 1 && !isContent(lines[end - 1])) end--;
   return end;
 }
 
-/** Строки узла [first, last] (с 1) или null, если путь не найден в тексте. */
+/** Lines of the node [first, last] (from 1), or null if the path is not found in the text. */
 export function nodeLines(text: string, path: Path): { first: number; last: number } | null {
   const lines = text.split("\n");
-  let s = 0;                     // область поиска: [s, e)
+  let s = 0;                     // search area: [s, e)
   let e = lines.length;
-  let firstOnS = false;          // строка s — «- key: …» элемента, её ключ тоже ищем
-  let inline = false;            // значение найденного узла записано в той же строке
+  let firstOnS = false;          // line s is "- key: …" of an item, its key is searched too
+  let inline = false;            // the value of the found node is written on the same line
   let found: [number, number] | null = null;
 
   for (const el of path) {
-    if (inline) break;           // flow-коллекция {…}/[…]: глубже — та же строка
+    if (inline) break;           // flow collection {…}/[…]: deeper is the same line
     let i = s;
     while (i < e && !isContent(lines[i])) i++;
     if (i >= e) return found && { first: found[0] + 1, last: found[1] };
@@ -165,7 +165,7 @@ export function nodeLines(text: string, path: Path): { first: number; last: numb
     for (let j = i; j < e; j++) {
       const l = lines[j];
       if (!isContent(l) || keyCol(l) !== col) continue;
-      if (j !== i && indentOf(l) !== col) continue;          // «- key» другого элемента
+      if (j !== i && indentOf(l) !== col) continue;          // "- key" of another item
       const m = KEY_RE.exec(l);
       if (m && keyMatches(m[2], el)) { hit = j; break; }
     }
@@ -178,11 +178,11 @@ export function nodeLines(text: string, path: Path): { first: number; last: numb
   return found && { first: found[0] + 1, last: found[1] };
 }
 
-// ------------------------------------------------------------------ правка клавишами
+// ------------------------------------------------------------------ editing with keys
 
 const INDENT = 2;
 
-/** Замена text[from, to) на insert и новое выделение — результат нажатия клавиши. */
+/** Replacing text[from, to) with insert, and the new selection: the result of a key press. */
 export interface TextEdit {
   from: number;
   to: number;
@@ -193,18 +193,18 @@ export interface TextEdit {
 
 const lineStartAt = (text: string, pos: number) => text.lastIndexOf("\n", pos - 1) + 1;
 
-/** Сдвиг строк выделения вправо (Tab) или влево (Shift+Tab); пустые строки не трогаем. */
+/** Shift the selected lines right (Tab) or left (Shift+Tab); empty lines are left alone. */
 function shiftLines(text: string, start: number, end: number, out: boolean): TextEdit | null {
   const from = lineStartAt(text, start);
-  // Выделение, кончающееся в начале строки, эту строку не захватывает.
+  // A selection ending at the start of a line does not take that line.
   let to = text.indexOf("\n", end > start && end === lineStartAt(text, end) ? end - 1 : end);
   if (to < 0) to = text.length;
   const lines = text.slice(from, to).split("\n");
   const deltas = lines.map((l) => (out ? -Math.min(INDENT, indentOf(l)) : l.trim() ? INDENT : 0));
   if (deltas.every((d) => d === 0)) return null;
   const insert = lines.map((l, i) => (deltas[i] > 0 ? " ".repeat(INDENT) + l : l.slice(-deltas[i]))).join("\n");
-  // Позиция в исходном тексте → в новом: курсор остаётся на своём символе, но не уходит левее начала строки;
-  // из начала строки не сдвигаем — выделение целых строк захватывает и новый отступ.
+  // Position in the source text → in the new one: the cursor stays on its character but not left of the line's start;
+  // from the start of a line it does not move, so a selection of whole lines takes the new indent too.
   const map = (p: number) => {
     let ls = from;
     let shift = 0;
@@ -220,9 +220,9 @@ function shiftLines(text: string, start: number, end: number, out: boolean): Tex
 }
 
 /**
- * Правка по клавише во вкладке YAML или null — тогда работает поведение браузера.
- * Tab — отступ (с выделением — сдвиг строк), Shift+Tab — сдвиг влево, Enter — перенос
- * с отступом текущей строки (глубже после «ключ:»), Backspace в отступе — удаление до предыдущего уровня.
+ * Edit by a key in the YAML tab, or null to let the browser handle it.
+ * Tab indents (with a selection, shifts the lines), Shift+Tab shifts left, Enter breaks the line
+ * with the current line's indent (deeper after "key:"), Backspace in the indent deletes back to the previous level.
  */
 export function keyEdit(text: string, start: number, end: number, key: string, shift: boolean): TextEdit | null {
   const ls = lineStartAt(text, start);
@@ -234,17 +234,17 @@ export function keyEdit(text: string, start: number, end: number, key: string, s
   }
   if (key === "Enter") {
     if (!before.trim()) return null;
-    // Поля элемента списка «- key: …» продолжаются на уровне ключа, после «ключ:» и «|», «>» — глубже.
+    // Fields of a list item "- key: …" go on at the key's level; after "key:" and "|", ">" deeper.
     let ind = before.trimStart().startsWith("-") ? keyCol(before) : indentOf(before);
     const code = before.replace(/\s+#.*$/, "").trimEnd();
     if (code.endsWith(":") || /:\s+[|>][-+0-9]*$/.test(code)) ind += INDENT;
     let to = end;
-    while (text[to] === " ") to++;           // пробелы после курсора не переносим
+    while (text[to] === " ") to++;           // spaces after the cursor are not carried over
     const insert = "\n" + " ".repeat(ind);
     return { from: start, to, insert, selStart: start + insert.length, selEnd: start + insert.length };
   }
   if (key === "Backspace" && start === end) {
-    // Пробелы перед курсором удаляются до предыдущей позиции табуляции, но не дальше самих пробелов.
+    // Spaces before the cursor are deleted back to the previous tab stop, but not beyond the spaces themselves.
     const spaces = before.length - before.trimEnd().length;
     const n = Math.min(spaces, ((before.length - 1) % INDENT) + 1);
     if (n < 2) return null;
@@ -253,7 +253,7 @@ export function keyEdit(text: string, start: number, end: number, key: string, s
   return null;
 }
 
-/** Самый вложенный из узлов `paths`, строки которого содержат строку `line` (с 1). */
+/** The most nested of the nodes `paths` whose lines contain line `line` (from 1). */
 export function nodeAtLine(text: string, line: number, paths: Path[]): Path | null {
   let best: Path | null = null;
   let size = Infinity;
@@ -261,7 +261,7 @@ export function nodeAtLine(text: string, line: number, paths: Path[]): Path | nu
     const r = nodeLines(text, p);
     if (!r || line < r.first || line > r.last) continue;
     const n = r.last - r.first;
-    // При равных диапазонах (flow-коллекция в одной строке) — более глубокий путь.
+    // With equal ranges (a flow collection on one line), the deeper path.
     if (n < size || (n === size && best && p.length > best.length)) {
       best = p;
       size = n;

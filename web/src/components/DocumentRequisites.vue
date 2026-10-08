@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Оформление и реквизиты документа: логотип, обозначение, подписи (основная надпись ЕСКД),
-// «УТВЕРЖДАЮ» / «СОГЛАСОВАНО».
+// Styling and requisites of the document: logo, designation, signatures (the ESKD title block),
+// "APPROVED" / "AGREED".
 import { computed, ref } from "vue";
 import { api } from "../api";
 import type { FieldDef } from "../form/spec";
@@ -40,7 +40,7 @@ const fieldDiags = (def: FieldDef) =>
 function commit(def: FieldDef, v: unknown) {
   const parts = def.key.split(".");
   const ops: any[] = [{ op: "set", path: ["document", ...parts], value: v }];
-  // Пустая группа (signatures / approve) удаляется целиком, чтобы не оставлять «approve: {}».
+  // An empty group (signatures / approve) is removed as a whole, so as not to leave "approve: {}".
   if (parts.length === 2 && (v === null || v === "")) {
     const group = { ...(doc.value[parts[0]] ?? {}) };
     delete group[parts[1]];
@@ -51,7 +51,7 @@ function commit(def: FieldDef, v: unknown) {
   void actions.apply(ops);
 }
 
-// ------------------------------------------------------------------ логотип
+// ------------------------------------------------------------------ logo
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const logoBroken = ref(false);
@@ -77,7 +77,7 @@ function removeLogo() {
   void actions.apply([{ op: "set", path: ["document", "logo"], value: null }]);
 }
 
-// ------------------------------------------------------------------ СОГЛАСОВАНО
+// ------------------------------------------------------------------ AGREED
 
 const agree = computed<any[]>(() => doc.value.agree ?? []);
 

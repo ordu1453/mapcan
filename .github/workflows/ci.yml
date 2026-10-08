@@ -1,18 +1,18 @@
 name: ci
 
-# Основной раннер — self-hosted Windows (машина разработчика), без очереди облачных раннеров.
-# Если он недоступен, переключить всё на раннеры GitHub:  gh variable set CI_RUNNER --body github
-# Вернуть свой раннер:                                    gh variable delete CI_RUNNER
-# Linux-тест всегда идёт на ubuntu-latest (GitHub).
+# The main runner is a self-hosted Windows one (the developer's machine), without a queue of cloud runners.
+# If it is not available, switch everything to GitHub runners:  gh variable set CI_RUNNER --body github
+# Back to the own runner:                                      gh variable delete CI_RUNNER
+# The Linux test always runs on ubuntu-latest (GitHub).
 
 on:
   push:
-    branches: ["**"]     # теги проверяет release.yml (вызывает этот workflow)
+    branches: ["**"]     # tags are checked by release.yml (it calls this workflow)
   pull_request:
   workflow_call:
     inputs:
       skip-linux:
-        description: Не запускать тест на Linux (ubuntu-latest)
+        description: Do not run the test on Linux (ubuntu-latest)
         type: boolean
         default: false
 
@@ -42,7 +42,7 @@ jobs:
         run: uv run pytest
 
   test-linux:
-    if: ${{ !inputs.skip-linux }}    # при обычном push inputs пуст — тест запускается
+    if: ${{ !inputs.skip-linux }}    # on a plain push inputs is empty, so the test runs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -52,10 +52,10 @@ jobs:
       - run: uv sync --locked --extra lsp
       - run: uv run pytest
 
-  # Пробная сборка Docker-образа (без публикации): иначе поломка Dockerfile всплывает только
-  # в release.yml после тега.
+  # A trial build of the Docker image (without publishing): otherwise a broken Dockerfile shows up only
+  # in release.yml after the tag.
   docker:
-    if: ${{ !inputs.skip-linux }}    # в релизе образ собирает и публикует release.yml
+    if: ${{ !inputs.skip-linux }}    # in a release, release.yml builds and publishes the image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -87,8 +87,8 @@ jobs:
       - name: Built bundle is committed and up to date
         run: git diff --exit-code src/mapcan/web/static
 
-  # Расширение VS Code: типы, сборка, пакет .vsix и интеграционные тесты в настоящем VS Code
-  # (скачивается в vscode/.vscode-test/; окно — в виртуальном дисплее xvfb). Языковой сервер — из .venv.
+  # VS Code extension: types, build, .vsix package and integration tests in a real VS Code
+  # (downloaded to vscode/.vscode-test/; the window is in an xvfb virtual display). The language server is from .venv.
   vscode:
     runs-on: ubuntu-latest
     steps:

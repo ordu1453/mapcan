@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// Интерактивная битовая карта кадра: DLC строк × 8 бит (бит 7 слева, как в документах).
-//  * протяжка по свободным битам — новый сигнал;
-//  * перетаскивание выбранного сигнала — сдвиг;
-//  * ручки на младшем/старшем бите (little-endian) — изменение длины.
+// Interactive bit map of a frame: DLC rows × 8 bits (bit 7 on the left, as in the documents).
+//  * dragging over free bits: a new signal;
+//  * dragging the selected signal: moving it;
+//  * handles on the least/most significant bit (little-endian): changing the length.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { coexist, occupiedBits, rangeLabel } from "../bits";
 import { samePath, startsWith } from "../model";
@@ -56,7 +56,7 @@ const selectedFlag = computed(() => {
   return s.flags[Number(props.selected[s.path.length + 1])] ?? null;
 });
 
-/** Биты, которые займёт сигнал при текущем перетаскивании. */
+/** Bits the signal will take during the current drag. */
 const preview = computed<{ start: number; length: number; bits: Set<number> } | null>(() => {
   const d = drag.value;
   if (!d) return null;
@@ -89,9 +89,9 @@ interface Cell {
   bit: number;
   owners: ResolvedSignal[];
   flag: string | null;
-  /** Номер флага в битовом поле (для чередования оттенков); null — не флаг или бит поля вне флагов. */
+  /** Number of the flag in the bit field (to alternate shades); null: not a flag, or a bit of the field outside the flags. */
   flagIndex: number | null;
-  /** Бит битового поля с флагами (единственный владелец). */
+  /** A bit of a bit field with flags (its only owner). */
   inField: boolean;
   conflict: boolean;
 }
@@ -133,11 +133,11 @@ interface Segment {
   color: string;
   conflict: boolean;
   selected: boolean;
-  /** Подпись флага на плашке битового поля (сдвинута вниз под имя поля). */
+  /** Label of a flag on the bit field's bar (moved down below the field's name). */
   onPill: boolean;
 }
 
-/** Подписи: подряд идущие биты строки с одинаковым владельцем объединяются. */
+/** Labels: consecutive bits of a row with the same owner are merged. */
 const segments = computed<Segment[]>(() => {
   const out: Segment[] = [];
   for (let row = 0; row < props.frame.dlc; row++) {
@@ -155,7 +155,7 @@ const segments = computed<Segment[]>(() => {
         const sel = selectedSignal.value;
         out.push({
           row, col, span,
-          // Биты поля вне флагов — без подписи: имя поля и так написано над плашками
+          // Bits of the field outside the flags have no label: the field's name is written above the bars anyway
           label: c.flag ?? (c.inField ? "" : c.owners.map((s) => s.name).join(" | ")),
           title: c.inField ? `${c.owners[0].name} · ${c.flag ?? "—"}` : c.owners.map((s) => s.name).join(" | "),
           color: colorOf(c.owners[0]),
@@ -170,7 +170,7 @@ const segments = computed<Segment[]>(() => {
   return out;
 });
 
-/** Имя битового поля над плашками: подряд идущие биты строки одного поля. */
+/** Name of the bit field above the bars: consecutive bits of a row of one field. */
 const fieldSegments = computed<Array<{ row: number; col: number; span: number; label: string }>>(() => {
   const out: Array<{ row: number; col: number; span: number; label: string }> = [];
   for (let row = 0; row < props.frame.dlc; row++) {
@@ -189,10 +189,10 @@ const fieldSegments = computed<Array<{ row: number; col: number; span: number; l
 });
 
 const samePlace = (a: Cell, b: Cell | undefined) => !!b && b.inField && samePath(a.owners[0].path, b.owners[0].path);
-/** Тот же флаг (или тот же участок поля вне флагов) — ячейки сливаются в одну плашку. */
+/** The same flag (or the same part of the field outside the flags): the cells merge into one bar. */
 const samePill = (a: Cell, b: Cell | undefined) => samePlace(a, b) && b!.flagIndex === a.flagIndex;
 
-/** Края плашки: слева в сетке — старший бит того же байта, на границе байта плашка всегда закрыта. */
+/** Edges of the bar: left in the grid is the higher bit of the same byte; at a byte boundary the bar is always closed. */
 function pillEdges(c: Cell) {
   if (!c.inField) return {};
   const left = c.bit % 8 === 7 ? undefined : cells.value[c.bit + 1];
@@ -217,13 +217,13 @@ function cellClass(c: Cell) {
   };
 }
 
-/** Обычный сигнал — заливка ячейки; битовое поле — плашки флагов (::before) цвета сигнала. */
+/** A plain signal fills the cell; a bit field gets bars of its flags (::before) in the signal's color. */
 function cellStyle(c: Cell) {
   if (!c.owners.length) return {};
   return c.inField ? { "--sig": colorOf(c.owners[0]) } : { background: colorOf(c.owners[0]) };
 }
 
-/** Ручки изменения длины в ячейке; у однобитного сигнала обе в одной ячейке. */
+/** Length handles in the cell; a one-bit signal has both in one cell. */
 function handles(c: Cell): Array<"lo" | "hi"> {
   const s = selectedSignal.value;
   if (!s || props.readonly || s.byte_order === "big_endian") return [];
@@ -238,7 +238,7 @@ function onDown(c: Cell, e: MouseEvent) {
   e.preventDefault();
   const sel = selectedSignal.value;
   const hs = handles(c);
-  // Крайняя ячейка многобитного сигнала — ручка целиком; у однобитного — только сама ручка, иначе сдвиг
+  // The end cell of a multi-bit signal is a handle as a whole; of a one-bit one only the handle itself, otherwise moving
   const grip = (e.target as HTMLElement).dataset?.edge as "lo" | "hi" | undefined;
   const h = hs.length === 1 ? hs[0] : grip && hs.includes(grip) ? grip : null;
   if (h && sel) {

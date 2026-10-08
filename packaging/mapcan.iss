@@ -1,9 +1,9 @@
-; Установщик mapcan для Windows (Inno Setup 6).
+; mapcan installer for Windows (Inno Setup 6).
 ;
 ;   iscc /DAppVersion=0.6.0 packaging\mapcan.iss
 ;
-; Берёт сборку PyInstaller из dist\mapcan и кладёт установщик в dist\mapcan-<версия>-setup.exe.
-; Ставится для текущего пользователя без прав администратора (можно выбрать «для всех»).
+; Takes the PyInstaller build from dist\mapcan and puts the installer to dist\mapcan-<version>-setup.exe.
+; Installs for the current user without administrator rights ("for all users" can be chosen).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -13,7 +13,7 @@
 #define ProgId "mapcan.yaml"
 
 [Setup]
-; AppId не менять: по нему обновление находит предыдущую установку.
+; Do not change AppId: an update finds the previous installation by it.
 AppId={{6C1E2B9A-3F4D-4E8B-9A57-0D2C8F1B7E43}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -65,9 +65,9 @@ Name: "addpath"; Description: "{cm:AddPath}"; Flags: unchecked
 Source: "..\dist\mapcan\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [InstallDelete]
-; Старые файлы сборки (имена модулей меняются от версии к версии).
+; Old files of the build (module names change from version to version).
 Type: filesandordirs; Name: "{app}\_internal"
-; Файлы и ярлыки версий до переименования canmap → mapcan.
+; Files and shortcuts of versions before canmap was renamed to mapcan.
 Type: files; Name: "{app}\canmap.exe"
 Type: files; Name: "{app}\canmap-app.exe"
 Type: files; Name: "{autoprograms}\canmap.lnk"
@@ -78,12 +78,12 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Registry]
-; Ассоциации версий до переименования canmap → mapcan.
+; Associations of versions before canmap was renamed to mapcan.
 Root: HKA; Subkey: "Software\Classes\canmap.yaml"; ValueType: none; Flags: deletekey
 Root: HKA; Subkey: "Software\Classes\Applications\canmap-app.exe"; ValueType: none; Flags: deletekey
 Root: HKA; Subkey: "Software\Classes\.yaml\OpenWithProgids"; ValueType: none; ValueName: "canmap.yaml"; Flags: deletevalue
 Root: HKA; Subkey: "Software\Classes\.yml\OpenWithProgids"; ValueType: none; ValueName: "canmap.yaml"; Flags: deletevalue
-; «Открыть с помощью → mapcan» для .yaml/.yml, не перехватывая программу по умолчанию.
+; "Open with → mapcan" for .yaml/.yml, without taking over the default program.
 Root: HKA; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueData: "{cm:MapFile}"; Flags: uninsdeletekey; Tasks: assoc
 Root: HKA; Subkey: "Software\Classes\{#ProgId}\DefaultIcon"; ValueType: string; ValueData: "{app}\{#AppExe},0"; Tasks: assoc
 Root: HKA; Subkey: "Software\Classes\{#ProgId}\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExe}"" ""%1"""; Tasks: assoc
@@ -98,7 +98,7 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; Val
 Filename: "{app}\{#AppExe}"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-{ PATH: пользовательский (HKCU) при установке для себя, системный (HKLM) — для всех. }
+{ PATH: the user's (HKCU) when installing for oneself, the system one (HKLM) for all users. }
 
 function PathRoot: Integer;
 begin

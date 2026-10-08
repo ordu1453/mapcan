@@ -28,7 +28,7 @@ const KIND_LABEL: Record<string, string> = {
 
 const path = computed<Path>(() => store.selected);
 const kind = computed(() => nodeKind(path.value));
-// Вместе с подключёнными файлами (include): их узлы видны, но правятся только в своём файле
+// Together with the included files (include): their nodes are visible but edited only in their own file
 const data = computed(() => viewData.value);
 const node = computed(() => getAt(data.value, kind.value === "document" ? ["document"] : path.value));
 const includedFile = computed(() => includedPath(path.value));
@@ -101,16 +101,16 @@ function placeholderFor(def: FieldDef): string {
 }
 
 function commit(def: FieldDef, value: unknown) {
-  // Имя — через renameNode: проверка занятости и обновление получателей кадров при переименовании устройства
+  // The name goes through renameNode: a check that it is free, and the frames' receivers updated when a device is renamed
   if (def.key === "name" && canRename(path.value)) {
     void renameNode(path.value, String(value ?? "")).then((err) => { if (err) toast(err); });
     return;
   }
-  // Смена типа CANopen: записанный DLC, недопустимый для нового типа, убираем — берётся длина типа
+  // Changing the CANopen type: a written DLC not allowed for the new type is removed, the type's length applies
   const allowed = kind.value === "frame" && def.key === "type" ? CANOPEN_DLC[String(value ?? "raw")] : undefined;
   const dlc = node.value?.dlc;
-  // У значения SDO encoding обязателен: новое значение создаётся сразу с encoding: raw
-  // Без идентификатора у SDO-обмена нет значения: словарь value удаляется целиком
+  // encoding is required for an SDO value: a new value is created with encoding: raw right away
+  // Without an identifier an SDO exchange has no value: the value mapping is removed as a whole
   if (kind.value === "sdo" && def.key === "value.name" && (node.value?.value == null || !value)) {
     if (value) void actions.apply([{ op: "set", path: [...path.value, "value"], value: { name: value, encoding: "raw", bit_length: 32 } }]);
     else if (node.value?.value != null) void actions.apply([{ op: "remove", path: [...path.value, "value"] }]);
@@ -120,16 +120,16 @@ function commit(def: FieldDef, value: unknown) {
     ...(allowed && dlc != null && !allowed.includes(dlc) ? [{ op: "remove" as const, path: [...path.value, "dlc"] }] : [])]);
 }
 
-// В заголовке — название для людей (у устройства с сокращением) и идентификатор; каждая часть правится двойным щелчком
+// The heading has the title for people (with the abbreviation for a device) and the identifier; each part is edited with a double click
 const renaming = ref<"name" | "short" | "title" | null>(null);
 const nodeTitle = computed(() => (["bus", "device", "frame", "signal"].includes(kind.value) ? txt(node.value?.title, lang.value) : ""));
 watch(() => pathKey(path.value), () => { renaming.value = null; });
 
-// Ключи, сообщения по которым показываются у полей формы и в таблицах (значения, флаги, позиция, передача)
+// Keys whose messages are shown at the form's fields and in the tables (values, flags, position, transmission)
 const SHOWN_ELSEWHERE = ["values", "flags", "start_bit", "bit_length", "byte", "bit", "byte_length",
   "trigger", "cycle_ms", "signals", "frames", "devices", "sdo", "history"];
 
-/** Сообщения узла, которые не видны ни у одного поля: на сам узел или на поле, которого нет в форме. */
+/** Messages of the node not shown at any field: on the node itself or on a field that is not in the form. */
 const ownDiags = computed(() => {
   const shown = new Set([...fields.value.map((f) => f.key.split(".")[0]), ...SHOWN_ELSEWHERE]);
   const n = path.value.length;
@@ -141,7 +141,7 @@ const ownDiags = computed(() => {
   });
 });
 
-// ------------------------------------------------------------------ хлебные крошки
+// ------------------------------------------------------------------ breadcrumbs
 
 const crumbs = computed(() => {
   const out: Array<{ label: string; path: Path }> = [];
@@ -158,7 +158,7 @@ const crumbs = computed(() => {
   return out;
 });
 
-// ------------------------------------------------------------------ кадр
+// ------------------------------------------------------------------ frame
 
 const rframe = computed(() => selectedResolvedFrame.value);
 const framePath = computed(() => selectedFramePath.value);
@@ -171,7 +171,7 @@ const muxValue = computed({
   },
 });
 
-// Режим передачи: период cycle_ms — циклически, иначе trigger (по событию / по запросу)
+// Transmission mode: with a cycle_ms period cyclic, otherwise trigger (on event / on request)
 const txMode = computed(() => (node.value?.cycle_ms != null ? "cyclic" : node.value?.trigger ?? ""));
 const txCycle = computed(() => node.value?.cycle_ms ?? null);
 
@@ -186,12 +186,12 @@ function setMode(e: Event) {
   void actions.apply(ops);
 }
 
-// Ошибки ввода чисел в полях позиции и периода; сбрасываются при переходе к другому узлу
+// Errors of number input in the position and period fields; reset when going to another node
 const MAX_FRAME_BITS = 64 * 8;
 const inputErrors = ref<Record<string, string>>({});
 watch(() => pathKey(path.value), () => { inputErrors.value = {}; });
 
-/** Целое из поля ввода в диапазоне [min, max]; при ошибке показывает сообщение, возвращает в поле прежнее значение и даёт null. */
+/** An integer from an input in the range [min, max]; on error shows a message, puts the previous value back and gives null. */
 function readInt(e: Event, key: string, min: number, max: number, old: number | null | undefined): number | null {
   const el = e.target as HTMLInputElement;
   let msg = "";
@@ -208,7 +208,7 @@ function readInt(e: Event, key: string, min: number, max: number, old: number | 
   return null;
 }
 
-// Сообщения о режиме передачи: на поле периода, если оно видно, иначе на выборе режима
+// Messages about the transmission mode: on the period field if it is visible, otherwise on the mode select
 const txDiags = computed(() =>
   kind.value === "frame"
     ? diags.value.filter((d) => startsWith(d.node, [...path.value, "trigger"]) || startsWith(d.node, [...path.value, "cycle_ms"]))
@@ -221,13 +221,13 @@ function setCycle(e: Event) {
   void actions.apply([{ op: "set", path: [...path.value, "cycle_ms"], value: n }]);
 }
 
-// RX-кадр устройства может оказаться кадром, который уже описан у отправителя: его можно выбрать вместо своей копии
+// An RX frame of a device may be a frame that is already described at its sender: it can be picked instead of the own copy
 const rxSources = computed(() => {
   const f = rframe.value;
   if (kind.value !== "frame" || !f?.device || f.direction !== "rx") return [];
   return (store.state?.resolved?.frames ?? [])
     .filter((o) => o.path[1] === path.value[1] && o.sender && o.sender !== f.device && o.device !== f.device)
-    // Кадры с тем же CAN ID — первыми: скорее всего, это и есть описанный дважды кадр
+    // Frames with the same CAN ID first: most likely that is the frame described twice
     .sort((a, b) => Number(b.can_id === f.can_id) - Number(a.can_id === f.can_id)
       || a.sender!.localeCompare(b.sender!) || a.name.localeCompare(b.name))
     .map((o) => ({
@@ -236,7 +236,7 @@ const rxSources = computed(() => {
     }));
 });
 
-/** Кадр-оригинал для сообщения rx-duplicate: тот же CAN ID, описан у отправителя. */
+/** The original frame for an rx-duplicate message: the same CAN ID, described at the sender. */
 const rxTwin = computed(() => {
   const f = rframe.value;
   if (!f || f.can_id == null) return null;
@@ -250,7 +250,7 @@ function setSource(e: Event) {
   if (src) void receiveFrame(path.value, src.path);
 }
 
-// ------------------------------------------------------------------ сигнал
+// ------------------------------------------------------------------ signal
 
 const rsignal = computed(() => {
   if (kind.value !== "signal" && kind.value !== "flag") return null;
@@ -272,7 +272,7 @@ function setLayout(field: "start_bit" | "bit_length", e: Event) {
   void actions.apply([{ op: "set_layout", path: s.path, start_bit: start, bit_length: length }]);
 }
 
-// Сообщения о позиции сигнала: пересечения и выход за DLC (на сигнал целиком) и сообщения полей начала/длины
+// Messages about the signal's position: overlaps and exceeding the DLC (on the whole signal) and messages of the start/length fields
 const LAYOUT_CODES = ["bit-overlap", "signal-out-of-frame"];
 const layoutDiags = computed(() => {
   if (kind.value !== "signal") return [];
@@ -298,7 +298,7 @@ const showValues = computed(() => {
 });
 const showFlags = computed(() => kind.value === "signal" && (node.value?.flags != null || node.value?.kind === "bitfield"));
 
-// ------------------------------------------------------------------ списки дочерних узлов
+// ------------------------------------------------------------------ lists of child nodes
 
 const childFrames = computed(() => {
   if (kind.value !== "device" && kind.value !== "bus") return [];
@@ -319,11 +319,11 @@ const frameSignals = computed(() => {
   }));
 });
 
-// Пустой элемент «- » в черновике YAML — null: показываем строку без полей
+// An empty item "- " in the YAML draft is null: show a row without fields
 const devices = computed(() => (kind.value === "bus" && Array.isArray(node.value?.devices)
   ? node.value.devices.map((d: any) => (d && typeof d === "object" ? d : {})) : []));
 
-/** Обмен устройства — вычисляется из отправителей и получателей всех кадров шины. */
+/** Exchange of the device, computed from the senders and receivers of all frames of the bus. */
 const exchange = computed(() => {
   if (kind.value !== "device") return null;
   const name = node.value?.name;
@@ -339,7 +339,7 @@ const exchange = computed(() => {
     desc: txt(getAt(data.value, f.path)?.description, lang.value),
   });
   return {
-    // Своё устройство из получателей чужого кадра можно убрать; свой RX-кадр — только удалить
+    // The own device can be removed from the receivers of another's frame; an own RX frame can only be deleted
     receives: onBus.filter((f) => f.receivers.includes(name))
       .map((f) => ({ ...row(f, label(f.sender)), foreign: f.device !== name })),
     sends: onBus.filter((f) => f.sender === name && f.device !== name)
@@ -355,7 +355,7 @@ const buses = computed(() => {
     frames: (b?.frames?.length ?? 0) + (b?.devices ?? []).reduce((n: number, d: any) => n + (d?.frames?.length ?? 0), 0),
   }));
 });
-// SDO-обмены — только у кадров CANopen
+// SDO exchanges only for CANopen frames
 const canAddSdo = computed(() => kind.value === "frame" && (data.value?.buses?.[Number(path.value[1])]?.protocol ?? "canopen") === "canopen"
   && (node.value?.sdo != null || ["sdo_tx", "sdo_rx"].includes(node.value?.type)));
 const isListItem = computed(() => typeof path.value[path.value.length - 1] === "number" && path.value.length > 1);
@@ -422,7 +422,7 @@ function onLayout(p: Path, start: number, length: number) {
            { device: viaLabel }) }}
     </div>
 
-    <!-- Битовая карта для кадра, сигнала, флага -->
+    <!-- Bit map for a frame, a signal, a flag -->
     <section v-if="rframe && rframe.dlc > 0 && ['frame', 'signal', 'flag', 'sdo'].includes(kind)" class="card">
       <h3>{{ t("Frame layout") }} <span class="muted">{{ frameData?.name }} · DLC {{ rframe.dlc }}</span></h3>
       <BitGrid :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly"
@@ -433,7 +433,7 @@ function onLayout(p: Path, start: number, length: number) {
     <section v-if="kind !== 'history'" class="card">
       <h3>{{ t("Properties") }} <span v-if="hasRequired" class="muted req-note"><span class="req">*</span> {{ t("— required field") }}</span></h3>
       <div class="form-grid">
-        <!-- позиция сигнала -->
+        <!-- position of the signal -->
         <template v-if="kind === 'signal' && rsignal">
           <label class="field" :class="worstLevel([...wholeDiags, ...startDiags])">
             <span class="field-label"><HelpTip :text="describe('signal', 'start_bit') ?? ''" />{{ t("Start bit (LSB)") }}</span>
@@ -454,7 +454,7 @@ function onLayout(p: Path, start: number, length: number) {
           </label>
         </template>
 
-        <!-- RX-кадр: выбрать вместо него кадр другого устройства -->
+        <!-- RX frame: pick a frame of another device instead of it -->
         <label v-if="rxSources.length && !readonly" class="field">
           <span class="field-label"><HelpTip :text="UI_HELP.source" />{{ t("Frame of another device") }}</span>
           <select value="" @change="setSource">
@@ -464,7 +464,7 @@ function onLayout(p: Path, start: number, length: number) {
           <span class="field-hint">{{ t("the device receives a frame described at its sender") }}</span>
         </label>
 
-        <!-- режим передачи кадра -->
+        <!-- transmission mode of the frame -->
         <template v-if="kind === 'frame'">
           <label class="field" :class="txMode === 'cyclic' ? '' : worstLevel(txDiags)">
             <span class="field-label"><HelpTip :text="UI_HELP.mode" />{{ t("Transmission") }}</span>
@@ -508,7 +508,7 @@ function onLayout(p: Path, start: number, length: number) {
                 :readonly="readonly" :diags="diags" />
     <FlagsTable v-if="showFlags" class="card" :path="path" :flags="node?.flags" :readonly="readonly" :diags="diags" />
 
-    <!-- Сигналы кадра -->
+    <!-- Signals of the frame -->
     <section v-if="kind === 'frame'" class="card">
       <h3>
         {{ t("Signals") }} <span class="muted">{{ frameSignals.length }}</span>
@@ -534,7 +534,7 @@ function onLayout(p: Path, start: number, length: number) {
       <p v-else class="muted">{{ t("No signals yet. Drag across the bits in the layout above or click “+ Signal”.") }}</p>
     </section>
 
-    <!-- Кадры устройства / шины -->
+    <!-- Frames of the device / bus -->
     <section v-if="kind === 'bus' || kind === 'device'" class="card">
       <h3>
         {{ t("Frames") }} <span class="muted">{{ childFrames.length }}</span>
@@ -555,7 +555,7 @@ function onLayout(p: Path, start: number, length: number) {
       <p v-else class="muted">{{ t("No frames.") }}</p>
     </section>
 
-    <!-- Обмен устройства: что оно принимает и какие чужие кадры передаёт -->
+    <!-- Exchange of the device: what it receives and which frames of others it sends -->
     <section v-if="exchange" class="card">
       <h3>{{ t("Receives") }} <span class="muted">{{ exchange.receives.length }}</span></h3>
       <table v-if="exchange.receives.length" class="list">
@@ -625,7 +625,7 @@ function onLayout(p: Path, start: number, length: number) {
       <p v-else class="muted">{{ t("No buses.") }}</p>
     </section>
 
-    <!-- История изменений — отдельный узел дерева -->
+    <!-- The revision history is a separate node of the tree -->
     <section v-if="kind === 'document'" class="card">
       <h3>{{ t("Revision history") }} <span class="muted">{{ node?.history?.length ?? 0 }}</span></h3>
       <p v-if="node?.history?.length" class="muted">

@@ -20,7 +20,7 @@ function applyTheme() {
   try {
     localStorage.setItem("mapcan-theme", theme.value);
   } catch {
-    /* хранилище недоступно */
+    /* storage is not available */
   }
 }
 function cycleTheme() {
@@ -30,8 +30,8 @@ function cycleTheme() {
 applyTheme();
 const THEME_NAMES: Record<string, string> = { auto: N_("system"), light: N_("light"), dark: N_("dark") };
 
-// Экспорт: одна строка на формат. Документы открываются в предпросмотре (шаблон PDF выбирается там),
-// ↓ справа — сразу скачать; остальные форматы только скачиваются.
+// Export: one row per format. Documents open in the preview (the PDF template is chosen there),
+// ↓ on the right downloads right away; the other formats are only downloaded.
 interface ExportItem { fmt: string; label: string; hint?: string; preview?: "html" | "pdf" | "md" }
 const DOCUMENTS: ExportItem[] = [
   { fmt: "pdf", label: "PDF", preview: "pdf" },
@@ -83,7 +83,7 @@ async function toggle(m: Menu) {
   menu.value = menu.value === m ? null : m;
   if (menu.value === "git") {
     await actions.refreshGit();
-    void actions.fetchGit();          // в фоне: счётчик «не получено» без fetch устаревает
+    void actions.fetchGit();          // in the background: the "not pulled" counter gets stale without fetch
   }
 }
 function closeMenu(e: MouseEvent) {
@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
     <template v-if="hasMap">
       <button class="icon" :title="t('Undo (Ctrl+Z)')" :disabled="!store.state?.can_undo || store.busy" @click="actions.undo">↶</button>
       <button class="icon" :title="t('Redo (Ctrl+Y)')" :disabled="!store.state?.can_redo || store.busy" @click="actions.redo">↷</button>
-      <!-- Git: сравнение версий карты и работа с репозиторием -->
+      <!-- Git: comparing versions of the map and working with the repository -->
       <div class="menu">
         <button :title="git?.available ? t(FILE_STATE[git.file ?? 'clean'])
                   : git?.reason === 'no-repo' ? t('The map folder is not in a git repository') : ''"

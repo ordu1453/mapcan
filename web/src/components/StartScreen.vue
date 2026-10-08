@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Экран, когда карта не открыта: создать, открыть, несколько недавних, примеры.
+// The screen when no map is open: create, open, a few recent ones, examples.
 import { computed } from "vue";
 import { actions, store } from "../store";
 import { t } from "../i18n";

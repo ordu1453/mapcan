@@ -1,4 +1,4 @@
-// Глобальное состояние редактора.
+// Global state of the editor.
 
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
@@ -26,31 +26,31 @@ function savedTemplate(): string {
 export const store = reactive({
   meta: null as Meta | null,
   pdfTemplates: [] as PdfTemplate[],
-  pdfTemplate: savedTemplate(),                // выбранный шаблон PDF (запоминается в браузере)
-  docLang: "",                                 // язык экспортируемых документов; пусто — язык карты
+  pdfTemplate: savedTemplate(),                // chosen PDF template (remembered in the browser)
+  docLang: "",                                 // language of exported documents; empty: the map's language
   state: null as State | null,
   dialog: null as DialogKind,
-  example: null as string | null,              // пример, копию которого сохраняет диалог "example"
+  example: null as string | null,              // the example whose copy the "example" dialog saves
   selected: ["document"] as Path,
   tab: "editor" as "editor" | "yaml",
   busy: false,
   online: true,
   fileChangedBanner: false,
   toasts: [] as Toast[],
-  muxView: {} as Record<string, number | null>, // выбранное значение селектора по кадру
-  revealLine: null as number | null,           // строка для перехода во вкладке YAML
-  // Текст вкладки YAML: null — показываем текст сервера; иначе черновик, который применяется по ходу ввода.
-  // applied — последний применённый черновик (сервер мог дописать в нём ссылки при переименовании),
-  // diags — проверка неприменённого черновика (null — ещё не проверен).
+  muxView: {} as Record<string, number | null>, // chosen selector value per frame
+  revealLine: null as number | null,           // line to go to in the YAML tab
+  // Text of the YAML tab: null shows the server's text; otherwise a draft applied while typing.
+  // applied is the last applied draft (the server may have added references to it on a rename),
+  // diags the validation of the unapplied draft (null: not validated yet).
   yaml: { draft: null as string | null, applied: null as string | null, diags: null as Diagnostic[] | null },
-  focusPath: null as Path | null,              // поле формы, к которому перейти (клик по сообщению проверки)
-  // Кадр выбран через ссылку «принимает» под устройством: имя этого устройства (Delete убирает его из получателей)
+  focusPath: null as Path | null,              // form field to go to (a click on a validation message)
+  // The frame is selected through a "receives" link under a device: that device's name (Delete removes it from the receivers)
   selectedVia: null as string | null,
-  renameRequest: null as Path | null,          // узел, у которого в дереве сразу открыть правку названия
-  update: null as UpdateInfo | null,           // доступная новая версия (плашка вверху)
-  git: null as GitStatus | null,               // состояние git для файла карты (меню Git)
-  gitFetching: false,                          // идёт git fetch (проверка, что нового на сервере)
-  gitFetchError: "",                           // ошибка последнего fetch
+  renameRequest: null as Path | null,          // node whose title edit opens right away in the tree
+  update: null as UpdateInfo | null,           // available new version (the banner at the top)
+  git: null as GitStatus | null,               // git state of the map file (the Git menu)
+  gitFetching: false,                          // git fetch is running (checking what is new on the server)
+  gitFetchError: "",                           // error of the last fetch
 });
 
 let toastId = 0;
@@ -63,26 +63,26 @@ export function toast(text: string, kind: Toast["kind"] = "error"): void {
   }, kind === "error" ? 7000 : 3000);
 }
 
-let ownVersion = -1;   // версия состояния, полученного в ответ на применение черновика YAML
-let lastFetch = 0;     // время последнего git fetch (actions.fetchGit)
+let ownVersion = -1;   // version of the state received in answer to applying the YAML draft
+let lastFetch = 0;     // time of the last git fetch (actions.fetchGit)
 
 function accept(s: State): void {
-  // Чужая правка (undo, перечитывание, другая вкладка браузера): черновик без неприменённого ввода
-  // уступает новому тексту сервера; с неприменённым — остаётся, как и раньше.
+  // Someone else's edit (undo, reload, another browser tab): a draft without unapplied input
+  // gives way to the server's new text; one with unapplied input stays, as before.
   const y = store.yaml;
   if (y.draft !== null && y.draft === y.applied && s.version !== ownVersion) store.yaml = { draft: null, applied: null, diags: null };
   store.state = s;
   if (s.disk_changed) store.fileChangedBanner = true;
-  // Выбранный узел мог исчезнуть (удаление, undo) — поднимаемся к существующему предку.
+  // The selected node may have disappeared (deleted, undo): go up to an existing ancestor.
   if (s.data) {
     let p = store.selected;
-    const view = viewOf(s);   // выбранным может быть и узел подключённого файла
+    const view = viewOf(s);   // the selected node may also be a node of an included file
     const exists = (x: Path) => getAt(view, x) !== undefined || (samePath(x, HISTORY_PATH) && !!s.data.document);
     while (p.length > 1 && !exists(p)) p = p.slice(0, -1);
     if (p.length === 1 && p[0] !== "document" && getAt(view, p) === undefined) p = ["document"];
-    // Путь вида […, "signals"] — список, а не узел дерева: выбираем его владельца (кадр и т. п.)
+    // A path like […, "signals"] is a list, not a tree node: select its owner (a frame etc.)
     p = nodeKind(p) === "unknown" ? ownerPath(p) : p;
-    // Ссылка, через которую выбран кадр, исчезла (устройство больше не получатель) — выбран сам кадр
+    // The link the frame was selected through is gone (the device no longer receives it): the frame itself is selected
     const receivers = getAt(view, [...p, "receivers"]);
     if (!samePath(p, store.selected) || !(Array.isArray(receivers) && receivers.includes(store.selectedVia))) {
       store.selectedVia = null;
@@ -120,7 +120,7 @@ function acceptSession(r: SessionResult): void {
   }
 }
 
-/** Операция со сменой файла; при несохранённых правках спрашивает, что с ними делать. */
+/** An operation that changes the file; with unsaved edits it asks what to do with them. */
 async function switchFile(fn: (force: boolean) => Promise<SessionResult>, okText?: string): Promise<boolean> {
   store.busy = true;
   try {
@@ -197,8 +197,8 @@ export const actions = {
     return run(() => api.ops(ops));
   },
   /**
-   * Применить текст вкладки YAML. `live` — по ходу ввода: шаги сливаются в один шаг отмены, черновик
-   * остаётся в поле как есть. Обычное применение завершает серию, и поле показывает текст сервера.
+   * Apply the text of the YAML tab. `live`: while typing, the steps merge into one undo step and the draft
+   * stays in the field as is. A normal application ends the series, and the field shows the server's text.
    */
   setText: (text: string, live = false) =>
     run(async () => {
@@ -208,7 +208,7 @@ export const actions = {
       else if (store.yaml.draft === text) store.yaml = { draft: null, applied: null, diags: null };
       return s;
     }),
-  /** Применить черновик YAML перед уходом с вкладки или сохранением; false — в нём синтаксическая ошибка. */
+  /** Apply the YAML draft before leaving the tab or saving; false if it has a syntax error. */
   flushYaml: async (): Promise<boolean> => {
     const draft = store.yaml.draft;
     if (draft === null || store.state?.readonly) return true;
@@ -230,7 +230,7 @@ export const actions = {
   },
   undo: () => run(api.undo),
   redo: () => run(api.redo),
-  /** Перечитать файл с диска; `ask` — спросить, если есть несохранённые правки (они и история отмены теряются). */
+  /** Reload the file from disk; `ask`: ask if there are unsaved edits (they and the undo history are lost). */
   reload: async (ask = true) => {
     const unsaved = !!store.state?.dirty || yamlLocal.value;
     if (ask && unsaved && !confirm(t("Reload the file from disk? Unsaved changes will be lost."))) return false;
@@ -257,7 +257,7 @@ export const actions = {
       store.busy = false;
     }
   },
-  /** via — устройство-получатель, если кадр выбран через ссылку на него в дереве. */
+  /** via: the receiving device if the frame is selected through the link to it in the tree. */
   select: (p: Path, via: string | null = null) => {
     store.selected = p;
     store.selectedVia = via;
@@ -274,8 +274,8 @@ export const actions = {
     }
   },
   /**
-   * Узнать у сервера, что нового (git fetch), для счётчика «не получено». Без `force` — не чаще раза в минуту;
-   * ошибки не всплывают, а показываются в меню Git.
+   * Find out from the server what is new (git fetch), for the "not pulled" counter. Without `force`, not more often than once a minute;
+   * errors do not pop up but show in the Git menu.
    */
   fetchGit: async (force = false) => {
     const g = store.git;
@@ -292,7 +292,7 @@ export const actions = {
       store.gitFetching = false;
     }
   },
-  /** Загрузить версию карты из git в редактор как несохранённую правку (Ctrl+Z возвращает прежний текст). */
+  /** Load a version of the map from git into the editor as an unsaved edit (Ctrl+Z returns the previous text). */
   restoreRevision: (rev: string) =>
     run(async () => {
       const s = await api.gitRestore(rev);
@@ -300,7 +300,7 @@ export const actions = {
       store.yaml = { draft: null, applied: null, diags: null };
       return s;
     }, t("Version {rev} is open in the editor. Save the map to keep it, or undo (Ctrl+Z).", { rev })),
-  /** Операция git (коммит, тег, push, pull): обновляет состояние git, ошибки — во всплывающем сообщении. */
+  /** A git operation (commit, tag, push, pull): updates the git state, errors show as a toast. */
   git: async (fn: () => Promise<GitStatus>, okText: string): Promise<boolean> => {
     store.busy = true;
     try {
@@ -319,16 +319,16 @@ export const actions = {
     try {
       localStorage.setItem("mapcan-pdf-template", name);
     } catch {
-      /* хранилище недоступно */
+      /* storage is not available */
     }
   },
 };
 
-// ------------------------------------------------------------------ производные
+// ------------------------------------------------------------------ derived
 
 export const lang = computed(() => store.state?.resolved?.language ?? store.state?.data?.document?.language ?? "ru");
 
-/** Язык документа при экспорте: шаблон ГОСТ — всегда русский, иначе выбранный или язык карты. */
+/** Document language on export: a GOST template is always Russian, otherwise the chosen one or the map's language. */
 export function exportLang(fmt: string): string {
   const fixed = fmt === "pdf" ? store.pdfTemplates.find((x) => x.name === store.pdfTemplate)?.lang : null;
   return fixed ?? (store.docLang || lang.value);
@@ -340,10 +340,10 @@ export const resolvedFrames = computed(() => {
   return m;
 });
 
-/** Данные карты вместе с подключёнными файлами (include): для дерева и просмотра их узлов. */
+/** Data of the map together with the included files (include): for the tree and for viewing their nodes. */
 export const viewData = computed(() => viewOf(store.state));
 
-/** Подключённый файл, в котором описан узел (его можно только смотреть); null — узел основного файла. */
+/** Included file the node is described in (it can only be viewed); null for a node of the main file. */
 export function includedPath(path: Path): string | null {
   return includedFile(store.state?.included, path);
 }
@@ -351,10 +351,10 @@ export function includedPath(path: Path): string | null {
 export const tree = computed(() => (store.state?.data
   ? buildTree(viewData.value, resolvedFrames.value, lang.value, store.state.included ?? []) : []));
 
-/** В поле YAML есть ввод, ещё не применённый на сервере. */
+/** The YAML field has input not applied on the server yet. */
 export const yamlLocal = computed(() => store.yaml.draft !== null && store.yaml.draft !== store.yaml.applied);
 
-/** Сообщения проверки: для неприменённого черновика YAML — его проверка, иначе — состояния сервера. */
+/** Validation messages: for an unapplied YAML draft its validation, otherwise the server's state. */
 export const diagnostics = computed(() =>
   (yamlLocal.value && store.yaml.diags) || store.state?.diagnostics || []);
 
@@ -367,12 +367,12 @@ export const selectedResolvedFrame = computed(() => {
   return fp ? resolvedFrames.value.get(pathKey(fp)) : undefined;
 });
 
-// ------------------------------------------------------------------ события
+// ------------------------------------------------------------------ events
 
 export function startEvents(): void {
   connectEvents(
     (m) => {
-      // Вкладка осталась от прошлой версии mapcan, а сервер уже обновлён — подгружаем новый интерфейс
+      // The tab is left from a previous mapcan version and the server is updated: load the new interface
       if (m.type === "hello" && m.app && store.meta && m.app !== store.meta.version) location.reload();
       else if (m.type === "file-changed") store.fileChangedBanner = true;
       else if (m.type === "open-request") void actions.openFile(m.path);
@@ -392,7 +392,7 @@ export function installShortcuts(): void {
     if (!mod) return;
     const t = e.target as HTMLElement;
     const inField = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
-    // e.code — физическая клавиша: сочетания работают и в русской раскладке.
+    // e.code is the physical key: the shortcuts work in the Russian layout too.
     const k = e.code.startsWith("Key") ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (k === "s" && e.shiftKey) {
       e.preventDefault();

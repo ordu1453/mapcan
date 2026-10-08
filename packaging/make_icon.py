@@ -1,6 +1,6 @@
-"""Иконка приложения (packaging/mapcan.ico) — тот же рисунок, что favicon веб-редактора.
+"""App icon (packaging/mapcan.ico): the same picture as the web editor's favicon.
 
-Источник — web/public/favicon.svg; каждый размер растеризуется из него отдельно.
+The source is web/public/favicon.svg; each size is rasterized from it separately.
 
     uv run --with resvg-py python packaging/make_icon.py
 """

@@ -1,16 +1,16 @@
-# Текстовые файлы — с LF и в репозитории, и в рабочей копии, на любой ОС: без предупреждений
-# «LF will be replaced by CRLF» при core.autocrlf=true и без смешанных концов строк в коммитах
+# Text files with LF both in the repository and in the working copy on any OS: no
+# "LF will be replaced by CRLF" warnings with core.autocrlf=true and no mixed line endings in commits
 * text=auto eol=lf
 
-# Сценарий установщика Inno Setup — в привычных для Windows CRLF
+# The Inno Setup installer script in the usual Windows CRLF
 *.iss text eol=crlf
 
-# Двоичные файлы
+# Binary files
 *.png binary
 *.ico binary
 *.ttf binary
 *.woff2 binary
 
-# Собранный фронтенд всегда с LF, как его выдаёт сборка на CI (vite пишет смешанные концы строк)
+# The built frontend always with LF, as the CI build produces it (vite writes mixed line endings)
 src/mapcan/web/static/** text eol=lf
 web/index.html text eol=lf

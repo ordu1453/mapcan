@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Профиль автора: имя и GitHub. Подставляется в записи истории изменений.
+// Author profile: name and GitHub. Filled into the revision history entries.
 import { ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";

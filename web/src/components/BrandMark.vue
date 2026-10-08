@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Логотип mapcan: иконка и надпись в её шрифте (Sora ExtraBold) и цветах — «map» как белая «m»
-// на синем, «can» как янтарная «c».
+// mapcan logo: the icon and the text in its font (Sora ExtraBold) and colors: "map" like the white "m"
+// on blue, "can" like the amber "c".
 defineProps<{ size?: number }>();
 </script>
 

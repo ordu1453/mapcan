@@ -1,19 +1,19 @@
-# Сборка для Windows и Linux: dist/mapcan/ с mapcan-app.exe (окно) и mapcan.exe (CLI);
-# на Linux — mapcan-app и mapcan, без pywebview редактор открывается в браузере.
+# Build for Windows and Linux: dist/mapcan/ with mapcan-app.exe (window) and mapcan.exe (CLI);
+# on Linux mapcan-app and mapcan; without pywebview the editor opens in the browser.
 #
 #   uv sync --locked --extra desktop --group package
 #   uv run pyinstaller packaging/mapcan.spec --noconfirm
 #
-# Режим onedir (не onefile): onefile при каждом запуске распаковывается во временную
-# папку, и старт замедляется на несколько секунд.
+# onedir mode (not onefile): onefile unpacks itself into a temporary folder on every start,
+# which slows the start down by several seconds.
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-HERE = SPECPATH  # noqa: F821 — задаётся PyInstaller
+HERE = SPECPATH  # noqa: F821 — set by PyInstaller
 ICON = f"{HERE}/mapcan.ico"
 
-datas = collect_data_files("mapcan")               # шаблоны, шрифты, собранный фронтенд
-datas += [(f"{HERE}/../examples", "mapcan/examples")]   # «Примеры» на стартовом экране
+datas = collect_data_files("mapcan")               # templates, fonts, the built frontend
+datas += [(f"{HERE}/../examples", "mapcan/examples")]   # "Examples" on the start screen
 datas += [(f"{HERE}/../{name}", ".") for name in ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")]
 hidden = (collect_submodules("mapcan") + collect_submodules("uvicorn") + collect_submodules("cantools"))
 excludes = ["tkinter", "matplotlib", "IPython", "pytest"]

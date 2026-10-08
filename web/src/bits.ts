@@ -1,4 +1,4 @@
-// Раскладка бит — порт src/mapcan/bits.py (нумерация lsb0, start — позиция LSB).
+// Bit layout, a port of src/mapcan/bits.py (lsb0 numbering, start is the LSB position).
 
 export function occupiedBits(start: number, length: number, bigEndian: boolean): number[] {
   const out: number[] = [];
@@ -24,7 +24,7 @@ export function hex(v: number | null | undefined, width = 3): string {
   return "0x" + v.toString(16).toUpperCase().padStart(width, "0");
 }
 
-/** Присутствуют ли два сигнала в кадре одновременно (с учётом мультиплексирования). */
+/** Whether two signals are in the frame at the same time (minding multiplexing). */
 export function coexist(a: number[] | null, b: number[] | null): boolean {
   if (a === null || b === null) return true;
   return a.some((v) => b.includes(v));

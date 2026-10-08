@@ -1,7 +1,7 @@
-"""Логотип для README (docs/logo-light.svg, docs/logo-dark.svg) — как BrandMark.vue на стартовом экране.
+"""Logo for the README (docs/logo-light.svg, docs/logo-dark.svg), like BrandMark.vue on the start screen.
 
-Иконка — web/public/favicon.svg, надпись «mapcan» — контуры букв Sora ExtraBold из шрифта
-веб-редактора (GitHub не подгружает шрифты в SVG). Пропорции и цвета — из .brandmark в style.css.
+The icon is web/public/favicon.svg, the text "mapcan" the letter outlines of Sora ExtraBold from the
+web editor's font (GitHub does not load fonts in SVG). Proportions and colors come from .brandmark in style.css.
 
     uv run --with fonttools --with brotli python packaging/make_logo.py
 """
@@ -18,7 +18,7 @@ ICON = ROOT / "web" / "public" / "favicon.svg"
 FONT = ROOT / "web" / "src" / "assets" / "sora-800-wordmark.woff2"
 OUT = ROOT / "docs"
 
-EM = 100                    # font-size надписи
+EM = 100                    # font-size of the text
 ICON_SIZE = 1.45 * EM       # .brandmark-icon: 1.45em
 GAP = 0.4 * EM              # .brandmark: gap 0.4em
 TRACKING = -0.01 * EM       # .brandmark-word: letter-spacing -0.01em
@@ -46,7 +46,7 @@ def main() -> None:
     font = TTFont(FONT)
     hhea = font["hhea"]
     upm = font["head"].unitsPerEm
-    # Строка высотой 1em (line-height: 1) по центру иконки; базовая линия — как у браузера.
+    # A line 1em high (line-height: 1) centered on the icon; the baseline as in a browser.
     content = (hhea.ascent - hhea.descent) / upm * EM
     baseline = (ICON_SIZE - EM) / 2 + (EM - content) / 2 + hhea.ascent / upm * EM
     x0 = ICON_SIZE + GAP

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// История изменений (document.history): список записей или изменения одной записи.
+// Revision history (document.history): the list of entries or the changes of one entry.
 import { computed, ref } from "vue";
 import { addRevision } from "../edit";
 import type { FieldDef } from "../form/spec";
@@ -26,7 +26,7 @@ const changeDiags = (i: number) => {
 
 function setChange(i: number, value: unknown) {
   const p = [...props.path, "changes", i];
-  // Пустая строка — удалить пункт, а не оставлять пустое изменение в документе.
+  // An empty line removes the item rather than leaving an empty change in the document.
   void actions.apply([value == null ? { op: "remove", path: p } : { op: "set", path: p, value }]);
 }
 
@@ -49,7 +49,7 @@ async function addChange() {
 </script>
 
 <template>
-  <!-- Одна запись: список изменений -->
+  <!-- One entry: the list of changes -->
   <section v-if="isEntry" class="card">
     <h3>{{ t("Changes") }} <span class="muted">{{ changes.length }}</span></h3>
     <div class="history-changes">
@@ -70,7 +70,7 @@ async function addChange() {
     </div>
   </section>
 
-  <!-- Вся история -->
+  <!-- The whole history -->
   <section v-else class="card">
     <h3>
       {{ t("Entries") }} <span class="muted">{{ history.length }}</span>

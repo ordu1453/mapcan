@@ -1,11 +1,11 @@
-// Общие элементы PDF-шаблонов mapcan: битовые диаграммы, таблицы сигналов, адресация.
-// Данные карты — JSON из sys.inputs.data (см. mapcan/docmodel.py).
+// Shared elements of the mapcan PDF templates: bit diagrams, signal tables, addressing.
+// The map's data is JSON from sys.inputs.data (see mapcan/docmodel.py).
 //
-// Каждая функция принимает тему оформления `th` — словарь цветов и шрифтов.
+// Every function takes the styling theme `th`, a dictionary of colors and fonts.
 
 #let load-data() = json(bytes(sys.inputs.at("data", default: "{}")))
 
-/// Разрешить перенос длинных идентификаторов по «_».
+/// Allow long identifiers to break at "_".
 #let ident(s) = s.replace("_", "_\u{200B}")
 
 #let theme-color = (
@@ -18,7 +18,7 @@
   diagram-text: 7pt,
 )
 
-// ГОСТ: чёрные линии, заголовки таблиц без заливки.
+// GOST: black lines, table headers without a fill.
 #let theme-gost = (
   accent: black,
   head-fill: none,
@@ -31,14 +31,14 @@
 
 #let mono(s, th: theme-color) = text(font: th.mono, size: 0.9em, s)
 
-/// Логотип предприятия (если задан в карте).
+/// Company logo (if the map has one).
 #let logo(doc, height: 15mm, width: auto) = {
   if doc.at("logo", default: "") != "" { image(doc.logo, height: height, width: width, fit: "contain") }
 }
 
 #let _head(th, body) = table.cell(fill: th.head-fill, text(fill: th.head-text, weight: "bold", body))
 
-/// Битовая раскладка кадра: строки — байты, колонки — биты 7…0.
+/// Bit layout of a frame: rows are bytes, columns are bits 7…0.
 #let bit-diagram(fr, L, th: theme-color) = {
   table(
     columns: (13mm,) + (1fr,) * 8,
@@ -57,7 +57,7 @@
   )
 }
 
-/// Таблица сигналов кадра.
+/// Table of the frame's signals.
 #let signal-table(fr, L, th: theme-color, comment-color: rgb("#9C5700")) = {
   table(
     columns: (auto, auto, 1.25fr, 1.45fr, 0.95fr, 2.3fr),
@@ -85,7 +85,7 @@
   )
 }
 
-/// Таблица SDO-обменов кадра.
+/// Table of the frame's SDO exchanges.
 #let sdo-table(fr, L, th: theme-color) = {
   table(
     columns: (1.4fr, auto, auto, auto, 1.6fr, 1.4fr),
@@ -102,7 +102,7 @@
   )
 }
 
-/// Сводка свойств кадра (ID, тип, DLC, направление, период).
+/// Summary of the frame's properties (ID, type, DLC, direction, period).
 #let frame-props(fr, L, th: theme-color) = {
   table(
     columns: (auto, 1fr, auto, 1fr, auto, 1fr),
@@ -124,7 +124,7 @@
   )
 }
 
-/// Сводка свойств шины.
+/// Summary of the bus's properties.
 #let bus-props(bus, L, th: theme-color) = {
   table(
     columns: (auto, 1fr, auto, 1fr),
@@ -136,7 +136,7 @@
   )
 }
 
-/// Таблица адресации шины.
+/// Addressing table of the bus.
 #let addressing-table(bus, L, th: theme-color, unused-fill: luma(245)) = {
   let a = bus.addressing
   if a.kind == "matrix" {
@@ -187,7 +187,7 @@
   }
 }
 
-/// Автор записи истории со ссылкой на GitHub.
+/// Author of a history entry with a link to GitHub.
 #let history-author(h, th: theme-color) = {
   h.author
   if h.github != "" {
@@ -196,7 +196,7 @@
   }
 }
 
-/// История версий карты.
+/// Version history of the map.
 #let history-table(doc, L, th: theme-color) = {
   table(
     columns: (auto, auto, auto, 1fr),
@@ -210,7 +210,7 @@
   )
 }
 
-/// Все кадры шины (широковещательные, затем по устройствам) — для обхода в шаблонах.
+/// All frames of the bus (broadcast ones, then by device), for the templates to go through.
 #let bus-groups(bus, L) = {
   let groups = ()
   if bus.broadcast.len() > 0 {
@@ -228,8 +228,8 @@
   groups
 }
 
-/// Сводка обмена устройства: принимаемые кадры (`peer` — отправитель) или кадры других устройств,
-/// которые оно передаёт (`peer` — владелец кадра).
+/// Exchange summary of a device: the frames it receives (`peer` is the sender) or the frames of other devices
+/// that it sends (`peer` is the frame's owner).
 #let exchange-table(rows, peer, L, th: theme-color) = {
   table(
     columns: (22mm, auto, auto, 1fr),
@@ -240,13 +240,13 @@
   )
 }
 
-/// Заголовок кадра: «0x196 · СОСТОЯНИЯ».
+/// Heading of a frame: "0x196 · СОСТОЯНИЯ".
 #let frame-title(fr) = fr.id + " · " + (if fr.title != "" { fr.title } else { fr.name })
 
-// ---------------------------------------------------------------- общие элементы ГОСТ
+// ---------------------------------------------------------------- shared GOST elements
 
-/// Дополнительные графы на поле подшивки (ГОСТ 2.104, графы 19–25; ГОСТ 19.104).
-/// `first` — добавить «Перв. примен.» и «Справ. №» в верхней части.
+/// Additional columns in the binding margin (GOST 2.104, columns 19–25; GOST 19.104).
+/// `first` adds "Перв. примен." and "Справ. №" at the top.
 #let gost-side-fields(font: ("PT Sans",), stroke: 0.5mm, first: false) = {
   let x0 = 8mm
   let w1 = 5mm
@@ -267,7 +267,7 @@
   if first { column((("Перв. примен.", 60mm), ("Справ. №", 60mm)), 5mm, true) }
 }
 
-/// Лист регистрации изменений (ГОСТ 2.503, ГОСТ 19.603) — пустая форма.
+/// Change registration sheet (GOST 2.503, GOST 19.603), an empty form.
 #let gost-change-register(rows: 22, size: 8pt) = {
   set text(size: size)
   set par(first-line-indent: 0pt, justify: false)
@@ -291,7 +291,7 @@
   )
 }
 
-/// Блок подписи «УТВЕРЖДАЮ» / «СОГЛАСОВАНО»: должность, подпись, дата.
+/// Signature block "УТВЕРЖДАЮ" / "СОГЛАСОВАНО": position, signature, date.
 #let gost-sign-block(title, p, year, size: 11pt) = {
   set par(first-line-indent: 0pt, justify: false)
   set text(size: size)
@@ -304,7 +304,7 @@
   [«\_\_\_\_» \_\_\_\_\_\_\_\_\_\_\_\_ #year г.]
 }
 
-/// Подписи «Разработал / Проверил / Н. контроль» (только заполненные).
+/// Signatures "Разработал / Проверил / Н. контроль" (only the filled ones).
 #let gost-signers(rows, size: 11pt) = {
   set text(size: size)
   table(
@@ -315,7 +315,7 @@
   )
 }
 
-/// Оформление таблиц по ГОСТ: подпись «Таблица N — …» над таблицей, без отступа, не отрывается.
+/// GOST table styling: the caption "Таблица N — …" above the table, without an indent, kept with it.
 #let gost-tables(body, caption-size: 10pt) = {
   set figure(supplement: [Таблица])
   show figure.where(kind: table): set figure.caption(position: top)
@@ -325,7 +325,7 @@
   body
 }
 
-/// Таблица с подписью; `breakable: false` — не разрывать (битовые диаграммы).
+/// A table with a caption; `breakable: false` does not split it (bit diagrams).
 #let gost-table(caption, body, breakable: true) = {
   show figure: set block(breakable: breakable)
   figure(kind: table, caption: caption, body)

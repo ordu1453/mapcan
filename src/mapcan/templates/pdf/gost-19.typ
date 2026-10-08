@@ -1,12 +1,12 @@
-// Шаблон «gost-19» — программный документ ЕСПД.
+// The "gost-19" template: an ESPD program document.
 //
-//  * ГОСТ 19.104: лист утверждения (ЛУ, отдельный документ — в нумерацию не входит),
-//    титульный лист, графы на поле подшивки;
-//  * ГОСТ 19.105 / 19.106: номер страницы над текстом посередине, обозначение документа
-//    в верхней части каждой страницы, «АННОТАЦИЯ», «СОДЕРЖАНИЕ», заголовки разделов
-//    прописными буквами симметрично тексту, приложения, лист регистрации изменений (ГОСТ 19.603).
+//  * GOST 19.104: approval sheet (ЛУ, a separate document outside the page numbering),
+//    title page, columns in the binding margin;
+//  * GOST 19.105 / 19.106: the page number centered above the text, the document designation
+//    at the top of every page, "АННОТАЦИЯ", "СОДЕРЖАНИЕ", section headings
+//    in capitals centered on the text, appendices, change registration sheet (GOST 19.603).
 //
-// Реквизиты: document.designation (напр. «RU.12345678.00001-01 90 01»), organization,
+// Requisites: document.designation (e.g. "RU.12345678.00001-01 90 01"), organization,
 // approve, agree, signatures.
 
 #import "lib.typ": *
@@ -31,14 +31,14 @@
 #set heading(numbering: "1.1.")
 #show heading: it => block(above: 1.3em, below: 0.9em, sticky: true, it)
 #show heading: set text(size: 12pt, weight: "bold")
-// Разделы — прописными буквами симметрично тексту.
+// Sections in capitals centered on the text.
 #show heading.where(level: 1): it => align(center, block(above: 1.3em, below: 0.9em, sticky: true,
   upper(it)))
 #show heading.where(numbering: none): set align(center)
 
 #set page(paper: "a4", margin: (left: 25mm, right: 10mm, top: 25mm, bottom: 20mm))
 
-// ---------------------------------------------------------------- лист утверждения
+// ---------------------------------------------------------------- approval sheet
 
 #page(header: none, background: gost-side-fields(font: font-main))[
   #set par(first-line-indent: 0pt, justify: false)
@@ -74,7 +74,7 @@
   #align(center, text(size: 12pt, (if doc.city != "" { doc.city + " " } else { "" }) + doc.year))
 ]
 
-// ---------------------------------------------------------------- титульный лист (стр. 1)
+// ---------------------------------------------------------------- title page (page 1)
 
 #counter(page).update(1)
 #page(header: none, background: gost-side-fields(font: font-main))[
@@ -95,7 +95,7 @@
   #align(center, text(size: 12pt, (if doc.city != "" { doc.city + " " } else { "" }) + doc.year))
 ]
 
-// ---------------------------------------------------------------- страницы документа
+// ---------------------------------------------------------------- pages of the document
 
 #set page(header: context {
   set text(size: 11pt)
@@ -168,7 +168,7 @@
   }
 }
 
-// ---------------------------------------------------------------- приложение
+// ---------------------------------------------------------------- appendix
 
 #show <appendix-1>: it => block(above: 0pt, below: 1em, {
   align(right, text(weight: "bold")[ПРИЛОЖЕНИЕ 1])
@@ -181,7 +181,7 @@
   gost-table([История версий карты], history-table(doc, L, th: th))
 }
 
-// ---------------------------------------------------------------- лист регистрации изменений
+// ---------------------------------------------------------------- change registration sheet
 
 #pagebreak(weak: true)
 #heading(level: 1, numbering: none)[Лист регистрации изменений]

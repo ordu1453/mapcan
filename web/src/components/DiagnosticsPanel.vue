@@ -9,7 +9,7 @@ const open = ref(true);
 const show = ref<Record<Level, boolean>>({ error: true, warning: true, info: false });
 
 const all = diagnostics;
-// Сообщения относятся к черновику вкладки YAML, который ещё не применён (например, в нём синтаксическая ошибка).
+// The messages are about the YAML tab's draft that is not applied yet (e.g. it has a syntax error).
 const draft = computed(() => yamlLocal.value && !!store.yaml.diags);
 const counts = computed(() => ({
   error: all.value.filter((d) => d.level === "error").length,
@@ -19,7 +19,7 @@ const counts = computed(() => ({
 const items = computed(() => all.value.filter((d) => show.value[d.level]));
 
 function go(d: Diagnostic) {
-  // Пути черновика могут не совпадать с деревом — переходим только к строке.
+  // Paths of the draft may not match the tree: go to the line only.
   if (draft.value) {
     store.tab = "yaml";
     store.revealLine = d.line;
@@ -30,7 +30,7 @@ function go(d: Diagnostic) {
   if (d.node.length && store.state?.data) {
     actions.select(ownerPath(d.node));
     store.focusPath = d.node;
-    // Сообщение не на поле формы (на узел или таблицу) — не держим цель, чтобы она не сработала позже
+    // The message is not on a form field (on the node or a table): do not keep the target, so it does not fire later
     setTimeout(() => { if (store.focusPath === d.node) store.focusPath = null; }, 500);
   }
 }

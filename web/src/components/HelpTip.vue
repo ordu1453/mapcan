@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// Кружок «?» со справкой по полю: текст показывается при наведении, по клику закрепляется (Esc / клик мимо — закрыть).
+// A "?" circle with the field's help: the text shows on hover and stays on click (Esc / a click elsewhere closes it).
 import { onBeforeUnmount, ref, watch } from "vue";
 import { t } from "../i18n";
 
 defineProps<{ text: string }>();
 
 const open = ref(false);
-const flip = ref(false);    // у правого края окна — открывать влево
+const flip = ref(false);    // at the right edge of the window: open to the left
 const root = ref<HTMLElement | null>(null);
 
 function place() {
@@ -29,7 +29,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- Внутри <label>: клик не должен переводить фокус в поле ввода -->
+  <!-- Inside a <label>: a click must not move the focus to the input -->
   <span ref="root" class="help-tip" :class="{ open, flip }" role="button" tabindex="0" :aria-label="t('Help')"
         :aria-expanded="open" @mouseenter="place" @mousedown.prevent @click.prevent.stop="place(); open = !open"
         @keydown.enter.prevent.stop="place(); open = !open">

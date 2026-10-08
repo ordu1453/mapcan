@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Сравнение текущей карты с версией из git или загруженным файлом; запись в историю изменений.
+// Comparing the current map with a version from git or a loaded file; an entry in the revision history.
 import { computed, onMounted, ref } from "vue";
 import { api } from "../api";
 import { actions, store, toast } from "../store";
@@ -16,7 +16,7 @@ const result = ref<DiffResult | null>(null);
 const loading = ref(false);
 const error = ref("");
 
-// Форма записи в историю
+// Form of the history entry
 const version = ref("");
 const date = ref(new Date().toISOString().slice(0, 10));
 const changes = ref("");

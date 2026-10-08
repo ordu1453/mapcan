@@ -1,4 +1,4 @@
-"""media/icon.png (иконка расширения в Marketplace и списке расширений) из media/icon.svg.
+"""media/icon.png (the extension's icon in the Marketplace and the list of extensions) from media/icon.svg.
 
     uv run --with resvg-py python vscode/scripts/make_icon.py
 """

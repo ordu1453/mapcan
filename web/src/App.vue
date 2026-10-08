@@ -20,7 +20,7 @@ import { t } from "./i18n";
 
 const preview = ref<"html" | "pdf" | "md" | null>(null);
 const diffOpen = ref(false);
-const diffRev = ref("");               // ревизия, с которой сравнить сразу (из журнала версий)
+const diffRev = ref("");               // revision to compare with right away (from the version log)
 
 function openDiff(rev = "") {
   diffRev.value = rev;
@@ -30,7 +30,7 @@ function openDiff(rev = "") {
 onMounted(async () => {
   await actions.load();
   if (store.state && !store.state.data) store.tab = "yaml";
-  // Первый запуск: профиль автора.
+  // First run: the author profile.
   askProfile();
   void checkUpdate();
 });
@@ -42,7 +42,7 @@ function askProfile() {
       store.dialog = "profile";
     }
   } catch {
-    /* хранилище недоступно */
+    /* storage is not available */
   }
 }
 
@@ -55,11 +55,11 @@ async function checkUpdate() {
     try {
       dismissed = localStorage.getItem(UPDATE_KEY) ?? "";
     } catch {
-      /* хранилище недоступно */
+      /* storage is not available */
     }
     if (u.newer && u.latest !== dismissed) store.update = u;
   } catch {
-    /* проверка обновлений не важна для работы */
+    /* the update check does not matter for the work */
   }
 }
 
@@ -67,7 +67,7 @@ function dismissUpdate() {
   try {
     if (store.update?.latest) localStorage.setItem(UPDATE_KEY, store.update.latest);
   } catch {
-    /* хранилище недоступно */
+    /* storage is not available */
   }
   store.update = null;
 }

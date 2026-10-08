@@ -23,7 +23,7 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
       msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
       code = j.code ?? "";
     } catch {
-      /* тело не JSON */
+      /* the body is not JSON */
     }
     throw new ApiError(r.status, msg, code);
   }
@@ -104,7 +104,7 @@ export type WsMessage =
   | { type: "file-changed" }
   | { type: "open-request"; path: string };
 
-/** WebSocket с автоматическим переподключением. */
+/** WebSocket that reconnects automatically. */
 export function connectEvents(onMessage: (m: WsMessage) => void, onStatus: (online: boolean) => void): void {
   let delay = 500;
   const open = () => {

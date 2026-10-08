@@ -1,4 +1,4 @@
-// Структурные правки: добавить / удалить / дублировать узел.
+// Structural edits: add / delete / duplicate a node.
 
 import { actions, includedPath, lang, resolvedFrames, store, toast } from "./store";
 import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, txt, uniqueName, type Data, type NodeKind } from "./model";
@@ -24,8 +24,8 @@ function fixIndex(o: Op, index: number): Op {
 }
 
 /**
- * Полное название нового узла на языке документа: «Шина 2», «Device 3» — первое свободное среди соседей.
- * Название обязательно; пользователь меняет его в форме или двойным щелчком в дереве.
+ * Full name of a new node in the document language: "Шина 2", "Device 3", the first free one among siblings.
+ * The title is required; the user changes it in the form or with a double click in the tree.
  */
 function defaultTitle(ru: string, en: string, siblings: Data[]): string {
   const base = lang.value === "en" ? en : ru;
@@ -35,7 +35,7 @@ function defaultTitle(ru: string, en: string, siblings: Data[]): string {
   return `${base} ${n}`;
 }
 
-/** После создания — открыть в дереве правку названия нового узла, чтобы его сразу ввели. */
+/** After creating, open the title of the new node for editing in the tree, so that it is typed right away. */
 function askTitle(ok: boolean): boolean {
   if (ok) store.renameRequest = store.selected;
   return ok;
@@ -69,7 +69,7 @@ export function addDevice(busPath: Path): Promise<boolean> {
   return insertAndSelect([...busPath, "devices"], value).then(askTitle);
 }
 
-/** Новый кадр не выделяется: остаёмся на шине/устройстве, кадр появляется в списке «Кадры». */
+/** A new frame is not selected: the bus/device stays selected, and the frame appears in the Frames list. */
 export function addFrame(ownerPath: Path): Promise<boolean> {
   const owner = getAt(data(), ownerPath);
   const bus = busOf(ownerPath);
@@ -81,7 +81,7 @@ export function addFrame(ownerPath: Path): Promise<boolean> {
     for (const f of [...(bus.frames ?? []), ...(bus.devices ?? []).flatMap((d: Data) => d.frames ?? [])]) {
       if (f.pgn != null) used.add(f.pgn);
     }
-    let pgn = 0xff00;                                   // проприетарный диапазон PDU2
+    let pgn = 0xff00;                                   // proprietary PDU2 range
     while (used.has(pgn) && pgn < 0xffff) pgn++;
     value.pgn = pgn;
     value.priority = 6;
@@ -135,8 +135,8 @@ export function addSignal(framePath: Path, layout?: { start_bit: number; bit_len
 
 const FD_DLC = [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64];
 
-/** Место для нового сигнала: свободный байт; если его нет — расширить DLC на байт
- *  (для CAN FD — до следующего допустимого значения); если и это нельзя — свободные биты. */
+/** Place of a new signal: a free byte; if there is none, extend the DLC by a byte
+ *  (for CAN FD, to the next allowed value); if that is impossible too, free bits. */
 function placeNewSignal(framePath: Path): { pos: { start_bit: number; bit_length: number }; dlc?: number } | null {
   const frame = getAt(data(), framePath);
   const rf = resolvedFrames.value.get(pathKey(framePath));
@@ -149,7 +149,7 @@ function placeNewSignal(framePath: Path): { pos: { start_bit: number; bit_length
   const next = fd ? FD_DLC.find((d) => d > dlc) : dlc < 8 ? dlc + 1 : undefined;
   if (next !== undefined) return { pos: { start_bit: dlc * 8, bit_length: 8 }, dlc: next };
 
-  // Кадр максимальной длины: берём первый свободный участок (не длиннее байта)
+  // A frame of the maximum length: take the first free stretch (not longer than a byte)
   for (let b = 0; b < dlc * 8; b++) {
     if (used.has(b)) continue;
     let n = 1;
@@ -168,7 +168,7 @@ export function addFlag(signalPath: Path): Promise<boolean> {
   while (used.has(bit)) bit++;
   const frameSigs = (getAt(data(), signalPath.slice(0, -1)) ?? []) as Data[];
   const names = new Set<string>(frameSigs.flatMap((s: Data) => [s.name, ...(s.flags ?? []).map((f: Data) => f.name)]));
-  // Флаги правятся прямо в таблице сигнала — остаёмся на нём
+  // Flags are edited right in the signal's table: stay on the signal
   return insertAndSelect([...signalPath, "flags"], { bit, name: uniqueName("flag", names) }, [], false);
 }
 
@@ -189,7 +189,7 @@ function bumpVersion(v: string): string {
   return m ? `${m[1]}.${m[2]}.${Number(m[3]) + 1}` : v || "0.1.0";
 }
 
-/** Новая запись истории — первой (история идёт от новых версий к старым). */
+/** A new history entry goes first (the history goes from new versions to old ones). */
 export async function addRevision(): Promise<boolean> {
   const doc = data()?.document ?? {};
   const latest = (doc.history ?? [])[0]?.version;
@@ -212,7 +212,7 @@ export function canRename(path: Path): boolean {
   return RENAMABLE.includes(nodeKind(path)) && !store.state?.readonly && !includedPath(path);
 }
 
-/** Имена, с которыми новое имя не должно совпадать: соседи по списку, у кадров — все кадры шины. */
+/** Names the new name must not match: siblings in the list, and for frames all frames of the bus. */
 function takenNames(path: Path): string[] {
   const self = getAt(data(), path);
   const names = nodeKind(path) === "frame"
@@ -224,8 +224,8 @@ function takenNames(path: Path): string[] {
 }
 
 /**
- * Переименовать узел. Возвращает текст ошибки или null. У устройства заодно обновляются
- * отправители (sender) и получатели (receivers) кадров шины — одной правкой, один шаг отмены.
+ * Rename a node. Returns the error text or null. For a device the senders (sender) and receivers
+ * (receivers) of the bus frames are updated too, in one edit and one undo step.
  */
 export async function renameNode(path: Path, raw: string): Promise<string | null> {
   const name = raw.trim();
@@ -253,12 +253,12 @@ export async function renameNode(path: Path, raw: string): Promise<string | null
 }
 
 /**
- * Название (title) на языке документа: у двуязычного названия меняется только этот язык,
- * у простой строки — сама строка; пустое значение удаляет название (или его перевод).
+ * Title in the document language: of a two-language title only this language changes,
+ * of a plain string the string itself; an empty value removes the title (or its translation).
  */
 export async function setTitle(path: Path, raw: string): Promise<string | null> {
   const v = raw.trim();
-  // У шины и устройства название обязательно
+  // A bus and a device must have a title
   if (!v && ["bus", "device"].includes(nodeKind(path))) return t("The name cannot be empty");
   const title = getAt(data(), path)?.title;
   const lng: string = store.state?.resolved?.language ?? data()?.document?.language ?? "ru";
@@ -269,7 +269,7 @@ export async function setTitle(path: Path, raw: string): Promise<string | null> 
   return (await actions.apply([op])) ? null : t("Could not rename");
 }
 
-/** Обозначение устройства (short): необязательное, пустое значение удаляет ключ. */
+/** Abbreviation of a device (short): optional, an empty value removes the key. */
 export async function setShort(path: Path, raw: string): Promise<string | null> {
   const v = raw.trim();
   if (v === (getAt(data(), path)?.short ?? "")) return null;
@@ -278,8 +278,8 @@ export async function setShort(path: Path, raw: string): Promise<string | null> 
 }
 
 /**
- * RX-кадр устройства — это кадр другого устройства: устройство добавляется в receivers кадра-оригинала,
- * а своя копия удаляется (кадр описывается один раз, у отправителя).
+ * An RX frame of a device is a frame of another device: the device is added to the receivers of the original frame,
+ * and its own copy is removed (a frame is described once, at its sender).
  */
 export async function receiveFrame(rxPath: Path, txPath: Path): Promise<boolean> {
   const device = getAt(data(), rxPath.slice(0, 4))?.name;
@@ -297,7 +297,7 @@ export async function receiveFrame(rxPath: Path, txPath: Path): Promise<boolean>
   return ok;
 }
 
-/** Устройство больше не принимает кадр: убрать его из receivers (пустой список — убрать ключ). */
+/** The device no longer receives the frame: remove it from receivers (an empty list removes the key). */
 export function stopReceiving(framePath: Path, device: string): Promise<boolean> {
   const receivers: string[] = getAt(data(), [...framePath, "receivers"]) ?? [];
   const rest = receivers.filter((r) => r !== device);
@@ -310,18 +310,18 @@ export function canRemove(path: Path): boolean {
   return !["document", "history"].includes(nodeKind(path));
 }
 
-/** Удаление без подтверждения — отменяется через Ctrl+Z. */
+/** Deleting without confirmation: Ctrl+Z undoes it. */
 export async function removeNode(path: Path): Promise<boolean> {
   const revision = nodeKind(path) === "revision";
   const ok = await actions.apply([{ op: "remove", path }]);
-  // Переходим к родителю (сигнал → кадр, кадр → устройство/шина…), а не к соседнему элементу
+  // Go to the parent (signal → frame, frame → device/bus…), not to a sibling
   if (ok) actions.select(revision ? HISTORY_PATH : path.length > 2 ? path.slice(0, -2) : ["document"]);
   return ok;
 }
 
 /**
- * Удалить выбранный узел. Кадр, выбранный через ссылку «принимает», не удаляется: устройство убирается
- * из его получателей, и выбирается это устройство.
+ * Delete the selected node. A frame selected through a "receives" link is not deleted: the device is removed
+ * from its receivers, and that device is selected.
  */
 export async function removeSelected(): Promise<boolean> {
   const path = store.selected;
@@ -335,7 +335,7 @@ export async function removeSelected(): Promise<boolean> {
   return removeNode(path);
 }
 
-/** Delete — удалить выбранный узел дерева (вне полей ввода и диалогов). */
+/** Delete removes the selected tree node (outside inputs and dialogs). */
 export function installDeleteShortcut(): void {
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Delete" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;

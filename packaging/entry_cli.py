@@ -1,4 +1,4 @@
-"""Точка входа mapcan.exe (командная строка)."""
+"""Entry point of mapcan.exe (the command line)."""
 
 from mapcan.cli import main
 

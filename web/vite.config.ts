@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-// Сборка кладётся прямо в Python-пакет: src/mapcan/web/static.
-// В режиме разработки (npm run dev) API проксируется на `mapcan serve --no-browser`.
+// The build goes right into the Python package: src/mapcan/web/static.
+// In development (npm run dev) the API is proxied to `mapcan serve --no-browser`.
 export default defineConfig({
   plugins: [vue()],
   build: {

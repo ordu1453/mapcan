@@ -573,7 +573,7 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     el("td", { class: "act" }, el("button", { class: "icon-button secondary", title, onclick }, "✕"));
 
   function valueTable() {
-    // Значения из именованной таблицы value_tables: правятся в самой таблице, здесь только ссылка
+    // Values from a named table of value_tables: edited in the table itself, here only the reference
     if (node.valueTableRef && ["signal", "flag"].includes(node.kind)) {
       return el("div", { class: "section" }, el("div", { class: "section-title" }, "Values"),
         el("div", { class: "field" }, el("div", { class: "empty" },

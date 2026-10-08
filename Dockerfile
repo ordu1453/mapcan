@@ -1,5 +1,5 @@
-# Образ для CI и серверного развёртывания.
-# Шрифты для PDF входят в пакет, системные зависимости не нужны.
+# Image for CI and server deployment.
+# The PDF fonts are in the package, no system dependencies are needed.
 #   docker build -t mapcan .
 #   docker run --rm -v "$PWD:/work" mapcan build mapcan.yaml -o build
 FROM python:3.12-slim
@@ -11,7 +11,7 @@ WORKDIR /src
 COPY pyproject.toml uv.lock README.md LICENSE NOTICE THIRD_PARTY_NOTICES.md ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY src ./src
-# Примеры для стартового экрана редактора входят в пакет (force-include в pyproject.toml).
+# The examples of the editor's start screen are in the package (force-include in pyproject.toml).
 COPY examples ./examples
 RUN uv sync --locked --no-dev
 

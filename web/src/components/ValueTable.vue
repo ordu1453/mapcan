@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Таблица значений enum: значение, имя, описание. Пишет values[ключ] операциями set/rename_key.
+// Table of enum values: value, name, description. Writes values[key] with set/rename_key operations.
 import { computed } from "vue";
 import { actions } from "../store";
 import { parseInteger } from "../form/input";
@@ -8,7 +8,7 @@ import type { Diagnostic, Op, Path } from "../types";
 import { t } from "../i18n";
 
 const props = defineProps<{
-  path: Path;                       // путь сигнала или флага
+  path: Path;                       // path of the signal or flag
   values: Record<string, unknown> | undefined;
   hex?: boolean;
   readonly?: boolean;
@@ -50,7 +50,7 @@ function apply(ops: Op[]) {
 function setValue(r: Row, e: Event) {
   const s = (e.target as HTMLInputElement).value.trim();
   let n = NaN;
-  try { n = parseInteger(s); } catch { /* ниже вернём прежнее значение */ }
+  try { n = parseInteger(s); } catch { /* the previous value is put back below */ }
   if (!Number.isInteger(n)) {
     (e.target as HTMLInputElement).value = fmt(r.num);
     return;

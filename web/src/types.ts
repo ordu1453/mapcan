@@ -1,4 +1,4 @@
-// Типы ответа /api/state (см. src/mapcan/web/session.py).
+// Types of the /api/state response (see src/mapcan/web/session.py).
 
 export type PathEl = string | number;
 export type Path = PathEl[];
@@ -54,9 +54,9 @@ export interface ResolvedFrame {
   type: string;
   direction: string | null;
   device: string | null;
-  /** Передающее устройство (владелец TX-кадра или sender); null — отправитель вне карты. */
+  /** Sending device (the owner of a TX frame or sender); null: the sender is outside the map. */
   sender: string | null;
-  /** Принимающие устройства: receivers и владелец RX-кадра. */
+  /** Receiving devices: receivers and the owner of an RX frame. */
   receivers: string[];
   signals: ResolvedSignal[];
 }
@@ -79,14 +79,14 @@ export interface State {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any | null;
   resolved: { frames: ResolvedFrame[]; language: string } | null;
-  /** Шины вместе с подключёнными файлами (include); null — файлов не подключено. */
+  /** Buses together with the included files (include); null if nothing is included. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   included_buses: any[] | null;
-  /** Узлы, добавленные подключёнными файлами, и их файл (относительно карты). */
+  /** Nodes added by included files, and their file (relative to the map). */
   included: Included[];
   diagnostics: Diagnostic[];
   palette: string[];
-  /** Справочник единиц: пары обозначений [ru, en]. */
+  /** Reference of units: pairs of symbols [ru, en]. */
   units: Array<[string, string]>;
   session_id: number;
 }
@@ -167,18 +167,18 @@ export interface PdfTemplate {
   name: string;
   title: string;
   description: string;
-  lang: string | null;           // язык зафиксирован шаблоном (ГОСТ — только русский)
+  lang: string | null;           // the language is fixed by the template (GOST: Russian only)
 }
 
 export interface GitRevs {
   available: boolean;
-  /** Почему сравнение с git недоступно */
+  /** Why comparing with git is not available */
   reason?: "no-git" | "no-repo" | "untracked";
-  /** Теги, в которых есть файл карты (новые первыми) */
+  /** Tags that have the map file (newest first) */
   tags: string[];
-  /** Все теги репозитория — чтобы не предлагать уже занятое имя */
+  /** All tags of the repository, so that a taken name is not offered */
   all_tags: string[];
-  /** Ветки с файлом карты, кроме текущей; upstream — первой */
+  /** Branches with the map file other than the current one; upstream first */
   branches: string[];
   commits: GitCommit[];
 }
@@ -191,15 +191,15 @@ export interface GitCommit {
   tags: string[];
 }
 
-/** Состояние git для файла карты (меню Git) */
-/** Черновик выпуска версии (GET /api/git/release). */
+/** Git state of the map file (the Git menu) */
+/** Draft of a version release (GET /api/git/release). */
 export interface ReleaseDraft {
   version: string;
-  /** Изменения с прошлого выпуска или из уже добавленной записи истории (recorded). */
+  /** Changes since the previous release, or from the history entry added already (recorded). */
   changes: string[];
-  /** Запись этой версии уже есть в истории изменений: новая не добавляется. */
+  /** The entry of this version is already in the revision history: no new one is added. */
   recorded: boolean;
-  /** С чем сравнивалась карта: тег прошлого выпуска или HEAD; null — карта ещё не в git. */
+  /** What the map was compared with: the tag of the previous release or HEAD; null if the map is not in git yet. */
   base: string | null;
 }
 
@@ -211,11 +211,11 @@ export interface GitStatus {
   upstream?: string | null;
   ahead?: number;
   behind?: number;
-  /** Состояние карты и её логотипа; ignored — карта исключена через .gitignore */
+  /** State of the map and its logo; ignored: the map is excluded by .gitignore */
   file?: "clean" | "modified" | "untracked" | "ignored";
   last?: { rev: string; subject: string; date: string } | null;
-  /** Удалённый репозиторий (origin или первый из списка) */
+  /** The remote repository (origin or the first in the list) */
   remote?: string | null;
-  /** Его адрес для браузера, если он известен (https или ssh-адрес вида git@host:owner/repo) */
+  /** Its address for the browser, if known (https, or an ssh address like git@host:owner/repo) */
   remote_url?: string | null;
 }

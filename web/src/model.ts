@@ -1,4 +1,4 @@
-// Навигация по plain-дереву карты, дерево для боковой панели, шаблоны новых узлов.
+// Navigation in the plain tree of the map, the tree for the side bar, templates of new nodes.
 
 import { hex, rangeLabel } from "./bits";
 import type { Diagnostic, Included, Level, Path, ResolvedFrame, ResolvedSignal } from "./types";
@@ -11,7 +11,7 @@ export type Data = any;
 
 export const pathKey = (p: Path): string => p.join("/");
 
-/** Путь узла «История изменений»: показывается в дереве, даже если записей ещё нет. */
+/** Path of the Revision history node: shown in the tree even if there are no entries yet. */
 export const HISTORY_PATH: Path = ["document", "history"];
 
 export function samePath(a: Path, b: Path): boolean {
@@ -31,7 +31,7 @@ export function getAt(data: Data, path: Path): Data {
   return node;
 }
 
-/** Тип узла по форме пути. */
+/** Kind of a node by the shape of its path. */
 export function nodeKind(path: Path): NodeKind {
   const n = path.length;
   if (n === 0 || (n === 1 && path[0] === "document")) return "document";
@@ -50,7 +50,7 @@ export function nodeKind(path: Path): NodeKind {
   return "unknown";
 }
 
-/** Ближайший узел дерева, к которому относится путь диагностики. */
+/** The nearest tree node a diagnostic's path belongs to. */
 export function ownerPath(path: Path): Path {
   for (let n = path.length; n > 0; n--) {
     const p = path.slice(0, n);
@@ -67,7 +67,7 @@ export function framePathOf(path: Path): Path | null {
   return null;
 }
 
-// ------------------------------------------------------------------ текст
+// ------------------------------------------------------------------ text
 
 export function txt(v: unknown, lang = "ru"): string {
   if (v === null || v === undefined) return "";
@@ -79,7 +79,7 @@ export function txt(v: unknown, lang = "ru"): string {
   return String(v);
 }
 
-// ------------------------------------------------------------------ дерево
+// ------------------------------------------------------------------ tree
 
 export interface TreeNode {
   key: string;
@@ -89,24 +89,24 @@ export interface TreeNode {
   sub: string;
   children: TreeNode[];
   search: string;
-  dir?: string | null;   // для кадров: tx / rx / null (широковещательный)
-  /** Ссылка на кадр другого устройства, который принимает устройство (path — путь оригинала); значение — отправитель. */
+  dir?: string | null;   // for frames: tx / rx / null (broadcast)
+  /** A link to a frame of another device that the device receives (path is the original's path); the value is the sender. */
   from?: string;
-  /** У ссылки — имя устройства-получателя, под которым она стоит. */
+  /** For a link, the name of the receiving device it is under. */
   receiver?: string;
-  /** Узел описан в подключённом файле (include): его путь относительно карты. */
+  /** The node is described in an included file (include): its path relative to the map. */
   file?: string;
-  /** Узел добавлен подключённым файлом целиком (у его потомков file тоже есть). */
+  /** The node is added by an included file as a whole (its descendants have file too). */
   fileRoot?: boolean;
 }
 
-/** Подключённый файл, в котором описан узел; null — узел основного файла. */
+/** Included file the node is described in; null for a node of the main file. */
 export function includedFile(included: Included[] | undefined, path: Path): string | null {
   for (const r of included ?? []) if (startsWith(path, r.path)) return r.file;
   return null;
 }
 
-/** Данные карты вместе с подключёнными файлами — для дерева и просмотра их узлов. */
+/** Data of the map together with the included files, for the tree and for viewing their nodes. */
 export function viewOf(s: { data: Data; included_buses?: Data[] | null } | null | undefined): Data {
   if (!s?.data) return null;
   return s.included_buses ? { ...s.data, buses: s.included_buses } : s.data;
@@ -134,22 +134,22 @@ function signalSub(rs: ResolvedSignal | undefined): string {
   return rangeLabel(lo, hi);
 }
 
-// Данные могут не проходить проверку схемы (черновик YAML применяется по ходу ввода): пустой элемент «- » — null,
-// вместо списка — число. Дерево строится по тому, что есть; элемент без имени показывается как «—».
+// The data may not pass the schema (the YAML draft is applied while typing): an empty item "- " is null,
+// a number instead of a list. The tree is built from what there is; an item without a name shows as "—".
 const list = (v: unknown): Data[] => (Array.isArray(v) ? v.map(obj) : []);
 const obj = (v: unknown): Data => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
 const nameOf = (v: Data): string => (v.name == null ? "—" : String(v.name));
 
 /**
- * Подпись узла в дереве — название для людей, идентификатор только если названия нет.
- * У устройства перед полным названием — сокращение, если оно задано.
+ * Label of a node in the tree: the title for people, the identifier only if there is no title.
+ * A device has its abbreviation before the full name, if it is set.
  */
 export function displayName(v: Data, lang: string): string {
   const title = txt(v?.title, lang) || nameOf(obj(v));
   return v?.short ? `${v.short} · ${title}` : title;
 }
 
-/** Короткая подпись устройства в ссылках на него (отправитель, получатели): сокращение, иначе полное название. */
+/** Short label of a device in references to it (sender, receivers): the abbreviation, else the full name. */
 export function deviceLabel(v: Data, lang: string): string {
   return v?.short ? String(v.short) : txt(v?.title, lang) || nameOf(obj(v));
 }
@@ -221,10 +221,10 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
         search: [d.name, d.short ?? "", txt(d.title, lang)].join(" ").toLowerCase(),
       };
       list(d.frames).forEach((f: Data, fi: number) => dnode.children.push(frameNode(f, [...dp, "frames", fi])));
-      // Чужие кадры, в получателях которых указано устройство, — ссылками после своих кадров
+      // Frames of others that list the device among their receivers: links after its own frames
       for (const rf of frames.values()) {
         if (rf.path[1] !== bi || rf.device === d.name || !rf.receivers.includes(d.name)) continue;
-        // Название кадра может не говорить, чей он, — в подписи ссылки указываем отправителя
+        // The frame's title may not tell whose it is: the link's label names the sender
         const sender = list(bus.devices).find((x: Data) => x.name === rf.sender);
         const senderLabel = sender ? deviceLabel(sender, lang) : "";
         const frame = obj(getAt(data, rf.path));
@@ -244,7 +244,7 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
   return out;
 }
 
-// ------------------------------------------------------------------ диагностика по узлам
+// ------------------------------------------------------------------ diagnostics by node
 
 export function diagIndex(diags: Diagnostic[]): Map<string, Diagnostic[]> {
   const m = new Map<string, Diagnostic[]>();
@@ -263,7 +263,7 @@ export function worst(ds: Diagnostic[] | undefined): Level | null {
   return ds.reduce((a, d) => (RANK[d.level] < RANK[a] ? d.level : a), "info" as Level);
 }
 
-// ------------------------------------------------------------------ новые узлы
+// ------------------------------------------------------------------ new nodes
 
 export function uniqueName(base: string, taken: Iterable<string>): string {
   const set = new Set(taken);
@@ -277,8 +277,8 @@ export function allFrameNames(bus: Data): string[] {
   return names;
 }
 
-/** Первый свободный байт кадра (для нового сигнала). */
-/** Первый полностью свободный байт кадра или null, если такого нет. */
+/** First free byte of the frame (for a new signal). */
+/** First entirely free byte of the frame, or null if there is none. */
 export function freeByte(rf: ResolvedFrame | undefined, dlc: number): number | null {
   const used = new Set<number>();
   for (const s of rf?.signals ?? []) for (const b of s.occupied) used.add(Math.floor(b / 8));

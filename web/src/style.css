@@ -1,5 +1,5 @@
 @font-face {
-  /* Sora ExtraBold, только буквы «mapcan» — шрифт иконки (OFL, см. OFL-Sora.txt) */
+  /* Sora ExtraBold, only the letters of "mapcan": the icon's font (OFL, see OFL-Sora.txt) */
   font-family: "Sora Wordmark";
   src: url("./assets/sora-800-wordmark.woff2") format("woff2");
   font-weight: 800;
@@ -28,7 +28,7 @@
   --shadow: 0 6px 24px rgba(16, 24, 32, 0.14);
   --y-key: #1f4e79; --y-str: #2e7d32; --y-num: #a3420e; --y-tag: #7b3fa0;
   --mono: "Cascadia Mono", "DejaVu Sans Mono", Consolas, monospace;
-  /* цвета иконки: синий фон, белая «m», янтарная «c» (на светлом фоне — темнее, ради контраста) */
+  /* icon colors: blue background, white "m", amber "c" (darker on a light background, for contrast) */
   --brand-map: #1e40af; --brand-can: #d97706;
   color-scheme: light;
 }
@@ -82,7 +82,7 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 input[readonly], textarea[readonly] { background: var(--bg); }
 
-/* ------------------------------------------------------------------ каркас */
+/* ------------------------------------------------------------------ layout */
 .app { display: flex; flex-direction: column; height: 100%; }
 .topbar {
   display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--panel);
@@ -126,7 +126,7 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .workspace.no-tree { grid-template-columns: 1fr; }
 .content { min-width: 0; min-height: 0; overflow: auto; }
 
-/* ------------------------------------------------------------------ дерево */
+/* ------------------------------------------------------------------ tree */
 .tree-panel { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--panel); }
 .tree-search { padding: 8px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
 .tree-search input { width: 100%; }
@@ -148,12 +148,12 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .ticon.frame:not(.tx):not(.rx) { color: var(--info); }
 .tlabel { overflow: hidden; text-overflow: ellipsis; }
 .tsub { color: var(--muted); margin-left: auto; padding-left: 8px; }
-/* Идентификатор рядом с названием в таблицах */
+/* Identifier next to the title in tables */
 .ident { color: var(--muted); font-family: var(--mono); font-size: 0.85em; margin-left: 6px; }
-/* Ссылка на чужой кадр, который принимает устройство */
+/* Link to another device's frame that the device receives */
 .tree-row.link .tlabel { font-style: italic; color: var(--muted); }
 .tsub.link-mark { margin-left: 0; padding-left: 4px; }
-/* Узел подключённого файла (include): только для просмотра */
+/* Node of an included file (include): view only */
 .tree-row.included .tlabel { color: var(--muted); }
 .tsub.include-mark { font-size: 0.85em; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-left: 4px; }
@@ -164,7 +164,7 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .dot.ring.error { border-color: var(--error); }
 .dot.ring.warning { border-color: var(--warning); }
 
-/* ------------------------------------------------------------------ редактор узла */
+/* ------------------------------------------------------------------ node editor */
 .node-editor { padding: 14px 18px 32px; display: flex; flex-direction: column; gap: 12px; max-width: 1100px; }
 .ne-head { display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
 .ne-head h2 { font-size: 18px; display: flex; align-items: center; gap: 8px; margin-top: 2px; }
@@ -247,7 +247,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .subtable tr.error td:first-child { box-shadow: inset 3px 0 var(--error); }
 .subtable tr.warning td:first-child { box-shadow: inset 3px 0 var(--warning); }
 
-/* ------------------------------------------------------------------ битовая сетка */
+/* ------------------------------------------------------------------ bit grid */
 .bitgrid-wrap { display: flex; flex-direction: column; gap: 6px; }
 .mux-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .mux-bar button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
@@ -274,18 +274,18 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .bg-cell.conflict { background-image: repeating-linear-gradient(45deg, rgba(198, 40, 40, 0.35) 0 6px, transparent 6px 12px); }
 .bg-cell.preview { box-shadow: inset 0 0 0 2px var(--accent); background-color: var(--accent-soft); }
 .bg-cell.preview-bad { box-shadow: inset 0 0 0 2px var(--error); }
-/* Битовое поле: само поле — бледная заливка цвета сигнала (контейнер), флаги — плотные плашки внутри с зазорами,
-   имя поля — мелко в левом верхнем углу */
+/* Bit field: the field itself is a pale fill of the signal's color (the container), the flags dense bars inside with gaps,
+   the field's name small in the top left corner */
 .bg-cell.field-bit { background: color-mix(in srgb, var(--sig) 45%, #fff); }
 .bg-cell.field-bit:not(.no-flag)::before {
   content: ""; position: absolute; top: 11px; bottom: 3px; left: 0; right: 0; pointer-events: none;
   box-sizing: border-box; background: var(--sig);
-  /* Обводка только по краям плашки: у внутренних стыков ячеек одного флага её нет */
+  /* The outline only along the bar's edges: there is none at the inner joints of the cells of one flag */
   border: 1px solid color-mix(in srgb, var(--sig) 70%, #000); border-left-width: 0; border-right-width: 0;
 }
 .bg-cell.field-bit.pill-l::before { left: 3px; border-left-width: 1px; border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
 .bg-cell.field-bit.pill-r::before { right: 3px; border-right-width: 1px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
-/* Внутри плашки линия сетки не видна: плашка заходит на левую границу ячейки */
+/* Inside a bar the grid line is not visible: the bar covers the left border of the cell */
 .bg-cell.field-bit:not(.pill-l)::before { left: -1px; }
 .bg-cell.field-bit.flag-selected { box-shadow: none; }
 .bg-cell.field-bit.flag-selected::before { border-color: var(--accent); border-top-width: 2px; border-bottom-width: 2px; }
@@ -332,7 +332,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 }
 .yaml-body textarea::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 .yaml-hl { overflow: hidden; color: var(--fg); background: transparent; pointer-events: none; }
-/* Запас под полосы прокрутки textarea, чтобы слой докручивался до того же места. */
+/* Room for the textarea's scrollbars, so the layer scrolls to the same place. */
 .yaml-hl code { font: inherit; display: inline-block; padding: 0 40px 40px 0; }
 .yaml-suggest { position: absolute; z-index: 5; min-width: 220px; max-width: 420px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px; box-shadow: var(--shadow); font-size: 13px; }
 .yaml-suggest ul { list-style: none; margin: 0; padding: 2px 0; max-height: 176px; overflow: auto; }
@@ -348,7 +348,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .y-anchor, .y-tag { color: var(--y-tag); }
 
 
-/* ------------------------------------------------------------------ история изменений */
+/* ------------------------------------------------------------------ revision history */
 .history-changes { display: flex; flex-direction: column; gap: 6px; }
 .history-change { display: flex; align-items: flex-start; gap: 6px; }
 .history-change .field { flex: 1; }
@@ -356,7 +356,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .history-add { display: flex; gap: 6px; margin-top: 4px; }
 .history-add input { flex: 1; }
 
-/* ------------------------------------------------------------------ диагностика */
+/* ------------------------------------------------------------------ diagnostics */
 .diag-panel { border-top: 1px solid var(--line-strong); background: var(--panel); max-height: 32vh; display: flex; flex-direction: column; }
 .diag-panel header { display: flex; align-items: center; gap: 8px; padding: 5px 12px; cursor: pointer; user-select: none; }
 .chip { padding: 1px 8px; border-radius: 10px; font-size: 12px; cursor: pointer; border: 1px solid transparent; }
@@ -374,7 +374,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .diag-panel li.empty { display: block; cursor: default; }
 .diag-panel .path { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ------------------------------------------------------------------ модальные окна */
+/* ------------------------------------------------------------------ modal dialogs */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(10, 16, 22, 0.45); display: flex; align-items: center; justify-content: center; z-index: 50; }
 .modal { background: var(--panel); border-radius: 10px; box-shadow: var(--shadow); width: min(640px, 94vw); max-height: 90vh; display: flex; flex-direction: column; }
 .modal.wide { width: min(1100px, 96vw); height: 88vh; }
@@ -390,7 +390,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .history-form { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .history-form .form-grid { width: 100%; }
 
-/* ------------------------------------------------------------------ уведомления */
+/* ------------------------------------------------------------------ toasts */
 .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
 .toast { padding: 8px 12px; border-radius: 6px; box-shadow: var(--shadow); max-width: 420px; background: var(--panel); border-left: 4px solid var(--info); }
 .toast.error { border-left-color: var(--error); }
@@ -401,7 +401,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
   .topbar { flex-wrap: wrap; }
 }
 
-/* ------------------------------------------------------------------ меню файла, профиль, версия */
+/* ------------------------------------------------------------------ file menu, profile, version */
 .brand .version { font-weight: 400; font-size: 11px; color: var(--muted); }
 .brandmark { display: inline-flex; align-items: center; gap: 0.4em; font-size: 15px; line-height: 1; }
 .brandmark-icon { width: 1.45em; height: 1.45em; flex: none; }
@@ -443,7 +443,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .user-chip .uname { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 a.gh { color: var(--accent); margin-left: 4px; }
 
-/* ------------------------------------------------------------------ стартовый экран */
+/* ------------------------------------------------------------------ start screen */
 .start { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px; overflow: auto; }
 .start-card { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
 .start-card h1 { margin: 0; display: flex; align-items: center; gap: 10px; }
@@ -452,7 +452,7 @@ a.gh { color: var(--accent); margin-left: 4px; }
 .start-card h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
 .start-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 
-/* ------------------------------------------------------------------ диалог файлов */
+/* ------------------------------------------------------------------ file dialog */
 .fd { display: flex; gap: 14px; height: 100%; min-height: 0; }
 .fd-recent { width: 230px; flex: none; display: flex; flex-direction: column; gap: 4px; overflow: auto; }
 .fd-recent h4 { margin-bottom: 4px; }
@@ -475,7 +475,7 @@ a.gh { color: var(--accent); margin-left: 4px; }
 .fd-target { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dropdown.left { left: 0; right: auto; min-width: 280px; }
 
-/* ------------------------------------------------------------------ реквизиты, логотип, шаблоны */
+/* ------------------------------------------------------------------ requisites, logo, templates */
 .logo-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
 .logo-box {
   width: 200px; height: 90px; flex: none; border: 1px solid var(--line); border-radius: 6px; background: #fff;
@@ -495,7 +495,7 @@ a.gh { color: var(--accent); margin-left: 4px; }
 .preview-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 a.primary-link { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 
-/* Переименование на месте: заголовок узла и дерево */
+/* Rename in place: the node's heading and the tree */
 .inline-rename { display: inline-flex; flex-direction: column; min-width: 0; flex: 1; }
 .inline-rename input { font: inherit; padding: 1px 4px; min-width: 8em; }
 .inline-rename input.invalid { border-color: var(--error); }
@@ -504,7 +504,7 @@ h2 .renamable { cursor: text; border-radius: 4px; }
 h2 .renamable:hover { background: var(--hover); }
 h2 .renamable.secondary { color: var(--muted); }
 
-/* Подсказки единиц: сетка по ширине поля, высота по содержимому, но не больше трети экрана */
+/* Unit suggestions: a grid as wide as the field, as tall as the content, but not more than a third of the screen */
 .suggest { position: relative; display: flex; }
 .suggest > input { flex: 1; padding-right: 22px; }
 .suggest-toggle {

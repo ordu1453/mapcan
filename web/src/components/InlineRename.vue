@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// Поле переименования на месте (заголовок узла, дерево): Enter / потеря фокуса — сохранить, Esc — отмена.
-// Ошибка (пустое или занятое имя) по Enter показывается у поля; при потере фокуса — всплывающим сообщением, правка отменяется.
+// Rename in place (the node's heading, the tree): Enter / losing focus saves, Esc cancels.
+// An error (empty or taken name) on Enter shows at the field; on losing focus it shows as a toast and the edit is cancelled.
 import { nextTick, onMounted, ref } from "vue";
 import { renameNode, setShort, setTitle } from "../edit";
 import { toast } from "../store";
 import type { Path } from "../types";
 
-// field: name — имя узла (с проверкой занятости), short — обозначение устройства, title — название узла
+// field: name is the node's name (checked for being taken), short the device abbreviation, title the node's title
 const props = defineProps<{ path: Path; value: string; field?: "name" | "short" | "title" }>();
 const emit = defineEmits<{ done: [] }>();
 
@@ -24,7 +24,7 @@ onMounted(async () => {
 async function save(fromBlur = false) {
   if (busy) return;
   busy = true;
-  // Без изменений ничего не пишем: поле названия может открыться с идентификатором, пока названия нет
+  // Nothing is written without changes: the title field may open with the identifier while there is no title
   if (draft.value.trim() === props.value.trim()) {
     emit("done");
     return;
@@ -44,7 +44,7 @@ async function save(fromBlur = false) {
 }
 
 function cancel() {
-  busy = true;            // blur после Esc не должен сохранять
+  busy = true;            // blur after Esc must not save
   emit("done");
 }
 </script>

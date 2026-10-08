@@ -1,13 +1,13 @@
-// Шаблон «gost-7.32» — отчёт по ГОСТ 7.32-2017.
+// The "gost-7.32" template: a report by GOST 7.32-2017.
 //
-//  * поля: левое 30 мм, правое 15 мм, верхнее и нижнее 20 мм; шрифт типа Times (PT Serif) 12 пт,
-//    полуторный интервал, абзацный отступ 1,25 см;
-//  * номер страницы — внизу по центру, титульный лист включается в нумерацию без номера;
-//  * структурные элементы (СПИСОК ИСПОЛНИТЕЛЕЙ, РЕФЕРАТ, СОДЕРЖАНИЕ, ПРИЛОЖЕНИЕ) — прописными
-//    полужирными по центру, без номера; разделы — с абзацного отступа, «1», «1.1»;
-//  * таблицы: «Таблица N — Название» над таблицей слева.
+//  * margins: left 30 mm, right 15 mm, top and bottom 20 mm; a Times-like font (PT Serif) 12 pt,
+//    1.5 line spacing, paragraph indent 1.25 cm;
+//  * the page number at the bottom center, the title page counts in the numbering without a number;
+//  * structural elements (СПИСОК ИСПОЛНИТЕЛЕЙ, РЕФЕРАТ, СОДЕРЖАНИЕ, ПРИЛОЖЕНИЕ) in bold capitals
+//    centered, without a number; sections from the paragraph indent, "1", "1.1";
+//  * tables: "Таблица N — Название" above the table on the left.
 //
-// Реквизиты: document.organization, approve, signatures, city.
+// Requisites: document.organization, approve, signatures, city.
 
 #import "lib.typ": *
 
@@ -29,8 +29,8 @@
 
 #set heading(numbering: "1.1")
 #show heading: set text(size: 12pt, weight: "bold")
-// Структурные элементы — прописными по центру с новой страницы; разделы — с абзацного
-// отступа, каждый раздел первого уровня — с новой страницы.
+// Structural elements in capitals centered, from a new page; sections from the paragraph
+// indent, each first-level section from a new page.
 #show heading: it => {
   if it.numbering == none {
     pagebreak(weak: true)
@@ -49,7 +49,7 @@
   },
 )
 
-// ---------------------------------------------------------------- титульный лист
+// ---------------------------------------------------------------- title page
 
 #page[
   #set par(first-line-indent: 0pt, justify: false, leading: 0.65em)
@@ -84,7 +84,7 @@
   #align(center, text(size: 12pt, (if doc.city != "" { doc.city + " " } else { "" }) + doc.year))
 ]
 
-// ---------------------------------------------------------------- список исполнителей
+// ---------------------------------------------------------------- list of contributors
 
 #let executors = (
   ("Руководитель работы", sig.approved),
@@ -106,7 +106,7 @@
   )
 }
 
-// ---------------------------------------------------------------- реферат
+// ---------------------------------------------------------------- abstract
 
 #heading(numbering: none, outlined: false)[Реферат]
 
@@ -130,12 +130,12 @@
 mapcan из YAML-карты сигналов, являющейся единственным источником данных для документации
 и программного кода.
 
-// ---------------------------------------------------------------- содержание
+// ---------------------------------------------------------------- contents
 
 #show outline: it => { pagebreak(weak: true); it }
 #outline(title: [Содержание], depth: 3, indent: auto)
 
-// ---------------------------------------------------------------- основная часть
+// ---------------------------------------------------------------- main part
 
 #let frame-section(fr) = {
   heading(level: 3, frame-title(fr))
@@ -182,7 +182,7 @@ mapcan из YAML-карты сигналов, являющейся единст�
   }
 }
 
-// ---------------------------------------------------------------- приложение
+// ---------------------------------------------------------------- appendix
 
 #show <appendix-a>: it => {
   pagebreak(weak: true)

@@ -1,4 +1,4 @@
-// Системные диалоги файлов. Есть только в окне приложения (pywebview, mapcan app), не в браузере.
+// System file dialogs. Only in the app window (pywebview, mapcan app), not in a browser.
 
 interface PywebviewApi {
   pick_file(mode: "open" | "save", directory: string, filename: string): Promise<string | null>;

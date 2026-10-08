@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Флаги битового поля: бит, длина, имя, описание.
+// Flags of a bit field: bit, length, name, description.
 import { actions } from "../store";
 import { parseInteger } from "../form/input";
 import { addFlag } from "../edit";
@@ -9,7 +9,7 @@ import { t } from "../i18n";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const props = defineProps<{
-  path: Path;                // путь сигнала
+  path: Path;                // path of the signal
   flags: any[] | undefined;
   readonly?: boolean;
   diags: Diagnostic[];

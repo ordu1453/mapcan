@@ -1,20 +1,20 @@
-# Оформление Excel для `mapcan export xlsx --style <файл>`.
-# Любой параметр можно опустить — будет использовано значение по умолчанию.
+# Excel styling for `mapcan export xlsx --style <file>`.
+# Any parameter can be omitted: the default value is used.
 
 font: Calibri
 font_size: 10
-header_fill: "1F4E79"        # фон заголовков таблиц
+header_fill: "1F4E79"        # background of table headers
 header_font_color: "FFFFFF"
-device_fill: "DDEBF7"        # фон ячеек устройства
-frame_fill: "F2F2F2"         # фон ячеек кадра
+device_fill: "DDEBF7"        # background of device cells
+frame_fill: "F2F2F2"         # background of frame cells
 border_color: "A6A6A6"
-unused_font_color: "A6A6A6"  # неиспользуемые функциональные коды
+unused_font_color: "A6A6A6"  # unused function codes
 
-# Набор и порядок колонок листа «Содержание»:
+# Set and order of the columns of the Contents sheet:
 # device, frame, id, byte, bits, signal, description, encoding, values
 columns: [device, frame, id, byte, bits, signal, description, encoding, values]
 
-# Максимальная ширина колонок (символов); фактическая подбирается по содержимому.
+# Maximum width of the columns (characters); the actual one fits the content.
 max_width:
   description: 40
   values: 70

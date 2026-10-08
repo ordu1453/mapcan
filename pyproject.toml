@@ -1,7 +1,7 @@
 [project]
 name = "mapcan"
 version = "0.20.0"
-description = "YAML-карта сигналов CAN как единственный источник правды: проверка, Excel/PDF/Markdown/HTML, DBC, C/Python-код"
+description = "A YAML map of CAN signals as the single source of truth: validation, Excel/PDF/Markdown/HTML, DBC, C/Python code"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
@@ -14,7 +14,7 @@ dependencies = [
     "openpyxl>=3.1",
     "typst>=0.13",
     "cantools>=39",
-    "pillow>=10",              # логотип в Excel (openpyxl)
+    "pillow>=10",              # logo in Excel (openpyxl)
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "websockets>=12",
@@ -22,11 +22,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Этап 8 (работа с шиной) — зарезервировано.
+# Stage 8 (working with a bus): reserved.
 bus = ["python-can>=4.3"]
-# Отдельное окно приложения (`mapcan app`); без него редактор открывается в браузере.
+# A separate app window (`mapcan app`); without it the editor opens in the browser.
 desktop = ["pywebview>=5"]
-# Языковой сервер (`mapcan lsp`) для расширения VS Code и других редакторов.
+# Language server (`mapcan lsp`) for the VS Code extension and other editors.
 lsp = ["pygls>=2.0,<3"]
 
 [project.scripts]
@@ -46,7 +46,7 @@ dev = [
     "httpx>=0.27",
     "canopen>=2.3",
 ]
-# Сборка mapcan.exe и установщика (packaging/, .github/workflows/release.yml).
+# Building mapcan.exe and the installer (packaging/, .github/workflows/release.yml).
 package = ["pyinstaller>=6.10"]
 
 [build-system]
@@ -54,12 +54,12 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-# Собранный фронтенд (src/mapcan/web/static, из web/ → npm run build) входит в пакет:
-# Node.js пользователям не нужен.
+# The built frontend (src/mapcan/web/static, from web/ → npm run build) is in the package:
+# users do not need Node.js.
 packages = ["src/mapcan"]
 
 [tool.hatch.build.targets.wheel.force-include]
-# Примеры для стартового экрана («Примеры»).
+# Examples for the start screen ("Examples").
 "examples" = "mapcan/examples"
 
 [tool.hatch.build.targets.sdist]

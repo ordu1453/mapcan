@@ -1,12 +1,12 @@
-// Шаблон «gost-2.105» — текстовый конструкторский документ ЕСКД.
+// The "gost-2.105" template: an ESKD text design document.
 //
-//  * ГОСТ 2.104: рамка (поле подшивки 20 мм, остальные 5 мм), основная надпись по форме 2
-//    на первом листе и по форме 2а на последующих, дополнительные графы 19–25 на левом поле;
-//  * ГОСТ 2.105: титульный лист, «Содержание», нумерация разделов без точки, таблицы
-//    с названием «Таблица N — …», приложение, лист регистрации изменений (ГОСТ 2.503).
+//  * GOST 2.104: frame (binding margin 20 mm, the others 5 mm), title block in form 2
+//    on the first sheet and in form 2a on the following ones, additional columns 19–25 in the left margin;
+//  * GOST 2.105: title page, "Содержание", section numbers without a period, tables
+//    captioned "Таблица N — …", appendix, change registration sheet (GOST 2.503).
 //
-// Реквизиты берутся из document: designation, litera, organization, signatures, approve, agree.
-// Шрифт основной надписи — «GOST type A», если он установлен в системе, иначе PT Sans.
+// Requisites come from document: designation, litera, organization, signatures, approve, agree.
+// The title block font is "GOST type A" if it is installed in the system, otherwise PT Sans.
 
 #import "lib.typ": *
 
@@ -17,12 +17,12 @@
 
 #let font-main = ("PT Sans", "Libertinus Serif")
 #let font-stamp = ("GOST type A", "GOST Type A", "ГОСТ тип А", "ISOCPEUR", "PT Sans")
-#let thick = 0.5mm       // сплошная основная линия
-#let thin = 0.18mm       // сплошная тонкая линия
+#let thick = 0.5mm       // solid main line
+#let thin = 0.18mm       // solid thin line
 #let doc-kind = "Карта сигналов"
 #let sig = doc.signatures
 
-// ---------------------------------------------------------------- примитивы основной надписи
+// ---------------------------------------------------------------- title block primitives
 
 #let at(x, y, body) = place(top + left, dx: x, dy: y, body)
 #let hline(x, y, w, s) = at(x, y, line(length: w, stroke: s))
@@ -34,7 +34,7 @@
 
 #let side-fields(first: false) = gost-side-fields(font: font-stamp, stroke: thick, first: first)
 
-/// Строки «Изм. | Лист | № докум. | Подп. | Дата» (две пустые строки и строка заголовков).
+/// Rows "Изм. | Лист | № докум. | Подп. | Дата" (two empty rows and the header row).
 #let change-rows(x0, y0) = {
   let xs = (0mm, 7mm, 17mm, 40mm, 55mm)
   let ws = (7mm, 10mm, 23mm, 15mm, 10mm)
@@ -45,7 +45,7 @@
   }
 }
 
-/// Основная надпись по форме 2 (185 × 40 мм) — первый лист документа.
+/// Title block in form 2 (185 × 40 mm): the first sheet of the document.
 #let stamp-form2(page-no, total) = {
   let x0 = 20mm
   let y0 = 252mm
@@ -88,7 +88,7 @@
   })))
 }
 
-/// Основная надпись по форме 2а (185 × 15 мм) — последующие листы.
+/// Title block in form 2a (185 × 15 mm): the following sheets.
 #let stamp-form2a(page-no) = {
   let x0 = 20mm
   let y0 = 277mm
@@ -101,7 +101,7 @@
   cell(x0 + 175mm, y0 + 7mm, 10mm, 8mm, str(page-no), size: 8pt)
 }
 
-// ---------------------------------------------------------------- страница
+// ---------------------------------------------------------------- page
 
 #set document(title: doc.title, author: if doc.author != "" { doc.author } else { () })
 #set text(font: font-main, size: 11pt, lang: data.lang)
@@ -131,11 +131,11 @@
 #show: gost-tables
 #let tbl(caption, body, breakable: true) = gost-table(caption, body, breakable: breakable)
 
-// Приложение: в тексте — три строки по центру, в содержании — одна.
+// Appendix: three centered lines in the text, one in the contents.
 #show <appendix-a>: it => align(center, block(below: 0.8em)[
   #text(weight: "bold")[Приложение А] \ (справочное) \ #text(weight: "bold")[История версий карты]])
 
-// ---------------------------------------------------------------- титульный лист (ГОСТ 2.105)
+// ---------------------------------------------------------------- title page (GOST 2.105)
 
 #let sign-block(title, p) = gost-sign-block(title, p, doc.year)
 
@@ -173,15 +173,15 @@
   #align(center, text(size: 11pt, (if doc.city != "" { doc.city + " " } else { "" }) + doc.year))
 ]
 
-// ---------------------------------------------------------------- первый лист (форма 2)
+// ---------------------------------------------------------------- first sheet (form 2)
 
 #metadata("first-sheet") <eskd-first-sheet>
-// Резерв места под основную надпись формы 2: она на 25 мм выше формы 2а.
+// Room for the title block of form 2: it is 25 mm taller than form 2a.
 #place(bottom, float: true, clearance: 0mm, block(height: 25mm))
 
 #outline(title: [Содержание], depth: 3, indent: auto)
 
-// ---------------------------------------------------------------- текст
+// ---------------------------------------------------------------- text
 
 #let frame-section(fr, n) = {
   heading(level: 3, frame-title(fr))
@@ -227,7 +227,7 @@
   }
 }
 
-// ---------------------------------------------------------------- приложение
+// ---------------------------------------------------------------- appendix
 
 #if doc.history.len() > 0 {
   pagebreak(weak: true)
@@ -235,7 +235,7 @@
   tbl([История версий карты], history-table(doc, L, th: th))
 }
 
-// ---------------------------------------------------------------- лист регистрации изменений (ГОСТ 2.503)
+// ---------------------------------------------------------------- change registration sheet (GOST 2.503)
 
 #pagebreak(weak: true)
 #heading(level: 1, numbering: none)[Лист регистрации изменений]

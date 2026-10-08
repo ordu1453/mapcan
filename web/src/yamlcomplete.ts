@@ -1,6 +1,6 @@
-// Подсказки во вкладке YAML: ключи и значения по JSON Schema формата (GET /api/schema).
-// Место курсора определяется по отступам текста, без полного разбора: подсказки работают
-// и в черновике с синтаксической ошибкой.
+// Suggestions in the YAML tab: keys and values from the format's JSON Schema (GET /api/schema).
+// The cursor's place is found from the indents of the text, without a full parse: the suggestions work
+// in a draft with a syntax error too.
 import type { TextEdit } from "./yamltext";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -8,27 +8,27 @@ export type Schema = Record<string, any>;
 
 export interface Completion {
   label: string;
-  detail: string;          // тип значения, «required»
-  doc: string;             // описание поля из схемы
+  detail: string;          // type of the value, "required"
+  doc: string;             // description of the field from the schema
   edit: TextEdit;
-  /** После вставки сразу показать подсказки следующего уровня (поля объекта, значения перечисления). */
+  /** Right after inserting, show the suggestions of the next level (fields of the object, values of the enum). */
   chain: boolean;
 }
 
 export interface CompletionList {
   items: Completion[];
-  line: number;            // строка (с 0) и столбец начала заменяемого слова — для позиции списка
+  line: number;            // line (from 0) and column of the start of the replaced word, to place the list
   col: number;
 }
 
-const ITEM = "[]";         // элемент списка в пути
+const ITEM = "[]";         // a list item in a path
 
 interface LineInfo {
   indent: number;
-  dashes: number[];        // столбцы маркеров «- » в начале строки
-  keyCol: number;          // столбец после маркеров
+  dashes: number[];        // columns of the "- " markers at the start of the line
+  keyCol: number;          // column after the markers
   key: string | null;
-  rest: string;            // текст после «ключ:» (или после маркеров, если ключа нет)
+  rest: string;            // text after "key:" (or after the markers if there is no key)
 }
 
 const KEY_RE = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^\s#'"{[\]-][^#:]*?|-[^\s#][^#:]*?)\s*:(?=\s|$)/;
@@ -57,13 +57,13 @@ const isContent = (l: string) => /^\s*[^\s#]/.test(l);
 const hasValue = (rest: string) => /^\s*[^\s#]/.test(rest);
 
 /**
- * Путь к отображению, в котором ключ строки `line` начинается со столбца `col`: ключи и ITEM для элементов
- * списков; null — место не внутри отображения (текст многострочного значения и т. п.).
+ * Path to the mapping in which the key of line `line` starts at column `col`: keys, and ITEM for list
+ * items; null if the place is not inside a mapping (the text of a multi-line value etc.).
  */
 export function contextPath(lines: string[], line: number, col: number): string[] | null {
   const path: string[] = [];
   let c = col;
-  let afterItem = false;   // только что вышли из элемента: «key:» на том же столбце — список без отступа
+  let afterItem = false;   // just left an item: "key:" at the same column is a list without an indent
   const dashes = (inf: LineInfo) => {
     for (let k = inf.dashes.length - 1; k >= 0; k--) {
       if (inf.dashes[k] < c) {
@@ -90,7 +90,7 @@ export function contextPath(lines: string[], line: number, col: number): string[
   return path.reverse();
 }
 
-// ------------------------------------------------------------------ схема
+// ------------------------------------------------------------------ schema
 
 function deref(s: Schema | undefined, root: Schema): Schema | undefined {
   while (s?.$ref) s = root.$defs?.[String(s.$ref).split("/").pop()!];
@@ -106,7 +106,7 @@ function variants(s: Schema | undefined, root: Schema): Schema[] {
 const objectOf = (s: Schema | undefined, root: Schema) =>
   variants(s, root).find((v) => v.properties || typeof v.additionalProperties === "object");
 
-/** Схема значения по пути (ключи и ITEM) или undefined, если путь не из формата. */
+/** Schema of the value at the path (keys and ITEM), or undefined if the path is not of the format. */
 export function schemaAt(root: Schema, path: string[]): Schema | undefined {
   let s: Schema | undefined = root;
   for (const seg of path) {
@@ -135,7 +135,7 @@ function typeName(s: Schema, root: Schema): string {
   const vs = variants(s, root).filter((v) => v.type !== "null");
   if (vs.some((v) => v.enum)) return "enum";
   const names = new Set(vs.map((v) => (v.items ? "list" : v.properties || v.type === "object" ? "object" : v.type ?? "")));
-  // Текст с переводами: строка или {ru, en}
+  // Text with translations: a string or {ru, en}
   if (names.has("string") && names.has("object")) names.delete("object");
   return [...names].filter(Boolean).join(" | ");
 }
@@ -150,11 +150,11 @@ function valuesOf(s: Schema, root: Schema): string[] {
   return [...new Set(out)];
 }
 
-// ------------------------------------------------------------------ подсказки
+// ------------------------------------------------------------------ suggestions
 
 const WORD_AFTER = /^[\w.-]*/;
 
-/** Ключи, уже заданные в отображении, к которому относится строка `line` со столбцом ключа `col`. */
+/** Keys already set in the mapping that line `line` with key column `col` belongs to. */
 function presentKeys(lines: string[], line: number, col: number): Set<string> {
   const out = new Set<string>();
   const own = info(lines[line]);
@@ -180,18 +180,18 @@ function presentKeys(lines: string[], line: number, col: number): Set<string> {
 
 const lineStart = (text: string, pos: number) => text.lastIndexOf("\n", pos - 1) + 1;
 
-// ------------------------------------------------------------------ flow-запись {…} / […]
+// ------------------------------------------------------------------ flow notation {…} / […]
 
 interface Opener {
   ch: "{" | "[";
-  pos: number;             // позиция скобки в строке
-  key: string | null;      // ключ перед скобкой внутри родительской «{…}»
-  seg: number;             // начало текущего элемента (после скобки или последней запятой)
+  pos: number;             // position of the bracket in the line
+  key: string | null;      // key before the bracket inside the parent "{…}"
+  seg: number;             // start of the current item (after the bracket or the last comma)
 }
 
 const FLOW_KEY = /^\s*([^\s:,{}[\]]+)\s*$/;
 
-/** Незакрытые скобки строки до позиции `end`; пусто — курсор не внутри «{…}»/«[…]» (или в строке, комментарии). */
+/** Unclosed brackets of the line before `end`; empty if the cursor is not inside "{…}"/"[…]" (or is in a string, a comment). */
 function openers(line: string, end: number): Opener[] {
   const stack: Opener[] = [];
   for (let i = 0; i < end; i++) {
@@ -215,7 +215,7 @@ function openers(line: string, end: number): Opener[] {
   return stack;
 }
 
-/** Ключи верхнего уровня внутри «{…}», начатой в позиции `start` (до закрывающей скобки или конца строки). */
+/** Top-level keys inside the "{…}" opened at `start` (up to the closing bracket or the end of the line). */
 function flowKeys(line: string, start: number): Set<string> {
   const out = new Set<string>();
   let depth = 0;
@@ -240,11 +240,11 @@ function flowKeys(line: string, start: number): Set<string> {
   return out;
 }
 
-// ------------------------------------------------------------------ подсказки
+// ------------------------------------------------------------------ suggestions
 
 type Style = "block" | "flow";
 
-/** Подсказки ключей объекта `obj`: вставка «ключ: » и заготовка значения по его типу. */
+/** Suggestions of the keys of the object `obj`: inserting "key: " and a value stub by its type. */
 function keyItems(obj: Schema, root: Schema, present: Set<string>, prefix: string, from: number, to: number,
                   style: Style, col: number, hasColon: boolean): Completion[] {
   const required = new Set<string>(obj.required ?? []);
@@ -253,7 +253,7 @@ function keyItems(obj: Schema, root: Schema, present: Set<string>, prefix: strin
     if (present.has(key) || !key.toLowerCase().startsWith(prefix.toLowerCase())) continue;
     const sh = shape(prop, root);
     let insert = key;
-    let caret = 0;             // сдвиг курсора от конца вставки
+    let caret = 0;             // shift of the cursor from the end of the insertion
     if (!hasColon) {
       if (style === "flow") {
         insert += sh === "scalar" ? ": " : sh === "object" ? ": {}" : ": []";
@@ -274,12 +274,12 @@ function keyItems(obj: Schema, root: Schema, present: Set<string>, prefix: strin
         || (sh === "scalar" && valuesOf(prop, root).length > 0)),
     });
   }
-  // Обязательные — первыми, остальные в порядке схемы
+  // Required ones first, the others in the order of the schema
   items.sort((a, b) => Number(b.detail.endsWith("required")) - Number(a.detail.endsWith("required")));
   return items;
 }
 
-/** Подсказки значений перечисления свойства `prop`; `space` — пробел перед значением, если курсор сразу после «:». */
+/** Suggestions of the enum values of the property `prop`; `space` is a space before the value if the cursor is right after ":". */
 function valueItems(prop: Schema, root: Schema, prefix: string, tail: string, from: number, to: number,
                     space: string): Completion[] | null {
   const values = valuesOf(prop, root).filter((v) => v.startsWith(prefix));
@@ -292,8 +292,8 @@ function valueItems(prop: Schema, root: Schema, prefix: string, tail: string, fr
 }
 
 /**
- * Подсказки для курсора `pos`: ключи отображения (ещё не заданные) или значения перечисления после «ключ: » —
- * в блочной записи и внутри «{…}». `force` — показать и без набранного префикса (Ctrl+Space, после вставки).
+ * Suggestions for the cursor `pos`: keys of the mapping (not set yet) or enum values after "key: ",
+ * in block notation and inside "{…}". `force` shows them also without a typed prefix (Ctrl+Space, after inserting).
  */
 export function complete(text: string, pos: number, root: Schema, force = false): CompletionList | null {
   const ls = lineStart(text, pos);
@@ -306,12 +306,12 @@ export function complete(text: string, pos: number, root: Schema, force = false)
   const result = (items: Completion[] | null, from: number): CompletionList | null =>
     (items?.length ? { items, line, col: from - ls } : null);
 
-  // Внутри «{…}»: «- {bit: 1, na|}»
+  // Inside "{…}": "- {bit: 1, na|}"
   const stack = openers(lines[line], before.length);
   if (stack.length) {
     const top = stack[stack.length - 1];
     if (top.ch !== "{") return null;
-    // Путь к скобкам: блочная часть строки («- » или «ключ: »), затем ключи вложенных скобок
+    // Path to the brackets: the block part of the line ("- " or "key: "), then the keys of the nested brackets
     const head = info(before.slice(0, stack[0].pos));
     const col = head.key !== null ? head.keyCol : stack[0].pos;
     const base = contextPath(lines, line, col);
@@ -338,7 +338,7 @@ export function complete(text: string, pos: number, root: Schema, force = false)
     return prop ? result(valueItems(prop, root, vm[3], tail, from, pos + tail.length, vm[2] ? "" : " "), from) : null;
   }
 
-  // Ключ: «  - na|»
+  // Key: "  - na|"
   const km = /^(\s*(?:-\s+)*)([\w-]*)$/.exec(before);
   if (km) {
     const prefix = km[2];
@@ -350,7 +350,7 @@ export function complete(text: string, pos: number, root: Schema, force = false)
     const from = pos - prefix.length;
     const items = keyItems(obj, root, presentKeys(lines, line, col), prefix, from, pos + tail.length, "block", col, hasColon);
     if (items.length === 1 && items[0].label === prefix + tail && hasColon) return null;
-    // Новый элемент списка можно записать в одну строку: «- {bit: 0, name: …}»
+    // A new list item can be written in one line: "- {bit: 0, name: …}"
     if (!prefix && !tail && km[1].trimEnd().endsWith("-") && !after.trim()) {
       items.push({ label: "{ }", detail: "flow", doc: "", chain: true,
         edit: { from, to: pos, insert: "{}", selStart: from + 1, selEnd: from + 1 } });
@@ -358,7 +358,7 @@ export function complete(text: string, pos: number, root: Schema, force = false)
     return result(items, from);
   }
 
-  // Значение: «  encoding: me|»
+  // Value: "  encoding: me|"
   const inf = info(before);
   const vm = inf.key !== null ? /^(\s*)([\w.-]*)$/.exec(inf.rest) : null;
   if (vm) {

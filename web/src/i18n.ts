@@ -9,10 +9,10 @@ export function t(key: string, params?: Record<string, unknown>): string {
 /** Mark a string for translation without formatting it now (static tables; shown through t later). */
 export const N_ = (key: string): string => key;
 
-/** Языки документов: выбираются при создании карты и при экспорте (интерфейс от них не зависит). */
+/** Document languages: chosen when creating a map and on export (the interface does not depend on them). */
 export const DOC_LANGUAGES: Array<[string, string]> = [["ru", N_("Russian")], ["en", N_("English")]];
 
-/** Языки экспорта: русский, английский и язык карты (любой код ISO 639-1), если он другой. */
+/** Export languages: Russian, English and the map's language (any ISO 639-1 code) if it is another one. */
 export function docLanguages(mapLang?: string | null): Array<[string, string]> {
   return mapLang && !DOC_LANGUAGES.some(([c]) => c === mapLang) ? [...DOC_LANGUAGES, [mapLang, mapLang]] : DOC_LANGUAGES;
 }

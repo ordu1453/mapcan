@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Выпуск версии одним действием: запись в истории изменений (document.history), версия и дата документа,
-// сохранение, коммит карты и тег v<версия>. Изменения подставляются из различий с прошлым выпуском.
+// Releasing a version in one action: the revision history entry (document.history), the document's version and date,
+// saving, a commit of the map and the tag v<version>. The changes come from the differences since the previous release.
 import { computed, onMounted, ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";

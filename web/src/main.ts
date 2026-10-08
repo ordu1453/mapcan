@@ -5,7 +5,7 @@ import { t } from "./i18n";
 import { installShortcuts, startEvents } from "./store";
 import "./style.css";
 
-// Настройки, сохранённые до переименования canmap → mapcan: тема, шаблон PDF и т.п.
+// Settings saved before canmap was renamed to mapcan: theme, PDF template etc.
 try {
   for (const key of Object.keys(localStorage)) {
     if (!key.startsWith("canmap-")) continue;
@@ -16,7 +16,7 @@ try {
     localStorage.removeItem(key);
   }
 } catch {
-  /* хранилище недоступно */
+  /* storage is not available */
 }
 
 document.title = t("mapcan — map editor");
