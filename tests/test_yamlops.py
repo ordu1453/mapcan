@@ -42,9 +42,9 @@ def test_values_keys_become_ints():
 
 
 @pytest.mark.parametrize("start, length, be, expected", [
-    (8, 8, False, {"byte": 1}),
+    (8, 8, False, {"byte": 1, "byte_length": 1}),
     (8, 16, False, {"byte": 1, "byte_length": 2}),
-    (11, 1, False, {"byte": 1, "bit": 3}),
+    (11, 1, False, {"byte": 1, "bit": 3, "bit_length": 1}),
     (20, 4, False, {"byte": 2, "bit": 4, "bit_length": 4}),
     (12, 12, False, {"start_bit": 12, "bit_length": 12}),
     (16, 16, True, {"byte": 1, "byte_length": 2}),
@@ -57,6 +57,7 @@ def test_layout_keys(start, length, be, expected):
 def test_layout_keys_flag_encoding_needs_explicit_length():
     # для encoding: flag запись `byte: 1` означала бы 1 бит — нужна явная длина
     assert layout_keys(8, 8, False, "flag") != {"byte": 1}
+    assert layout_keys(11, 1, False, "flag") == {"byte": 1, "bit": 3}
 
 
 def test_errors():

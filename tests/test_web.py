@@ -113,7 +113,7 @@ def test_set_layout_rejects_bad_position(client, start, length):
 def test_insert_signal_and_remove(client):
     path = ["buses", 0, "devices", 1, "frames", 0, "signals"]
     st = ops(client,
-             {"op": "insert", "path": path, "value": {"name": "spare", "encoding": "raw", "description": "Резерв", "byte": 2}},
+             {"op": "insert", "path": path, "value": {"name": "spare", "encoding": "raw", "description": "Резерв", "byte": 2, "byte_length": 1}},
              {"op": "set", "path": ["buses", 0, "devices", 1, "frames", 0, "dlc"], "value": 3})
     assert "- name: spare" in st["text"]
     assert not [d for d in st["diagnostics"] if d["level"] == "error"]
@@ -123,7 +123,7 @@ def test_insert_signal_and_remove(client):
 
 def test_insert_into_missing_list(client):
     st = ops(client, {"op": "insert", "path": ["buses", 0, "devices", 3, "frames", 0, "signals"],
-                      "value": {"name": "mode", "encoding": "raw", "description": "Режим", "byte": 0}})
+                      "value": {"name": "mode", "encoding": "raw", "description": "Режим", "byte": 0, "byte_length": 1}})
     f = next(f for f in st["resolved"]["frames"] if f["name"] == "bypass_command")
     assert f["signals"][0]["name"] == "mode"
 

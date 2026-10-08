@@ -97,7 +97,7 @@ def test_map_tree_selects_whole_blocks():
         "          # next frame\n"
         "          - name: f2\n"
         "            id: 0x300\n"
-        "            signals: [{name: a, encoding: raw, byte: 0}, {name: b, encoding: raw, byte: 1}]\n"
+        "            signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}, {name: b, encoding: raw, byte: 1, byte_length: 1}]\n"
         "            sdo:\n"
         "              - {name: x, command: 0x40, index: 0x1000}\n"))
     a = A.analyze(text, "t.yaml")
@@ -111,7 +111,8 @@ def test_map_tree_selects_whole_blocks():
     assert _selected(a, flag) == ("{bit: 4, bit_length: 2, name: sensor_state,\n"
                                   "                     values: {0: OK, 1: OPEN, 2: SHORT}}")
     assert [_selected(a, s) for s in f2["children"]] == [
-        "{name: a, encoding: raw, byte: 0}", "{name: b, encoding: raw, byte: 1}", "{name: x, command: 0x40, index: 0x1000}"]
+        "{name: a, encoding: raw, byte: 0, byte_length: 1}", "{name: b, encoding: raw, byte: 1, byte_length: 1}",
+        "{name: x, command: 0x40, index: 0x1000}"]
     assert frame["range"][1] == 0   # курсор на «- » перед кадром тоже внутри узла
 
 
@@ -162,7 +163,7 @@ def test_inlay_hint_skips_explicit_id():
     a = A.analyze(one_bus("""
         - name: st
           id: 0x123
-          signals: [{name: a, encoding: raw, byte: 0}]
+          signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}]
     """), "t.yaml")
     assert [h.label for h in A.inlay_hints(a)] == ["bits 0–7"]
 

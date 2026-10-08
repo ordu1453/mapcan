@@ -28,6 +28,7 @@ buses:
                 encoding: enum
                 description: Operating mode
                 byte: 0
+                byte_length: 1
                 values:
                   0: {name: OFF, description: off}
                   1: {name: RUN, description: running}
@@ -37,6 +38,7 @@ buses:
                 encoding: bitfield
                 description: Alarms
                 byte: 1
+                byte_length: 1
                 flags:
                   - {bit: 0, name: overheat, description: overheating}
                   - {bit: 1, name: dry_run, description: dry running}
@@ -57,6 +59,7 @@ buses:
                 encoding: metric
                 description: Temperature
                 byte: 4
+                byte_length: 1
                 signed: true
                 factor: 0.5
                 offset: -20

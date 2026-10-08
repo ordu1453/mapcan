@@ -47,7 +47,8 @@ def test_signal_added_removed():
     new = BASE.replace("              - name: frame_request\n"
                        "                encoding: raw\n"
                        "                description: Номер повторно запрашиваемого кадра\n"
-                       "                byte: 1\n", "")
+                       "                byte: 1\n"
+                       "                byte_length: 1\n", "")
     d = _diff(new)
     assert any(c.kind == "removed" and c.signal == "frame_request" for c in d.changes)
     assert "0x222 cmu_request: удалён сигнал frame_request (биты 8–15)" in changelog_lines(d)
@@ -99,7 +100,8 @@ def test_changed_paths():
     new = BASE.replace("              - name: frame_request\n"
                        "                encoding: raw\n"
                        "                description: Номер повторно запрашиваемого кадра\n"
-                       "                byte: 1\n", "")
+                       "                byte: 1\n"
+                       "                byte_length: 1\n", "")
     m = _map(new)
     assert _paths(new) == {_path_of(m, "cmu_request"): "modified"}
     # Изменённый node_id — устройство и кадры с вычисленным из него ID

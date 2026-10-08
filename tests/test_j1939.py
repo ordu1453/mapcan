@@ -97,9 +97,9 @@ def test_float_initial_invalid_rules():
           pgn: 0xFEEE
           signals:
             - {name: a, description: x, byte: 0, encoding: float, bit_length: 16}
-            - {name: b, encoding: raw, description: x, byte: 2, invalid: 0x1FF}
-            - {name: c, encoding: metric, description: x, byte: 3, factor: 0.5, initial: 200}
-            - {name: d, encoding: raw, description: x, byte: 4, min: 0, max: 10, initial: 20}
+            - {name: b, encoding: raw, description: x, byte: 2, byte_length: 1, invalid: 0x1FF}
+            - {name: c, encoding: metric, description: x, byte: 3, byte_length: 1, factor: 0.5, initial: 200}
+            - {name: d, encoding: raw, description: x, byte: 4, byte_length: 1, min: 0, max: 10, initial: 20}
     """))
     assert {"float-length", "invalid-overflow", "initial-range"} <= c
 

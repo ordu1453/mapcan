@@ -996,7 +996,6 @@
           "title": "Description"
         },
         "bit_length": {
-          "default": 32,
           "enum": [
             8,
             16,
@@ -1085,7 +1084,8 @@
       },
       "required": [
         "name",
-        "encoding"
+        "encoding",
+        "bit_length"
       ],
       "title": "SdoValue",
       "type": "object"

@@ -31,6 +31,7 @@ buses:
                 encoding: enum
                 description: Статус
                 byte: 0
+                byte_length: 1
                 values:
                   0: NO DATA
                   1: OK
@@ -59,11 +60,13 @@ buses:
                 encoding: enum
                 description: Состояние
                 byte: 0
+                byte_length: 1
                 values: {0: DC_INIT, 1: NO_DATA}
               - name: error_code
                 encoding: bitfield
                 description: Ошибки
                 byte: 1
+                byte_length: 1
                 flags:
                   - {bit: 0, name: dc_status}
                   - {bit: 8, name: OutOfRange}
@@ -75,4 +78,5 @@ buses:
                 encoding: raw
                 description: x
                 byte: 0
+                byte_length: 1
                 mux: 1

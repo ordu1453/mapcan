@@ -356,11 +356,11 @@ def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None)
             nbytes = length // 8
             first = byte - nbytes + 1
             if first >= 0:
-                candidates.append({"byte": first, **({"byte_length": nbytes} if nbytes > 1 else {})})
+                candidates.append({"byte": first, "byte_length": nbytes})
     else:
         if bit == 0 and length % 8 == 0:
-            candidates.append({"byte": byte, **({"byte_length": length // 8} if length > 8 else {})})
-        if length == 1:
+            candidates.append({"byte": byte, "byte_length": length // 8})
+        if length == 1 and encoding == "flag":
             candidates.append({"byte": byte, "bit": bit})
         if bit + length <= 8:
             candidates.append({"byte": byte, "bit": bit, "bit_length": length})

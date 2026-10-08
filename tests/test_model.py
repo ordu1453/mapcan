@@ -14,9 +14,9 @@ def sig(**kw) -> Signal:
 @pytest.mark.parametrize(
     "kw, start, length",
     [
-        ({"byte": 0}, 0, 8),
+        ({"byte": 0, "byte_length": 1}, 0, 8),
         ({"byte": 1, "byte_length": 2}, 8, 16),
-        ({"byte": 1, "bit": 3}, 11, 1),
+        ({"byte": 1, "bit": 3, "bit_length": 1}, 11, 1),
         ({"byte": 2, "bit": 4, "bit_length": 4}, 20, 4),
         ({"start_bit": 5, "bit_length": 7}, 5, 7),
         # big-endian: byte — байт старшей части, LSB в последнем байте поля
@@ -61,6 +61,15 @@ def test_roundtrip_bits(start, length, be):
 def test_signed_extract():
     buf = bytearray([0xFE, 0xFF])
     assert B.extract(buf, 0, 16, False, signed=True) == -2
+
+
+def test_length_required():
+    with pytest.raises(ValueError):
+        sig(byte=0)
+    with pytest.raises(ValueError):
+        sig(byte=1, bit=3)
+    assert sig(byte=1, bit=3, encoding="flag").bit_length == 1
+    assert sig(byte=0, encoding="float").bit_length == 32
 
 
 def test_encoding_required():

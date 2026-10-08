@@ -100,7 +100,7 @@ function commit(def: FieldDef, value: unknown) {
   // У значения SDO encoding обязателен: новое значение создаётся сразу с encoding: raw
   // Без идентификатора у SDO-обмена нет значения: словарь value удаляется целиком
   if (kind.value === "sdo" && def.key === "value.name" && (node.value?.value == null || !value)) {
-    if (value) void actions.apply([{ op: "set", path: [...path.value, "value"], value: { name: value, encoding: "raw" } }]);
+    if (value) void actions.apply([{ op: "set", path: [...path.value, "value"], value: { name: value, encoding: "raw", bit_length: 32 } }]);
     else if (node.value?.value != null) void actions.apply([{ op: "remove", path: [...path.value, "value"] }]);
     return;
   }

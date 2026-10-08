@@ -82,7 +82,7 @@ def test_move_to_free_bits():
 
 def test_extended_and_style_fixes():
     text = MINIMAL.replace("          - name: pump_state", (
-        "          - name: Big_Frame\n            id: 0x900\n            signals: [{name: s, encoding: raw, byte: 0}]\n"
+        "          - name: Big_Frame\n            id: 0x900\n            signals: [{name: s, encoding: raw, byte: 0, byte_length: 1}]\n"
         "          - name: pump_state"))
     out = fixed(fixed(text, "can-id-range"), "name-style")
     assert "extended: true" in out and "- name: big_frame" in out
@@ -241,7 +241,7 @@ def test_sdo_value_fields():
     # Значения ещё нет: словарь добавляется вместе с первым полем
     bare = next(p for p in a.nodes if E.node_kind(p) == "sdo" and E.raw_at(a, p + ("value",)) is None)
     out = apply(text, E.set_field(a, bare + ("value", "name"), "ack"))
-    assert "value: {name: ack, encoding: raw}" in out
+    assert "value: {name: ack, encoding: raw, bit_length: 32}" in out
     assert errors(out) == errors(text)
     assert E.set_field(a, bare + ("value", "name"), None) == []
     # Последнее поле значения удаляется вместе со словарём
@@ -255,7 +255,7 @@ def test_set_field():
     out = apply(MINIMAL, E.set_field(a, FRAME + ("title",), "Pump state"))
     assert "            cycle_ms: 100\n            title: Pump state\n            signals:\n" in out
     out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 0, "unit"), "rpm"))
-    assert "                byte: 0\n                unit: rpm\n                values:\n" in out
+    assert "                byte_length: 1\n                unit: rpm\n                values:\n" in out
     out = apply(MINIMAL, E.set_field(a, DEV + ("node_id",), 0x22))
     assert "node_id: 0x22\n" in out
     out = apply(MINIMAL, E.set_field(a, FRAME + ("description",), None))
@@ -281,14 +281,16 @@ def test_set_field():
 
 def test_add_signal_to_flow_list_and_empty_frame():
     text = MINIMAL.replace("          - name: pump_state", (
-        "          - name: f2\n            id: 0x300\n            signals: [{name: a, encoding: raw, byte: 0}]\n"
+        "          - name: f2\n            id: 0x300\n            signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}]\n"
         "          - name: f3\n            id: 0x301\n            signals: []\n"
         "          - name: pump_state"))
     a = A.analyze(text, "m.yaml")
     out = _change(text, E.add_node(a, DEV + ("frames", 0), "signal"))
-    assert "signals: [{name: a, encoding: raw, byte: 0}, {name: signal, encoding: raw, byte: 1}]" in out
+    assert ("signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}, "
+            "{name: signal, encoding: raw, byte: 1, byte_length: 1}]") in out
     out = _change(text, E.add_node(a, DEV + ("frames", 1), "signal"))
-    assert "            signals:\n              - name: signal\n                encoding: raw\n                byte: 0\n" in out
+    assert ("            signals:\n              - name: signal\n                encoding: raw\n"
+            "                byte: 0\n                byte_length: 1\n") in out
     assert "empty-frame" not in [d.code for d in A.analyze(out, "m.yaml").diagnostics]
 
 

@@ -45,6 +45,7 @@ buses:
                 encoding: metric
                 description: Driver's demand torque
                 byte: 1
+                byte_length: 1
                 unit: "%"
                 offset: -125
                 min: -125
@@ -54,6 +55,7 @@ buses:
                 encoding: metric
                 description: Actual engine torque
                 byte: 2
+                byte_length: 1
                 unit: "%"
                 offset: -125
                 min: -125
@@ -74,6 +76,7 @@ buses:
                 encoding: raw
                 description: Address of the device controlling the engine
                 byte: 5
+                byte_length: 1
                 value_format: hex
 
           - name: et1
@@ -87,6 +90,7 @@ buses:
                 encoding: metric
                 description: Coolant temperature
                 byte: 0
+                byte_length: 1
                 offset: -40
                 unit: °C
                 min: -40
@@ -96,6 +100,7 @@ buses:
                 encoding: metric
                 description: Fuel temperature
                 byte: 1
+                byte_length: 1
                 offset: -40
                 unit: °C
                 invalid: 0xFF
@@ -125,6 +130,7 @@ buses:
                 encoding: metric
                 description: Fuel level
                 byte: 1
+                byte_length: 1
                 factor: 0.4
                 unit: "%"
                 min: 0

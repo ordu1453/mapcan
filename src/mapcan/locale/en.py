@@ -130,6 +130,7 @@ EN: dict[str, str] = {
     "повторяющийся ключ: {problem}": "duplicate key: {problem}",
     "пустой файл": "empty file",
     "укажите либо start_bit, либо byte/bit, но не оба способа": "specify either start_bit or byte/bit, not both",
+    "не задана длина сигнала: bit_length или byte_length": "signal length is not set: bit_length or byte_length",
     "укажите либо bit_length, либо byte_length": "specify either bit_length or byte_length",
     "не задана позиция сигнала (start_bit или byte)": "signal position is not set (start_bit or byte)",
     "cycle_ms задан и на уровне кадра, и в transmission": "cycle_ms is set both on the frame and in transmission",

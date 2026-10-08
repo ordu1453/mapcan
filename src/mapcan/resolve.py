@@ -61,14 +61,14 @@ def sdo_layout(frame: Frame) -> list[Signal]:
         return s
 
     sigs = [
-        mk(name="sdo_command", byte=0, encoding="enum", value_format="hex",
+        mk(name="sdo_command", byte=0, byte_length=1, encoding="enum", value_format="hex",
            description={"ru": "Команда SDO", "en": "SDO command specifier"},
            values={c: EnumValue(name=SDO_COMMANDS.get(c, f"CMD_{c:02X}")) for c in commands}),
         mk(name="sdo_index", byte=1, byte_length=2, encoding="enum" if single_index else "raw",
            value_format="hex",
            description={"ru": "Индекс объекта", "en": "Object index"},
            values={i: EnumValue(name=f"INDEX_{i:04X}") for i in indices} if single_index else None),
-        mk(name="sdo_subindex", byte=3, encoding="enum", value_format="hex",
+        mk(name="sdo_subindex", byte=3, byte_length=1, encoding="enum", value_format="hex",
            multiplexer=single_index and any(e.value for e in exs),
            description={"ru": "Субиндекс объекта", "en": "Object subindex"},
            values={e.subindex: EnumValue(name=e.name.upper(), description=e.description)

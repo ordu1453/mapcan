@@ -29,6 +29,7 @@ TITLED = one_bus(f"""
           encoding: metric
           title: '{TRICKY}'
           byte: 0
+          byte_length: 1
           factor: 0.5
           unit: V
         - name: state
@@ -36,6 +37,7 @@ TITLED = one_bus(f"""
           title: Состояние
           description: Режим работы
           byte: 1
+          byte_length: 1
           values: {{0: OFF, 1: ON}}
 """, protocol="can")
 

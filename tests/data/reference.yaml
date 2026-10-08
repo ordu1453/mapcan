@@ -90,6 +90,7 @@ buses:
                 encoding: enum
                 description: Статус изоляции
                 byte: 0
+                byte_length: 1
                 values:
                   0: {name: NO_DATA, description: нет данных о сопротивлении изоляции}
                   1: {name: OK, description: сопротивление изоляции в норме}
@@ -106,6 +107,7 @@ buses:
                 encoding: bitfield
                 description: Статус внутренней ошибки
                 byte: 1
+                byte_length: 1
                 flags:
                   - {bit: 0, name: low_bus_voltage_error, description: низкое напряжение шины}
                   - {bit: 1, name: timeout_error, description: тайм-аут измерения}
@@ -120,6 +122,7 @@ buses:
                 encoding: enum
                 description: Состояние работы
                 byte: 2
+                byte_length: 1
                 values:
                   0: {name: NOT_WORKING, description: устройство не работает}
                   1: {name: WORKING, description: устройство работает}
@@ -135,6 +138,7 @@ buses:
                 encoding: enum
                 description: Флаг расчёта сопротивления изоляции
                 byte: 0
+                byte_length: 1
                 values:
                   0: {name: NOT_CALCULATED, description: значения сопротивлений изоляции не рассчитаны}
                   1: {name: CALCULATED, description: значения сопротивлений изоляции рассчитаны}
@@ -160,6 +164,7 @@ buses:
                 encoding: enum
                 description: Флаг расчёта напряжения шины питания
                 byte: 5
+                byte_length: 1
                 values:
                   0: {name: NOT_CALCULATED, description: значение напряжения не рассчитано}
                   1: {name: CALCULATED, description: значение напряжения рассчитано}
@@ -182,6 +187,7 @@ buses:
                 encoding: enum
                 description: Команда разрешения работы устройства
                 byte: 0
+                byte_length: 1
                 values:
                   0: {name: FORBID, description: запрет работы}
                   1: {name: ALLOW, description: разрешение работы}
@@ -189,6 +195,7 @@ buses:
                 encoding: enum
                 description: Команда принудительной самодиагностики
                 byte: 1
+                byte_length: 1
                 values:
                   0: {name: AUTO, description: запуск самодиагностики по внутреннему алгоритму}
                   1:
@@ -252,6 +259,7 @@ buses:
                 encoding: enum
                 description: Состояние работы устройства
                 byte: 0
+                byte_length: 1
                 values:
                   0: NO_DATA
                   1: OK
@@ -261,6 +269,7 @@ buses:
                 encoding: bitfield
                 description: Код состояния систем
                 byte: 1
+                byte_length: 1
                 flags:
                   - {bit: 0, name: cell_overvoltage, description: высокое напряжение на ячейке}
                   - {bit: 1, name: cell_undervoltage, description: низкое напряжение на ячейке}
@@ -281,6 +290,7 @@ buses:
                 encoding: enum
                 description: Код события
                 byte: 0
+                byte_length: 1
                 values:
                   1: {name: CELL_OVERVOLTAGE, description: высокое напряжение на ячейке}
                   2: {name: CELL_UNDERVOLTAGE, description: низкое напряжение на ячейке}
@@ -293,6 +303,7 @@ buses:
                 encoding: enum
                 description: Источник события
                 byte: 1
+                byte_length: 1
                 values:
                   0: {name: VOLTAGE_MODULES, description: модули напряжения}
                   1: {name: TEMPERATURE_SENSORS, description: датчики температур}
@@ -300,6 +311,7 @@ buses:
                 encoding: raw
                 description: Объект события — номер модуля или датчика
                 byte: 2
+                byte_length: 1
 
           - name: cmu_parse_data
             type: pdo_tx2
@@ -312,6 +324,7 @@ buses:
                 description: Тип парсинга (селектор мультиплексора)
                 byte: 0
                 bit: 0
+                bit_length: 1
                 multiplexer: true
                 values:
                   0: {name: VOLTAGES, description: парсинг напряжений}
@@ -345,6 +358,7 @@ buses:
                 encoding: enum
                 description: Запрос на отправку данных
                 byte: 0
+                byte_length: 1
                 values:
                   0: {name: STATES, description: запрос на отправку состояний}
                   1: {name: FULL_PARSE, description: запрос на полный парсинг данных}
@@ -354,6 +368,7 @@ buses:
                 encoding: raw
                 description: Номер повторно запрашиваемого кадра
                 byte: 1
+                byte_length: 1
 
       # --------------------------------------------------------------------- #
       - name: pcu
@@ -372,6 +387,7 @@ buses:
                 encoding: enum
                 description: Состояние работы
                 byte: 0
+                byte_length: 1
                 values: &dc_states
                   0: {name: STATE_INIT, description: исходное состояние преобразователя}
                   1: {name: STATE_PRECHARGE, description: предзаряд входного конденсатора}
@@ -388,6 +404,7 @@ buses:
                 encoding: bitfield
                 description: Код ошибки преобразователя
                 byte: 1
+                byte_length: 1
                 flags:
                   - {bit: 0, name: err_none, description: ошибок не обнаружено}
                   - {bit: 1, name: err_overvoltage, description: превышение напряжения}
@@ -417,11 +434,13 @@ buses:
                 encoding: enum
                 description: Запрашиваемый режим работы
                 byte: 0
+                byte_length: 1
                 values: *dc_states
               - name: target_voltage
                 encoding: metric
                 description: Целевое значение напряжения
                 byte: 1
+                byte_length: 1
                 factor: 10
                 unit: В
                 comment: Разрядность будет уточнена в следующей версии.
@@ -475,6 +494,7 @@ buses:
                 encoding: enum
                 description: Режим системы питания
                 byte: 0
+                byte_length: 1
                 values:
                   1: {name: BATTERY, description: питание от батареи}
                   2: {name: COMBINED, description: совместное питание}
@@ -483,6 +503,7 @@ buses:
                 encoding: enum
                 description: Место установки
                 byte: 1
+                byte_length: 1
                 values:
                   1: {name: LAB, description: лаборатория}
                   2: {name: INDOOR, description: в помещении}
@@ -491,6 +512,7 @@ buses:
                 encoding: enum
                 description: Режим работы установки
                 byte: 3
+                byte_length: 1
                 comment: Байт 2 зарезервирован.
                 values:
                   1: {name: RUN, description: работа}
@@ -501,6 +523,7 @@ buses:
                 encoding: raw
                 description: Уставка нагрузки (0 — ноль, 255 — максимум)
                 byte: 4
+                byte_length: 1
                 min: 0
                 max: 255
 
@@ -519,6 +542,7 @@ buses:
                 encoding: enum
                 description: Статус всей системы
                 byte: 0
+                byte_length: 1
                 values:
                   0: SYS_NO_DATA
                   1: SYS_OK

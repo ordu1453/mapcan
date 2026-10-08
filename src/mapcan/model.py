@@ -248,12 +248,13 @@ class Signal(_Base):
         if self.byte_length is not None:
             self.bit_length = self.byte_length * 8
         if self.bit_length is None:
+            # Длину можно не указывать только там, где её задаёт кодирование
             if self.encoding == "float":
                 self.bit_length = 32
-            elif self.encoding == "flag" or (self.bit is not None and self.byte_length is None):
+            elif self.encoding == "flag":
                 self.bit_length = 1
             else:
-                self.bit_length = 8
+                raise ValueError(N_("не задана длина сигнала: bit_length или byte_length"))
 
         if self.start_bit is None:
             if self.byte is None:
@@ -284,7 +285,7 @@ class SdoValue(_Base):
     name: str
     encoding: Literal["enum", "metric", "raw"] = Field(description=N_("Кодирование значения: enum, metric, raw."))
     description: Text | None = None
-    bit_length: Literal[8, 16, 24, 32] = 32
+    bit_length: Literal[8, 16, 24, 32]
     signed: bool = False
     factor: float = 1.0
     offset: float = 0.0

@@ -655,7 +655,7 @@ def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
         encoding = ("encoding", "raw")
         byte = free_start(frame, 8, 8) if isinstance(frame, M.Frame) else 0
         if byte is not None:
-            return append_item(a, path, "signals", [name, encoding, ("byte", str(byte // 8))])
+            return append_item(a, path, "signals", [name, encoding, ("byte", str(byte // 8)), ("byte_length", "1")])
         # Целого свободного байта нет — однобитный сигнал на первом свободном бите
         bit = free_start(frame, 1, 1)
         return append_item(a, path, "signals", [name, encoding, ("start_bit", str(bit or 0)), ("bit_length", "1")])
@@ -935,7 +935,7 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
                 or raw_at(a, parent) is not None or not isinstance(raw_at(a, parent[:-1]), dict)):
             return []
         # У значения SDO encoding обязателен: новый словарь создаётся сразу с encoding: raw
-        extra = ", encoding: raw" if parent[-1] == "value" and key == "name" else ""
+        extra = ", encoding: raw, bit_length: 32" if parent[-1] == "value" and key == "name" else ""
         return _insert_field(a, parent[:-1], parent[-1], f"{{{key}: {format_value(key, value)}{extra}}}")
     current = raw_at(a, path)
     if value is None or value == "":

@@ -138,7 +138,7 @@ CANopen ID computation:
 | `description` | Description |
 | `encoding` | Required: `enum`, `flag`, `bitfield`, `metric`, `raw`, `float`, `bytes` |
 | `start_bit` + `bit_length` | Canonical position |
-| `byte` [+ `bit`] [+ `byte_length` \| `bit_length`] | Shorthand position (see below) |
+| `byte` [+ `bit`] + `byte_length` \| `bit_length` | Shorthand position (see below) |
 | `byte_order` | `little_endian` (default) or `big_endian` |
 | `signed` | Signed value |
 | `signed_code` | Signed number representation: `twos_complement` (default), `ones_complement` or `sign_magnitude`. This is a note for the documents only: generated code and DBC always use two's complement |
@@ -168,8 +168,8 @@ CANopen ID computation:
 
 A field that does not apply is an error (`encoding-field`). `signed_code` follows `signed`.
 
-If no length is given, a signal is 8 bits long; a `float` is 32 bits, and a `flag` or a
-`byte` + `bit` position without `bit_length` is 1 bit.
+The length (`bit_length` or `byte_length`) is required. Only two encodings set it
+themselves: a `flag` is 1 bit, and a `float` is 32 bits unless `bit_length: 64` is given.
 
 #### Floating point
 
@@ -186,9 +186,9 @@ marked as float.
 
 | Shorthand | Equivalent |
 |---|---|
-| `byte: 2` | `start_bit: 16, bit_length: 8` |
+| `byte: 2, byte_length: 1` | `start_bit: 16, bit_length: 8` |
 | `byte: 1, byte_length: 2` | `start_bit: 8, bit_length: 16` |
-| `byte: 1, bit: 3` | `start_bit: 11, bit_length: 1` |
+| `byte: 1, bit: 3, bit_length: 1` | `start_bit: 11, bit_length: 1` |
 | `byte: 2, bit: 4, bit_length: 4` | `start_bit: 20, bit_length: 4` |
 | `byte: 1, byte_length: 2, byte_order: big_endian` | `start_bit: 16, bit_length: 16`, most significant byte in byte 1 |
 
@@ -210,6 +210,7 @@ signals:
     encoding: enum
     byte: 0
     bit: 0
+    bit_length: 1
     multiplexer: true
     values: {0: VOLTAGES, 1: TEMPERATURES}
   - {name: voltage_data,     byte: 1, byte_length: 7, encoding: bytes, mux: 0}
@@ -271,6 +272,8 @@ For `sdo_rx`/`sdo_tx` frames you can describe expedited SDO exchanges instead of
       subindex: 0x01
       value: {name: alarm_resistance, encoding: metric, bit_length: 16, unit: kOhm}
 ```
+
+The value's `encoding` (`enum`, `metric` or `raw`) and `bit_length` (8, 16, 24 or 32) are required.
 
 mapcan builds the frame layout itself: byte 0 is the command, bytes 1–2 the index
 (little-endian), byte 3 the subindex (the multiplexer selector when all exchanges share one
