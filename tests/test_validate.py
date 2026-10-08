@@ -323,15 +323,16 @@ def test_direction_mismatch():
 
 
 def test_cycle_rules():
-    assert "cycle-missing" in codes(one_bus("""
-        - name: f
-          type: pdo_tx1
-          transmission: {mode: cyclic}
-    """))
     assert "cycle-unexpected" in codes(one_bus("""
         - name: f
           type: pdo_tx1
-          transmission: {mode: event, cycle_ms: 10}
+          trigger: event
+          cycle_ms: 10
+    """))
+    assert "cycle-unexpected" not in codes(one_bus("""
+        - name: f
+          type: pdo_tx1
+          trigger: on_request
     """))
 
 
@@ -624,7 +625,7 @@ def test_bad_map_finds_all_problems():
     expected = {
         "number-comma", "number-cyrillic-x", "invalid-identifier", "signal-out-of-frame",
         "bit-overlap", "enum-overflow", "name-inconsistent", "duplicate-signal-name",
-        "flag-out-of-field", "name-style", "duplicate-can-id", "cycle-missing", "mux-no-selector",
+        "flag-out-of-field", "name-style", "duplicate-can-id", "cycle-unexpected", "mux-no-selector",
     }
     assert expected <= rep.codes()
     assert all(d.line is not None for d in rep.diagnostics)

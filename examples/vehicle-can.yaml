@@ -127,7 +127,7 @@ buses:
             id: 0x300
             description: Log record
             dlc: 64
-            transmission: {mode: event}
+            trigger: event
             signals:
               - name: timestamp
                 description: Record time

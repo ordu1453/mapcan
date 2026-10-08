@@ -96,7 +96,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         receivers = [r for r in f.receiver_names if r not in senders]
         for sg in sigs:
             sg.receivers = list(receivers)
-        cycle = f.transmission.cycle_ms if f.transmission else None
+        cycle = f.cycle_ms if f.mode == "cyclic" else None
         msg_specifics = None
         if f.mode is not None:
             msg_specifics = DbcSpecifics(attributes=OrderedDict(GenMsgSendType=DbcAttribute(

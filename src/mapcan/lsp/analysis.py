@@ -577,8 +577,8 @@ def frame_markdown(frame: M.Frame) -> str:
     head += f" · DLC {frame.dlc}"
     out = [head]
     facts = []
-    if frame.transmission and frame.transmission.cycle_ms:
-        facts.append(_("цикл {ms} мс", ms=frame.transmission.cycle_ms))
+    if frame.mode == "cyclic":
+        facts.append(_("цикл {ms} мс", ms=frame.cycle_ms))
     if frame.sender_name or frame.receiver_names:
         facts.append(f"{frame.sender_name or '—'} → {', '.join(frame.receiver_names) or '—'}")
     if facts:

@@ -115,7 +115,7 @@ watch(() => pathKey(path.value), () => { renaming.value = null; });
 
 // Ключи, сообщения по которым показываются у полей формы и в таблицах (значения, флаги, позиция, передача)
 const SHOWN_ELSEWHERE = ["values", "flags", "start_bit", "bit_length", "byte", "bit", "byte_length",
-  "transmission", "cycle_ms", "signals", "frames", "devices", "sdo", "history"];
+  "trigger", "cycle_ms", "signals", "frames", "devices", "sdo", "history"];
 
 /** Сообщения узла, которые не видны ни у одного поля: на сам узел или на поле, которого нет в форме. */
 const ownDiags = computed(() => {
@@ -159,25 +159,18 @@ const muxValue = computed({
   },
 });
 
-const txMode = computed(() => node.value?.transmission?.mode ?? (node.value?.cycle_ms != null ? "cyclic" : ""));
-const txCycle = computed(() => node.value?.transmission?.cycle_ms ?? node.value?.cycle_ms ?? null);
+// Режим передачи: период cycle_ms — циклически, иначе trigger (по событию / по запросу)
+const txMode = computed(() => (node.value?.cycle_ms != null ? "cyclic" : node.value?.trigger ?? ""));
+const txCycle = computed(() => node.value?.cycle_ms ?? null);
 
 function setMode(e: Event) {
   const m = (e.target as HTMLSelectElement).value;
   const p = path.value;
-  const hasTr = node.value?.transmission != null;
   const ops = [];
-  if (m === "") {
-    if (hasTr) ops.push({ op: "remove" as const, path: [...p, "transmission"] });
-    if (node.value?.cycle_ms != null) ops.push({ op: "remove" as const, path: [...p, "cycle_ms"] });
-  } else if (m === "cyclic") {
-    const c = txCycle.value ?? 100;
-    if (hasTr) ops.push({ op: "set" as const, path: [...p, "transmission"], value: { mode: "cyclic", cycle_ms: c } });
-    else ops.push({ op: "set" as const, path: [...p, "cycle_ms"], value: c });
-  } else {
-    if (node.value?.cycle_ms != null) ops.push({ op: "remove" as const, path: [...p, "cycle_ms"] });
-    ops.push({ op: "set" as const, path: [...p, "transmission"], value: { mode: m } });
-  }
+  if (m !== "cyclic" && node.value?.cycle_ms != null) ops.push({ op: "remove" as const, path: [...p, "cycle_ms"] });
+  if ((m === "" || m === "cyclic") && node.value?.trigger != null) ops.push({ op: "remove" as const, path: [...p, "trigger"] });
+  if (m === "cyclic") ops.push({ op: "set" as const, path: [...p, "cycle_ms"], value: txCycle.value ?? 100 });
+  else if (m !== "") ops.push({ op: "set" as const, path: [...p, "trigger"], value: m });
   void actions.apply(ops);
 }
 
@@ -206,16 +199,14 @@ function readInt(e: Event, key: string, min: number, max: number, old: number | 
 // Сообщения о режиме передачи: на поле периода, если оно видно, иначе на выборе режима
 const txDiags = computed(() =>
   kind.value === "frame"
-    ? diags.value.filter((d) => startsWith(d.node, [...path.value, "transmission"]) || startsWith(d.node, [...path.value, "cycle_ms"]))
+    ? diags.value.filter((d) => startsWith(d.node, [...path.value, "trigger"]) || startsWith(d.node, [...path.value, "cycle_ms"]))
     : [],
 );
 
 function setCycle(e: Event) {
   const n = readInt(e, "cycle_ms", 1, 2 ** 31 - 1, txCycle.value);
   if (n === null) return;
-  const p = path.value;
-  if (node.value?.transmission != null) void actions.apply([{ op: "set", path: [...p, "transmission", "cycle_ms"], value: n }]);
-  else void actions.apply([{ op: "set", path: [...p, "cycle_ms"], value: n }]);
+  void actions.apply([{ op: "set", path: [...path.value, "cycle_ms"], value: n }]);
 }
 
 // RX-кадр устройства может оказаться кадром, который уже описан у отправителя: его можно выбрать вместо своей копии

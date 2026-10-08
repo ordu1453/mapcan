@@ -107,14 +107,14 @@ def test_id_override_and_direction():
     assert [f.direction for f in frames] == ["tx", "rx", "rx"]
 
 
-def test_cycle_shorthand():
+def test_cycle_ms_means_cyclic():
     res, _ = run(one_bus("""
         - name: a
           type: pdo_tx1
           cycle_ms: 20
     """))
-    tr = res.map.buses[0].devices[0].frames[0].transmission
-    assert (tr.mode, tr.cycle_ms) == ("cyclic", 20)
+    f = res.map.buses[0].devices[0].frames[0]
+    assert (f.mode, f.cycle_ms) == ("cyclic", 20)
 
 
 def test_sdo_layout(ref_map):

@@ -178,8 +178,8 @@ class CGen:
         ]
         if f.extended:
             out.append(f"#define {self.P(F, 'IS_EXTENDED')} 1")
-        if f.transmission and f.transmission.cycle_ms:
-            out.append(f"#define {self.P(F, 'CYCLE_MS')} {f.transmission.cycle_ms}u")
+        if f.mode == "cyclic":
+            out.append(f"#define {self.P(F, 'CYCLE_MS')} {f.cycle_ms}u")
         out.append("")
 
         for s in f.layout:

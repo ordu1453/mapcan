@@ -56,10 +56,9 @@ FLAG_FIELDS = ("bit", "bit_length", "description")
 
 
 def _frame_attrs(f: Frame, lang: str) -> dict:
-    tr = f.transmission
     return {
         "can_id": f.can_id, "type": f.type, "dlc": f.dlc, "direction": f.direction,
-        "mode": tr.mode if tr else None, "cycle_ms": tr.cycle_ms if tr else None,
+        "mode": f.mode, "cycle_ms": f.cycle_ms,
         "extended": f.extended, "device": f.device.name if f.device else None,
         "pgn": f.pgn, "priority": f.priority, "sender": f.sender_name, "receivers": list(f.receivers),
         "description": text(f.description, lang),

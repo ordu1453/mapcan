@@ -148,7 +148,7 @@ buses:
             pgn: 0xEA00
             destination: 0x00
             dlc: 3
-            transmission: {mode: on_request}
+            trigger: on_request
             receivers: [engine]
             signals:
               - name: requested_pgn

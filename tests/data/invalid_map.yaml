@@ -72,7 +72,8 @@ buses:
                   - {bit: 8, name: OutOfRange}
           - name: pcu_dup
             id: 0x1A3
-            transmission: {mode: cyclic}
+            cycle_ms: 50
+            trigger: event
             signals:
               - name: muxed
                 encoding: raw

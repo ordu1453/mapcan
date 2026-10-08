@@ -133,7 +133,6 @@ EN: dict[str, str] = {
     "не задана длина сигнала: bit_length или byte_length": "signal length is not set: bit_length or byte_length",
     "укажите либо bit_length, либо byte_length": "specify either bit_length or byte_length",
     "не задана позиция сигнала (start_bit или byte)": "signal position is not set (start_bit or byte)",
-    "cycle_ms задан и на уровне кадра, и в transmission": "cycle_ms is set both on the frame and in transmission",
     "«{value}» — не имя пользователя GitHub": "“{value}” is not a GitHub username",
 
     # ------------------------------------------------------------------ правила проверки
@@ -169,8 +168,7 @@ EN: dict[str, str] = {
     "Значение mux не помещается в селектор": "mux value does not fit in the selector",
     "Значения mux нет в таблице значений селектора": "mux value is not in the selector's value table",
     "Селектор сам мультиплексирован": "Selector is itself multiplexed",
-    "Режим cyclic без cycle_ms": "cyclic mode without cycle_ms",
-    "cycle_ms задан для нециклического кадра": "cycle_ms set for a non-cyclic frame",
+    "cycle_ms задан вместе с trigger": "cycle_ms is set together with trigger",
     "Направление противоречит типу кадра CANopen": "Direction conflicts with the CANopen frame type",
     "Тип кадра CANopen на шине не CANopen": "CANopen frame type on a non-CANopen bus",
     "Описание sdo у кадра не типа sdo_tx/sdo_rx": "sdo description on a frame that is not sdo_tx/sdo_rx",
@@ -245,8 +243,7 @@ EN: dict[str, str] = {
         "PGN {pgn:#06x} is PDU1: the low byte must be 0 (the destination address is set by destination)",
     "PGN {pgn:#06x} — PDU2 (широковещательный), destination не используется":
         "PGN {pgn:#06x} is PDU2 (broadcast), destination is not used",
-    "для режима cyclic нужен cycle_ms": "cyclic mode needs cycle_ms",
-    "cycle_ms задан для режима {mode}": "cycle_ms is set for mode {mode}",
+    "cycle_ms задан у кадра с trigger: {trigger}": "cycle_ms is set on a frame with trigger: {trigger}",
     "sdo у кадра типа {type}": "sdo set on a frame of type {type}",
     "кадр {name!r} без сигналов": "frame {name!r} has no signals",
     "неизвестное поле {name!r}: если это элемент списка, после «-» нужен пробел":
@@ -413,7 +410,9 @@ EN: dict[str, str] = {
     "для RX-кадров (напр. PDO RX узла от мастера) и кадров шины (NMT, SYNC).":
         "Bus device that transmits the frame when it is not the frame's owner: for RX frames "
         "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
-    "Сокращение для transmission: cyclic.": "Shorthand for transmission: cyclic.",
+    "Период циклической передачи, мс.": "Cyclic transmission period, ms.",
+    "Нециклическая передача: event — по событию, on_request — по запросу.":
+        "Non-cyclic transmission: event — on event, on_request — on request.",
     "Имя пользователя GitHub автора изменения.": "GitHub username of the change's author.",
     "Настраиваемые правила стиля (проверяются как warning).": "Configurable style rules (checked as warnings).",
     "Коды правил, которые нужно отключить.": "Codes of the rules to disable.",

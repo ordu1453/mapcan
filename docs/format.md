@@ -108,8 +108,8 @@ lint:
 | `extended` | 29-bit ID |
 | `dlc` | Data length (default 8; for CANopen service frames, the CiA 301 length of the type: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8) |
 | `direction` | `tx` / `rx` relative to the owning device. Defaults from the type: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen type whose `sender` is another device → `rx`; otherwise `tx` |
-| `cycle_ms` | Shorthand for `transmission: {mode: cyclic, cycle_ms: …}` |
-| `transmission` | `{mode: cyclic \| event \| on_request, cycle_ms}` |
+| `cycle_ms` | Cyclic transmission period, ms |
+| `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
 | `signals` | Signals |
 | `sdo` | SDO exchanges (for `sdo_tx`/`sdo_rx`) |
 | `comment` | Note |
@@ -404,8 +404,7 @@ turned off with `--disable CODE` or `lint.disable`.
 
 | Code | Severity | What is checked |
 |---|---|---|
-| `cycle-missing` | error | cyclic mode without cycle_ms |
-| `cycle-unexpected` | warning | cycle_ms set for a non-cyclic frame |
+| `cycle-unexpected` | error | cycle_ms set together with trigger |
 
 ### Signal layout
 

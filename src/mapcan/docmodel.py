@@ -310,12 +310,11 @@ class ViewBuilder:
         return self.sender(f)
 
     def mode_label(self, f: Frame) -> str:
-        tr = f.transmission
-        if tr is None:
+        if f.mode is None:
             return ""
-        if tr.mode == "cyclic":
-            return self.L["cyclic"].format(ms=tr.cycle_ms or "?")
-        return self.L[tr.mode]
+        if f.mode == "cyclic":
+            return self.L["cyclic"].format(ms=f.cycle_ms)
+        return self.L[f.mode]
 
     # ------------------------------------------------------------------ #
 

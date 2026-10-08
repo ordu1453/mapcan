@@ -115,7 +115,10 @@
       { title: "Timing", fields: [
         { key: "dlc", label: "DLC", type: "int", half: true, placeholder: "8", tip: "Data length, bytes",
           when: (c) => !(c.protocol === "canopen" && FIXED_DLC.includes(frameType(c))) },
-        { key: "cycle_ms", label: "Cycle, ms", type: "int", half: true, placeholder: "Event" },
+        { key: "cycle_ms", label: "Cycle, ms", type: "int", half: true, placeholder: "Not cyclic",
+          tip: "Cyclic transmission period", when: (c) => c.values.trigger == null },
+        { key: "trigger", label: "Trigger", type: "select", half: true, when: (c) => c.values.cycle_ms == null,
+          options: () => [["", "Not set"], ["event", "On event"], ["on_request", "On request"]] },
       ] },
       { title: "Routing", fields: [
         { key: "direction", label: "Direction", type: "select",

@@ -90,8 +90,7 @@ RULES = {
     "mux-value-overflow": ("error", N_("Значение mux не помещается в селектор")),
     "mux-value-unknown": ("warning", N_("Значения mux нет в таблице значений селектора")),
     "mux-selector-muxed": ("error", N_("Селектор сам мультиплексирован")),
-    "cycle-missing": ("error", N_("Режим cyclic без cycle_ms")),
-    "cycle-unexpected": ("warning", N_("cycle_ms задан для нециклического кадра")),
+    "cycle-unexpected": ("error", N_("cycle_ms задан вместе с trigger")),
     "direction-mismatch": ("warning", N_("Направление противоречит типу кадра CANopen")),
     "frame-type-protocol": ("warning", N_("Тип кадра CANopen на шине не CANopen")),
     "sdo-frame-type": ("warning", N_("Описание sdo у кадра не типа sdo_tx/sdo_rx")),
@@ -299,9 +298,8 @@ def _check_bus_load(ctx: _Ctx, bus) -> None:
     if bus.fd or not bus.bitrate:
         return
     cyclic = [f for f in bus.all_frames()
-              if f.can_id is not None and f.transmission and f.transmission.mode == "cyclic"
-              and f.transmission.cycle_ms]
-    bits_per_s = sum(_frame_bits(f.dlc, f.extended) * 1000 / f.transmission.cycle_ms for f in cyclic)
+              if f.can_id is not None and f.cycle_ms and f.trigger is None]
+    bits_per_s = sum(_frame_bits(f.dlc, f.extended) * 1000 / f.cycle_ms for f in cyclic)
     load = 100 * bits_per_s / bus.bitrate
     if load > BUS_LOAD_LIMIT:
         ctx.emit("bus-load", _("расчётная загрузка шины {bus!r} — {load:.0f} % (циклических кадров: {count}, "
@@ -387,12 +385,9 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
                  _("кадр {type} обычно {expected} для устройства, указано {actual}", type=frame.type,
                    expected=fc.direction.upper(), actual=frame.direction.upper()), p + ("direction",))
 
-    tr = frame.transmission
-    if tr is not None:
-        if tr.mode == "cyclic" and tr.cycle_ms is None:
-            ctx.emit("cycle-missing", _("для режима cyclic нужен cycle_ms"), p + ("transmission",))
-        if tr.mode != "cyclic" and tr.cycle_ms is not None:
-            ctx.emit("cycle-unexpected", _("cycle_ms задан для режима {mode}", mode=tr.mode), p + ("transmission",))
+    if frame.cycle_ms is not None and frame.trigger is not None:
+        ctx.emit("cycle-unexpected", _("cycle_ms задан у кадра с trigger: {trigger}", trigger=frame.trigger),
+                 p + ("cycle_ms",))
 
     if frame.sdo:
         if frame.type not in ("sdo_tx", "sdo_rx"):

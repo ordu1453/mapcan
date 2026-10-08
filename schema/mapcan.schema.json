@@ -643,17 +643,6 @@
           "default": null,
           "title": "Direction"
         },
-        "transmission": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Transmission"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "cycle_ms": {
           "anyOf": [
             {
@@ -665,8 +654,25 @@
             }
           ],
           "default": null,
-          "description": "Shorthand for transmission: cyclic.",
+          "description": "Cyclic transmission period, ms.",
           "title": "Cycle Ms"
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "enum": [
+                "event",
+                "on_request"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Non-cyclic transmission: event — on event, on_request — on request.",
+          "title": "Trigger"
         },
         "signals": {
           "items": {
@@ -1492,36 +1498,6 @@
         }
       },
       "title": "Signatures",
-      "type": "object"
-    },
-    "Transmission": {
-      "additionalProperties": false,
-      "properties": {
-        "mode": {
-          "default": "cyclic",
-          "enum": [
-            "cyclic",
-            "event",
-            "on_request"
-          ],
-          "title": "Mode",
-          "type": "string"
-        },
-        "cycle_ms": {
-          "anyOf": [
-            {
-              "exclusiveMinimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Cycle Ms"
-        }
-      },
-      "title": "Transmission",
       "type": "object"
     }
   },

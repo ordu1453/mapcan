@@ -107,8 +107,8 @@ class PyGen:
         U = f.name.upper()
         sel = selector_of(f)
         out = ["", f"{U}_ID = 0x{f.can_id:03X}", f"{U}_DLC = {f.dlc}"]
-        if f.transmission and f.transmission.cycle_ms:
-            out.append(f"{U}_CYCLE_MS = {f.transmission.cycle_ms}")
+        if f.mode == "cyclic":
+            out.append(f"{U}_CYCLE_MS = {f.cycle_ms}")
         for s in f.layout:
             entries = enum_entries(s.values)
             if entries:

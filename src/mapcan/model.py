@@ -27,6 +27,7 @@ SignedCode = Literal["twos_complement", "ones_complement", "sign_magnitude"]
 SignalEncoding = Literal["enum", "flag", "bitfield", "metric", "raw", "bytes", "float"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
+Trigger = Literal["event", "on_request"]
 Protocol = Literal["canopen", "j1939", "can"]
 NameStyle = Literal["snake_case", "UPPER_SNAKE", "camelCase", "PascalCase", "any"]
 
@@ -311,11 +312,6 @@ class SdoExchange(_Base):
 # --------------------------------------------------------------------------- #
 
 
-class Transmission(_Base):
-    mode: TxMode = "cyclic"
-    cycle_ms: int | None = Field(None, gt=0)
-
-
 class Frame(_Base):
     name: str
     title: Text | None = Field(None, description=N_("Короткий заголовок, напр. «СОСТОЯНИЯ»."))
@@ -338,8 +334,9 @@ class Frame(_Base):
                              "для RX-кадров (напр. PDO RX узла от мастера) и кадров шины (NMT, SYNC)."))
     dlc: int = Field(8, ge=0, le=64)
     direction: Direction | None = None
-    transmission: Transmission | None = None
-    cycle_ms: int | None = Field(None, gt=0, description=N_("Сокращение для transmission: cyclic."))
+    cycle_ms: int | None = Field(None, gt=0, description=N_("Период циклической передачи, мс."))
+    trigger: Trigger | None = Field(
+        None, description=N_("Нециклическая передача: event — по событию, on_request — по запросу."))
     signals: list[Signal] = Field(default_factory=list)
     sdo: list[SdoExchange] | None = None
     comment: Text | None = None
@@ -353,15 +350,6 @@ class Frame(_Base):
     def layout(self) -> list[Signal]:
         """Сигналы для раскладки: явные или построенные из описания SDO."""
         return self.signals if self.signals or self._synthetic is None else self._synthetic
-
-    @model_validator(mode="after")
-    def _normalize(self) -> Frame:
-        if self.cycle_ms is not None:
-            if self.transmission is not None:
-                raise ValueError(N_("cycle_ms задан и на уровне кадра, и в transmission"))
-            self.transmission = Transmission(mode="cyclic", cycle_ms=self.cycle_ms)
-            self.cycle_ms = None
-        return self
 
     @property
     def can_id(self) -> int | None:
@@ -377,7 +365,8 @@ class Frame(_Base):
 
     @property
     def mode(self) -> TxMode | None:
-        return self.transmission.mode if self.transmission else None
+        """Режим передачи: cyclic, если задан период, иначе trigger (None — не указан)."""
+        return "cyclic" if self.cycle_ms is not None else self.trigger
 
     @property
     def sender_name(self) -> str | None:

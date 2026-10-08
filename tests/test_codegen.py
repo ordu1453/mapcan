@@ -311,7 +311,7 @@ def test_dbc_attributes_for_plain_can():
     """Период, режим передачи, стартовое значение и скорость шины не теряются на шине без J1939."""
     db = _dbc(BOUNDS_MAP.replace("protocol: can", "protocol: can\n    bitrate: 250000").replace(
         "id: 0x101", "id: 0x101\n            cycle_ms: 50\n            comment: Note").replace(
-        "id: 0x102", "id: 0x102\n            transmission: {mode: event}").replace(
+        "id: 0x102", "id: 0x102\n            trigger: event").replace(
         "unit: ms}", "unit: ms, initial: 7, description: Time, comment: Raw ms}"))
     f1, f2 = db.get_message_by_name("f1"), db.get_message_by_name("f2")
     assert db.buses[0].baudrate == 250000

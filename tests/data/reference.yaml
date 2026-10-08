@@ -49,14 +49,14 @@ buses:
         title: SYNC
         description: Синхронизация со всеми устройствами
         dlc: 0
-        transmission: {mode: event}
+        trigger: event
 
       - name: time_stamp
         type: time
         title: TIME
         description: Дата и время
         dlc: 6
-        transmission: {mode: event}
+        trigger: event
         signals:
           - name: ms_after_midnight
             encoding: metric
@@ -208,7 +208,7 @@ buses:
             type: sdo_rx
             title: НАСТРОЙКА
             description: Настройка граничных значений
-            transmission: {mode: on_request}
+            trigger: on_request
             sdo:
               - name: set_alarm_resistance
                 description: Установка ALARM_RESISTANCE
@@ -229,7 +229,7 @@ buses:
             type: sdo_tx
             title: ОТВЕТ НА НАСТРОЙКУ
             description: Обратная связь по принятой настройке
-            transmission: {mode: on_request}
+            trigger: on_request
             sdo:
               - name: ack_alarm_resistance
                 description: Принят ALARM_RESISTANCE
@@ -284,7 +284,7 @@ buses:
             title: СОБЫТИЯ
             description: Изменение состояния
             dlc: 3
-            transmission: {mode: event}
+            trigger: event
             signals:
               - name: event_type
                 encoding: enum
@@ -317,7 +317,7 @@ buses:
             type: pdo_tx2
             title: ДАННЫЕ ПО НАПРЯЖЕНИЮ
             description: Парсинг данных (по запросу)
-            transmission: {mode: on_request}
+            trigger: on_request
             signals:
               - name: parse_type
                 encoding: enum
@@ -352,7 +352,7 @@ buses:
             title: ЗАПРОСЫ
             description: Объём передаваемых данных
             dlc: 2
-            transmission: {mode: event}
+            trigger: event
             signals:
               - name: data_request
                 encoding: enum
