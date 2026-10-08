@@ -125,12 +125,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --locked
+      # Maps only: parts of a map pulled in with include (examples/tractor) have no "mapcan:" key
       - name: Validate examples
         run: |
-          for f in $(find examples -name '*.yaml'); do uv run mapcan validate "$f" --strict; done
+          for f in $(grep -rlE '^mapcan\s*:' examples --include='*.yaml'); do uv run mapcan validate "$f" --strict; done
       - name: Build documents and code for every example
         run: |
-          for f in $(find examples -name '*.yaml'); do
+          for f in $(grep -rlE '^mapcan\s*:' examples --include='*.yaml'); do
             uv run mapcan build "$f" -o "build/$(basename "$(dirname "$f")")-$(basename "$f" .yaml)" \
               --pdf-template mapcan --pdf-template gost-2.105
           done

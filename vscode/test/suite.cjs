@@ -254,9 +254,11 @@ const tests = {
     await vscode.commands.executeCommand("mapcan.history.showChangesSince", commits[1]);
     assert.match(ctx.api.changes.markdown, /pressure/);
     await vscode.commands.executeCommand("mapcan.history.showChangesSince", commits[0]);
-    const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs)
+    // The webview tab appears asynchronously
+    const changesTabs = () => vscode.window.tabGroups.all.flatMap((g) => g.tabs)
       .filter((t) => t.input instanceof vscode.TabInputWebview && t.input.viewType.endsWith("mapcan.changes"));
-    assert.equal(tabs.length, 1);
+    await until("the Changes tab", () => changesTabs().length > 0);
+    assert.equal(changesTabs().length, 1);
     assert.ok(vscode.window.tabGroups.all.length <= groups + 1);
     assert.equal(vscode.window.activeTextEditor.document.uri.toString(), doc.uri.toString());
 
