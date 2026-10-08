@@ -28,6 +28,7 @@ buses:
             description: Electronic Engine Controller 1
             pgn: 0xF004
             priority: 3
+            dlc: 8
             cycle_ms: 20
             receivers: [cluster]
             signals:
@@ -83,6 +84,7 @@ buses:
             title: ET1
             description: Engine Temperature 1
             pgn: 0xFEEE
+            dlc: 8
             cycle_ms: 1000
             receivers: [cluster]
             signals:
@@ -123,6 +125,7 @@ buses:
             title: DD
             description: Dash Display
             pgn: 0xFEFC
+            dlc: 8
             cycle_ms: 1000
             receivers: [engine]
             signals:

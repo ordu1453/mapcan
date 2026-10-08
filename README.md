@@ -68,6 +68,7 @@ buses:
         frames:
           - name: bms_status
             id: 0x100
+            dlc: 8
             cycle_ms: 100
             receivers: [vcu]
             signals:

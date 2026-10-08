@@ -118,7 +118,7 @@
           when: (c) => c.protocol === "can" || (c.protocol === "canopen" && frameType(c) === "raw") },
       ] },
       { title: "Timing", fields: [
-        { key: "dlc", label: "DLC", type: "int", half: true, placeholder: "8", tip: "Data length, bytes",
+        { key: "dlc", label: "DLC", type: "int", half: true, required: true, tip: "Data length, bytes",
           when: (c) => !(c.protocol === "canopen" && FIXED_DLC.includes(frameType(c))) },
         { key: "cycle_ms", label: "Cycle, ms", type: "int", half: true, placeholder: "Not cyclic",
           tip: "Cyclic transmission period", when: (c) => c.values.trigger == null },

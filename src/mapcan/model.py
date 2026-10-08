@@ -338,7 +338,9 @@ class Frame(_Base):
     sender: str | None = Field(
         None, description=N_("Устройство шины, передающее кадр, если это не его владелец: "
                              "для RX-кадров (напр. PDO RX узла от мастера) и кадров шины (NMT, SYNC)."))
-    dlc: int = Field(8, ge=0, le=64)
+    dlc: int | None = Field(
+        None, ge=0, le=64, description=N_("Длина данных, байт. Обязательна, кроме служебных кадров CANopen "
+                                          "(NMT, SYNC, TIME, Heartbeat, SDO): их длина задана CiA 301."))
     direction: Direction | None = None
     cycle_ms: int | None = Field(None, gt=0, description=N_("Период циклической передачи, мс."))
     trigger: Trigger | None = Field(
@@ -351,6 +353,7 @@ class Frame(_Base):
     _device: Any = PrivateAttr(default=None)
     _bus: Any = PrivateAttr(default=None)
     _synthetic: list | None = PrivateAttr(default=None)
+    _dlc_missing: bool = PrivateAttr(default=False)
 
     @property
     def layout(self) -> list[Signal]:

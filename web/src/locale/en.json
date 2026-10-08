@@ -444,7 +444,7 @@
   "Короткое обозначение устройства в таблицах и заголовках документов, напр. BMS. Если задано, в дереве карты выводится перед полным названием. Пусто — в документах идентификатор прописными буквами.": "Short device abbreviation for tables and headings in documents, e.g. BMS. If set, the map tree shows it before the full name. If empty, documents use the identifier in uppercase.",
   "Название кадра для людей, напр. «Состояния»: заголовок кадра в документах и подпись в дереве карты. Необязательно — без него в дереве выводится идентификатор.": "Human-readable frame name, e.g. “Status”: the frame heading in documents and its label in the map tree. Optional; without it, the tree shows the identifier.",
   "Название сигнала для людей, напр. «Напряжение батареи»: подпись в дереве карты. Необязательно — без него в дереве выводится идентификатор.": "Human-readable signal name, e.g. “Battery voltage”: its label in the map tree. Optional; without it, the tree shows the identifier.",
-  "{n} (по умолчанию)": "{n} (default)",
+  "{n} (CiA 301)": "{n} (CiA 301)",
   "Принимать кадр {frame}": "Receive frame {frame}",
   "Кадр описан у отправителя, {device} принимает его. Delete или ✕ — перестать принимать, кадр останется.": "The frame is described at its sender; {device} receives it. Delete or ✕ stops receiving it and keeps the frame.",
   "Адрес": "Address",

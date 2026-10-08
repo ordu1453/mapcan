@@ -171,7 +171,8 @@ def test_node_fields():
     f = E.node_fields(a, FRAME)
     assert (f["kind"], f["lang"], f["protocol"], f["owner"]) == ("frame", "en", "canopen", "pump")
     assert f["frameDirection"] == "tx"   # не записано: из типа pdo_tx1
-    assert f["values"] == {"name": "pump_state", "type": "pdo_tx1", "description": "Pump state", "cycle_ms": 100}
+    assert f["values"] == {"name": "pump_state", "type": "pdo_tx1", "description": "Pump state", "dlc": 8,
+                           "cycle_ms": 100}
     assert f["devices"] == [{"name": "pump", "label": "PMP"}]
     assert E.node_fields(a, ("buses", 0))["values"]["title"] == "Demo bus"
     assert E.node_fields(a, FRAME + ("signals", 0))["units"][0] == ["В", "V"]
@@ -375,7 +376,7 @@ def test_new_frame_like_web_editor():
 
 
 def test_frame_type_change_drops_invalid_dlc():
-    text = MINIMAL.replace("            type: pdo_tx1\n", "            type: pdo_tx1\n            dlc: 7\n")
+    text = MINIMAL.replace("            dlc: 8\n", "            dlc: 7\n", 1)
     a = A.analyze(text, "m.yaml")
     out = apply(text, E.set_field(a, FRAME + ("type",), "sdo_tx"))
     assert "type: sdo_tx\n" in out and "dlc: 7" not in out

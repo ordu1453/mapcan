@@ -85,7 +85,11 @@ function placeholderFor(def: FieldDef): string {
   }
   if (def.key === "priority" && fieldCtx.value.protocol === "j1939") return "6";
   // DLC по умолчанию: 8, у служебного кадра CANopen — из типа
-  if (kind.value === "frame" && def.key === "dlc") return t("{n} (по умолчанию)", { n: rframe.value?.dlc ?? 8 });
+  // DLC обязателен; без него обходится только служебный кадр CANopen — его длина из CiA 301
+  if (kind.value === "frame" && def.key === "dlc") {
+    const fixed = fieldCtx.value.protocol === "canopen" ? CANOPEN_DLC[node.value?.type ?? ""] : undefined;
+    return fixed ? t("{n} (CiA 301)", { n: Math.min(...fixed) }) : "";
+  }
   return t(DEFAULTS[def.key] ?? "");
 }
 

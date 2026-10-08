@@ -21,6 +21,7 @@ buses:
         frames:
           - name: pump_state          # ID = 0x180 + 0x21 = 0x1A1
             type: pdo_tx1
+            dlc: 8
             description: Pump state
             cycle_ms: 100
             signals:

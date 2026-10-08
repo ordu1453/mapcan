@@ -45,6 +45,7 @@ def _signal_view(lang: str) -> dict:
     text = one_bus("""
         - name: status
           id: 0x181
+          dlc: 8
           signals:
             - name: voltage
               encoding: scaled
@@ -74,6 +75,7 @@ def test_dbc_export_writes_ascii_units(tmp_path):
     text = one_bus("""
         - name: status
           id: 0x181
+          dlc: 8
           signals:
             - name: resistance
               encoding: scaled

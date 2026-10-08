@@ -55,26 +55,31 @@ def test_j1939_rules():
     assert "j1939-pdu1-pgn" in codes(_bus("""
         - name: f
           pgn: 0xEA05
+          dlc: 8
     """))
     assert "j1939-destination" in codes(_bus("""
         - name: f
           pgn: 0xFEEE
           destination: 0x00
+          dlc: 8
     """))
     assert "j1939-address" in codes(_bus("""
         - name: f
           pgn: 0xFEEE
+          dlc: 8
     """, devices="      - name: other\n        address: 0x10\n"))
     assert "j1939-address" in codes(_bus("- {name: f, pgn: 0xFEEE}").replace("address: 0x10", "address: 0xFE"))
     assert "j1939-field-protocol" in codes(_bus("""
         - name: f
           id: 0x100
           pgn: 0xFEEE
+          dlc: 8
     """, protocol="can"))
     assert "frame-type-protocol" in codes(_bus("""
         - name: f
           type: pdo_tx1
           pgn: 0xFEEE
+          dlc: 8
     """))
 
 
@@ -82,11 +87,13 @@ def test_receivers_rule():
     assert "unknown-receiver" in codes(_bus("""
         - name: f
           pgn: 0xFEEE
+          dlc: 8
           receivers: [nobody]
     """))
     assert "unknown-receiver" not in codes(_bus("""
         - name: f
           pgn: 0xFEEE
+          dlc: 8
           receivers: [ecu]
     """))
 
@@ -95,6 +102,7 @@ def test_float_initial_invalid_rules():
     c = codes(_bus("""
         - name: f
           pgn: 0xFEEE
+          dlc: 8
           signals:
             - {name: a, description: x, byte: 0, encoding: float, bit_length: 16}
             - {name: b, encoding: raw, description: x, byte: 2, byte_length: 1, invalid: 0x1FF}
@@ -111,6 +119,7 @@ def test_diagnostics_point_to_fields():
           dlc: 1
         - name: g
           pgn: 0xFEEE
+          dlc: 8
           signals:
             - {name: a, byte: 0, encoding: float, bit_length: 16}
     """))

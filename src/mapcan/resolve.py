@@ -29,9 +29,13 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
     frame._bus = bus
     frame._device = dev
     frame._can_id, frame.extended = frame_id(bus, dev, frame)
-    # Длина служебного кадра CANopen задана CiA 301 (NMT — 2, Heartbeat — 1…): dlc можно не писать
-    if bus.protocol == "canopen" and "dlc" not in frame.model_fields_set and frame.type in CANOPEN_DLC:
-        frame.dlc = min(CANOPEN_DLC[frame.type])
+    # Длина служебного кадра CANopen задана CiA 301 (NMT — 2, Heartbeat — 1…): dlc можно не писать.
+    # У остальных кадров dlc обязателен; без него — ошибка dlc-missing, а дальше считаем 8 байт
+    if frame.dlc is None:
+        if bus.protocol == "canopen" and frame.type in CANOPEN_DLC:
+            frame.dlc = min(CANOPEN_DLC[frame.type])
+        else:
+            frame.dlc, frame._dlc_missing = 8, True
     if frame.direction is None and dev is not None:
         # Кадр без типа CANopen с чужим отправителем устройство принимает
         foreign = frame.sender is not None and frame.sender != dev.name

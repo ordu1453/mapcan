@@ -64,6 +64,7 @@ RULES = {
     "duplicate-can-id": ("error", N_("Повтор CAN ID на шине")),
     "can-id-range": ("error", N_("CAN ID не помещается в 11 бит (нужно extended: true)")),
     "dlc-range": ("error", N_("Недопустимый DLC")),
+    "dlc-missing": ("error", N_("Не задан DLC кадра")),
     "canopen-dlc": ("warning", N_("DLC служебного кадра CANopen не соответствует CiA 301")),
     "bitrate-nonstandard": ("warning", N_("Нестандартная скорость шины")),
     "bus-load": ("warning", N_("Расчётная загрузка шины циклическими кадрами выше 70 %")),
@@ -322,6 +323,8 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
     bus = frame.bus
     _ident(ctx, frame.name, _("имя кадра"), p + ("name",), ctx.cmap.lint.frame_name)
 
+    if frame._dlc_missing:
+        ctx.emit("dlc-missing", _("кадр {name!r}: не задан dlc (длина данных, байт)", name=frame.name), p)
     if bus.fd:
         if frame.dlc not in FD_DLC:
             ctx.emit("dlc-range", _("DLC {dlc} недопустим для CAN FD", dlc=frame.dlc), p + ("dlc",))

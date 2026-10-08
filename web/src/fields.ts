@@ -160,6 +160,7 @@ export const FIELDS: Record<NodeKind, FieldDef[]> = {
       when: (n, c) => c.protocol === "j1939" && n?.pgn != null && ((n.pgn >> 8) & 0xff) < 240 },
     // Длину служебного кадра CANopen задаёт его тип; у SYNC — 0 или 1
     { key: "dlc", label: "DLC", type: "int",
+      required: (n, c) => !(c.protocol === "canopen" && CANOPEN_DLC[frameType(n)]),
       when: (n, c) => !(c.protocol === "canopen" && CANOPEN_DLC[frameType(n)]?.length === 1) },
     // Направление есть только у кадра устройства; у типа CANopen оно задано типом
     { key: "direction", label: N_("Направление"), type: "select", optionsFor: directions,

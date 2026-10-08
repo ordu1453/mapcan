@@ -95,9 +95,11 @@ def test_id_override_and_direction():
     res, _ = run(one_bus("""
         - name: a
           type: pdo_tx1
+          dlc: 8
         - name: b
           type: pdo_tx2
           id: 0x123
+          dlc: 8
           direction: rx
         - name: c
           type: sdo_rx
@@ -111,6 +113,7 @@ def test_cycle_ms_means_cyclic():
     res, _ = run(one_bus("""
         - name: a
           type: pdo_tx1
+          dlc: 8
           cycle_ms: 20
     """))
     f = res.map.buses[0].devices[0].frames[0]

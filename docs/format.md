@@ -120,7 +120,7 @@ lint:
 | `receivers` | Names of the bus devices that receive the frame |
 | `sender` | Name of the bus device that transmits the frame when it is not the owner: an RX frame (a node's PDO RX sent by the master) or a bus frame (NMT, SYNC). If omitted, the sender is outside the map |
 | `extended` | 29-bit ID |
-| `dlc` | Data length (default 8; for CANopen service frames, the CiA 301 length of the type: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8) |
+| `dlc` | Data length, bytes. Required, except for CANopen service frames, which take the CiA 301 length of the type when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8 |
 | `direction` | `tx` / `rx` relative to the owning device. Defaults from the type: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen type whose `sender` is another device → `rx`; otherwise `tx` |
 | `cycle_ms` | Cyclic transmission period, ms |
 | `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
@@ -256,6 +256,7 @@ buses:
           - name: eec1
             pgn: 0xF004          # PDU2 → ID 0x0CF00400
             priority: 3
+            dlc: 8
             cycle_ms: 20
             receivers: [cluster]
             signals:
@@ -312,15 +313,18 @@ devices:
     frames:
       - name: master_status
         type: pdo_tx1          # sent by master, received by node
+        dlc: 8
         receivers: [node]
   - name: node
     node_id: 0x05
     frames:
       - name: node_command
         type: pdo_rx1          # ID 0x205, from the node's node_id
+        dlc: 8
         sender: master         # sent by the master
       - name: node_status
         type: pdo_tx1
+        dlc: 8
         receivers: [master]
 ```
 
@@ -390,6 +394,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `duplicate-can-id` | error | Duplicate CAN ID on the bus |
 | `can-id-range` | error | CAN ID does not fit in 11 bits (needs extended: true) |
 | `dlc-range` | error | Invalid DLC |
+| `dlc-missing` | error | Frame has no dlc (only CANopen service frames may omit it) |
 | `canopen-dlc` | warning | DLC of a CANopen service frame does not match CiA 301 |
 | `frame-type-protocol` | warning | CANopen frame type on a non-CANopen bus |
 | `direction-mismatch` | warning | Direction conflicts with the CANopen frame type |

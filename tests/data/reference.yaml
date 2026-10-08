@@ -130,6 +130,7 @@ buses:
 
           - name: imd_data
             type: pdo_tx2
+            dlc: 8
             title: ДАННЫЕ
             description: Данные по изоляции
             cycle_ms: 100
@@ -315,6 +316,7 @@ buses:
 
           - name: cmu_parse_data
             type: pdo_tx2
+            dlc: 8
             title: ДАННЫЕ ПО НАПРЯЖЕНИЮ
             description: Парсинг данных (по запросу)
             trigger: on_request
@@ -414,6 +416,7 @@ buses:
 
           - name: pcu_data
             type: pdo_tx2
+            dlc: 8
             title: ДАННЫЕ
             description: Данные о работе
             cycle_ms: 100
@@ -453,9 +456,11 @@ buses:
         frames:
           - name: bypass_command
             type: pdo_rx1
+            dlc: 8
             description: Установка режима работы байпаса
           - name: bypass_state
             type: pdo_tx2
+            dlc: 8
             description: Текущий режим работы ключа и состояние ошибки
 
       - name: cooling
@@ -465,9 +470,11 @@ buses:
         frames:
           - name: cooling_command
             type: pdo_rx1
+            dlc: 8
             description: Установка скорости вентиляторов и положения заслонок
           - name: cooling_state
             type: pdo_tx2
+            dlc: 8
             description: Скорость вентиляторов и положение заслонок
 
   # ======================================================================= #

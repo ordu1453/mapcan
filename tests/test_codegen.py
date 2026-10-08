@@ -249,19 +249,23 @@ buses:
         frames:
           - name: f1
             id: 0x101
+            dlc: 8
             signals:
               - {name: u28, encoding: scaled, start_bit: 0, bit_length: 28, unit: ms}
               - {name: s32, encoding: scaled, start_bit: 28, bit_length: 32, signed: true, factor: 0.5}
           - name: f2
             id: 0x102
+            dlc: 8
             signals:
               - {name: u64, encoding: scaled, start_bit: 0, bit_length: 64, factor: 2}
           - name: f3
             id: 0x103
+            dlc: 8
             signals:
               - {name: s64, encoding: scaled, start_bit: 0, bit_length: 64, signed: true, factor: 2}
           - name: f4
             id: 0x104
+            dlc: 8
             signals:
               - {name: s8, encoding: scaled, start_bit: 0, bit_length: 8, signed: true, factor: 0.5}
 """
@@ -332,6 +336,7 @@ def test_dbc_flag_comment_in_document_language():
     flags = """\
           - name: f5
             id: 0x105
+            dlc: 8
             signals:
               - name: st
                 encoding: bitfield
@@ -365,6 +370,7 @@ buses:
     frames:
       - name: f
         id: 0x100
+        dlc: 8
         signals:
           - {name: o8, encoding: raw, byte: 0, byte_length: 1, signed: true, signed_code: ones_complement}
           - {name: s8, encoding: raw, byte: 1, byte_length: 1, signed: true, signed_code: sign_magnitude}

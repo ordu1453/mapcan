@@ -413,6 +413,12 @@ EN: dict[str, str] = {
         "(e.g. a node's RPDO sent by the master) and bus frames (NMT, SYNC).",
     "Период циклической передачи, мс.": "Cyclic transmission period, ms.",
     "Язык документов по умолчанию.": "Default document language.",
+    "Не задан DLC кадра": "Frame DLC is not set",
+    "кадр {name!r}: не задан dlc (длина данных, байт)": "frame {name!r}: dlc (data length, bytes) is not set",
+    "Длина данных, байт. Обязательна, кроме служебных кадров CANopen "
+    "(NMT, SYNC, TIME, Heartbeat, SDO): их длина задана CiA 301.":
+        "Data length, bytes. Required except for CANopen service frames "
+        "(NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301.",
     "Название для людей, напр. «Состояния»: подпись в дереве карты и заголовок в документах.":
         "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
     "Что это и зачем: выводится в документах, комментариях сгенерированного кода и DBC.":

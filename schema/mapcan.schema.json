@@ -630,11 +630,19 @@
           "title": "Sender"
         },
         "dlc": {
-          "default": 8,
-          "maximum": 64,
-          "minimum": 0,
-          "title": "Dlc",
-          "type": "integer"
+          "anyOf": [
+            {
+              "maximum": 64,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Data length, bytes. Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301.",
+          "title": "Dlc"
         },
         "direction": {
           "anyOf": [
