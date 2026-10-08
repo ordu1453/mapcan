@@ -26,8 +26,10 @@ app = typer.Typer(
 )
 export_app = typer.Typer(help=_("Экспорт документов и файлов для сторонних инструментов."), no_args_is_help=True)
 gen_app = typer.Typer(help=_("Генерация кода."), no_args_is_help=True)
+import_app = typer.Typer(help=_("Импорт карты из форматов других инструментов."), no_args_is_help=True)
 app.add_typer(export_app, name="export")
 app.add_typer(gen_app, name="gen")
+app.add_typer(import_app, name="import")
 
 COLORS = {"error": typer.colors.RED, "warning": typer.colors.YELLOW, "info": typer.colors.BLUE}
 
@@ -369,6 +371,36 @@ def gen_py_cmd(
 
     res = _load_checked(path, force)
     _done(generate_py(res.map, out, bus or None))
+
+
+@import_app.command("dbc", help=_("DBC → YAML-карта: узлы, кадры, сигналы, таблицы значений, режимы передачи."))
+def import_dbc_cmd(
+    path: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True, help=_("DBC-файл.")),
+    out: Optional[Path] = typer.Option(None, "-o", "--output", help=_("YAML-файл карты; по умолчанию <имя>.yaml.")),
+    title: Optional[str] = typer.Option(None, "--title", help=_("Название документа; по умолчанию имя файла.")),
+    lang: str = typer.Option("en", "--lang", help=_("Язык документа (код ISO 639-1).")),
+    force: bool = typer.Option(False, "--force", help=_("Перезаписать существующий файл.")),
+) -> None:
+    from .i18n import normalize_language
+    from .importers.dbc import import_dbc
+
+    target = _default_out(path, ".yaml", out)
+    if target.exists() and not force:
+        typer.secho(_("{path} уже существует; укажите другой -o или --force", path=target),
+                    fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
+    doc_lang = normalize_language(lang)
+    if doc_lang is None:
+        raise typer.BadParameter(_("неизвестный язык: {language}", language=lang))
+    text, warnings = import_dbc(path, title, doc_lang)
+    for w in warnings:
+        _warn(w)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+    _done(target)
+    _res, report = validate_file(target)
+    _print_report(report)
+    typer.echo(_summary(report))
 
 
 ALL_FORMATS = ["xlsx", "pdf", "md", "html", "dbc", "c", "py"]

@@ -48,6 +48,16 @@ def msb_position(start: int, length: int, big_endian: bool) -> int:
     return occupied_bits(start, length, big_endian)[-1]
 
 
+def lsb_from_msb(msb: int, length: int) -> int:
+    """start_bit (позиция LSB) big-endian поля по позиции его старшего бита, как в DBC/Motorola.
+
+    От старшего бита значение идёт вниз по байту, а с бита 0 — к биту 7 *следующего* байта."""
+    pos = msb
+    for _ in range(length - 1):
+        pos = pos + 15 if pos % 8 == 0 else pos - 1
+    return pos
+
+
 def extract(data: bytes, start: int, length: int, big_endian: bool, signed: bool = False) -> int:
     value, i = 0, 0
     for byte, shift, n in chunks(start, length, big_endian):

@@ -150,10 +150,19 @@ uv/pipx run `uv tool uninstall canmap`, then install again. Settings move from `
 | 🐍 Python module for tests and test benches | `mapcan gen py my-map.yaml -o tools/` |
 | 📦 Everything at once, for CI | `mapcan build my-map.yaml -o build/` |
 | 🔀 Comparison of two map versions, changelog | `mapcan diff old.yaml my-map.yaml` |
+| 📥 Start from an existing DBC | `mapcan import dbc vehicle.dbc -o my-map.yaml` |
 
 Documents can be produced in English or Russian. The default comes from the map's
 `document.language`; override it with `--lang` or the language switch in the editor. The ESKD
 template (`gost-2.105`) is always produced in Russian.
+
+`mapcan import dbc` turns DBC nodes into devices (the sender of a frame owns it), and brings over
+frames with their IDs, DLC, cycle or send type and receivers, and signals with their layout,
+scaling, units, ranges, value tables, initial values and multiplexing. A bus whose frames are
+marked J1939 (`VFrameFormat`) becomes a `j1939` bus with PGNs and device addresses; any other
+becomes a `can` bus with explicit IDs. Value names become identifiers (`Not available` →
+`NOT_AVAILABLE`, the original text goes to the description), and whatever DBC cannot express is
+reported as a warning.
 
 ### Generated C code
 
@@ -236,6 +245,7 @@ mapcan gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
 mapcan gen py      FILE [-o DIR] [--bus NAME]
 mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,c,py] [--pdf-template NAME]
 mapcan diff        OLD NEW [--format text|md|json]
+mapcan import dbc  FILE.dbc [-o FILE.yaml] [--title TEXT] [--lang en] [--force]
 mapcan schema      [-o schema.json]
 mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
 mapcan rules

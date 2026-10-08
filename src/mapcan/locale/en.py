@@ -415,6 +415,21 @@ EN: dict[str, str] = {
     "Язык документов по умолчанию: код ISO 639-1 (ru, en, de…).": "Default document language: ISO 639-1 code (ru, en, de…).",
     "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)": "a translation key must be an ISO 639-1 language code (de, fr…)",
     "Не задан DLC кадра": "Frame DLC is not set",
+    "Импорт карты из форматов других инструментов.": "Import a map from other tools' formats.",
+    "DBC → YAML-карта: узлы, кадры, сигналы, таблицы значений, режимы передачи.":
+        "DBC → YAML map: nodes, frames, signals, value tables, transmission modes.",
+    "DBC-файл.": "DBC file.",
+    "YAML-файл карты; по умолчанию <имя>.yaml.": "YAML map file; <name>.yaml by default.",
+    "Название документа; по умолчанию имя файла.": "Document title; the file name by default.",
+    "Язык документа (код ISO 639-1).": "Document language (ISO 639-1 code).",
+    "Перезаписать существующий файл.": "Overwrite an existing file.",
+    "{path} уже существует; укажите другой -o или --force": "{path} already exists; give another -o or --force",
+    "{where}: у сигнала с таблицей значений масштаб и смещение не переносятся":
+        "{where}: the scale and offset of a signal with a value table are not imported",
+    "{frame}: у кадра несколько отправителей, взят первый": "{frame}: the frame has several senders, the first is used",
+    "{frame}: отправитель {name!r} не описан как узел DBC": "{frame}: sender {name!r} is not a DBC node",
+    "{frame}.{signal}: вложенное мультиплексирование перенесено одним уровнем":
+        "{frame}.{signal}: nested multiplexing is imported as one level",
     "Подключаемый файл не найден или содержит недопустимые ключи": "Included file is missing or has keys that cannot be included",
     "Таблица значений с таким именем не описана в value_tables": "No value table with this name in value_tables",
     "include: у карты нет пути, подключать файлы не от чего": "include: the map has no path to resolve included files from",
