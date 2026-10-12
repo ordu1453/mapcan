@@ -1,8 +1,11 @@
-// mapcan for VS Code: starts the mapcan language server (`mapcan lsp`) for YAML files and shows
-// the Map view. The server ignores YAML files without a top-level `mapcan:` key.
+// mapcan for VS Code: starts the mapcan language server (`mapcan lsp`) and shows the Map view.
+// The server is started when the first map (a YAML file with a top-level `mapcan:` key) is opened,
+// and gets only maps: other YAML files never reach it.
 
 import * as vscode from "vscode";
-import { LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
+import {
+  DidOpenTextDocumentNotification, LanguageClient, LanguageClientOptions, Middleware, ServerOptions,
+} from "vscode-languageclient/node";
 import { registerTreeActions } from "./actions";
 import { ChangesPanel } from "./changes";
 import { ExportView } from "./export";
@@ -16,6 +19,10 @@ let client: LanguageClient | undefined;
 let output: vscode.LogOutputChannel | undefined;
 let tree: MapTree | undefined;
 let form: NodeForm | undefined;
+/** The start failed: do not try (and show the error) again until the settings change or a restart. */
+let failed = false;
+/** Documents the server knows (sent with didOpen). */
+const synced = new Set<string>();
 
 function serverOptions(): ServerOptions {
   const config = vscode.workspace.getConfiguration("mapcan.server");
@@ -25,18 +32,56 @@ function serverOptions(): ServerOptions {
   return { command, args };
 }
 
-async function start(): Promise<void> {
+/**
+ * The client syncs every YAML document (a selector cannot look at the text); the middleware sends
+ * only maps. A document that becomes a map while it is edited is opened on the server then.
+ */
+const middleware: Middleware = {
+  didOpen: async (doc, next) => {
+    if (!isMap(doc)) return;
+    synced.add(doc.uri.toString());
+    await next(doc);
+  },
+  didChange: async (e, next) => {
+    const uri = e.document.uri.toString();
+    if (synced.has(uri)) {
+      await next(e);
+    } else if (isMap(e.document) && client) {
+      synced.add(uri);
+      await client.sendNotification(DidOpenTextDocumentNotification.type,
+        client.code2ProtocolConverter.asOpenTextDocumentParams(e.document));
+    }
+  },
+  didSave: async (doc, next) => {
+    if (synced.has(doc.uri.toString())) await next(doc);
+  },
+  didClose: async (doc, next) => {
+    if (synced.delete(doc.uri.toString())) await next(doc);
+  },
+  // Hover, completion, inlay hints and the rest: nothing for documents the server does not know.
+  sendRequest: (type, param, token, next) => {
+    const uri = (param as { textDocument?: { uri?: string } } | undefined)?.textDocument?.uri;
+    return uri !== undefined && !synced.has(uri) ? Promise.resolve(null as never) : next(type, param, token);
+  },
+};
+
+/** Starts the server if a map is open (or, with `force`, anyway) and it is not running yet. */
+async function start(force = false): Promise<void> {
+  if (client || (!force && (failed || !vscode.workspace.textDocuments.some(isMap)))) return;
+  failed = false;
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
       { scheme: "file", language: "yaml" },
       { scheme: "untitled", language: "yaml" },
     ],
     outputChannel: output,
+    middleware,
   };
   client = new LanguageClient("mapcan", "mapcan", serverOptions(), clientOptions);
   try {
     await client.start();
   } catch (err) {
+    failed = true;
     const { command } = serverOptions() as { command: string };
     const choice = await vscode.window.showErrorMessage(
       `mapcan: could not start the language server (${command}). ` +
@@ -58,6 +103,7 @@ async function start(): Promise<void> {
 async function stop(): Promise<void> {
   const c = client;
   client = undefined;
+  synced.clear();
   if (c?.isRunning()) {
     await c.stop();
   }
@@ -83,7 +129,9 @@ async function openMap(): Promise<void> {
 /** The returned object is used by the integration tests. */
 export async function activate(
   context: vscode.ExtensionContext,
-): Promise<{ tree: MapTree; form: NodeForm; history: HistoryTree; changes: ChangesPanel }> {
+): Promise<{
+  tree: MapTree; form: NodeForm; history: HistoryTree; changes: ChangesPanel; client: () => LanguageClient | undefined;
+}> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
   tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
   const view = vscode.window.createTreeView("mapcan.map", { treeDataProvider: tree, showCollapseAll: true });
@@ -109,7 +157,7 @@ export async function activate(
     vscode.window.registerWebviewViewProvider(ExportView.viewId, exportView),
     vscode.commands.registerCommand("mapcan.restartServer", async () => {
       await stop();
-      await start();
+      await start(true);
     }),
     vscode.commands.registerCommand("mapcan.showOutput", () => output?.show()),
     vscode.commands.registerCommand("mapcan.export", () => exportView.reveal()),
@@ -120,15 +168,19 @@ export async function activate(
     vscode.workspace.onDidChangeConfiguration(async (e) => {
       if (e.affectsConfiguration("mapcan.server")) {
         await stop();
+        failed = false;
         await start();
       }
     }),
+    vscode.workspace.onDidOpenTextDocument((doc) => isMap(doc) && start()),
+    // A new file becomes a map when `mapcan:` is typed into it.
+    vscode.workspace.onDidChangeTextDocument((e) => !client && isMap(e.document) && start()),
   );
   registerTreeActions(context, tree, form, () => client);
   const showChanges = registerPreview(context, () => client, currentMap, changes);
   registerHistory(context, history, currentMap, showChanges, () => client);
   await start();
-  return { tree, form, history, changes };
+  return { tree, form, history, changes, client: () => client };
 }
 
 export function deactivate(): Promise<void> {

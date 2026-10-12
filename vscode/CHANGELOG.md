@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+* The language server is started when the first map is opened, not for any YAML file, and only maps
+  are sent to it. Other YAML files (CI configs, manifests) no longer start a `mapcan` process or show
+  an error when `mapcan` is not installed. A new file is picked up once `mapcan:` is typed into it.
+
 ## 0.5.1
 
 * Fixed the empty **Node** panel: its bundled script was outside the webview's resource roots

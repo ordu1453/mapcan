@@ -428,6 +428,28 @@ const tests = {
       && ctx.api.tree.getChildren().length === 1);
   },
 
+  async "other YAML files do not reach the server"(ctx) {
+    const other = await vscode.workspace.openTextDocument(path.join(workspace, "compose.yaml"));
+    const hovers = await vscode.commands.executeCommand(
+      "vscode.executeHoverProvider", other.uri, new vscode.Position(0, 2));
+    assert.ok(!hovers.some((h) => h.contents.some((c) => /mapcan/.test(c.value ?? c))));
+    assert.deepEqual(vscode.languages.getDiagnostics(other.uri), []);
+  },
+
+  async "a new file is validated once it becomes a map"(ctx) {
+    const doc = await vscode.workspace.openTextDocument({ language: "yaml", content: "a: 1\n" });
+    const editor = await vscode.window.showTextDocument(doc);
+    const text = fs.readFileSync(example, "utf-8").replace("byte: 4", "byte: 4\n                bit_length: 99999");
+    await editor.edit((e) => e.replace(new vscode.Range(0, 0, doc.lineCount, 0), text));
+    const diags = await until("diagnostics", () => {
+      const d = vscode.languages.getDiagnostics(doc.uri);
+      return d.length ? d : undefined;
+    });
+    assert.equal(diags[0].code, "schema");
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.window.showTextDocument(ctx.doc);
+  },
+
   async "edits are validated as you type"(ctx) {
     const editor = await vscode.window.showTextDocument(ctx.doc);
     await editor.edit((e) => e.replace(
@@ -447,12 +469,19 @@ const tests = {
 };
 
 exports.run = async function run() {
+  // Another YAML file activates the extension but does not start the server.
+  const other = path.join(workspace, "compose.yaml");
+  fs.writeFileSync(other, "services:\n  web:\n    image: nginx\n");
+  await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(other));
+  const ext = vscode.extensions.getExtension("ordu1453.mapcan");
+  const api = await until("activation", async () => (ext.isActive ? ext.exports : (await ext.activate(), undefined)));
+  assert.equal(api.client(), undefined, "the server started for a YAML file that is not a map");
+
   const file = path.join(workspace, "minimal.yaml");
   fs.copyFileSync(example, file);
   const doc = await vscode.workspace.openTextDocument(file);
   await vscode.window.showTextDocument(doc);
-  const ext = vscode.extensions.getExtension("ordu1453.mapcan");
-  const api = await until("activation", async () => (ext.isActive ? ext.exports : (await ext.activate(), undefined)));
+  await until("the server", () => api.client()?.isRunning());
   const ctx = { doc, api };
   const failures = [];
   for (const [name, test] of Object.entries(tests)) {
