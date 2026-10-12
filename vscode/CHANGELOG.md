@@ -7,6 +7,8 @@
   an error when `mapcan` is not installed. A new file is picked up once `mapcan:` is typed into it.
 * The language server stops when no map has been open for five minutes and starts again with the
   next map.
+* When the server cannot be started, the message suggests installing mapcan from PyPI with
+  `uv tool install "mapcan[lsp]"` or `pipx install "mapcan[lsp]"`.
 
 ## 0.5.1
 

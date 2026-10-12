@@ -13,6 +13,7 @@
 <p align="center">
   <a href="https://github.com/ordu1453/mapcan/actions/workflows/ci.yml"><img src="https://github.com/ordu1453/mapcan/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ordu1453/mapcan/releases/latest"><img src="https://img.shields.io/badge/release-latest-2f6fb3" alt="Latest release"></a>
+  <a href="https://pypi.org/project/mapcan/"><img src="https://img.shields.io/pypi/v/mapcan?color=2f6fb3" alt="PyPI"></a>
   <img src="https://img.shields.io/badge/python-3.12-3776ab?logo=python&logoColor=white" alt="Python 3.12">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-555" alt="Platforms">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2f6fb3" alt="License: Apache-2.0"></a>
@@ -97,7 +98,7 @@ VS Code — see [docs/format.md](docs/format.md).
 |---|---|
 | **Windows** | Download `mapcan-X.Y.Z-setup.exe` from [Releases](https://github.com/ordu1453/mapcan/releases/latest) and run it. No Python or administrator rights needed. |
 | **Linux x64** | Download `mapcan-X.Y.Z-linux-x64.tar.gz`, extract it and run `mapcan/mapcan-app` (editor in the browser) or `mapcan/mapcan` (CLI). |
-| **Any OS with Python 3.12** | `uv tool install "mapcan[desktop] @ git+https://github.com/ordu1453/mapcan"` (or `pipx install …`) |
+| **Any OS with Python 3.12** | `uv tool install "mapcan[desktop]"` or `pipx install "mapcan[desktop]"` ([PyPI](https://pypi.org/project/mapcan/)) |
 | **Docker** | `ghcr.io/ordu1453/mapcan:<version>` — everything needed for CI |
 
 No external programs are required: PDFs are built by the bundled Typst compiler, and the PT Sans
@@ -319,8 +320,10 @@ pip install -e .
 
 [release.yml](.github/workflows/release.yml) runs the tests, checks that the tag matches the
 version, builds the Windows installer and zip (PyInstaller + Inno Setup), the wheel and the Docker
-image, and publishes a GitHub Release; the tag annotation becomes the release notes. Running the
-workflow by hand (Actions → release → Run workflow) makes a trial build without publishing.
+image, and publishes a GitHub Release (the tag annotation becomes the release notes) and then the
+package on PyPI. Running the workflow by hand (Actions → release → Run workflow) makes a trial build
+without publishing; with **Publish to TestPyPI** checked, the package goes to
+[TestPyPI](https://test.pypi.org/project/mapcan/) to check the upload and the project page.
 
 Building the Windows version locally:
 

@@ -7,7 +7,9 @@ name: release
 #   mapcan-X.Y.Z-linux-x64.tar.gz   the Linux build (the editor opens in the browser)
 #   mapcan-X.Y.Z-py3-none-any.whl   for uv tool install / pipx
 #   Docker image ghcr.io/<owner>/mapcan:X.Y.Z and :latest
-# A manual run (Actions → release → Run workflow) is a trial build without publishing.
+#   the package mapcan X.Y.Z on PyPI (after the GitHub Release; trusted publishing, environment pypi)
+# A manual run (Actions → release → Run workflow) is a trial build without publishing; with the
+# testpypi input it uploads the package to TestPyPI (environment testpypi).
 #
 # GitHub-hosted runners only (windows-latest, ubuntu-latest), as in ci.yml.
 # The Docker image and the Linux build run on ubuntu-latest and do not hold up publishing the release:
@@ -17,6 +19,11 @@ on:
   push:
     tags: ["v*.*.*"]
   workflow_dispatch:
+    inputs:
+      testpypi:
+        description: Publish to TestPyPI
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -230,7 +237,7 @@ jobs:
             echo "- **Windows:** download \`mapcan-$VERSION-setup.exe\` and run it. No administrator rights required."
             echo "  Without installing: \`mapcan-$VERSION-windows-x64.zip\` (run \`mapcan-app.exe\`)."
             echo "- **Linux (x64):** extract \`mapcan-$VERSION-linux-x64.tar.gz\` and run \`mapcan/mapcan-app\` (the editor opens in the browser) or \`mapcan/mapcan\` (command line)."
-            echo "- **Python 3.12:** \`uv tool install \"mapcan[desktop] @ https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/mapcan-$VERSION-py3-none-any.whl\"\`"
+            echo "- **Python 3.12:** \`uv tool install \"mapcan[desktop]==$VERSION\"\` (or \`pipx install\`), [PyPI](https://pypi.org/project/mapcan/$VERSION/)"
             echo "- **Docker:** \`docker run --rm -v \"\$PWD:/work\" ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION build mapcan.yaml -o build\`"
           } > notes.md
           cat notes.md
@@ -238,6 +245,44 @@ jobs:
         run: |
           gh release create "$TAG" assets/* --verify-tag --title "mapcan $VERSION" \
             --notes-file notes.md --generate-notes
+
+  # PyPI keeps every version forever: publish only after the GitHub Release has been created.
+  # Trusted publishing (OIDC): no token in the secrets; the publisher on pypi.org names this
+  # repository, release.yml and the environment.
+  pypi:
+    needs: [publish]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/mapcan/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist-python
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  testpypi:
+    needs: [python]
+    if: github.event_name == 'workflow_dispatch' && inputs.testpypi
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/mapcan/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist-python
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
 
   linux-upload:
     needs: [linux, publish]

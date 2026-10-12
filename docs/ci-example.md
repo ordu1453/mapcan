@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - name: Install mapcan
-        run: uv tool install "mapcan @ git+https://github.com/ordu1453/mapcan@vX.Y.Z"
+        run: uv tool install "mapcan==X.Y.Z"
       - name: Validate
         run: mapcan validate my-map.yaml --strict
       - name: Build

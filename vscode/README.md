@@ -83,7 +83,7 @@ the schema comment that `mapcan` maps already use:
 The extension runs the language server from the `mapcan` command-line tool:
 
 ```sh
-pip install "mapcan[lsp]"
+uv tool install "mapcan[lsp]"     # or: pipx install "mapcan[lsp]"
 ```
 
 If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable.

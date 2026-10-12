@@ -89,7 +89,7 @@ async function start(force = false): Promise<void> {
     const { command } = serverOptions() as { command: string };
     const choice = await vscode.window.showErrorMessage(
       `mapcan: could not start the language server (${command}). ` +
-        'Install it with `pip install "mapcan[lsp]"` or set "mapcan.server.path".',
+        'Install it with `uv tool install "mapcan[lsp]"` (or `pipx install "mapcan[lsp]"`) or set "mapcan.server.path".',
       "Open Settings",
       "Show Output",
     );
