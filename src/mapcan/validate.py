@@ -278,8 +278,9 @@ def _check_bus(ctx: _Ctx, bus) -> None:
                          _("frame {name!r}: the device has no node_id to compute the {type} ID",
                            name=frame.name, type=frame.type), p)
             continue
-        if frame.can_id in ids:
-            other = ids[frame.can_id]
+        key = (frame.extended, frame.can_id)   # an 11-bit and a 29-bit ID with the same number differ
+        if key in ids:
+            other = ids[key]
             twin = _rx_twin(frame, other)
             if twin is not None:
                 rx, tx = twin
@@ -294,7 +295,7 @@ def _check_bus(ctx: _Ctx, bus) -> None:
                            can_id=frame.can_id, name=frame.name, other=other.name),
                          p + (("id",) if frame.id is not None else ("type",)))
         else:
-            ids[frame.can_id] = frame
+            ids[key] = frame
         if frame.can_id > 0x7FF and not frame.extended:
             ctx.emit("can-id-range", _("CAN ID {can_id:#x} > 0x7FF", can_id=frame.can_id), p + ("id",))
     _check_spn(ctx, bus)

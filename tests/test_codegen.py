@@ -98,6 +98,32 @@ def test_python_roundtrip(cmap, py_modules):
     assert n >= 1
 
 
+def test_python_decode_standard_and_extended(tmp_path):
+    """An 11-bit and a 29-bit frame with the same number both have a decoder."""
+    from mapcan.loader import loads
+
+    m = loads("""
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    devices:
+      - name: a
+        frames:
+          - {name: std, id: 0x100, dlc: 1, signals: [{name: s, encoding: raw, byte: 0, byte_length: 1}]}
+          - {name: ext, id: 0x100, extended: true, dlc: 1,
+             signals: [{name: e, encoding: raw, byte: 0, byte_length: 1}]}
+""", "t.yaml").map
+    [path] = generate_py(m, tmp_path)
+    mod = _import(path)
+    assert set(mod.DECODERS) == {(0x100, False), (0x100, True)}
+    assert mod.decode(0x100, b"") == mod.Std(s=7)
+    assert mod.decode(0x100, b"", is_extended=False) == mod.Std(s=7)
+    assert mod.decode(0x100, b"", is_extended=True) == mod.Ext(e=7)
+    assert mod.decode(0x101, b"") is None
+
+
 def test_python_physical(py_modules):
     if "bus1" not in py_modules:
         pytest.skip("только для эталонной карты")

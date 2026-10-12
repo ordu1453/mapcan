@@ -2,7 +2,7 @@
 
 The module has ID constants, value IntEnums, flag masks, a dataclass for
 each frame with ``pack()``/``unpack()`` methods, and ``DECODERS``, a dictionary
-CAN ID → frame class. Suitable for tests and test benches.
+(CAN ID, extended) → frame class. Suitable for tests and test benches.
 """
 
 from __future__ import annotations
@@ -111,13 +111,16 @@ class PyGen:
             out += self.frame(f)
         out.append("DECODERS = {")
         for f in frames:
-            out.append(f"    0x{f.can_id:03X}: {_cls(f.name)},")
+            out.append(f"    (0x{f.can_id:03X}, {bool(f.extended)}): {_cls(f.name)},")
         out.append("}")
         out.append("")
         out.append("")
-        out.append("def decode(can_id: int, data: bytes):")
+        out.append("def decode(can_id: int, data: bytes, is_extended: bool | None = None):")
         out.append(f'    """{self.T["decode"]}"""')
-        out.append("    cls = DECODERS.get(can_id)")
+        out.append("    if is_extended is None:")
+        out.append("        cls = DECODERS.get((can_id, False)) or DECODERS.get((can_id, True))")
+        out.append("    else:")
+        out.append("        cls = DECODERS.get((can_id, is_extended))")
         out.append("    return cls.unpack(data) if cls else None")
         out.append("")
         return "\n".join(out)

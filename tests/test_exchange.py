@@ -156,6 +156,17 @@ def test_rx_duplicate_replaces_duplicate_can_id():
           id: 0x100
           dlc: 8
     """))
+    # An 11-bit and a 29-bit ID with the same number are different identifiers
+    assert not {"duplicate-can-id", "rx-duplicate"} & codes(_can("""
+        - name: std
+          id: 0x100
+          dlc: 8
+    """, """
+        - name: ext
+          id: 0x100
+          extended: true
+          dlc: 8
+    """))
 
 
 def test_rx_no_sender_hint():
