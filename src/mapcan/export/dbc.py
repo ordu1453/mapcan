@@ -92,7 +92,8 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
                         continue
                     choices = {v: ev.name for v, ev in enum_entries(fl.values)} or None
                     flag_sig = s.model_copy(update={"factor": 1.0, "offset": 0.0, "min": None,
-                                                    "max": None, "unit": None, "signed": False, "spn": None})
+                                                    "max": None, "unit": None, "representation": "unsigned",
+                                                    "spn": None})
                     flag_sig._path = s._path
                     sigs.append(_signal(
                         fl.name, flag_sig, occ[fl.bit], fl.bit_length, lang,

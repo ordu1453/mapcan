@@ -213,3 +213,26 @@ def test_document_exchange_view():
 def test_diff_reports_sender_change():
     d = diff_maps(_map(CANOPEN), _map(CANOPEN.replace("            sender: master\n", "")))
     assert [(c.frame, c.field, c.old, c.new) for c in d.changes] == [("node_command", "sender", "master", None)]
+
+
+def test_dbc_flags_of_a_signed_bitfield_are_unsigned():
+    m = loads(textwrap.dedent("""
+        mapcan: 1
+        document: {title: T, language: en}
+        buses:
+          - name: bus
+            protocol: can
+            frames:
+              - name: f
+                id: 0x100
+                length: 1
+                signals:
+                  - name: bits
+                    encoding: bitfield
+                    byte: 0
+                    byte_length: 1
+                    representation: twos_complement
+                    flags: [{name: a, bit: 0, bit_length: 2}]
+    """), "t.yaml").map
+    db = cantools.database.load_string(bus_database(m, m.buses[0]).as_dbc_string(), "dbc")
+    assert db.get_message_by_name("f").get_signal_by_name("a").is_signed is False
