@@ -15,4 +15,7 @@ needs at least the version of mapcan that introduced it; former names stay reada
   `twos_complement`. An SDO value's `signed: true` is `representation: twos_complement`.
 - The frame field `type` is `canopen`, the frame's CANopen function. `type: raw` is written as no
   `canopen` at all: a frame without a function has an explicit ID.
+- The signal field `invalid` is `invalid_raw`: raw-valued keys end in `_raw`. It also accepts
+  ranges (`0xFF00..0xFFFF`) and values by meaning (`{not_available: …, error: …}`), with
+  `…_is_not_available()` / `…_is_error()` in the generated C and Python code.
 - `mapcan migrate` rewrites former field names; the rule `deprecated-key` reports them.

@@ -87,7 +87,7 @@ RULES = {
     "zero-factor": ("error", N_("Zero factor")),
     "range-overflow": ("warning", N_("min/max outside the range the field can represent")),
     "min-max": ("error", N_("min is greater than max")),
-    "invalid-in-range": ("warning", N_("invalid value falls inside the min..max range")),
+    "invalid-in-range": ("warning", N_("A raw value without a value (invalid_raw) falls inside the min..max range")),
     "missing-unit": ("info", N_("Physical quantity without a unit")),
     "mux-no-selector": ("error", N_("Multiplexed signal in a frame without a selector")),
     "mux-multiple-selectors": ("error", N_("More than one selector in the frame")),
@@ -121,7 +121,7 @@ RULES = {
     "float-length": ("error", N_("A float signal must be 32 or 64 bits")),
     "signal-length": ("error", N_("Signal longer than 64 bits that is not an aligned byte array")),
     "initial-range": ("warning", N_("Default value outside the signal's range")),
-    "invalid-overflow": ("error", N_("invalid value does not fit in the signal width")),
+    "invalid-overflow": ("error", N_("A raw value of invalid_raw does not fit in the signal width")),
     "logo-missing": ("warning", N_("Logo file not found")),
     "logo-format": ("error", N_("Unsupported logo format")),
     "signed-code": ("info", N_("Ones' complement or sign-magnitude signal: DBC stores two's complement only")),
@@ -616,17 +616,20 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
             ctx.emit("missing-unit", _("physical quantity {name!r} has no unit", name=s.name),
                      sp + ("unit",))
         raw_lo, raw_hi = (lo, hi) if s.encoding != "float" else (None, None)
-        for v in s.invalid_values:
-            if raw_lo is not None and not raw_lo <= v <= raw_hi:
-                ctx.emit("invalid-overflow", _("invalid = {value} does not fit in {bits} bits ({lo}..{hi})",
-                                               value=v, bits=s.bit_length, lo=raw_lo, hi=raw_hi), sp + ("invalid",))
+        for lo_v, hi_v in (r for ranges in s.invalid_ranges.values() for r in ranges):
+            shown = str(lo_v) if lo_v == hi_v else f"{lo_v}..{hi_v}"
+            if raw_lo is not None and not (raw_lo <= lo_v and hi_v <= raw_hi):
+                ctx.emit("invalid-overflow", _("invalid_raw {value} does not fit in {bits} bits ({lo}..{hi})",
+                                               value=shown, bits=s.bit_length, lo=raw_lo, hi=raw_hi),
+                         sp + ("invalid_raw",))
             elif raw_lo is not None and s.min is not None and s.max is not None and s.factor != 0:
-                pv = v * s.factor + s.offset
-                if s.min - 1e-9 <= pv <= s.max + 1e-9:
+                # The physical values of the range, and whether any of them is inside min..max
+                a, b = sorted((lo_v * s.factor + s.offset, hi_v * s.factor + s.offset))
+                if a <= s.max + 1e-9 and b >= s.min - 1e-9:
                     ctx.emit("invalid-in-range",
-                             _("invalid = {value} maps to {phys:g}, inside min..max: a receiver cannot tell \"not "
-                               "available\" from a real value",
-                               value=v, phys=pv), sp + ("invalid",))
+                             _("invalid_raw {value} maps to {phys}, inside min..max: a receiver cannot tell it from "
+                               "a real value", value=shown, phys=f"{a:g}" if a == b else f"{a:g}..{b:g}"),
+                             sp + ("invalid_raw",))
         if s.initial is not None and s.factor != 0:
             raw = s.initial_raw
             if raw_lo is not None and not raw_lo <= raw <= raw_hi:
@@ -692,7 +695,7 @@ ENCODING_FIELDS = {
     "values": ("enum", "flag"),
     "flags": ("bitfield",),
     "representation": ("raw", "scaled", "enum"),
-    "invalid": ("raw", "scaled", "enum"),
+    "invalid_raw": ("raw", "scaled", "enum"),
     "initial": ("raw", "scaled", "enum", "flag", "float"),
 }
 

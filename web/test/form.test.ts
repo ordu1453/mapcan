@@ -2,7 +2,7 @@
 
 import { describe as group, expect, it } from "vitest";
 import { describe, fieldHelp, schemaFields } from "../src/form/help";
-import { parseInput, parseInteger, ParseError, selectValue } from "../src/form/input";
+import { formatValue, parseInput, parseInteger, ParseError, selectValue } from "../src/form/input";
 import { applies, FORMS, formFields, isRequired, NOT_IN_FORM, optionsOf, type FormContext, type FormKind } from "../src/form/spec";
 
 const ctx = (extra: Partial<FormContext> = {}): FormContext => ({
@@ -162,6 +162,12 @@ group("input", () => {
     }
     expect(parseInput("float", "1,5")).toBe(1.5);
     expect(parseInput("intlist", "1, 2")).toEqual([1, 2]);
+    expect(parseInput("rawlist", "0xFF")).toBe(255);
+    expect(parseInput("rawlist", "0xFE, 0xFF00..0xFFFF")).toEqual([254, "0xFF00..0xFFFF"]);
+    expect(() => parseInput("rawlist", "0xFF..0x10")).toThrow(ParseError);
+    expect(() => parseInput("rawlist", "1..x")).toThrow(ParseError);
+    expect(formatValue("rawlist", { not_available: ["0xFF00..0xFFFF"], error: 7 }))
+      .toBe("not_available: 0xFF00..0xFFFF; error: 7");
     expect(parseInput("text", "  ")).toBeNull();
     expect(() => parseInteger("1.5")).toThrow(ParseError);
   });

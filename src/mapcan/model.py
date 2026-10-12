@@ -192,6 +192,54 @@ def enum_entries(values: ValueTable | None) -> list[tuple[int, EnumValue]]:
     return sorted(out, key=lambda kv: kv[0])
 
 
+_RANGE = re.compile(r"^\s*([+-]?(?:0[xX][0-9a-fA-F]+|\d+))\s*\.\.\s*([+-]?(?:0[xX][0-9a-fA-F]+|\d+))\s*$")
+# Raw values: one value, or a list of values and ranges "lo..hi"
+RawSet = Union[int, list[Union[int, str]]]
+
+
+def parse_range(text: str) -> tuple[int, int] | None:
+    """ "0xFF00..0xFFFF" → (0xFF00, 0xFFFF); None if it is not a range."""
+    m = _RANGE.match(text)
+    return (int(m.group(1), 0), int(m.group(2), 0)) if m else None
+
+
+def raw_set_ranges(s: RawSet | None) -> list[tuple[int, int]]:
+    """A set of raw values as ranges (a single value v is v..v)."""
+    if s is None:
+        return []
+    out = []
+    for item in s if isinstance(s, list) else [s]:
+        r = (item, item) if isinstance(item, int) else parse_range(item)
+        if r is not None:
+            out.append(r)
+    return out
+
+
+def _check_raw_set(s: RawSet | None) -> None:
+    for item in s if isinstance(s, list) else [s] if s is not None else []:
+        if isinstance(item, str):
+            r = parse_range(item)
+            if r is None:
+                raise ValueError(N_("a raw value is a number or a range \"lo..hi\", e.g. 0xFF00..0xFFFF"))
+            if r[0] > r[1]:
+                raise ValueError(N_("a range of raw values must go from the lower bound to the upper one"))
+
+
+class InvalidRaw(_Base):
+    """Raw values without a value, by meaning (J1939-71: "not available" and "error indicator")."""
+
+    not_available: RawSet | None = Field(
+        None, description=N_("Raw values meaning “not available”: the sender has no value (e.g. 0xFF)."))
+    error: RawSet | None = Field(
+        None, description=N_("Raw values meaning “error”: the sender has a fault in this value (e.g. 0xFE)."))
+
+    @model_validator(mode="after")
+    def _ranges(self) -> InvalidRaw:
+        _check_raw_set(self.not_available)
+        _check_raw_set(self.error)
+        return self
+
+
 class Flag(_Base):
     """A flag inside a bit field. ``bit`` is the offset from the field's least significant bit."""
 
@@ -287,9 +335,11 @@ class Signal(_Base):
         None,
         description=N_("Value after power-up or before the first message is received, in physical units. In C: "
                        "…_INITIAL_RAW; in DBC: GenSigStartValue."))
-    invalid: int | list[int] | None = Field(
+    invalid_raw: RawSet | InvalidRaw | None = Field(
         None,
-        description=N_("Raw values that mean “no data / not valid”, e.g. 0xFF or 0xFE, 0xFF."))
+        description=N_("Raw values that carry no value: one value, a list, ranges such as \"0xFF00..0xFFFF\", or by "
+                       "meaning: {not_available: …, error: …}. A plain value or list means “not available”. In C: "
+                       "…_is_not_available() and …_is_error(). Formerly invalid."))
     comment: Text | None = Field(None, description=COMMENT)
     spn: int | None = Field(None, ge=0, le=0x7FFFF,
                             description=N_("J1939: suspect parameter number (SPN) per SAE J1939-71."))
@@ -309,10 +359,24 @@ class Signal(_Base):
         return self.representation if self.signed else None
 
     @property
+    def invalid_ranges(self) -> dict[str, list[tuple[int, int]]]:
+        """Raw values without a value by meaning (not_available, error): ranges lo..hi, a single value as v..v."""
+        v = self.invalid_raw
+        if v is None:
+            return {}
+        sets = {"not_available": v} if not isinstance(v, InvalidRaw) else \
+            {"not_available": v.not_available, "error": v.error}
+        out = {}
+        for meaning, s in sets.items():
+            ranges = raw_set_ranges(s)
+            if ranges:
+                out[meaning] = ranges
+        return out
+
+    @property
     def invalid_values(self) -> list[int]:
-        if self.invalid is None:
-            return []
-        return [self.invalid] if isinstance(self.invalid, int) else list(self.invalid)
+        """Single "not available" values (for DBC and the …_INVALID_RAW constants)."""
+        return [lo for lo, hi in self.invalid_ranges.get("not_available", []) if lo == hi]
 
     @property
     def initial_raw(self) -> int | float | None:
@@ -324,7 +388,9 @@ class Signal(_Base):
 
     @model_validator(mode="after")
     def _resolve_layout(self) -> Signal:
-        sugar = self.byte is not None or self.bit is not None or self.byte_length is not None
+        if not isinstance(self.invalid_raw, InvalidRaw):
+            _check_raw_set(self.invalid_raw)
+        sugar =self.byte is not None or self.bit is not None or self.byte_length is not None
         if self.start_bit is not None and sugar:
             raise ValueError(N_("specify either start_bit or byte/bit, not both"))
         if self.bit_length is not None and self.byte_length is not None:

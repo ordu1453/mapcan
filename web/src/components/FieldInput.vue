@@ -30,6 +30,9 @@ const draft = ref("");
 // A text in several languages is edited in the document language; translations to other languages stay as they are
 const locMap = computed(() => (props.value && typeof props.value === "object" && !Array.isArray(props.value)
   ? props.value as Record<string, string> : null));
+/** A value written as a mapping where the field edits a list (invalid_raw by meaning): shown read-only. */
+const structured = computed(() => props.def.type === "rawlist" && !!props.value && typeof props.value === "object"
+  && !Array.isArray(props.value));
 /** Text in another language: a hint in the empty field while there is none in the document language. */
 const locFallback = computed(() => (locMap.value ? Object.values(locMap.value).find((x) => x) ?? "" : ""));
 
@@ -194,8 +197,9 @@ watch(() => store.focusPath, async (fp) => {
       </span>
     </span>
 
-    <input v-else :type="def.type === 'date' ? 'date' : 'text'" v-model="draft" :readonly="readonly"
-           :placeholder="placeholder" :class="{ mono: def.mono || ['hex', 'int', 'float', 'intlist', 'strlist'].includes(def.type) }"
+    <input v-else :type="def.type === 'date' ? 'date' : 'text'" v-model="draft" :readonly="readonly || structured"
+           :title="structured ? t('Values by meaning: edit them in the YAML') : undefined"
+           :placeholder="placeholder" :class="{ mono: def.mono || ['hex', 'int', 'float', 'intlist', 'strlist', 'rawlist'].includes(def.type) }"
            @change="commit" />
 
     <span v-if="error" class="field-msg error">{{ error }}</span>

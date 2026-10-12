@@ -147,6 +147,15 @@ class PyGen:
             for fl in s.flags or []:
                 mask = ((1 << fl.bit_length) - 1) << fl.bit
                 out.append(f"{U}_{s.name.upper()}_{fl.name.upper()}_MASK = 0x{mask:X}")
+        # Raw values without a value, by meaning: <frame>_<signal>_is_not_available(raw), …_is_error(raw)
+        for s in f.layout:
+            for meaning, ranges in s.invalid_ranges.items():
+                def lit(v: int) -> str:
+                    return f"0x{v:X}" if v >= 0 else str(v)
+                cond = " or ".join(f"raw == {lit(lo)}" if lo == hi else f"{lit(lo)} <= raw <= {lit(hi)}"
+                                   for lo, hi in ranges)
+                out += ["", "", f"def {f.name.lower()}_{s.name.lower()}_is_{meaning}(raw: int) -> bool:",
+                        f"    return {cond}"]
         out += ["", "", "@dataclass", f"class {C}:"]
         doc = self.t(f.description) or self.t(f.title)
         out.append(f'    """0x{f.can_id:03X} {f.name}: {doc}"""' if doc else f'    """0x{f.can_id:03X} {f.name}"""')

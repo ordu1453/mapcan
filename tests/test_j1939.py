@@ -130,7 +130,7 @@ def test_float_initial_invalid_rules():
           length: 8
           signals:
             - {name: a, description: x, byte: 0, encoding: float, bit_length: 16}
-            - {name: b, encoding: raw, description: x, byte: 2, byte_length: 1, invalid: 0x1FF}
+            - {name: b, encoding: raw, description: x, byte: 2, byte_length: 1, invalid_raw: 0x1FF}
             - {name: c, encoding: scaled, description: x, byte: 3, byte_length: 1, factor: 0.5, initial: 200}
             - {name: d, encoding: raw, description: x, byte: 4, byte_length: 1, min: 0, max: 10, initial: 20}
     """))
@@ -183,7 +183,7 @@ def test_documents_show_j1939_and_defaults():
     assert eec1["pgn"] == "0xF004" and eec1["priority"] == "3" and "IC" in eec1["receivers"]
     speed = next(s for s in eec1["signals"] if s["name"] == "engine_speed")
     assert "default: 0 rpm" in speed["values"]
-    assert "no data: 0xFFFF" in speed["values"]
+    assert "no data: 0xFF00…0xFFFF" in speed["values"] and "error: 0xFE00…0xFEFF" in speed["values"]
     md = render(m, "md")
     assert "| PGN |" in md and "`0xF004`" in md and "**Receivers:**" in md
 

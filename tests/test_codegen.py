@@ -477,3 +477,50 @@ def test_classic_can_has_no_fd_flags(ref_map, tmp_path):
     mod = _import(generate_py(ref_map, tmp_path / "py")[0])
     frame = next(v for v in vars(mod).values() if isinstance(v, type) and hasattr(v, "BITRATE_SWITCH"))
     assert (frame.IS_FD, frame.BITRATE_SWITCH) == (False, False)
+
+
+INVALID_MAP = """
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: f
+        id: 0x100
+        length: 8
+        signals:
+          - {name: speed, encoding: scaled, byte: 0, byte_length: 2, factor: 0.125, unit: rpm,
+             invalid_raw: {not_available: [0xFF00..0xFFFF], error: [0xFE00..0xFEFF, 7]}}
+          - {name: temp, encoding: scaled, byte: 2, byte_length: 1, representation: twos_complement, unit: C,
+             invalid_raw: [-128, -127..-120]}
+"""
+# raw value → (not available, error) for speed
+INVALID_CASES = [(0xFF00, 1, 0), (0xFFFF, 1, 0), (0xFE10, 0, 1), (7, 0, 1), (100, 0, 0)]
+
+
+def test_invalid_helpers_python(tmp_path):
+    from mapcan.loader import loads
+
+    mod = _import(generate_py(loads(INVALID_MAP, "t.yaml").map, tmp_path)[0])
+    for raw, na, err in INVALID_CASES:
+        assert (mod.f_speed_is_not_available(raw), mod.f_speed_is_error(raw)) == (bool(na), bool(err))
+    assert [mod.f_temp_is_not_available(v) for v in (-128, -124, -119, 5)] == [True, True, False, False]
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_invalid_helpers_c(tmp_path):
+    from mapcan.loader import loads
+
+    sources = [p for p in generate_c(loads(INVALID_MAP, "t.yaml").map, tmp_path) if p.suffix == ".c"]
+    main = ["#include <stdio.h>", '#include "bus.h"', "int main(void) {"]
+    main += [f'    printf("%d %d\\n", f_speed_is_not_available({raw}u), f_speed_is_error({raw}u));'
+             for raw, _, _ in INVALID_CASES]
+    main += ["    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
+    assert out == [str(x) for _, na, err in INVALID_CASES for x in (na, err)]

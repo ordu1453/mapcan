@@ -168,7 +168,7 @@ CANopen ID computation:
 | `multiplexer` | `true` for the multiplexer selector signal |
 | `mux` | Selector value (or list of values) for which the signal is present |
 | `initial` | Default value in physical units (`…_INITIAL_RAW` in C, `GenSigStartValue` in DBC) |
-| `invalid` | Raw value (or list) meaning "not available / invalid", e.g. `0xFF` |
+| `invalid_raw` | Raw values that carry no value (see [Values without a value](#values-without-a-value)): `0xFF`, a list, ranges `0xFF00..0xFFFF`, or `{not_available: …, error: …}`. Formerly `invalid` |
 | `index`, `subindex` | CANopen dictionary object mapped into the PDO (see [Object dictionary and EDS](#object-dictionary-and-eds)) |
 | `spn` | J1939 suspect parameter number (SAE J1939-71), 0..524287. Shown in documents, written to DBC as the `SPN` signal attribute and to code as `<FRAME>_<SIGNAL>_SPN` |
 | `comment` | A note or caveat (see [Text fields](#text-fields)) |
@@ -179,9 +179,9 @@ CANopen ID computation:
 
 | `encoding` | Meaning | Value fields |
 |---|---|---|
-| `raw` | Integer as is | `representation`, `unit`, `min`, `max`, `invalid`, `initial` |
-| `scaled` | Scaled physical value: `raw * factor + offset` | `representation`, `factor`, `offset`, `unit`, `min`, `max`, `invalid`, `initial` |
-| `enum` | Value from the `values` table | `values`, `value_format`, `representation`, `invalid`, `initial` |
+| `raw` | Integer as is | `representation`, `unit`, `min`, `max`, `invalid_raw`, `initial` |
+| `scaled` | Scaled physical value: `raw * factor + offset` | `representation`, `factor`, `offset`, `unit`, `min`, `max`, `invalid_raw`, `initial` |
+| `enum` | Value from the `values` table | `values`, `value_format`, `representation`, `invalid_raw`, `initial` |
 | `flag` | One yes/no bit | `values`, `initial` |
 | `bitfield` | Set of flags | `flags` |
 | `float` | IEEE 754 | `factor`, `offset`, `unit`, `min`, `max`, `initial` |
@@ -191,6 +191,32 @@ A field that does not apply is an error (`encoding-field`).
 
 The length (`bit_length` or `byte_length`) is required. Only two encodings set it
 themselves: a `flag` is 1 bit, and a `float` is 32 bits unless `bit_length: 64` is given.
+
+#### Values without a value
+
+`invalid_raw` lists raw values that do not carry a value. A number or a list means "not
+available"; a range is written as a string `lo..hi`. Values can also be given by meaning, as in
+SAE J1939-71:
+
+```yaml
+- name: engine_speed
+  encoding: scaled
+  byte: 3
+  byte_length: 2
+  factor: 0.125
+  unit: rpm
+  invalid_raw: {not_available: [0xFF00..0xFFFF], error: [0xFE00..0xFEFF]}
+```
+
+| Meaning | |
+|---|---|
+| `not_available` | The sender has no value (the parameter is not supported or not ready) |
+| `error` | The sender has the parameter but reports a fault in it |
+
+Documents list both. Generated C has `<frame>_<signal>_is_not_available(raw)` and
+`<frame>_<signal>_is_error(raw)`, and a single "not available" value is also
+`<FRAME>_<SIGNAL>_INVALID_RAW`; the Python module has the same functions. DBC has one invalid value
+per signal: the first "not available" one is written.
 
 #### Floating point
 
@@ -267,7 +293,7 @@ buses:
             cycle_ms: 20
             receivers: [cluster]
             signals:
-              - {name: engine_speed, encoding: scaled, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid: 0xFFFF}
+              - {name: engine_speed, encoding: scaled, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid_raw: 0xFFFF}
       - name: cluster
         address: 0x17
       - name: diag
@@ -478,6 +504,7 @@ Included devices can be chosen as senders and receivers of the main file's frame
 | signal `signed` + `signed_code` | `representation` | 0.21 |
 | SDO value `signed` | `representation` | 0.21 |
 | frame `type` (`raw`: omitted) | `canopen` | 0.21 |
+| signal `invalid` | `invalid_raw` | 0.21 |
 
 ## Validation rules
 
@@ -579,8 +606,8 @@ turned off with `--disable CODE` or `lint.disable`.
 | `range-overflow` | warning | min/max outside the range the field can represent |
 | `min-max` | error | min is greater than max |
 | `initial-range` | warning | Default value outside the signal's range |
-| `invalid-overflow` | error | invalid value does not fit in the signal width |
-| `invalid-in-range` | warning | invalid value falls inside the min..max range |
+| `invalid-overflow` | error | A value or range of `invalid_raw` does not fit in the signal width |
+| `invalid-in-range` | warning | A value or range of `invalid_raw` maps into the `min..max` range: a receiver cannot tell it from a real value |
 | `signed-code` | info | `ones_complement` or `sign_magnitude`: DBC stores two's complement only |
 | `missing-unit` | info | Physical quantity without a unit |
 

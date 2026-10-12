@@ -159,7 +159,7 @@
   "Initial value": "Начальное значение",
   "Initials and surname": "И. О. Фамилия",
   "Interface": "Интерфейс",
-  "Invalid (raw)": "Недостоверное (raw)",
+  "Not available (raw)": "Нет данных (сырые)",
   "Jane Smith": "Иван Петров",
   "Job title": "Должность",
   "Keep my version": "Оставить мою версию",
@@ -431,5 +431,7 @@
   "“{raw}”: expected a number, such as 0x1A or 26": "«{raw}» — ожидается число (0x1A или 26)",
   "✓ map is valid": "✓ карта корректна",
   "unsigned": "беззнаковое",
-  "CANopen function": "Функция CANopen"
+  "CANopen function": "Функция CANopen",
+  "“{raw}”: a range goes from the lower bound to the upper one": "«{raw}»: диапазон записывается от нижней границы к верхней",
+  "Values by meaning: edit them in the YAML": "Значения по смыслу: правьте их в YAML"
 }

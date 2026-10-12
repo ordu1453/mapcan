@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as _dt
 import difflib
 import io
+import re
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +22,7 @@ from ruamel.yaml.util import load_yaml_guess_indent
 
 from ..i18n import _
 from ..model import Signal
-from ..upgrade import DROP, deprecated_of, node_kind, renames
+from ..upgrade import DROP, deprecated_of, node_kind, renames, upgrade_tree
 
 # Keys whose numbers are usually written in hex.
 HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
@@ -322,15 +323,121 @@ def migrate_doc(doc) -> int:
 
 
 def migrate_text(text: str) -> str:
-    """The map's text with every deprecated key rewritten; the rest of the text stays as it was."""
+    """The map's text with every deprecated key rewritten; the rest of the text stays as it was.
+
+    Keys are renamed in the text itself, so flow mappings keep their line breaks; if a change cannot be made
+    that way (or the result reads differently), the document is rewritten through ruamel instead."""
     y = make_yaml(text)
     doc = y.load(text)
     if doc is None:
         return text
-    canon_old = dump(y, doc)
-    if not migrate_doc(doc):
+    edits = _migration_edits(doc, text.splitlines(keepends=True))
+    if not edits:
         return text
+    if edits is not _UNSUPPORTED:
+        new = _apply_text_edits(text, edits)
+        try:
+            if _upgraded_data(new) == _upgraded_data(text):
+                return new
+        except Exception:  # noqa: BLE001 — the text edit broke the YAML: fall back
+            pass
+    canon_old = dump(y, doc)
+    migrate_doc(doc)
     return merge_text(text, canon_old, dump(y, doc))
+
+
+_UNSUPPORTED: list = []
+_SCALAR_END = re.compile(r"""^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^,\]}#\n]*?)\s*(?=[,\]}]|\s#|\s*$)""")
+
+
+def _upgraded_data(text: str) -> Any:
+    return upgrade_tree(plain(make_yaml(text).load(text)))
+
+
+def _migration_edits(doc, lines: list[str]) -> list:
+    """Text edits (line, col, end_line, end_col, new text) that rename the deprecated keys of the document."""
+    edits: list = []
+
+    def scalar_end(line: int, col: int) -> int | None:
+        m = _SCALAR_END.match(lines[line][col:]) if line < len(lines) else None
+        return col + len(m.group(1)) if m else None
+
+    def remove(m: CommentedMap, key: str) -> bool:
+        kl, kc = m.lc.key(key)
+        vl, vc = m.lc.value(key)
+        end = scalar_end(vl, vc) if vl == kl else None
+        if end is None:
+            return False
+        line = lines[kl]
+        if m.fa.flow_style():
+            after = re.match(r"\s*,\s*", line[end:])
+            if after:
+                edits.append((kl, kc, kl, end + after.end(), ""))
+                return True
+            before = re.search(r",\s*$", line[:kc])
+            if not before:
+                return False
+            edits.append((kl, before.start(), kl, end, ""))
+            return True
+        if line[:kc].strip():
+            return False        # "- key: …" or another key before it on the line
+        edits.append((kl, 0, kl + 1, 0, ""))
+        return True
+
+    def walk(node, path) -> bool:
+        if isinstance(node, CommentedMap):
+            kind = _kind(path)
+            for r in renames(kind):
+                present = [k for k in r.old if k in node]
+                if not present:
+                    continue
+                value = DROP if r.new in node else r.value({k: plain(node[k]) for k in present})
+                first = present[0]
+                if value is DROP:
+                    drop = present
+                else:
+                    kl, kc = node.lc.key(first)
+                    edits.append((kl, kc, kl, kc + len(first), r.new))
+                    if value != plain(node[first]):
+                        vl, vc = node.lc.value(first)
+                        end = scalar_end(vl, vc)
+                        if end is None:
+                            return False
+                        edits.append((vl, vc, vl, end, _yaml_scalar_text(value)))
+                    drop = present[1:]
+                for k in drop:
+                    if not remove(node, k):
+                        return False
+            items = [(k, node[k]) for k in node]
+        elif isinstance(node, CommentedSeq):
+            items = list(enumerate(node))
+        else:
+            return True
+        return all(walk(v, path + [k]) for k, v in items)
+
+    if not walk(doc, []):
+        return _UNSUPPORTED
+    return edits
+
+
+def _yaml_scalar_text(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _apply_text_edits(text: str, edits: list) -> str:
+    lines = text.splitlines(keepends=True)
+    starts = [0]
+    for line in lines:
+        starts.append(starts[-1] + len(line))
+
+    def offset(line: int, col: int) -> int:
+        return starts[line] + col if line < len(lines) else len(text)
+
+    for l1, c1, l2, c2, new in sorted(edits, key=lambda e: (e[0], e[1]), reverse=True):
+        text = text[:offset(l1, c1)] + new + text[offset(l2, c2):]
+    return text
 
 
 def op_set(doc, path: list, value: Any) -> None:

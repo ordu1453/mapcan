@@ -12,6 +12,8 @@ import { N_, t } from "../i18n";
 
 export type FieldType =
   | "text" | "int" | "hex" | "float" | "bool" | "select" | "date" | "intlist" | "strlist"
+  /** Raw values: numbers and ranges "lo..hi"; values by meaning ({not_available, error}) are edited in the YAML. */
+  | "rawlist"
   /** Text with translations (title, description): edited in the document language. */
   | "loc"
   /** Unit: free text with the standard units of the document language offered. */
@@ -314,7 +316,8 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "max", label: N_("Maximum (max)"), type: "float", half: true, when: numeric },
       { key: "initial", label: N_("Initial value"), type: "float", half: true,
         when: (c) => !["bitfield", "bytes"].includes(encoding(c)) },
-      { key: "invalid", label: N_("Invalid (raw)"), type: "intlist", half: true, mono: true, placeholder: "0xFF",
+      { key: "invalid_raw", label: N_("Not available (raw)"), type: "rawlist", half: true, mono: true,
+        placeholder: "0xFF, 0xFF00..0xFFFF",
         when: encodingIn("raw", "scaled", "enum") },
       { key: "index", label: N_("Dictionary object: index"), type: "hex", half: true, placeholder: "0x2000",
         when: (c) => c.protocol === "canopen" },

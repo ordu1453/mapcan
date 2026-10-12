@@ -40,6 +40,17 @@ export function parseInput(type: FieldType, raw: string): unknown {
       const parts = s.split(/[\s,;]+/).filter(Boolean);
       return parts.length ? parts : null;
     }
+    case "rawlist": {
+      // Numbers and ranges "lo..hi"; one item is written as itself, several as a list
+      const parts = s.split(/[\s,;]+/).filter(Boolean).map((x): number | string => {
+        const range = /^(.+?)\.\.(.+)$/.exec(x);
+        if (!range) return parseInteger(x);
+        const [lo, hi] = [parseInteger(range[1]), parseInteger(range[2])];
+        if (lo > hi) throw new ParseError(t("“{raw}”: a range goes from the lower bound to the upper one", { raw: x }));
+        return `${range[1]}..${range[2]}`;
+      });
+      return parts.length === 1 ? parts[0] : parts;
+    }
     case "intlist": {
       // One value is written as a number, several as a list
       const parts = s.split(/[\s,;]+/).filter(Boolean).map((x) => (INT_RE.test(x) ? Number(x.replace(/^\+/, "")) : NaN));
@@ -55,6 +66,11 @@ export function parseInput(type: FieldType, raw: string): unknown {
 export function formatValue(type: FieldType, v: unknown): string {
   if (v === null || v === undefined) return "";
   if (type === "hex" && typeof v === "number") return "0x" + v.toString(16).toUpperCase().padStart(2, "0");
+  // Values by meaning: shown as they are written, edited in the YAML
+  if (type === "rawlist" && typeof v === "object" && !Array.isArray(v)) {
+    return Object.entries(v as Record<string, unknown>).filter(([, x]) => x != null)
+      .map(([k, x]) => `${k}: ${Array.isArray(x) ? x.join(", ") : x}`).join("; ");
+  }
   if (Array.isArray(v)) return v.join(", ");
   return String(v);
 }

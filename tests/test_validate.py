@@ -622,8 +622,8 @@ def test_bus_load():
 
 
 def test_invalid_in_range():
-    assert "invalid-in-range" in codes(_sig("factor: 0.5, unit: V, min: 0, max: 200, invalid: 0xFF", "scaled"))
-    assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid: 0xFF", "scaled"))
+    assert "invalid-in-range" in codes(_sig("factor: 0.5, unit: V, min: 0, max: 200, invalid_raw: 0xFF", "scaled"))
+    assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid_raw: 0xFF", "scaled"))
 
 
 def test_missing_unit():
@@ -633,7 +633,7 @@ def test_missing_unit():
 
 @pytest.mark.parametrize(("extra", "encoding"), [
     ("factor: 0.1", "raw"), ("offset: -40", "enum"), ("unit: V", "enum"), ("min: 0", "bitfield"),
-    ("values: {0: OFF}", "raw"), ("representation: twos_complement", "float"), ("invalid: 0xFF", "bytes"),
+    ("values: {0: OFF}", "raw"), ("representation: twos_complement", "float"), ("invalid_raw: 0xFF", "bytes"),
     ("initial: 1", "bitfield"),
 ])
 def test_encoding_field_rejected(extra, encoding):
@@ -642,7 +642,7 @@ def test_encoding_field_rejected(extra, encoding):
 
 @pytest.mark.parametrize(("extra", "encoding"), [
     ("unit: ms, min: 0, max: 100", "raw"), ("values: {0: OFF, 1: ON}", "flag"), ("factor: 0.5", "float"),
-    ("representation: twos_complement, values: {-1: NEG}", "enum"), ("invalid: 0xFF", "scaled"),
+    ("representation: twos_complement, values: {-1: NEG}", "enum"), ("invalid_raw: 0xFF", "scaled"),
 ])
 def test_encoding_field_allowed(extra, encoding):
     assert "encoding-field" not in codes(_sig(extra, encoding))

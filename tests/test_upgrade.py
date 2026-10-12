@@ -57,8 +57,9 @@ def test_node_kinds():
 
 def test_migrate_keeps_the_rest_of_the_text():
     out = migrate_text(LEGACY)
-    assert "length: 8     # bytes\n" in out
-    assert out.replace("length: 8     # bytes\n", "length: 8\n") == MINIMAL
+    # Only the key changes: the comment keeps its distance from the value
+    assert "length: 8        # bytes\n" in out
+    assert out.replace("length: 8        # bytes\n", "length: 8\n") == MINIMAL
     assert migrate_text(MINIMAL) == MINIMAL
 
 
@@ -142,3 +143,27 @@ def test_frame_type_becomes_canopen():
     res, report = run(legacy)
     assert res.map.buses[0].devices[0].frames[0].canopen == "pdo_tx1" and "deprecated-key" in report.codes()
     assert migrate_text(legacy) == MINIMAL
+
+
+def test_migrate_keeps_line_breaks_of_flow_mappings():
+    text = MINIMAL.replace(
+        "            signals:\n",
+        "            signals:\n"
+        "              - {name: wrapped, encoding: raw, description: x, byte: 7, byte_length: 1,\n"
+        "                 signed: true, invalid: 0x7F}\n", 1)
+    out = migrate_text(text)
+    assert "                 representation: twos_complement, invalid_raw: 0x7F}\n" in out
+    assert out.count("\n") == text.count("\n")
+
+
+def test_invalid_raw_by_meaning_and_ranges():
+    sig = ("              - {name: t, encoding: scaled, description: x, byte: 6, byte_length: 2, factor: 0.1, "
+           "unit: V, min: 0, max: 100, invalid_raw: %s}\n")
+    base = MINIMAL.split("            signals:\n")[0] + "            signals:\n"
+    res, report = run(base + sig % "{not_available: [0xFF00..0xFFFF], error: [0xFE00..0xFEFF]}")
+    s = res.map.buses[0].devices[0].frames[0].signals[0]
+    assert s.invalid_ranges == {"not_available": [(0xFF00, 0xFFFF)], "error": [(0xFE00, 0xFEFF)]}
+    assert "invalid-in-range" not in report.codes()
+    assert "invalid-in-range" in run(base + sig % "[0..10]")[1].codes()
+    assert "invalid-overflow" in run(base + sig % "[0xFF00..0x1FFFF]")[1].codes()
+    assert "schema" in run(base + sig % "[0xFF..0x10]")[1].codes()

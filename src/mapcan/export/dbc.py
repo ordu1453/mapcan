@@ -55,7 +55,8 @@ def _signal(name: str, s: Signal, start: int, length: int, lang: str, comment: s
         conversion=BaseConversion.factory(scale=s.factor, offset=s.offset, choices=choices,
                                           is_float=s.encoding == "float"),
         raw_initial=s.initial_raw,
-        raw_invalid=s.invalid_values[0] if s.invalid_values else None,
+        # DBC has one "invalid" value: the first one meaning "not available"
+        raw_invalid=next(iter(s.invalid_ranges.get("not_available", [])), (None,))[0],
         minimum=s.min,
         maximum=s.max,
         unit=dbc_unit(s.unit),

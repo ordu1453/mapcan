@@ -867,6 +867,8 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             values[k] = v
         elif isinstance(v, list) and all(isinstance(x, (str, int)) for x in v):
             values[k] = list(v)
+        elif isinstance(v, dict) and k == "invalid_raw":
+            values[k] = {m: list(x) if isinstance(x, list) else x for m, x in v.items()}   # by meaning, read-only
         elif not isinstance(v, (dict, list)):
             values[k] = str(v)
     # The value of an SDO exchange is a nested mapping: its fields go to the form under the keys "value.<field>"

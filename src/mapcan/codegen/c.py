@@ -317,6 +317,18 @@ class CGen:
         for i, v in enumerate(inv):
             suffix = "INVALID_RAW" if len(inv) == 1 else f"INVALID_RAW_{i + 1}"
             out.append(f"#define {self.P(F, s.name, suffix)} {_c_int(v)}")
+        # Raw values without a value, by meaning: <frame>_<signal>_is_not_available(raw), …_is_error(raw)
+        bits = storage_bits(s)
+        tmin, tmax = (-(1 << (bits - 1)), (1 << (bits - 1)) - 1) if s.signed else (0, (1 << bits) - 1)
+        for meaning, ranges in s.invalid_ranges.items():
+            conds = []
+            for lo, hi in ranges:
+                # A bound at the limit of the C type is always true: it is left out (no -Wtype-limits warning)
+                bounds = ((f"raw >= {_c_bound(lo)}", lo > tmin), (f"raw <= {_c_bound(hi)}", hi < tmax))
+                parts = [f"raw == {_c_bound(lo)}"] if lo == hi else [x for x, need in bounds if need] or ["1"]
+                conds.append(parts[0] if len(parts) == 1 else f"({' && '.join(parts)})")
+            out.append(f"static inline int {self.p(F, s.name)}_is_{meaning}({self.ctype(s)} raw) "
+                       f"{{ return {' || '.join(conds)}; }}")
         if out:
             out.append("")
         return out

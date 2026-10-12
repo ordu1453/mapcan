@@ -33,7 +33,7 @@ buses:
                 unit: rpm
                 min: 0
                 max: 8031.875
-                invalid: 0xFFFF
+                invalid_raw: 0xFFFF
               - name: pto_state
                 encoding: enum
                 title: PTO state
@@ -72,7 +72,7 @@ buses:
                 unit: rpm
                 min: 0
                 max: 8031.875
-                invalid: 0xFFFF
+                invalid_raw: 0xFFFF
 
       - name: pt_gateway
         short: GW

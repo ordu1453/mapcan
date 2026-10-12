@@ -52,8 +52,15 @@ FRAME_FIELDS = ("can_id", "canopen", "length", "direction", "mode", "cycle_ms", 
                 "device", "pgn", "priority", "sender", "receivers", "description")
 SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "representation", "encoding", "factor", "offset",
                  "unit",
-                 "min", "max", "initial", "invalid", "multiplexer", "mux", "description")
+                 "min", "max", "initial", "invalid_raw", "multiplexer", "mux", "description")
 FLAG_FIELDS = ("bit", "bit_length", "description")
+
+
+def _invalid_text(s: Signal) -> str | None:
+    """invalid_raw as one comparable text: "not_available 0xFF; error 0xFE00..0xFEFF"."""
+    parts = [f"{meaning} " + ", ".join(f"0x{lo:X}" if lo == hi else f"0x{lo:X}..0x{hi:X}" for lo, hi in ranges)
+             for meaning, ranges in s.invalid_ranges.items()]
+    return "; ".join(parts) or None
 
 
 def _frame_attrs(f: Frame, langs: tuple[str, str]) -> dict:
@@ -71,7 +78,7 @@ def _signal_attrs(s: Signal, langs: tuple[str, str]) -> dict:
         "start_bit": s.start_bit, "bit_length": s.bit_length, "byte_order": s.byte_order,
         "representation": s.representation, "encoding": s.encoding,
         "factor": s.factor, "offset": s.offset, "unit": s.unit,
-        "min": s.min, "max": s.max, "initial": s.initial, "invalid": s.invalid_values or None,
+        "min": s.min, "max": s.max, "initial": s.initial, "invalid_raw": _invalid_text(s),
         "multiplexer": s.multiplexer, "mux": s.mux_values,
         "description": text(s.description, *langs),
     }

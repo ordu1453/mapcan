@@ -182,7 +182,6 @@ RU: dict[str, str] = {
     "RX frame without a sender": "RX-кадр без отправителя",
     "A float signal must be 32 or 64 bits": "Сигнал float должен быть 32 или 64 бита",
     "Default value outside the signal's range": "Значение по умолчанию вне диапазона сигнала",
-    "invalid value does not fit in the signal width": "Значение invalid не помещается в разрядность сигнала",
     "Logo file not found": "Файл логотипа не найден",
     "Unsupported logo format": "Неподдерживаемый формат логотипа",
     "Signal has no description": "Нет описания сигнала",
@@ -261,7 +260,6 @@ RU: dict[str, str] = {
         "Имя совпадает с ключевым словом C/Python или членом сгенерированного класса",
     "Names collide in generated code (differ only in case, or clash with a _phys property)":
         "Имена совпадают в сгенерированном коде (различаются только регистром или совпадают со свойством _phys)",
-    "invalid value falls inside the min..max range": "Значение invalid попадает в рабочий диапазон min..max",
     "Physical quantity without a unit": "Физическая величина без единицы измерения",
     "Frame has no receivers on the bus": "У кадра нет получателей на шине",
     "Duplicate device short label on the bus": "Повтор короткого обозначения устройства на шине",
@@ -293,9 +291,6 @@ RU: dict[str, str] = {
     "value {name!r} differs from {other!r} only in case: their C macros will collide":
         "значение {name!r} отличается от {other!r} только регистром: в C-коде их макросы совпадут",
     "physical quantity {name!r} has no unit": "у физической величины {name!r} не указана единица (unit)",
-    "invalid = {value} maps to {phys:g}, inside min..max: a receiver cannot tell \"not available\" from a real value":
-        "invalid = {value} соответствует {phys:g} в пределах min..max: приёмник не отличит «нет данных» от реального "
-        "значения",
     "selector {name!r} cannot have mux": "селектор {name!r} не может иметь mux",
     "{key} does not apply to encoding: {encoding}": "{key} не применяется при encoding: {encoding}",
     "flag signal {name!r} is {bits} bits long": "сигнал-флаг {name!r} длиной {bits} бит",
@@ -340,8 +335,6 @@ RU: dict[str, str] = {
         "значение {value} ({name}) не помещается в {bits} бит (знаковое: {lo}..{hi})",
     "value {value} ({name}) does not fit in {bits} bits (unsigned: {lo}..{hi})":
         "значение {value} ({name}) не помещается в {bits} бит (беззнаковое: {lo}..{hi})",
-    "invalid = {value} does not fit in {bits} bits ({lo}..{hi})":
-        "invalid = {value} не помещается в {bits} бит ({lo}..{hi})",
     "initial = {value:g} → raw {raw} outside {lo}..{hi}": "initial = {value:g} → raw {raw} вне {lo}..{hi}",
     "initial = {value:g} outside min/max": "initial = {value:g} вне min/max",
     "signal {name!r} has mux, but the frame has no multiplexer":
@@ -676,8 +669,6 @@ RU: dict[str, str] = {
     "GenSigStartValue.":
         "Значение после включения или до первого приёма, в физических единицах. В C — …_INITIAL_RAW, в DBC — "
         "GenSigStartValue.",
-    "Raw values that mean “no data / not valid”, e.g. 0xFF or 0xFE, 0xFF.":
-        "Сырые значения, означающие «нет данных / недостоверно», напр. 0xFF или 0xFE, 0xFF.",
     "SDO command byte (CCS/SCS), e.g. 0x2B — write 2 bytes, 0x23 — write 4 bytes, 0x40 — read.":
         "Байт команды SDO (CCS/SCS), напр. 0x2B — запись 2 байт, 0x23 — запись 4 байт, 0x40 — чтение.",
     "CANopen object dictionary index, 0x0000..0xFFFF.": "Индекс объекта словаря CANopen, 0x0000..0xFFFF.",
@@ -824,4 +815,27 @@ RU: dict[str, str] = {
         "Задаёт базовый ID (например, PDO TX 1 = 0x180 + node_id), направление по умолчанию и длину служебных "
         "кадров. Пусто — не служебный кадр CANopen, ID задаётся явно. Только на шинах CANopen. Прежде — type (raw — "
         "пусто).",
+    "Raw values meaning “not available”: the sender has no value (e.g. 0xFF).":
+        "Сырые значения «нет данных»: у отправителя нет значения (например, 0xFF).",
+    "Raw values meaning “error”: the sender has a fault in this value (e.g. 0xFE).":
+        "Сырые значения «ошибка»: у отправителя неисправность в этой величине (например, 0xFE).",
+    "Raw values that carry no value: one value, a list, ranges such as \"0xFF00..0xFFFF\", or by meaning: "
+    "{not_available: …, error: …}. A plain value or list means “not available”. In C: …_is_not_available() and "
+    "…_is_error(). Formerly invalid.":
+        "Сырые значения, не несущие величины: одно значение, список, диапазоны вида \"0xFF00..0xFFFF\" или по смыслу: "
+        "{not_available: …, error: …}. Просто значение или список означает «нет данных». В C: …_is_not_available() и "
+        "…_is_error(). Прежде — invalid.",
+    "a raw value is a number or a range \"lo..hi\", e.g. 0xFF00..0xFFFF":
+        "сырое значение — число или диапазон \"от..до\", например 0xFF00..0xFFFF",
+    "a range of raw values must go from the lower bound to the upper one":
+        "диапазон сырых значений записывается от нижней границы к верхней",
+    "A raw value without a value (invalid_raw) falls inside the min..max range":
+        "Сырое значение без величины (invalid_raw) попадает в диапазон min..max",
+    "A raw value of invalid_raw does not fit in the signal width":
+        "Значение invalid_raw не помещается в разрядность сигнала",
+    "invalid_raw {value} does not fit in {bits} bits ({lo}..{hi})":
+        "invalid_raw {value} не помещается в {bits} бит ({lo}..{hi})",
+    "invalid_raw {value} maps to {phys}, inside min..max: a receiver cannot tell it from a real value":
+        "invalid_raw {value} соответствует {phys} — внутри min..max: получатель не отличит его от настоящего "
+        "значения",
 }

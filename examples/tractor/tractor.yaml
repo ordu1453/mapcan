@@ -49,4 +49,4 @@ buses:
                 unit: "%"
                 min: 0
                 max: 100
-                invalid: 0xFF
+                invalid_raw: 0xFF

@@ -848,6 +848,66 @@
       "title": "HistoryEntry",
       "type": "object"
     },
+    "InvalidRaw": {
+      "additionalProperties": false,
+      "description": "Raw values without a value, by meaning (J1939-71: \"not available\" and \"error indicator\").",
+      "properties": {
+        "not_available": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Raw values meaning “not available”: the sender has no value (e.g. 0xFF).",
+          "title": "Not Available"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Raw values meaning “error”: the sender has a fault in this value (e.g. 0xFE).",
+          "title": "Error"
+        }
+      },
+      "title": "InvalidRaw",
+      "type": "object"
+    },
     "LintRules": {
       "additionalProperties": false,
       "description": "Configurable style rules (checked as warnings).",
@@ -1465,24 +1525,34 @@
           "description": "Value after power-up or before the first message is received, in physical units. In C: …_INITIAL_RAW; in DBC: GenSigStartValue.",
           "title": "Initial"
         },
-        "invalid": {
+        "invalid_raw": {
           "anyOf": [
             {
               "type": "integer"
             },
             {
               "items": {
-                "type": "integer"
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
               },
               "type": "array"
+            },
+            {
+              "$ref": "#/$defs/InvalidRaw"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Raw values that mean “no data / not valid”, e.g. 0xFF or 0xFE, 0xFF.",
-          "title": "Invalid"
+          "description": "Raw values that carry no value: one value, a list, ranges such as \"0xFF00..0xFFFF\", or by meaning: {not_available: …, error: …}. A plain value or list means “not available”. In C: …_is_not_available() and …_is_error(). Formerly invalid.",
+          "title": "Invalid Raw"
         },
         "comment": {
           "anyOf": [

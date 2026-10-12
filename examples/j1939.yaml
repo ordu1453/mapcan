@@ -53,7 +53,7 @@ buses:
                 offset: -125
                 min: -125
                 max: 125
-                invalid: 0xFF
+                invalid_raw: 0xFF
               - name: actual_torque
                 encoding: scaled
                 description: Actual engine torque
@@ -64,7 +64,7 @@ buses:
                 offset: -125
                 min: -125
                 max: 125
-                invalid: 0xFF
+                invalid_raw: 0xFF
               - name: engine_speed
                 encoding: scaled
                 description: Engine speed
@@ -76,7 +76,8 @@ buses:
                 min: 0
                 max: 8031.875
                 initial: 0
-                invalid: 0xFFFF
+                # J1939-71 ranges of a 2-byte parameter
+                invalid_raw: {not_available: [0xFF00..0xFFFF], error: [0xFE00..0xFEFF]}
               - name: controlling_address
                 encoding: raw
                 description: Address of the device controlling the engine
@@ -103,7 +104,7 @@ buses:
                 unit: °C
                 min: -40
                 max: 210
-                invalid: 0xFF
+                invalid_raw: 0xFF
               - name: fuel_temp
                 encoding: scaled
                 description: Fuel temperature
@@ -112,7 +113,7 @@ buses:
                 byte_length: 1
                 offset: -40
                 unit: °C
-                invalid: 0xFF
+                invalid_raw: 0xFF
               - name: oil_temp
                 encoding: scaled
                 description: Oil temperature
@@ -122,7 +123,7 @@ buses:
                 factor: 0.03125
                 offset: -273
                 unit: °C
-                invalid: 0xFFFF
+                invalid_raw: 0xFFFF
 
           - name: soft
             title: SOFT
@@ -162,7 +163,7 @@ buses:
                 unit: "%"
                 min: 0
                 max: 100
-                invalid: 0xFF
+                invalid_raw: 0xFF
 
       - name: diag
         short: DT
