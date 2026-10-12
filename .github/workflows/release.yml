@@ -9,7 +9,7 @@ name: release
 #   Docker image ghcr.io/<owner>/mapcan:X.Y.Z and :latest
 # A manual run (Actions → release → Run workflow) is a trial build without publishing.
 #
-# Runners as in ci.yml: the own self-hosted Windows one, or GitHub runners with CI_RUNNER=github.
+# GitHub-hosted runners only (windows-latest, ubuntu-latest), as in ci.yml.
 # The Docker image and the Linux build run on ubuntu-latest and do not hold up publishing the release:
 # the Linux archive is uploaded to the already published release (linux-upload).
 
@@ -30,7 +30,7 @@ defaults:
 
 jobs:
   version:
-    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
@@ -61,7 +61,7 @@ jobs:
 
   python:
     needs: [version, ci]
-    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
+    runs-on: ubuntu-latest
     steps:
       - name: Use Git Bash
         if: runner.os == 'Windows'
@@ -80,7 +80,7 @@ jobs:
 
   windows:
     needs: [version, ci]
-    runs-on: ${{ vars.CI_RUNNER == 'github' && 'windows-latest' || fromJSON('["self-hosted","Windows"]') }}
+    runs-on: windows-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
@@ -195,7 +195,7 @@ jobs:
   publish:
     needs: [version, python, windows]
     if: github.event_name == 'push'
-    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     env:

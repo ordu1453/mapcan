@@ -1,9 +1,6 @@
 name: ci
 
-# The main runner is a self-hosted Windows one (the developer's machine), without a queue of cloud runners.
-# If it is not available, switch everything to GitHub runners:  gh variable set CI_RUNNER --body github
-# Back to the own runner:                                      gh variable delete CI_RUNNER
-# The Linux test always runs on ubuntu-latest (GitHub).
+# All jobs run on GitHub-hosted runners; self-hosted runners are not used in a public repository.
 
 on:
   push:
@@ -22,7 +19,7 @@ defaults:
 
 jobs:
   test:
-    runs-on: ${{ vars.CI_RUNNER == 'github' && 'windows-latest' || fromJSON('["self-hosted","Windows"]') }}
+    runs-on: windows-latest
     steps:
       - name: Use Git Bash
         if: runner.os == 'Windows'
@@ -66,7 +63,7 @@ jobs:
           tags: mapcan:ci
 
   web:
-    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
+    runs-on: ubuntu-latest
     steps:
       - name: Use Git Bash
         if: runner.os == 'Windows'
@@ -114,7 +111,7 @@ jobs:
 
   docs:
     needs: test
-    runs-on: ${{ vars.CI_RUNNER == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows"]') }}
+    runs-on: ubuntu-latest
     steps:
       - name: Use Git Bash
         if: runner.os == 'Windows'
