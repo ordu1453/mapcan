@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.5.1
 
+* Fixed the empty **Node** panel: its bundled script was outside the webview's resource roots
+  and did not load.
 * The **Map** view shows the buses, devices and frames of included files (`include`), marked with
   the file name; clicking one opens it in its file, and its **Node** panel is read-only.
 
