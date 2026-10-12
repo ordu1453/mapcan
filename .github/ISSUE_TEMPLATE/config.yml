@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/ordu1453/mapcan/security/advisories/new
+    about: Security problems are reported privately, not in a public issue.
