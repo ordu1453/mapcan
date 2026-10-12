@@ -267,6 +267,14 @@ def _check_bus(ctx: _Ctx, bus) -> None:
                 if frame.pgn is None:
                     ctx.emit("frame-id-missing", _("frame {name!r}: {why}", name=frame.name,
                                                    why=_("pgn (or id) is required")), p + ("pgn",))
+                elif frame.device is not None and frame.direction == "rx" and frame.sender is None:
+                    ctx.emit("frame-id-missing", _("frame {name!r}: {why}", name=frame.name,
+                                                   why=_("the source address of an RX frame is unknown: set "
+                                                         "sender to the sending device or give id")),
+                             p + ("sender",))
+                elif frame.device is not None and frame.direction == "rx":
+                    ctx.emit("frame-id-missing", _("frame {name!r}: {why}", name=frame.name,
+                                                   why=_("the sender has no address")), p + ("sender",))
                 else:
                     ctx.emit("frame-id-missing", _("frame {name!r}: {why}", name=frame.name,
                                                    why=_("the device has no address")), p)

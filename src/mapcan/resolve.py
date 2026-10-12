@@ -28,7 +28,6 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
     frame._path = path
     frame._bus = bus
     frame._device = dev
-    frame._can_id, frame.extended = frame_id(bus, dev, frame)
     # CiA 301 sets the length of CANopen service frames (NMT 2, Heartbeat 1…): dlc can be omitted.
     # Other frames require dlc; without it the error is dlc-missing, and 8 bytes are assumed from there on
     if frame.dlc is None:
@@ -40,6 +39,7 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
         # A frame without a CANopen type and with another sender is received by the device
         foreign = frame.sender is not None and frame.sender != dev.name
         frame.direction = default_direction(frame.type) or ("rx" if foreign else "tx")
+    frame._can_id, frame.extended = frame_id(bus, _source_device(frame, bus, dev), frame)
     for si, sig in enumerate(frame.signals):
         sig._path = path + ("signals", si)
         for fi, fl in enumerate(sig.flags or []):
@@ -49,6 +49,14 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
             ex._path = path + ("sdo", i)
         if not frame.signals:
             frame._synthetic = sdo_layout(frame)
+
+
+def _source_device(frame: Frame, bus, dev):
+    """The device whose address goes into a computed ID: on J1939 the source address of an RX frame is the
+    sender's (None when the sender is unknown), otherwise the owner's."""
+    if bus.protocol == "j1939" and dev is not None and frame.direction == "rx":
+        return next((d for d in bus.devices if d.name == frame.sender), None)
+    return dev
 
 
 def sdo_layout(frame: Frame) -> list[Signal]:

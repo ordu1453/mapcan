@@ -83,6 +83,31 @@ def test_j1939_rules():
     """))
 
 
+def test_rx_frame_source_address():
+    """The source address of an RX frame is the sender's, not the receiver's."""
+    engine = "      - name: engine\n        address: 0x00\n        frames: []\n"
+    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8, direction: rx, sender: engine}", devices=engine))
+    assert res.map is not None and not rep.errors
+    [f] = res.map.buses[0].all_frames()
+    assert f.can_id == 0x18F00400 and f.sender_name == "engine"
+    # A sender implies RX
+    res, _ = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8, sender: engine}", devices=engine))
+    assert res.map.buses[0].all_frames()[0].can_id == 0x18F00400
+    # Without sender and id the source address is unknown
+    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8, direction: rx}"))
+    [d] = [d for d in rep.diagnostics if d.code == "frame-id-missing"]
+    assert "sender" in d.message and d.node[-1] == "sender"
+    # The sender without an address
+    rep = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8, sender: engine}",
+                   devices="      - name: engine\n        frames: []\n"))[1]
+    assert "frame-id-missing" in rep.codes()
+    # An explicit id is kept, and a TX frame still takes the owner's address
+    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, id: 0x0CF00400, extended: true, dlc: 8, direction: rx}"))
+    assert "frame-id-missing" not in rep.codes() and res.map.buses[0].all_frames()[0].can_id == 0x0CF00400
+    res, _ = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8}"))
+    assert res.map.buses[0].all_frames()[0].can_id == 0x18F00410
+
+
 def test_receivers_rule():
     assert "unknown-receiver" in codes(_bus("""
         - name: f

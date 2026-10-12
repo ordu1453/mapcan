@@ -5,7 +5,7 @@ are all welcome. Start with [ARCHITECTURE.md](ARCHITECTURE.md) for a map of the 
 
 ## Reporting a problem
 
-Open an issue with the smallest map that shows it (a few lines of YAML), the command or editor
+Open an issue from the bug report form with the smallest map that shows it (a few lines of YAML), the command or editor
 action, and what you expected. For a wrong DBC, document or generated code, say which tool reads it
 and what it shows.
 
@@ -72,7 +72,7 @@ Generated files that are committed, and that CI checks are up to date:
 - One logical change per commit. The subject is an imperative sentence in English without a
   trailing period ("Add a bit rate switch (BRS) flag to CAN FD frames"); the body explains why and
   what a reader of the diff would not see. Reference issues with `Closes #N` / `Part of #N`.
-- Open the pull request against `main`. Describe what changes for users of the format, the CLI or
+- Open the pull request against `main` and fill in the template. Describe what changes for users of the format, the CLI or
   the editors; screenshots help for UI changes.
 
 ## Releases

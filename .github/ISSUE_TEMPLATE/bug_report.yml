@@ -1,0 +1,77 @@
+name: Bug report
+description: mapcan reports, exports or generates something wrong, or crashes
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Security problems are reported privately, not here: see
+        [SECURITY.md](https://github.com/ordu1453/mapcan/blob/main/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: mapcan version
+      description: Output of `mapcan --version` (and the extension version for the VS Code extension).
+      placeholder: "0.20.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - CLI
+        - Web editor
+        - Desktop app
+        - VS Code extension
+        - Generated code (C, Python)
+        - Exports (DBC, EDS, documents)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11, Ubuntu 24.04…
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How mapcan is installed
+      options:
+        - Installer
+        - uv tool / pip
+        - Docker
+        - From source
+        - VS Code Marketplace / Open VSX
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: map
+    attributes:
+      label: A minimal map
+      description: The smallest map that shows the problem (a few lines of YAML).
+      render: yaml
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: The command or editor action. For a wrong DBC, document or generated code, which tool reads it.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: What happens instead; paste error messages as text.
+    validations:
+      required: true

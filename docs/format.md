@@ -379,6 +379,11 @@ devices:
         receivers: [master]
 ```
 
+On a J1939 bus the computed ID of an RX frame takes its source address from `sender`, not from
+the owner: the owner is the receiver (and, for a PDU1 PGN, may be the `destination`). An RX frame
+without `sender` and without `id` has no known source address and is reported as
+`frame-id-missing`: name the sending device in `sender` (or move the frame to it) or give `id`.
+
 The owner of an RX frame is always one of its receivers, so it does not need to be listed in
 `receivers`. From `sender` and `receivers` across all frames on the bus, mapcan builds:
 

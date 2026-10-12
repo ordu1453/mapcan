@@ -336,6 +336,9 @@ RU: dict[str, str] = {
         "node_id {node_id:#04x} уже занят устройством {other!r}",
     "pgn (or id) is required": "нужен pgn (или id)",
     "the device has no address": "у устройства нет address",
+    "the source address of an RX frame is unknown: set sender to the sending device or give id":
+        "адрес источника RX-кадра неизвестен: укажите в sender передающее устройство или задайте id",
+    "the sender has no address": "у отправителя нет address",
     "frame {name!r}: {why}": "кадр {name!r}: {why}",
     "frame {name!r}: type {type} needs an explicit id": "кадр {name!r}: для типа {type} нужен явный id",
     "frame {name!r}: the device has no node_id to compute the {type} ID":
