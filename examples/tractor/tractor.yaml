@@ -28,7 +28,7 @@ buses:
           - name: cab_controls
             title: Cab controls
             id: 0x300
-            dlc: 2
+            length: 2
             cycle_ms: 100
             receivers: [gateway]          # the gateway is described in powertrain.yaml
             signals:

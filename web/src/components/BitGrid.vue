@@ -31,7 +31,7 @@ type Drag =
 const drag = ref<Drag | null>(null);
 const hover = ref<number | null>(null);
 
-const nbits = computed(() => props.frame.dlc * 8);
+const nbits = computed(() => props.frame.length * 8);
 
 const selector = computed(() => props.frame.signals.find((s) => s.multiplexer) ?? null);
 const muxOptions = computed(() => {
@@ -140,7 +140,7 @@ interface Segment {
 /** Labels: consecutive bits of a row with the same owner are merged. */
 const segments = computed<Segment[]>(() => {
   const out: Segment[] = [];
-  for (let row = 0; row < props.frame.dlc; row++) {
+  for (let row = 0; row < props.frame.length; row++) {
     let col = 0;
     while (col < 8) {
       const c = cells.value[row * 8 + (7 - col)];
@@ -173,7 +173,7 @@ const segments = computed<Segment[]>(() => {
 /** Name of the bit field above the bars: consecutive bits of a row of one field. */
 const fieldSegments = computed<Array<{ row: number; col: number; span: number; label: string }>>(() => {
   const out: Array<{ row: number; col: number; span: number; label: string }> = [];
-  for (let row = 0; row < props.frame.dlc; row++) {
+  for (let row = 0; row < props.frame.length; row++) {
     let col = 0;
     while (col < 8) {
       const c = cells.value[row * 8 + (7 - col)];
@@ -315,11 +315,11 @@ const status = computed(() => {
               @click="emit('update:muxValue', v)">{{ v }}{{ n ? " · " + n : "" }}</button>
     </div>
 
-    <div class="bitgrid" :style="{ gridTemplateRows: `26px repeat(${frame.dlc}, 34px)` }" @mouseleave="hover = null">
+    <div class="bitgrid" :style="{ gridTemplateRows: `26px repeat(${frame.length}, 34px)` }" @mouseleave="hover = null">
       <div class="bg-head corner">{{ t("Byte") }}</div>
       <div v-for="b in 8" :key="'h' + b" class="bg-head" :style="{ gridColumn: b + 1, gridRow: 1 }">{{ 8 - b }}</div>
 
-      <template v-for="row in frame.dlc" :key="'r' + row">
+      <template v-for="row in frame.length" :key="'r' + row">
         <div class="bg-byte" :style="{ gridRow: row + 1 }">{{ row - 1 }}</div>
       </template>
 

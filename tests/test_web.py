@@ -116,7 +116,7 @@ def test_insert_signal_and_remove(client):
     st = ops(client,
              {"op": "insert", "path": path, "value": {"name": "spare", "encoding": "raw", "description": "Резерв",
                                                       "byte": 2, "byte_length": 1}},
-             {"op": "set", "path": ["buses", 0, "devices", 1, "frames", 0, "dlc"], "value": 3})
+             {"op": "set", "path": ["buses", 0, "devices", 1, "frames", 0, "length"], "value": 3})
     assert "- name: spare" in st["text"]
     assert not [d for d in st["diagnostics"] if d["level"] == "error"]
     st = ops(client, {"op": "remove", "path": path + [2]})
@@ -546,7 +546,7 @@ def test_index_not_cached(client):
 def test_appended_item_goes_before_blank_separator(client):
     path = ["buses", 0, "devices", 1, "frames", 0, "signals"]
     st = ops(client, {"op": "insert", "path": path, "value": {"name": "spare", "byte": 2}},
-             {"op": "set", "path": ["buses", 0, "devices", 1, "frames", 0, "dlc"], "value": 3})
+             {"op": "set", "path": ["buses", 0, "devices", 1, "frames", 0, "length"], "value": 3})
     assert ("нет связи с датчиком температуры}\n"
             "              - name: spare\n"
             "                byte: 2\n"

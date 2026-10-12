@@ -35,18 +35,18 @@ buses:
         frames:
           - name: master_status
             type: pdo_tx1
-            dlc: 8
+            length: 8
             receivers: [node]
       - name: node
         node_id: 0x05
         frames:
           - name: node_command
             type: pdo_rx1
-            dlc: 8
+            length: 8
             sender: master
           - name: node_status
             type: pdo_tx1
-            dlc: 8
+            length: 8
             receivers: [master]
 """
 
@@ -89,7 +89,7 @@ def test_raw_frame_with_foreign_sender_is_rx():
     f = _map(_can("[]", """
         - name: cmd
           id: 0x100
-          dlc: 8
+          length: 8
           sender: a
     """)).buses[0].devices[1].frames[0]
     assert f.direction == "rx" and f.sender_name == "a" and f.receiver_names == ["b"]
@@ -99,7 +99,7 @@ def test_unknown_sender():
     _, rep = run(_can("""
         - name: cmd
           id: 0x100
-          dlc: 8
+          length: 8
           sender: nobody
     """))
     [d] = [d for d in rep.diagnostics if d.code == "unknown-sender"]
@@ -110,21 +110,21 @@ def test_sender_mismatch():
     assert "sender-mismatch" in codes(_can("""
         - name: st
           id: 0x100
-          dlc: 8
+          length: 8
           direction: tx
           sender: b
     """))
     assert "sender-mismatch" in codes(_can("""
         - name: cmd
           id: 0x100
-          dlc: 8
+          length: 8
           direction: rx
           sender: a
     """))
     _, rep = run(_can("""
         - name: st
           id: 0x100
-          dlc: 8
+          length: 8
           receivers: [b, a]
     """))
     [d] = [d for d in rep.diagnostics if d.code == "sender-mismatch"]
@@ -135,11 +135,11 @@ def test_rx_duplicate_replaces_duplicate_can_id():
     _, rep = run(_can("""
         - name: st
           id: 0x100
-          dlc: 8
+          length: 8
     """, """
         - name: st_in
           id: 0x100
-          dlc: 8
+          length: 8
           direction: rx
     """))
     c = rep.codes()
@@ -150,22 +150,22 @@ def test_rx_duplicate_replaces_duplicate_can_id():
     assert "duplicate-can-id" in codes(_can("""
         - name: st
           id: 0x100
-          dlc: 8
+          length: 8
     """, """
         - name: st2
           id: 0x100
-          dlc: 8
+          length: 8
     """))
     # An 11-bit and a 29-bit ID with the same number are different identifiers
     assert not {"duplicate-can-id", "rx-duplicate"} & codes(_can("""
         - name: std
           id: 0x100
-          dlc: 8
+          length: 8
     """, """
         - name: ext
           id: 0x100
           extended: true
-          dlc: 8
+          length: 8
     """))
 
 
@@ -173,7 +173,7 @@ def test_rx_no_sender_hint():
     _, rep = run(_can("[]", """
         - name: cmd
           id: 0x100
-          dlc: 8
+          length: 8
           direction: rx
     """))
     [d] = [d for d in rep.diagnostics if d.code == "rx-no-sender"]

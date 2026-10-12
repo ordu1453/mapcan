@@ -89,7 +89,7 @@ def test_python_roundtrip(cmap, py_modules):
             vals = sample(f)
             msg = cls(**vals)
             data = msg.pack()
-            assert len(data) == f.dlc
+            assert len(data) == f.length
             back = cls.unpack(data)
             for s in present(f, vals):
                 assert getattr(back, s.name) == vals[s.name], (f.name, s.name)
@@ -111,8 +111,8 @@ buses:
     devices:
       - name: a
         frames:
-          - {name: std, id: 0x100, dlc: 1, signals: [{name: s, encoding: raw, byte: 0, byte_length: 1}]}
-          - {name: ext, id: 0x100, extended: true, dlc: 1,
+          - {name: std, id: 0x100, length: 1, signals: [{name: s, encoding: raw, byte: 0, byte_length: 1}]}
+          - {name: ext, id: 0x100, extended: true, length: 1,
              signals: [{name: e, encoding: raw, byte: 0, byte_length: 1}]}
 """, "t.yaml").map
     [path] = generate_py(m, tmp_path)
@@ -236,7 +236,7 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
                     main.append(f'        printf("{f.name}.{s.name} %" PRId64 "\\n", (int64_t)u.{s.name});')
                     expected.append(f"{f.name}.{s.name} {vals[s.name]}")
             if f.layout:
-                main.append(f"        if ({t}_pack(buf, {max(f.dlc - 1, 0)}u, &m) != -1) return 2;")
+                main.append(f"        if ({t}_pack(buf, {max(f.length - 1, 0)}u, &m) != -1) return 2;")
             main.append("    }")
             data = getattr(mod, _cls(f.name))(**vals).pack()
             expected.insert(len(expected) - len(present(f, vals)),
@@ -275,23 +275,23 @@ buses:
         frames:
           - name: f1
             id: 0x101
-            dlc: 8
+            length: 8
             signals:
               - {name: u28, encoding: scaled, start_bit: 0, bit_length: 28, unit: ms}
               - {name: s32, encoding: scaled, start_bit: 28, bit_length: 32, signed: true, factor: 0.5}
           - name: f2
             id: 0x102
-            dlc: 8
+            length: 8
             signals:
               - {name: u64, encoding: scaled, start_bit: 0, bit_length: 64, factor: 2}
           - name: f3
             id: 0x103
-            dlc: 8
+            length: 8
             signals:
               - {name: s64, encoding: scaled, start_bit: 0, bit_length: 64, signed: true, factor: 2}
           - name: f4
             id: 0x104
-            dlc: 8
+            length: 8
             signals:
               - {name: s8, encoding: scaled, start_bit: 0, bit_length: 8, signed: true, factor: 0.5}
 """
@@ -362,7 +362,7 @@ def test_dbc_flag_comment_in_document_language():
     flags = """\
           - name: f5
             id: 0x105
-            dlc: 8
+            length: 8
             signals:
               - name: st
                 encoding: bitfield
@@ -396,7 +396,7 @@ buses:
     frames:
       - name: f
         id: 0x100
-        dlc: 8
+        length: 8
         signals:
           - {name: o8, encoding: raw, byte: 0, byte_length: 1, signed: true, signed_code: ones_complement}
           - {name: s8, encoding: raw, byte: 1, byte_length: 1, signed: true, signed_code: sign_magnitude}

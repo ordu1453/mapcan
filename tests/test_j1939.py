@@ -50,61 +50,61 @@ def _bus(frames: str, devices: str = "", protocol: str = "j1939") -> str:
 def test_j1939_rules():
     assert "frame-id-missing" in codes(_bus("""
         - name: f
-          dlc: 1
+          length: 1
     """))
     assert "j1939-pdu1-pgn" in codes(_bus("""
         - name: f
           pgn: 0xEA05
-          dlc: 8
+          length: 8
     """))
     assert "j1939-destination" in codes(_bus("""
         - name: f
           pgn: 0xFEEE
           destination: 0x00
-          dlc: 8
+          length: 8
     """))
     assert "j1939-address" in codes(_bus("""
         - name: f
           pgn: 0xFEEE
-          dlc: 8
+          length: 8
     """, devices="      - name: other\n        address: 0x10\n"))
     assert "j1939-address" in codes(_bus("- {name: f, pgn: 0xFEEE}").replace("address: 0x10", "address: 0xFE"))
     assert "j1939-field-protocol" in codes(_bus("""
         - name: f
           id: 0x100
           pgn: 0xFEEE
-          dlc: 8
+          length: 8
     """, protocol="can"))
     assert "frame-type-protocol" in codes(_bus("""
         - name: f
           type: pdo_tx1
           pgn: 0xFEEE
-          dlc: 8
+          length: 8
     """))
 
 
 def test_rx_frame_source_address():
     """The source address of an RX frame is the sender's, not the receiver's."""
     engine = "      - name: engine\n        address: 0x00\n        frames: []\n"
-    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8, direction: rx, sender: engine}", devices=engine))
+    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, length: 8, direction: rx, sender: engine}", devices=engine))
     assert res.map is not None and not rep.errors
     [f] = res.map.buses[0].all_frames()
     assert f.can_id == 0x18F00400 and f.sender_name == "engine"
     # A sender implies RX
-    res, _ = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8, sender: engine}", devices=engine))
+    res, _ = run(_bus("- {name: eec1, pgn: 0xF004, length: 8, sender: engine}", devices=engine))
     assert res.map.buses[0].all_frames()[0].can_id == 0x18F00400
     # Without sender and id the source address is unknown
-    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8, direction: rx}"))
+    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, length: 8, direction: rx}"))
     [d] = [d for d in rep.diagnostics if d.code == "frame-id-missing"]
     assert "sender" in d.message and d.node[-1] == "sender"
     # The sender without an address
-    rep = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8, sender: engine}",
+    rep = run(_bus("- {name: eec1, pgn: 0xF004, length: 8, sender: engine}",
                    devices="      - name: engine\n        frames: []\n"))[1]
     assert "frame-id-missing" in rep.codes()
     # An explicit id is kept, and a TX frame still takes the owner's address
-    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, id: 0x0CF00400, extended: true, dlc: 8, direction: rx}"))
+    res, rep = run(_bus("- {name: eec1, pgn: 0xF004, id: 0x0CF00400, extended: true, length: 8, direction: rx}"))
     assert "frame-id-missing" not in rep.codes() and res.map.buses[0].all_frames()[0].can_id == 0x0CF00400
-    res, _ = run(_bus("- {name: eec1, pgn: 0xF004, dlc: 8}"))
+    res, _ = run(_bus("- {name: eec1, pgn: 0xF004, length: 8}"))
     assert res.map.buses[0].all_frames()[0].can_id == 0x18F00410
 
 
@@ -112,13 +112,13 @@ def test_receivers_rule():
     assert "unknown-receiver" in codes(_bus("""
         - name: f
           pgn: 0xFEEE
-          dlc: 8
+          length: 8
           receivers: [nobody]
     """))
     assert "unknown-receiver" not in codes(_bus("""
         - name: f
           pgn: 0xFEEE
-          dlc: 8
+          length: 8
           receivers: [ecu]
     """))
 
@@ -127,7 +127,7 @@ def test_float_initial_invalid_rules():
     c = codes(_bus("""
         - name: f
           pgn: 0xFEEE
-          dlc: 8
+          length: 8
           signals:
             - {name: a, description: x, byte: 0, encoding: float, bit_length: 16}
             - {name: b, encoding: raw, description: x, byte: 2, byte_length: 1, invalid: 0x1FF}
@@ -141,10 +141,10 @@ def test_diagnostics_point_to_fields():
     """Messages are bound to the field to fix (the editor highlights it)."""
     _, rep = run(_bus("""
         - name: f
-          dlc: 1
+          length: 1
         - name: g
           pgn: 0xFEEE
-          dlc: 8
+          length: 8
           signals:
             - {name: a, byte: 0, encoding: float, bit_length: 16}
     """))
@@ -195,11 +195,11 @@ def test_document_float_encoding():
     assert fr["signals"][0]["encoding"][0] == "float64"
 
 
-def _sig(extra: str, dlc: int = 8, frame_extra: str = "", protocol: str = "j1939") -> str:
+def _sig(extra: str, length: int = 8, frame_extra: str = "", protocol: str = "j1939") -> str:
     return _bus(f"""
         - name: f
           pgn: 0xFF10
-          dlc: {dlc}{frame_extra}
+          length: {length}{frame_extra}
           signals:
             - {{name: a, encoding: raw, description: x, byte: 0, byte_length: 1, {extra}}}
     """, protocol=protocol)
@@ -211,7 +211,7 @@ def test_spn_rules():
     two = _bus("""
         - name: f
           pgn: 0xFF10
-          dlc: 2
+          length: 2
           signals:
             - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1, spn: 190}
             - {name: b, encoding: raw, description: x, byte: 1, byte_length: 1, spn: 190}
@@ -257,19 +257,19 @@ def test_spn_survives_dbc_import(tmp_path):
 
 
 def test_transport_protocol():
-    c = codes(_sig("spn: 1", dlc=20))
+    c = codes(_sig("spn: 1", length=20))
     assert "j1939-tp" in c and "dlc-range" not in c
-    assert "dlc-range" in codes(_sig("spn: 1", dlc=20, protocol="can").replace("pgn: 0xFF10", "id: 0x100")
+    assert "dlc-range" in codes(_sig("spn: 1", length=20, protocol="can").replace("pgn: 0xFF10", "id: 0x100")
                                 .replace(", spn: 1", ""))
     res, rep = run(_bus("""
         - name: f
           pgn: 0xEF00
           destination: 0x17
-          dlc: 30
+          length: 30
     """))
     tp = next(d for d in rep.diagnostics if d.code == "j1939-tp")
     assert "RTS/CTS" in tp.message
-    res, _ = run(_sig("spn: 1", dlc=1786))   # more than 255 packets
+    res, _ = run(_sig("spn: 1", length=1786))   # more than 255 packets
     assert res.map is None
 
 
@@ -283,6 +283,6 @@ def test_transport_protocol_bus_load():
 
 
 def test_long_signals_only_byte_arrays():
-    raw = _sig("spn: 1", dlc=20).replace("encoding: raw", "encoding: raw").replace("byte_length: 1", "byte_length: 12")
+    raw = _sig("spn: 1", length=20).replace("byte_length: 1", "byte_length: 12")
     assert "signal-length" in codes(raw)
     assert "signal-length" not in codes(raw.replace("encoding: raw", "encoding: bytes"))

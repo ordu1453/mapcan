@@ -36,7 +36,7 @@ def test_diagnostics_have_ranges():
     text = one_bus("""
         - name: st
           type: pdo_tx1
-          dlc: 8
+          length: 8
           signals:
             - {name: a, encoding: raw, byte: 0, bit_length: 99999}
     """)
@@ -166,7 +166,7 @@ def test_inlay_hint_skips_explicit_id():
     a = A.analyze(one_bus("""
         - name: st
           id: 0x123
-          dlc: 8
+          length: 8
           signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}]
     """), "t.yaml")
     assert [h.label for h in A.inlay_hints(a)] == ["bits 0–7"]

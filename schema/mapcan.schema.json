@@ -667,7 +667,7 @@
           "description": "Device on this bus that sends the frame when it is not the frame's owner: an RX frame (e.g. a node's RPDO sent by the master) or a bus frame (NMT, SYNC). Empty — the sender is not in the map. A frame sent by one of your devices is best described at the sender, with the receiving devices listed in \"Receivers\".",
           "title": "Sender"
         },
-        "dlc": {
+        "length": {
           "anyOf": [
             {
               "maximum": 1785,
@@ -679,8 +679,8 @@
             }
           ],
           "default": null,
-          "description": "Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol.",
-          "title": "Dlc"
+          "description": "Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol. Formerly dlc: the DLC on the bus is the code of this length.",
+          "title": "Length"
         },
         "direction": {
           "anyOf": [

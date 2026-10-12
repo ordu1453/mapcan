@@ -23,7 +23,7 @@ buses:
         frames:
           - name: vcu_state
             id: 0x100
-            dlc: 1
+            length: 1
             signals:
               - {name: mode, encoding: enum, description: x, byte: 0, byte_length: 1, values: states}
 """
@@ -38,7 +38,7 @@ buses:
         frames:
           - name: bms_state
             id: 0x200
-            dlc: 1
+            length: 1
             signals:
               - {name: fault, encoding: enum, description: x, byte: 0, byte_length: 1, values: faults}
   - name: can2
@@ -48,7 +48,7 @@ buses:
         frames:
           - name: charger_state
             id: 0x300
-            dlc: 1
+            length: 1
             signals:
               - {name: on, encoding: enum, description: x, byte: 0, byte_length: 1, values: states}
 """

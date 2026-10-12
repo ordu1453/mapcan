@@ -198,7 +198,9 @@ class CGen:
             "/* " + "-" * 72 + " */",
             f"/* {F}: {self.t(f.description) or self.t(f.title)} */",
             f"#define {self.P(F, 'ID')} 0x{f.can_id:03X}u",
-            f"#define {self.P(F, 'DLC')} {f.dlc}u",
+            f"#define {self.P(F, 'LENGTH')} {f.length}u",
+            f"#define {self.P(F, 'DLC')} {self.P(F, 'LENGTH')} "
+            f"/* {self.T['deprecated_dlc'].format(name=self.P(F, 'LENGTH'))} */",
         ]
         if f.extended:
             out.append(f"#define {self.P(F, 'IS_EXTENDED')} 1")
@@ -341,7 +343,7 @@ class CGen:
         name = self.p(f.name)
         sel = selector_of(f)
         be = lambda s: "true" if s.byte_order == "big_endian" else "false"  # noqa: E731
-        if f.dlc == 0:
+        if f.length == 0:
             return [
                 f"int {name}_pack(uint8_t *data, size_t size, const {name}_t *msg)",
                 "{", "    (void)data;", "    (void)size;", "    return (msg == NULL) ? -1 : 0;", "}", "",
@@ -352,17 +354,17 @@ class CGen:
         pack = [
             f"int {name}_pack(uint8_t *data, size_t size, const {name}_t *msg)",
             "{",
-            f"    if (data == NULL || msg == NULL || size < {f.dlc}u) {{",
+            f"    if (data == NULL || msg == NULL || size < {f.length}u) {{",
             "        return -1;",
             "    }",
-            f"    for (size_t i = 0u; i < {f.dlc}u; i++) {{",
+            f"    for (size_t i = 0u; i < {f.length}u; i++) {{",
             "        data[i] = 0u;",
             "    }",
         ]
         unpack = [
             f"int {name}_unpack({name}_t *msg, const uint8_t *data, size_t size)",
             "{",
-            f"    if (data == NULL || msg == NULL || size < {f.dlc}u) {{",
+            f"    if (data == NULL || msg == NULL || size < {f.length}u) {{",
             "        return -1;",
             "    }",
         ]
@@ -404,7 +406,7 @@ class CGen:
             elif s.signed:
                 get = f"mapcan_sign_extend({get}, {s.bit_length}u)"
             unpack += self._guard(s, sel, [f"    msg->{s.name} = ({T}){get};"])
-        pack += [f"    return {f.dlc};", "}", ""]
+        pack += [f"    return {f.length};", "}", ""]
         unpack += ["    return 0;", "}", ""]
         return pack + unpack
 

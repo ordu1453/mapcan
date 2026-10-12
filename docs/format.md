@@ -21,6 +21,8 @@ you type. `mapcan schema -o schema.json` writes the schema anywhere you need it.
 | Physical value | `physical = raw * factor + offset` |
 | Numbers | Decimal or `0x…`; use a decimal point (`0.1`, not `0,1`) |
 | Names | Latin letters, digits and `_` (valid C/Python identifiers). The naming style is set in `lint` |
+| Units in keys | A time carries its unit in the key (`cycle_ms`). Other quantities have one fixed unit stated in the field's description: bit rates in bit/s (`bitrate`), lengths in bytes (`length`, `byte_length`) or bits (`bit_length`) |
+| Raw and physical values | A key holding a raw (unscaled) value ends in `_raw`; every other value of a signal is physical: `physical = raw * factor + offset` |
 
 The numbering is stated explicitly by `document.bit_numbering: lsb0` and printed in every
 document.
@@ -124,7 +126,7 @@ lint:
 | `sender` | Name of the bus device that transmits the frame when it is not the owner: an RX frame (a node's PDO RX sent by the master) or a bus frame (NMT, SYNC). If omitted, the sender is outside the map |
 | `extended` | 29-bit ID |
 | `brs` | CAN FD: bit rate switch (BRS), the data field is sent at the data phase bit rate. If omitted, the bus `brs` applies. Written to DBC as the `CANFD_BRS` attribute |
-| `dlc` | Data length, bytes. Required, except for CANopen service frames, which take the CiA 301 length of the type when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8. On a J1939 bus up to 1785 bytes (see [Transport protocol](#transport-protocol)) |
+| `length` | Data length, bytes (formerly `dlc`: the DLC on the bus is the code of this length). Required, except for CANopen service frames, which take the CiA 301 length of the type when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8. On a J1939 bus up to 1785 bytes (see [Transport protocol](#transport-protocol)) |
 | `direction` | `tx` / `rx` relative to the owning device. Defaults from the type: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen type whose `sender` is another device → `rx`; otherwise `tx` |
 | `cycle_ms` | Cyclic transmission period, ms |
 | `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
@@ -262,7 +264,7 @@ buses:
           - name: eec1
             pgn: 0xF004          # PDU2 → ID 0x0CF00400
             priority: 3
-            dlc: 8
+            length: 8
             cycle_ms: 20
             receivers: [cluster]
             signals:
@@ -275,13 +277,13 @@ buses:
           - name: request
             pgn: 0xEA00          # PDU1: addressed
             destination: 0x00    # → ID 0x18EA00F9
-            dlc: 3
+            length: 3
 ```
 
 #### Transport protocol
 
 A PGN longer than one frame (8 bytes, or 64 on CAN FD) is sent with the J1939-21 transport
-protocol: give its full length in `dlc`, up to 1785 bytes. mapcan reports it as a note
+protocol: give its full length in `length`, up to 1785 bytes. mapcan reports it as a note
 (`j1939-tp`): BAM when it goes to everyone (a PDU2 PGN, or `destination` 0xFF), RTS/CTS when it
 goes to one device. The bus load counts its TP.DT packets and TP.CM frames. Generated code packs
 and unpacks the whole payload; splitting it into packets is the job of the J1939 stack.
@@ -289,7 +291,7 @@ and unpacks the whole payload; splitting it into packets is the job of the J1939
 ```yaml
 - name: soft
   pgn: 0xFEDA            # Software identification
-  dlc: 20                # 3 TP.DT packets + BAM
+  length: 20                # 3 TP.DT packets + BAM
   trigger: on_request
   signals:
     - {name: software_id, encoding: bytes, spn: 234, byte: 0, byte_length: 20}
@@ -312,7 +314,7 @@ signals are filled with dummy objects.
 ```yaml
 - name: drive_status
   type: pdo_tx1
-  dlc: 6
+  length: 6
   cycle_ms: 10
   signals:
     - {name: statusword, encoding: raw, index: 0x6041, byte: 0, byte_length: 2}
@@ -364,18 +366,18 @@ devices:
     frames:
       - name: master_status
         type: pdo_tx1          # sent by master, received by node
-        dlc: 8
+        length: 8
         receivers: [node]
   - name: node
     node_id: 0x05
     frames:
       - name: node_command
         type: pdo_rx1          # ID 0x205, from the node's node_id
-        dlc: 8
+        length: 8
         sender: master         # sent by the master
       - name: node_status
         type: pdo_tx1
-        dlc: 8
+        length: 8
         receivers: [master]
 ```
 
@@ -451,6 +453,30 @@ devices and frames in their places, marked with the file name; their forms are r
 editors change the main file only), and clicking such a node in VS Code opens it in its file.
 Included devices can be chosen as senders and receivers of the main file's frames.
 
+## Versioning and compatibility
+
+`mapcan: 1` is the version of the format, not of the program. What it promises:
+
+- **Additions keep the version.** New optional fields, new values of an enumeration and new rules
+  keep `mapcan: 1`. Every map that was valid stays valid; a map that uses a new field needs a mapcan
+  that knows it (see [the format changelog](format-changelog.md)).
+- **Renames keep the version too.** When a field gets a clearer name (or several fields become one),
+  the former spelling stays accepted for the whole of version 1. It is read as the current one with
+  the warning `deprecated-key`; messages about the field still point at what is written. The
+  editors show and write the current name: editing such a field renames it in place, keeping its
+  position and comment. A map that has both names is an error.
+- **`mapcan migrate FILE…`** rewrites the former names in the map and its included files, keeping
+  comments and layout; `mapcan migrate --check` exits 1 if anything is left (for CI). In VS Code the
+  quick fix of `deprecated-key` does the same.
+- **Removing a field or changing its meaning** would need `mapcan: 2`, read side by side with
+  version 1 and converted by `mapcan migrate`. None is planned.
+- **Rule codes do not change**, so `lint.disable` and `--disable` keep working: `dlc-range`, for
+  example, keeps its code after `dlc` became `length`.
+
+| Former name | Current name | Since |
+|---|---|---|
+| frame `dlc` | `length` | 0.21 |
+
 ## Validation rules
 
 `mapcan rules` prints the full list. Severities: **error** (generation stops, exit code 1),
@@ -466,6 +492,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `number-comma` | error | Number written with a decimal comma (0,1 instead of 0.1) |
 | `number-cyrillic-x` | error | Cyrillic “х” in a hexadecimal number |
 | `number-quoted` | warning | Number written as a quoted string |
+| `deprecated-key` | warning | A field under its former name: still read, `mapcan migrate` rewrites it (an error when the current name is set too). See [Versioning and compatibility](#versioning-and-compatibility) |
 | `include` | error | Included file not found, or it has keys that cannot be included |
 | `value-table` | error | `values` names a table that is not in `value_tables` |
 
@@ -496,9 +523,9 @@ turned off with `--disable CODE` or `lint.disable`.
 | `frame-id-missing` | error | Cannot determine the frame's CAN ID |
 | `duplicate-can-id` | error | Duplicate CAN ID on the bus |
 | `can-id-range` | error | CAN ID does not fit in 11 bits (needs extended: true) |
-| `dlc-range` | error | Invalid DLC |
-| `dlc-missing` | error | Frame has no dlc (only CANopen service frames may omit it) |
-| `canopen-dlc` | warning | DLC of a CANopen service frame does not match CiA 301 |
+| `dlc-range` | error | Frame length that no DLC can encode: above 8 on a classic CAN bus, not 0..8, 12, 16, 20, 24, 32, 48, 64 on CAN FD |
+| `dlc-missing` | error | Frame has no `length` (only CANopen service frames may omit it) |
+| `canopen-dlc` | warning | Length of a CANopen service frame does not match CiA 301 |
 | `frame-type-protocol` | warning | CANopen frame type on a non-CANopen bus |
 | `direction-mismatch` | warning | Direction conflicts with the CANopen frame type |
 
@@ -536,7 +563,7 @@ turned off with `--disable CODE` or `lint.disable`.
 
 | Code | Severity | What is checked |
 |---|---|---|
-| `signal-out-of-frame` | error | Signal extends beyond the DLC |
+| `signal-out-of-frame` | error | Signal extends beyond the frame length |
 | `bit-overlap` | error | Overlapping signals (multiplexing-aware) |
 | `float-length` | error | A float signal must be 32 or 64 bits |
 | `signal-length` | error | A signal longer than 64 bits that is not an aligned byte array |

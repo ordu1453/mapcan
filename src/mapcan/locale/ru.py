@@ -145,9 +145,7 @@ RU: dict[str, str] = {
     "Cannot determine the frame's CAN ID": "Невозможно определить CAN ID кадра",
     "Duplicate CAN ID on the bus": "Повтор CAN ID на шине",
     "CAN ID does not fit in 11 bits (needs extended: true)": "CAN ID не помещается в 11 бит (нужно extended: true)",
-    "Invalid DLC": "Недопустимый DLC",
     "Duplicate signal/flag name in the frame": "Повтор имени сигнала/флага в кадре",
-    "Signal extends beyond the DLC": "Сигнал выходит за пределы DLC",
     "Overlapping signals (multiplexing-aware)": "Пересечение сигналов по битам (с учётом мультиплексирования)",
     "Enum value does not fit in the field width": "Значение enum не помещается в разрядность поля",
     "Same name for different enum values": "Одинаковое имя у разных значений enum",
@@ -214,11 +212,9 @@ RU: dict[str, str] = {
     "CAN ID {can_id:#05x} of frame {name!r} matches frame {other!r}":
         "CAN ID {can_id:#05x} кадра {name!r} совпадает с кадром {other!r}",
     "CAN ID {can_id:#x} > 0x7FF": "CAN ID {can_id:#x} > 0x7FF",
-    "DLC {dlc} is not valid for CAN FD": "DLC {dlc} недопустим для CAN FD",
     "brs is set on a bus that is not CAN FD and is not used": "brs задан на шине не CAN FD и не используется",
     "brs on a bus without fd: true is not used": "brs у шины без fd: true не используется",
     "brs of a frame on a bus without fd: true is not used": "brs у кадра на шине без fd: true не используется",
-    "DLC {dlc} > 8 (for CAN FD set fd: true on the bus)": "DLC {dlc} > 8 (для CAN FD укажите fd: true у шины)",
     "receiver {name!r} is not defined on bus {bus!r}": "получатель {name!r} не описан на шине {bus!r}",
     "sender {name!r} is not defined on bus {bus!r}": "отправитель {name!r} не описан на шине {bus!r}",
     "frame {name!r} is transmitted by device {device!r} itself (TX); sender {sender!r} conflicts with the direction":
@@ -261,7 +257,6 @@ RU: dict[str, str] = {
         "«[», открытая в строке {start}, не закрыта или элементы не разделены запятой",
     "the '{{' opened on line {start} is not closed, or its items are not separated by commas":
         "«{{», открытая в строке {start}, не закрыта или элементы не разделены запятой",
-    "DLC of a CANopen service frame does not match CiA 301": "DLC служебного кадра CANopen не соответствует CiA 301",
     "Non-standard bus bit rate": "Нестандартная скорость шины",
     "Estimated bus load from cyclic frames above 70%": "Расчётная загрузка шины циклическими кадрами выше 70 %",
     "Name is a C/Python keyword or a member of the generated class":
@@ -285,8 +280,6 @@ RU: dict[str, str] = {
     "{limit}%":
         "расчётная загрузка шины {bus!r} — {load:.0f} % (циклических кадров: {count}, {bitrate} бит/с), рекомендуется "
         "не больше {limit} %",
-    "a {type} frame has DLC {expected} under CiA 301, but {dlc} is set":
-        "кадр {type} по CiA 301 имеет DLC {expected}, указано {dlc}",
     "nobody receives frame {name!r}: list the receiving devices in receivers":
         "кадр {name!r} никто не принимает: укажите получателей в receivers",
     "signal name {name!r} is a C/Python keyword: the generated code will not compile":
@@ -306,8 +299,6 @@ RU: dict[str, str] = {
         "invalid = {value} соответствует {phys:g} в пределах min..max: приёмник не отличит «нет данных» от реального "
         "значения",
     "selector {name!r} cannot have mux": "селектор {name!r} не может иметь mux",
-    "signal {name!r} occupies bytes {first}..{last}, but DLC = {dlc}":
-        "сигнал {name!r} занимает байты {first}..{last}, а DLC = {dlc}",
     "{key} does not apply to encoding: {encoding}": "{key} не применяется при encoding: {encoding}",
     "flag signal {name!r} is {bits} bits long": "сигнал-флаг {name!r} длиной {bits} бит",
     "signal {name!r}: float must be 32 or 64 bits, got {bits}":
@@ -392,7 +383,6 @@ RU: dict[str, str] = {
         "Язык документов по умолчанию: код ISO 639-1 (ru, en, de…).",
     "a translation key must be an ISO 639-1 language code (de, fr…)":
         "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)",
-    "Frame DLC is not set": "Не задан DLC кадра",
     "The same SPN on several signals of the bus": "Один и тот же SPN у нескольких сигналов шины",
     "CANopen dictionary object on a non-PDO signal, outside 0x2000..0x9FFF or big-endian":
         "Объект словаря CANopen у сигнала не PDO, вне 0x2000..0x9FFF или big-endian",
@@ -416,8 +406,6 @@ RU: dict[str, str] = {
         "little-endian, с границы байта)",
     "A PGN longer than 8 bytes is sent with the J1939-21 transport protocol":
         "PGN длиннее 8 байт передаётся транспортным протоколом J1939-21",
-    "{dlc}-byte PGN: sent with the J1939-21 transport protocol ({mode})":
-        "PGN {dlc} байт: передаётся транспортным протоколом J1939-21 ({mode})",
     "spn on a signal of a {protocol} bus": "spn у сигнала на шине {protocol}",
     "SPN {spn} is already used by signal {other}": "SPN {spn} уже у сигнала {other}",
     "J1939: suspect parameter number (SPN) per SAE J1939-71.": "J1939: номер параметра (SPN) по SAE J1939-71.",
@@ -463,7 +451,6 @@ RU: dict[str, str] = {
     "map.":
         "Подключаемые файлы (пути от файла карты): их шины, устройства, кадры и value_tables добавляются к карте.",
     "Named value tables: in a signal, values: <name>.": "Именованные таблицы значений: в сигнале — values: <имя>.",
-    "frame {name!r}: dlc (data length, bytes) is not set": "кадр {name!r}: не задан dlc (длина данных, байт)",
     "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.":
         "Название для людей, напр. «Состояния»: подпись в дереве карты и заголовок в документах.",
     "What it is and what for: shown in documents, comments of generated code and DBC.":
@@ -747,12 +734,6 @@ RU: dict[str, str] = {
         "Устройство этой шины, которое передаёт кадр, если это не его владелец: RX-кадр (напр. PDO RX узла, который "
         "шлёт мастер) или кадр шины (NMT, SYNC). Пусто — отправитель не описан в карте. Кадр, который передаёт своё "
         "устройство, лучше описывать у отправителя, а принимающих указать в «Получатели».",
-    "Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). Required except for CANopen "
-    "service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 "
-    "bus, with the transport protocol.":
-        "Длина данных кадра в байтах: 0..8, для CAN FD — до 64 (12, 16, 20, 24, 32, 48, 64). Обязательна, кроме "
-        "служебных кадров CANopen (NMT, SYNC, TIME, Heartbeat, SDO): их длину задаёт CiA 301. На шине J1939 — до 1785 "
-        "байт, с транспортным протоколом.",
     "tx — the owning device sends the frame, rx — it receives it. If omitted: from the CANopen frame type (PDO TX is "
     "sent, etc.); a frame without a type whose sender is another device is rx, otherwise tx.":
         "tx — кадр передаёт устройство-владелец, rx — принимает. Если не задано: по типу кадра CANopen (PDO TX — "
@@ -798,4 +779,43 @@ RU: dict[str, str] = {
     "if the nodes or the wiring of the bus cannot handle the higher rate. A frame can set its own value.":
         "Переключение скорости (BRS) у кадров CAN FD по умолчанию: поле данных передаётся на скорости фазы данных. "
         "Выключите, если узлы или проводка шины не держат высокую скорость. Кадр может задать своё значение.",
+    "Rewrite the former names of fields (deprecated-key) to the current ones, keeping comments and layout. Included "
+    "files are rewritten too.":
+        "Заменить прежние имена полей (deprecated-key) текущими, сохраняя комментарии и оформление. Подключённые "
+        "файлы тоже обновляются.",
+    "Map files.": "Файлы карт.",
+    "Do not write; exit code 1 if a file has former names.":
+        "Не записывать; код возврата 1, если в файле есть прежние имена.",
+    "No former field names found.": "Прежних имён полей нет.",
+    "{file}: former field names, run mapcan migrate": "{file}: прежние имена полей, выполните mapcan migrate",
+    "{old!r} is deprecated: use {new!r} (mapcan migrate rewrites the file)":
+        "{old!r} устарело: используйте {new!r} (mapcan migrate обновит файл)",
+    "{old!r} is the former name of {new!r}: remove it, {new!r} is already set":
+        "{old!r} — прежнее имя {new!r}: удалите его, {new!r} уже задано",
+    "Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). Required except for CANopen "
+    "service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 "
+    "bus, with the transport protocol. Formerly dlc: the DLC on the bus is the code of this length.":
+        "Длина данных кадра в байтах: 0..8, для CAN FD — до 64 (12, 16, 20, 24, 32, 48, 64). Обязательна, кроме "
+        "служебных кадров CANopen (NMT, SYNC, TIME, Heartbeat, SDO): их длину задаёт CiA 301. На шине J1939 — до "
+        "1785 байт, с транспортным протоколом. Прежнее имя — dlc: DLC на шине — это код этой длины.",
+    "Former name of a field: still read, mapcan migrate rewrites it":
+        "Прежнее имя поля: читается, mapcan migrate заменит его",
+    "Frame length that no DLC can encode": "Длина кадра, которую не выразить кодом DLC",
+    "Frame length is not set": "Не задана длина кадра",
+    "Length of a CANopen service frame does not match CiA 301":
+        "Длина служебного кадра CANopen не соответствует CiA 301",
+    "Signal extends beyond the frame length": "Сигнал выходит за длину кадра",
+    "frame {name!r}: length (data length, bytes) is not set": "кадр {name!r}: не задана length (длина данных, байт)",
+    "{length}-byte PGN: sent with the J1939-21 transport protocol ({mode})":
+        "PGN длиной {length} байт: передаётся транспортным протоколом J1939-21 ({mode})",
+    "a {type} frame is {expected} bytes long under CiA 301, but {length} is set":
+        "по CiA 301 кадр {type} имеет длину {expected} байт, а задано {length}",
+    "signal {name!r} occupies bytes {first}..{last}, but the frame is {length} bytes long":
+        "сигнал {name!r} занимает байты {first}..{last}, а длина кадра — {length} байт",
+    "length {length} is not a CAN FD frame length (0..8, 12, 16, 20, 24, 32, 48, 64)":
+        "длина {length} недопустима для кадра CAN FD (0..8, 12, 16, 20, 24, 32, 48, 64)",
+    "length {length} > 8 (for CAN FD set fd: true on the bus)":
+        "длина {length} > 8 (для CAN FD задайте fd: true у шины)",
+    "Rename the former fields of the whole map (mapcan migrate)":
+        "Переименовать прежние поля во всей карте (mapcan migrate)",
 }

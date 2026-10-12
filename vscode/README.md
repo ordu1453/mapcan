@@ -63,7 +63,7 @@ when the first map is opened and never sees other files.
 * **Hovers.**
   * A field key shows what the field means.
   * A signal shows its bits, scaling, unit, range and value table.
-  * A frame shows its CAN ID, DLC, cycle, sender and receivers, plus a byte-by-bit layout table.
+  * A frame shows its CAN ID, length, cycle, sender and receivers, plus a byte-by-bit layout table.
 * **Inlay hints.** Computed CAN IDs appear next to frames that have no explicit `id` (CANopen,
   J1939), and the occupied bits appear next to each signal.
 * **Completion.** Enumerated values such as `kind`, `byte_order`, `protocol` and `type`, and device

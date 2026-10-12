@@ -83,7 +83,7 @@ def test_import_details(tmp_path):
     ecu, tester = bus.devices
     assert ecu.title == "Engine unit" and tester.name == "TESTER"
     status = ecu.frames[0]
-    assert (status.can_id, status.dlc, status.receivers) == (0x100, 4, ["TESTER"])
+    assert (status.can_id, status.length, status.receivers) == (0x100, 4, ["TESTER"])
     sig = {s.name: s for s in status.signals}
     assert sig["Mode"].encoding == "enum" and sig["Mode"].description == "Operating mode"
     # Value names are identifiers; the source text goes to the description
@@ -126,10 +126,10 @@ BUS_BRS    devices:
         frames:
           - name: fast
             id: 0x100
-            dlc: 64
+            length: 64
 FAST_BRS          - name: slow
             id: 0x101
-            dlc: 12
+            length: 12
             brs: false
 """
 

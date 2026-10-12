@@ -28,7 +28,7 @@ buses:
             description: Electronic Engine Controller 1
             pgn: 0xF004
             priority: 3
-            dlc: 8
+            length: 8
             cycle_ms: 20
             receivers: [cluster]
             signals:
@@ -89,7 +89,7 @@ buses:
             title: ET1
             description: Engine Temperature 1
             pgn: 0xFEEE
-            dlc: 8
+            length: 8
             cycle_ms: 1000
             receivers: [cluster]
             signals:
@@ -128,7 +128,7 @@ buses:
             title: SOFT
             description: Software identification (longer than 8 bytes, sent with the transport protocol)
             pgn: 0xFEDA
-            dlc: 20
+            length: 20
             trigger: on_request
             receivers: [diag]
             signals:
@@ -148,7 +148,7 @@ buses:
             title: DD
             description: Dash Display
             pgn: 0xFEFC
-            dlc: 8
+            length: 8
             cycle_ms: 1000
             receivers: [engine]
             signals:
@@ -174,7 +174,7 @@ buses:
             description: PGN request to the engine (PDU1, addressed)
             pgn: 0xEA00
             destination: 0x00
-            dlc: 3
+            length: 3
             trigger: on_request
             receivers: [engine]
             signals:

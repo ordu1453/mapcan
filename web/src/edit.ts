@@ -85,7 +85,7 @@ export function addFrame(ownerPath: Path): Promise<boolean> {
     while (used.has(pgn) && pgn < 0xffff) pgn++;
     value.pgn = pgn;
     value.priority = 6;
-    value.dlc = 8;
+    value.length = 8;
     value.cycle_ms = 100;
     value.signals = [];
     return insertAndSelect([...ownerPath, "frames"], value, [], false);
@@ -102,7 +102,7 @@ export function addFrame(ownerPath: Path): Promise<boolean> {
     while (used.has(id)) id++;
     value.id = id;
   }
-  value.dlc = 8;
+  value.length = 8;
   value.cycle_ms = 100;
   value.signals = [];
   return insertAndSelect([...ownerPath, "frames"], value, [], false);
@@ -121,11 +121,11 @@ export function addSignal(framePath: Path, layout?: { start_bit: number; bit_len
   if (!pos) {
     const placed = placeNewSignal(framePath);
     if (!placed) {
-      toast(t("No free bits left in the frame. Free up space or increase the DLC"));
+      toast(t("No free bits left in the frame. Free up space or increase the frame length"));
       return Promise.resolve(false);
     }
     pos = placed.pos;
-    if (placed.dlc != null) extra.push({ op: "set", path: [...framePath, "dlc"], value: placed.dlc });
+    if (placed.length != null) extra.push({ op: "set", path: [...framePath, "length"], value: placed.length });
   }
   return insertAndSelect([...framePath, "signals"], value, [
     ...extra,
@@ -135,25 +135,25 @@ export function addSignal(framePath: Path, layout?: { start_bit: number; bit_len
 
 const FD_DLC = [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64];
 
-/** Place of a new signal: a free byte; if there is none, extend the DLC by a byte
+/** Place of a new signal: a free byte; if there is none, extend the frame by a byte
  *  (for CAN FD, to the next allowed value); if that is impossible too, free bits. */
-function placeNewSignal(framePath: Path): { pos: { start_bit: number; bit_length: number }; dlc?: number } | null {
+function placeNewSignal(framePath: Path): { pos: { start_bit: number; bit_length: number }; length?: number } | null {
   const frame = getAt(data(), framePath);
   const rf = resolvedFrames.value.get(pathKey(framePath));
-  const dlc: number = rf?.dlc ?? frame.dlc ?? 8;
+  const length: number = rf?.length ?? frame.length ?? 8;
   const used = new Set<number>((rf?.signals ?? []).flatMap((s) => s.occupied));
-  const byte = freeByte(rf, dlc);
+  const byte = freeByte(rf, length);
   if (byte !== null) return { pos: { start_bit: byte * 8, bit_length: 8 } };
 
   const fd = !!busOf(framePath)?.fd;
-  const next = fd ? FD_DLC.find((d) => d > dlc) : dlc < 8 ? dlc + 1 : undefined;
-  if (next !== undefined) return { pos: { start_bit: dlc * 8, bit_length: 8 }, dlc: next };
+  const next = fd ? FD_DLC.find((d) => d > length) : length < 8 ? length + 1 : undefined;
+  if (next !== undefined) return { pos: { start_bit: length * 8, bit_length: 8 }, length: next };
 
   // A frame of the maximum length: take the first free stretch (not longer than a byte)
-  for (let b = 0; b < dlc * 8; b++) {
+  for (let b = 0; b < length * 8; b++) {
     if (used.has(b)) continue;
     let n = 1;
-    while (n < 8 && b + n < dlc * 8 && !used.has(b + n) && (b + n) % 8 !== 0) n++;
+    while (n < 8 && b + n < length * 8 && !used.has(b + n) && (b + n) % 8 !== 0) n++;
     return { pos: { start_bit: b, bit_length: n } };
   }
   return null;

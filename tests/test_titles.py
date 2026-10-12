@@ -23,7 +23,7 @@ TRICKY = 'Напряжение */ "x" \\ """'
 TITLED = one_bus(f"""
     - name: f
       id: 0x100
-      dlc: 2
+      length: 2
       signals:
         - name: volts
           encoding: scaled
@@ -101,11 +101,11 @@ def test_canopen_service_frame_dlc_from_type():
     """
     res = loads(one_bus(frames), "t.yaml")
     hb, sync = res.map.buses[0].devices[0].frames
-    assert (hb.dlc, sync.dlc) == (1, 0)
+    assert (hb.length, sync.length) == (1, 0)
     assert "canopen-dlc" not in codes(one_bus(frames))
     # an explicitly written dlc takes precedence and is checked
     assert "canopen-dlc" in codes(one_bus("""
         - name: hb
           type: heartbeat
-          dlc: 8
+          length: 8
     """))

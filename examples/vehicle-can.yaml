@@ -23,7 +23,7 @@ buses:
         frames:
           - name: bms_status
             id: 0x100
-            dlc: 8
+            length: 8
             description: Battery state
             cycle_ms: 100
             receivers: [vcu, dashboard]
@@ -45,7 +45,7 @@ buses:
           - name: bms_cells
             id: 0x18FF5001
             extended: true
-            dlc: 8
+            length: 8
             description: Cell voltages, three per frame
             cycle_ms: 500
             receivers: [vcu]
@@ -78,7 +78,7 @@ buses:
         frames:
           - name: vcu_command
             id: 0x200
-            dlc: 8
+            length: 8
             description: Commands to the battery and the inverter
             cycle_ms: 20
             receivers: [bms]
@@ -129,7 +129,7 @@ buses:
           - name: log_record
             id: 0x300
             description: Log record
-            dlc: 64
+            length: 64
             trigger: event
             signals:
               - name: timestamp

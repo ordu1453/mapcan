@@ -69,7 +69,7 @@ buses:
         frames:
           - name: bms_status
             id: 0x100
-            dlc: 8
+            length: 8
             cycle_ms: 100
             receivers: [vcu]
             signals:
@@ -159,7 +159,7 @@ Documents can be produced in English or Russian. The default comes from the map'
 template (`gost-2.105`) is always produced in Russian.
 
 `mapcan import dbc` turns DBC nodes into devices (the sender of a frame owns it), and brings over
-frames with their IDs, DLC, cycle or send type and receivers, and signals with their layout,
+frames with their IDs, length, cycle or send type and receivers, and signals with their layout,
 scaling, units, ranges, value tables, initial values and multiplexing. A bus whose frames are
 marked J1939 (`VFrameFormat`) becomes a `j1939` bus with PGNs and device addresses; any other
 becomes a `can` bus with explicit IDs. Value names become identifiers (`Not available` →
@@ -179,13 +179,13 @@ vcu_command_t cmd = {0};
 cmd.contactor_request = VCU_COMMAND_CONTACTOR_REQUEST_CLOSE;
 cmd.torque_request = vcu_command_torque_request_from_phys(120.5f);   /* N·m → raw */
 uint8_t buf[8];
-int dlc = vcu_command_pack(buf, sizeof buf, &cmd);                   /* → VCU_COMMAND_ID */
+int len = vcu_command_pack(buf, sizeof buf, &cmd);                   /* → VCU_COMMAND_ID */
 
 bms_status_t st;
 if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { ... }
 ```
 
-Next to `<FRAME>_ID` and `<FRAME>_DLC`, the header tells the CAN driver how to send the frame:
+Next to `<FRAME>_ID` and `<FRAME>_LENGTH`, the header tells the CAN driver how to send the frame:
 `<FRAME>_IS_EXTENDED` for a 29-bit ID, and on a CAN FD bus `<FRAME>_IS_FD` and `<FRAME>_BRS`
 (bit rate switch, `0` or `1`). The classes of the Python module carry the same as `IS_EXTENDED`,
 `IS_FD` and `BITRATE_SWITCH`, named after the arguments of python-can's `can.Message`:
@@ -261,6 +261,7 @@ mapcan gen py      FILE [-o DIR] [--bus NAME]
 mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,eds,c,py] [--pdf-template NAME]
 mapcan diff        OLD NEW [--format text|md|json]
 mapcan import dbc  FILE.dbc [-o FILE.yaml] [--title TEXT] [--lang en] [--force]
+mapcan migrate     FILE… [--check]      # former field names → current ones
 mapcan schema      [-o schema.json]
 mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
 mapcan rules

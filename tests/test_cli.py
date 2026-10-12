@@ -18,7 +18,7 @@ MINIMAL = ROOT / "examples" / "minimal.yaml"
 FRAME = """
     - name: f
       type: pdo_tx1
-      dlc: 1
+      length: 1
       cycle_ms: 100
       signals:
         - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1}

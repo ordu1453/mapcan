@@ -50,7 +50,7 @@ export interface ResolvedFrame {
   name: string;
   can_id: number | null;
   extended: boolean;
-  dlc: number;
+  length: number;
   type: string;
   direction: string | null;
   device: string | null;

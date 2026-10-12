@@ -19,7 +19,7 @@ buses:
           - name: engine_summary
             title: Engine summary
             id: 0x310
-            dlc: 3
+            length: 3
             cycle_ms: 100
             receivers: [cab_ctrl]
             signals:
@@ -57,7 +57,7 @@ buses:
             description: Electronic Engine Controller 1
             pgn: 0xF004
             priority: 3
-            dlc: 8
+            length: 8
             cycle_ms: 20
             receivers: [pt_gateway]
             signals:
@@ -84,7 +84,7 @@ buses:
             description: Rear power take-off request from the cab
             pgn: 0xFE43
             priority: 6
-            dlc: 8
+            length: 8
             cycle_ms: 100
             receivers: [engine]
             signals:

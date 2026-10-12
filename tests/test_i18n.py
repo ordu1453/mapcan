@@ -90,7 +90,7 @@ def test_english_validation_messages():
     _, report = run(one_bus("""
         - name: f
           id: 0x100
-          dlc: 1
+          length: 1
           signals:
             - {name: a, encoding: raw, byte: 0, byte_length: 1}
             - {name: b, encoding: raw, byte: 0, byte_length: 1, description: x}
@@ -163,7 +163,7 @@ def test_any_iso_language():
     frame = """
         - name: f
           type: pdo_tx1
-          dlc: 1
+          length: 1
           title: {de: Zustand, en: State}
           signals:
             - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1}

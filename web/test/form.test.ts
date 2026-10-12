@@ -26,7 +26,7 @@ group("frame", () => {
     expect(keys).not.toContain("sender");
     expect(keys).not.toContain("receivers");
     expect(keys).not.toContain("extended");
-    expect(keys).toContain("dlc");
+    expect(keys).toContain("length");
   });
 
   it("RX frame without a type: direction and sender, no receivers", () => {
@@ -48,12 +48,12 @@ group("frame", () => {
   });
 
   it("the type of a CANopen service frame sets its DLC; SYNC has 0 or 1", () => {
-    expect(visible("frame", ctx({ values: { type: "nmt" } }))).not.toContain("dlc");
-    expect(visible("frame", ctx({ values: { type: "heartbeat" } }))).not.toContain("dlc");
-    expect(visible("frame", ctx({ values: { type: "sync" } }))).toContain("dlc");
-    expect(visible("frame", ctx({ values: { type: "nmt" }, protocol: "can" }))).toContain("dlc");
-    expect(isRequired(field("frame", "dlc"), ctx({ values: { type: "sync" } }))).toBe(false);
-    expect(isRequired(field("frame", "dlc"), ctx({ protocol: "can" }))).toBe(true);
+    expect(visible("frame", ctx({ values: { type: "nmt" } }))).not.toContain("length");
+    expect(visible("frame", ctx({ values: { type: "heartbeat" } }))).not.toContain("length");
+    expect(visible("frame", ctx({ values: { type: "sync" } }))).toContain("length");
+    expect(visible("frame", ctx({ values: { type: "nmt" }, protocol: "can" }))).toContain("length");
+    expect(isRequired(field("frame", "length"), ctx({ values: { type: "sync" } }))).toBe(false);
+    expect(isRequired(field("frame", "length"), ctx({ protocol: "can" }))).toBe(true);
   });
 
   it("no type outside CANopen; J1939 has a PGN and no 29-bit flag", () => {

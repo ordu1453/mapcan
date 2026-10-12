@@ -28,13 +28,13 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
     frame._path = path
     frame._bus = bus
     frame._device = dev
-    # CiA 301 sets the length of CANopen service frames (NMT 2, Heartbeat 1…): dlc can be omitted.
-    # Other frames require dlc; without it the error is dlc-missing, and 8 bytes are assumed from there on
-    if frame.dlc is None:
+    # CiA 301 sets the length of CANopen service frames (NMT 2, Heartbeat 1…): it can be omitted.
+    # Other frames require length; without it the error is dlc-missing, and 8 bytes are assumed from there on
+    if frame.length is None:
         if bus.protocol == "canopen" and frame.type in CANOPEN_DLC:
-            frame.dlc = min(CANOPEN_DLC[frame.type])
+            frame.length = min(CANOPEN_DLC[frame.type])
         else:
-            frame.dlc, frame._dlc_missing = 8, True
+            frame.length, frame._length_missing = 8, True
     if frame.direction is None and dev is not None:
         # A frame without a CANopen type and with another sender is received by the device
         foreign = frame.sender is not None and frame.sender != dev.name

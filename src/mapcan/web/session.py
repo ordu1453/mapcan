@@ -17,6 +17,7 @@ from ..i18n import _
 from ..loader import LoadResult, loads
 from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
+from ..upgrade import upgrade_tree
 from ..validate import check
 from .yamlops import OpError, apply_ops, check_editable, device_rename_ops, dump, make_yaml, merge_text, plain
 
@@ -259,7 +260,8 @@ class EditorSession:
                 "can_redo": bool(self.redo_stack),
                 "disk_changed": self.disk_changed(),
                 "text": self.text,
-                "data": plain(self.doc) if self.doc is not None else None,
+                # Deprecated keys under their current names: the editors know only those (see upgrade.py)
+                "data": upgrade_tree(plain(self.doc)) if self.doc is not None else None,
                 "resolved": resolved_view(self.map) if self.map else None,
                 **self._included(),
                 "diagnostics": [asdict(self._result.source.in_main_file(d)) for d in self._report.sorted()],
@@ -302,7 +304,7 @@ def frame_view(f: Frame) -> dict:
         "name": f.name,
         "can_id": f.can_id,
         "extended": f.extended,
-        "dlc": f.dlc,
+        "length": f.length,
         "type": f.type,
         "direction": f.direction,
         "device": f.device.name if f.device else None,

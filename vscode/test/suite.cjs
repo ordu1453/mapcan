@@ -109,7 +109,7 @@ const tests = {
     const device = () => tree.getChildren(tree.getChildren()[0])[0];
     const before = ctx.doc.getText();
     await vscode.commands.executeCommand("mapcan.addFrame", device());
-    assert.match(ctx.doc.getText(), /\n {10}- name: pump_frame\n {12}type: pdo_tx2\n {12}dlc: 8\n {12}cycle_ms: 100\n {12}signals: \[\]\n/);
+    assert.match(ctx.doc.getText(), /\n {10}- name: pump_frame\n {12}type: pdo_tx2\n {12}length: 8\n {12}cycle_ms: 100\n {12}signals: \[\]\n/);
     const added = await until("new frame", () => device().children.find((f) => f.raw.ident === "pump_frame"));
     await vscode.commands.executeCommand("mapcan.closeForm");
     await vscode.commands.executeCommand("mapcan.deleteNode", added);

@@ -202,7 +202,7 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
                 f["extended"] = True
         if m.name in no_brs and not bus_no_brs:
             f["brs"] = False
-        f["dlc"] = m.length
+        f["length"] = m.length
         send = str(_attr(m, "GenMsgSendType") or "").replace(" ", "").lower()
         if m.cycle_time:
             f["cycle_ms"] = m.cycle_time

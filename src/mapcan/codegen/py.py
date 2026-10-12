@@ -129,7 +129,8 @@ class PyGen:
         C = _cls(f.name)
         U = f.name.upper()
         sel = selector_of(f)
-        out = ["", f"{U}_ID = 0x{f.can_id:03X}", f"{U}_DLC = {f.dlc}"]
+        out = ["", f"{U}_ID = 0x{f.can_id:03X}", f"{U}_LENGTH = {f.length}",
+               f"{U}_DLC = {U}_LENGTH  # {self.T['deprecated_dlc'].format(name=f'{U}_LENGTH')}"]
         if f.mode == "cyclic":
             out.append(f"{U}_CYCLE_MS = {f.cycle_ms}")
         for s in f.layout:
@@ -149,7 +150,8 @@ class PyGen:
         out += ["", "", "@dataclass", f"class {C}:"]
         doc = self.t(f.description) or self.t(f.title)
         out.append(f'    """0x{f.can_id:03X} {f.name}: {doc}"""' if doc else f'    """0x{f.can_id:03X} {f.name}"""')
-        out += ["", f"    ID = 0x{f.can_id:03X}", f"    DLC = {f.dlc}",
+        out += ["", f"    ID = 0x{f.can_id:03X}", f"    LENGTH = {f.length}",
+                f"    DLC = LENGTH  # {self.T['deprecated_dlc'].format(name='LENGTH')}",
                 # How to send the frame, named as the arguments of python-can's can.Message
                 f"    IS_EXTENDED = {f.extended}", f"    IS_FD = {f.bus.fd}",
                 f"    BITRATE_SWITCH = {bool(f.bit_rate_switch)}", ""]
@@ -165,17 +167,17 @@ class PyGen:
             out.append("    pass")
 
         # pack
-        out += ["", "    def pack(self) -> bytes:", f"        buf = bytearray({f.dlc})"]
+        out += ["", "    def pack(self) -> bytes:", f"        buf = bytearray({f.length})"]
         for s in f.layout:
             body = self._pack_stmt(s)
             out += self._guard(s, sel, body, "self")
         out.append("        return bytes(buf)")
 
         # unpack
-        bad_dlc = self.T["bad_dlc"].format(frame=f.name, dlc=f.dlc, got="{len(data)}")
+        bad_length = self.T["bad_length"].format(frame=f.name, length=f.length, got="{len(data)}")
         out += ["", "    @classmethod", f"    def unpack(cls, data: bytes) -> \"{C}\":",
-                f"        if len(data) < {f.dlc}:",
-                f"            raise ValueError(f\"{bad_dlc}\")",
+                f"        if len(data) < {f.length}:",
+                f"            raise ValueError(f\"{bad_length}\")",
                 "        msg = cls()"]
         for s in sorted(f.layout, key=lambda s: not s.multiplexer):
             out += self._guard(s, sel, self._unpack_stmt(s), "msg")

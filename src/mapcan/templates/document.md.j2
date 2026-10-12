@@ -102,9 +102,9 @@
 {% if fr.description %}{{ fr.description }}
 
 {% endif -%}
-| {{ L.frame }} | {{ L.id }} | {{ L.type }} | {{ L.dlc }} | {{ L.direction }} | {{ L.period }} |
+| {{ L.frame }} | {{ L.id }} | {{ L.type }} | {{ L.length }} | {{ L.direction }} | {{ L.period }} |
 |---|---|---|---|---|---|
-| `{{ fr.name }}` | `{{ fr.id }}`{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} | {{ fr.type_label }} | {{ fr.dlc }} | {{ fr.direction }} | {{ fr.period }} |
+| `{{ fr.name }}` | `{{ fr.id }}`{% if fr.id_formula %} ({{ fr.id_formula }}){% endif %} | {{ fr.type_label }} | {{ fr.length }} | {{ fr.direction }} | {{ fr.period }} |
 {% if fr.pgn or fr.sender or fr.receivers %}
 {{ [("**" ~ L.pgn ~ ":** `" ~ fr.pgn ~ "` · **" ~ L.priority ~ ":** " ~ fr.priority) if fr.pgn else "",
     ("**" ~ L.sender ~ ":** " ~ fr.sender) if fr.sender else "",

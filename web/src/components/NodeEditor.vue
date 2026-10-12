@@ -106,9 +106,9 @@ function commit(def: FieldDef, value: unknown) {
     void renameNode(path.value, String(value ?? "")).then((err) => { if (err) toast(err); });
     return;
   }
-  // Changing the CANopen type: a written DLC not allowed for the new type is removed, the type's length applies
+  // Changing the CANopen type: a written length not allowed for the new type is removed, the type's length applies
   const allowed = kind.value === "frame" && def.key === "type" ? CANOPEN_DLC[String(value ?? "raw")] : undefined;
-  const dlc = node.value?.dlc;
+  const length = node.value?.length;
   // encoding is required for an SDO value: a new value is created with encoding: raw right away
   // Without an identifier an SDO exchange has no value: the value mapping is removed as a whole
   if (kind.value === "sdo" && def.key === "value.name" && (node.value?.value == null || !value)) {
@@ -117,7 +117,7 @@ function commit(def: FieldDef, value: unknown) {
     return;
   }
   void actions.apply([{ op: "set", path: [...path.value, ...def.key.split(".")], value },
-    ...(allowed && dlc != null && !allowed.includes(dlc) ? [{ op: "remove" as const, path: [...path.value, "dlc"] }] : [])]);
+    ...(allowed && length != null && !allowed.includes(length) ? [{ op: "remove" as const, path: [...path.value, "length"] }] : [])]);
 }
 
 // The heading has the title for people (with the abbreviation for a device) and the identifier; each part is edited with a double click
@@ -423,8 +423,8 @@ function onLayout(p: Path, start: number, length: number) {
     </div>
 
     <!-- Bit map for a frame, a signal, a flag -->
-    <section v-if="rframe && rframe.dlc > 0 && ['frame', 'signal', 'flag', 'sdo'].includes(kind)" class="card">
-      <h3>{{ t("Frame layout") }} <span class="muted">{{ frameData?.name }} · DLC {{ rframe.dlc }}</span></h3>
+    <section v-if="rframe && rframe.length > 0 && ['frame', 'signal', 'flag', 'sdo'].includes(kind)" class="card">
+      <h3>{{ t("Frame layout") }} <span class="muted">{{ frameData?.name }} · {{ t("{n} bytes", { n: rframe.length }) }}</span></h3>
       <BitGrid :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly"
                v-model:mux-value="muxValue"
                @select="actions.select" @create="onCreate" @layout="onLayout" />

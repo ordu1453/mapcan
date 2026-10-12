@@ -21,6 +21,7 @@ from ruamel.yaml.util import load_yaml_guess_indent
 
 from ..i18n import _
 from ..model import Signal
+from ..upgrade import DROP, deprecated_of, node_kind, renames
 
 # Keys whose numbers are usually written in hex.
 HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
@@ -262,8 +263,79 @@ def _ensure_parent(doc, path: list) -> None:
         node = node[int(el)] if isinstance(node, list) else node[_find_key(node, el)]
 
 
+# --------------------------------------------------------------------------- deprecated keys
+
+
+def _kind(path: list) -> str | None:
+    return node_kind(tuple(int(x) if isinstance(x, str) and x.isdigit() else x for x in path))
+
+
+def upgrade_map(m: Any, kind: str | None, only: str | None = None) -> bool:
+    """Replace the deprecated keys of the mapping ``m`` with the current ones in place (see upgrade.py): the
+    current key takes the position and the comment of the old one. ``only``: just the keys that this current key
+    replaces. Whether anything changed."""
+    if not isinstance(m, CommentedMap):
+        return False
+    changed = False
+    for r in renames(kind):
+        if only is not None and r.new != only:
+            continue
+        present = [k for k in r.old if k in m]
+        if not present:
+            continue
+        changed = True
+        value = DROP if r.new in m else r.value({k: plain(m[k]) for k in present})
+        if value is not DROP:
+            pos = list(m.keys()).index(present[0])
+            comment = m.ca.items.pop(present[0], None)
+            m.insert(pos, r.new, to_node(value, r.new, m[present[0]]))
+            if comment is not None:
+                m.ca.items[r.new] = comment
+        for k in present:
+            if k in m:
+                keys = list(m.keys())
+                before = keys[keys.index(k) - 1] if keys.index(k) > 0 else None
+                comment = m.ca.items.pop(k, None)
+                del m[k]
+                # The comment after a removed key (and the comment lines below it) goes to the key before it
+                if comment is not None and before is not None and before not in m.ca.items:
+                    m.ca.items[before] = comment
+    return changed
+
+
+def migrate_doc(doc) -> int:
+    """Rewrite every deprecated key of a map document; the number of nodes changed."""
+    count = 0
+
+    def walk(node, path):
+        nonlocal count
+        if isinstance(node, dict):
+            count += upgrade_map(node, _kind(path))
+            for k in list(node.keys()):
+                walk(node[k], path + [k])
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, path + [i])
+
+    walk(doc, [])
+    return count
+
+
+def migrate_text(text: str) -> str:
+    """The map's text with every deprecated key rewritten; the rest of the text stays as it was."""
+    y = make_yaml(text)
+    doc = y.load(text)
+    if doc is None:
+        return text
+    canon_old = dump(y, doc)
+    if not migrate_doc(doc):
+        return text
+    return merge_text(text, canon_old, dump(y, doc))
+
+
 def op_set(doc, path: list, value: Any) -> None:
     """Set a value. ``None`` removes the key of a mapping."""
+    _upgrade_parent(doc, path)
     if value is not None and value != "":
         try:
             _ensure_parent(doc, path)
@@ -290,7 +362,20 @@ def op_set(doc, path: list, value: Any) -> None:
     parent[key] = to_node(value, key, parent.get(key))
 
 
+def _upgrade_parent(doc, path: list) -> bool:
+    """Before a current key is written or removed, the deprecated keys it replaces in the node are renamed."""
+    if not path or not isinstance(path[-1], str) or not deprecated_of(_kind(path[:-1]), path[-1]):
+        return False
+    try:
+        parent = _get(doc, path[:-1])
+    except OpError:
+        return False
+    return upgrade_map(parent, _kind(path[:-1]), only=path[-1])
+
+
 def op_remove(doc, path: list) -> None:
+    if _upgrade_parent(doc, path) and isinstance(p := _get(doc, path[:-1]), dict) and path[-1] not in p:
+        return      # the deprecated key meant the default: nothing is left to remove
     parent, last = _parent(doc, path)
     if isinstance(parent, list):
         idx = int(last)

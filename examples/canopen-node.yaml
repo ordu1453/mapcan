@@ -26,7 +26,7 @@ buses:
         frames:
           - name: drive_status            # TPDO1, ID 0x185
             type: pdo_tx1
-            dlc: 6
+            length: 6
             cycle_ms: 10
             receivers: [controller]
             signals:
@@ -49,7 +49,7 @@ buses:
 
           - name: drive_measurements      # TPDO2, ID 0x285
             type: pdo_tx2
-            dlc: 4
+            length: 4
             cycle_ms: 100
             receivers: [controller]
             signals:
@@ -87,7 +87,7 @@ buses:
           - name: drive_command           # RPDO1, ID 0x205, sent by the controller
             type: pdo_rx1
             sender: controller
-            dlc: 6
+            length: 6
             cycle_ms: 10
             signals:
               - name: controlword

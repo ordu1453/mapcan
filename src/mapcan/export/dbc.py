@@ -120,7 +120,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         messages.append(Message(
             frame_id=f.can_id,
             name=f.name,
-            length=f.dlc,
+            length=f.length,
             signals=sigs,
             senders=senders,
             comment=_comment(t(f.description), t(f.comment)),

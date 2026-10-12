@@ -439,11 +439,12 @@ class Frame(_Base):
                        "a node's RPDO sent by the master) or a bus frame (NMT, SYNC). Empty — the sender is not in "
                        "the map. A frame sent by one of your devices is best described at the sender, with the "
                        "receiving devices listed in \"Receivers\"."))
-    dlc: int | None = Field(
+    length: int | None = Field(
         None, ge=0, le=J1939_TP_MAX,
         description=N_("Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). "
                        "Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length "
-                       "is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol."))
+                       "is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol. Formerly "
+                       "dlc: the DLC on the bus is the code of this length."))
     direction: Direction | None = Field(
         None,
         description=N_("tx — the owning device sends the frame, rx — it receives it. If omitted: from the CANopen "
@@ -462,7 +463,7 @@ class Frame(_Base):
     _device: Any = PrivateAttr(default=None)
     _bus: Any = PrivateAttr(default=None)
     _synthetic: list | None = PrivateAttr(default=None)
-    _dlc_missing: bool = PrivateAttr(default=False)
+    _length_missing: bool = PrivateAttr(default=False)
 
     @property
     def layout(self) -> list[Signal]:

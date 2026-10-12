@@ -12,10 +12,12 @@ import re
 from dataclasses import dataclass, field
 
 from .. import model as M
+from .. import upgrade as U
 from ..bits import occupied_bits
 from ..canopen import CANOPEN_DLC, FUNCTION_CODES, compute_id
 from ..i18n import _
 from ..units import UNITS
+from ..upgrade import upgrade_node
 from ..validate import STYLE_RE
 from .analysis import Analysis, Path_, Pos, _txt, doc_language, enum_choices, model_for, raw_at_path
 
@@ -213,6 +215,12 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
                     for k, s in enumerate(_suggest(value, choices, 0.4))]
         return []
 
+    if code == "deprecated-key":
+        from ..web.yamlops import migrate_text
+        new = migrate_text(a.text)
+        return [Action(_("Rename the former fields of the whole map (mapcan migrate)"),
+                       [minimal_edit(a.text, new)], preferred=True)] if new != a.text else []
+
     if code == "can-id-range" and path and path[-1] == "id":
         return [Action(_("Add extended: true"), set_value(a, path[:-1] + ("extended",), "true"),
                        preferred=True)]
@@ -298,7 +306,7 @@ def free_start(frame: M.Frame, length: int, step: int, skip: M.Signal | None = N
     for s in frame.signals:
         if s is not skip and (skip is None or _coexist(s, skip)):
             taken.update(occupied_bits(s.start_bit or 0, s.bit_length or 1, s.byte_order == "big_endian"))
-    for start in range(0, frame.dlc * 8 - length + 1, step):
+    for start in range(0, frame.length * 8 - length + 1, step):
         if not taken & set(range(start, start + length)):
             return start
     return None
@@ -592,7 +600,7 @@ def _new_frame(a: Analysis, owner: Path_) -> list[tuple[str, str]]:
         types = {f.get("type") for f in raw_at(a, owner + ("frames",)) or [] if isinstance(f, dict)}
         free = next((t for t in PDO_TYPES if t not in types), None) if protocol == "canopen" and device else None
         fields.append(("type", free) if free else ("id", f"0x{_free_id(a, owner[:2]):03X}"))
-    return fields + [("dlc", "8"), ("cycle_ms", "100"), ("signals", "[]")]
+    return fields + [("length", "8"), ("cycle_ms", "100"), ("signals", "[]")]
 
 
 def _free_id(a: Analysis, bus_path: Path_) -> int:
@@ -842,6 +850,11 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     kind = node_kind(path)
     if kind is None or not isinstance(raw, dict):
         return None
+    node = raw
+    # Deprecated keys under their current names: the form knows only those (see upgrade.py)
+    raw, _found = upgrade_node(U.node_kind(path), dict(raw), path)
+    if kind == "sdo" and isinstance(raw.get("value"), dict):
+        raw["value"] = upgrade_node("sdo_value", dict(raw["value"]))[0]
     lang = doc_language(a)
     bus = raw_at_path(a.data, path[:2]) if path[:1] == ("buses",) else None
     bus = bus if isinstance(bus, dict) else {}
@@ -871,7 +884,7 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     frame = _find(a.map, path) if a.map is not None and kind == "frame" else None
     # Whether another signal of the frame is the multiplexer selector (then the signal can have mux)
     siblings = at(path[:-1]) if kind == "signal" else None
-    has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not raw for s in siblings or [])
+    has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not node for s in siblings or [])
     return {"kind": kind, "path": list(path), "file": file, "lang": lang,
             "protocol": bus.get("protocol") or "canopen",
             # CAN FD bus and its BRS default: the frame's BRS field shows the inherited value
@@ -947,6 +960,12 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
     if not path or not isinstance(path[-1], str) or a.result.source.is_included(path):
         return []
     key = path[-1]
+    parent = raw_at(a, path[:-1])
+    if isinstance(parent, dict) and any(k in parent for k in U.deprecated_of(U.node_kind(path[:-1]), key)):
+        # The node has the field under a former name: yamlops renames it in place (keeping its position)
+        op = ({"op": "remove", "path": list(path)} if value is None or value == ""
+              else {"op": "set", "path": list(path), "value": value})
+        return [minimal_edit(a.text, apply_ops(a, [op]))]
     if key == "type" and node_kind(path[:-1]) == "frame":
         return _set_frame_type(a, path, value)
     if not isinstance(raw_at(a, path[:-1]), dict):
@@ -1001,12 +1020,13 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
 
 
 def _set_frame_type(a: Analysis, path: Path_, value) -> list[Edit]:
-    """CANopen frame type; a written DLC not allowed for the new type is removed, so the type's length is used."""
+    """CANopen frame type; a written length not allowed for the new type is removed, so the type's length is used."""
     edits = _set_plain(a, path, value)
     allowed = CANOPEN_DLC.get(str(value or "raw"))
-    dlc = raw_at(a, path[:-1] + ("dlc",))
-    if edits and allowed and isinstance(dlc, int) and dlc not in allowed:
-        edits += delete_key(a, path[:-1] + ("dlc",))
+    for key in ("length",) + U.deprecated_of("frame", "length"):
+        length = raw_at(a, path[:-1] + (key,))
+        if edits and allowed and isinstance(length, int) and length not in allowed:
+            edits += delete_key(a, path[:-1] + (key,))
     return edits
 
 

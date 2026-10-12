@@ -18,11 +18,12 @@ from .diagnostics import Diagnostic, Report
 from .i18n import _
 from .model import MapCan
 from .resolve import resolve
+from .upgrade import Upgraded, upgrade_tree
 
 # Keys whose values must be numbers.
 NUMERIC_KEYS = {
     "factor", "offset", "min", "max", "id", "node_id", "start_bit", "bit_length",
-    "byte", "bit", "byte_length", "dlc", "cycle_ms", "bitrate", "command",
+    "byte", "bit", "byte_length", "length", "dlc", "cycle_ms", "bitrate", "command",
     "index", "subindex", "mux",
 }
 _COMMA_NUMBER = re.compile(r"^\s*[+-]?\d+,\d+\s*$")
@@ -290,6 +291,7 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
     if isinstance(data, dict):
         base = Path(base_dir) if base_dir is not None else Path(filename).resolve().parent if filename else None
         _include(data, base, src, report)
+        data = _upgrade(data, src, report)
         merged = copy.deepcopy(data) if src.includes else None
         _value_tables(data, src, report)
     else:
@@ -306,6 +308,30 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
         cmap._base_dir = Path(filename).resolve().parent
     resolve(cmap)
     return LoadResult(cmap, report, src, raw, merged)
+
+
+def _upgrade(data: dict, src: SourceMap, report: Report) -> dict:
+    """Deprecated keys → the current ones (see upgrade.py). The current key takes the position of the old one,
+    so later messages about it point at what is written in the file."""
+
+    def found(u: Upgraded) -> None:
+        old = u.path + (u.old[0],)
+        if u.conflict:
+            report.add(src.diag("error", "deprecated-key",
+                                _("{old!r} is the former name of {new!r}: remove it, {new!r} is already set",
+                                  old=", ".join(u.old), new=u.rename.new), old))
+            return
+        report.add(src.diag("warning", "deprecated-key",
+                            _("{old!r} is deprecated: use {new!r} (mapcan migrate rewrites the file)",
+                              old=", ".join(u.old), new=u.rename.new), old))
+        new = u.path + (u.rename.new,)
+        for p, pos in list(src.positions.items()):
+            if p[:len(old)] == old:
+                src.positions.setdefault(new + p[len(old):], pos)
+                if p in src.files:
+                    src.files.setdefault(new + p[len(old):], src.files[p])
+
+    return upgrade_tree(data, found)
 
 
 # --------------------------------------------------------------------------- #

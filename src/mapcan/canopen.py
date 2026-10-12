@@ -38,7 +38,7 @@ FUNCTION_CODES: dict[str, FunctionCode] = {
     ]
 }
 
-# Allowed DLC of service frames by CiA 301; a frame without an explicit dlc gets the smallest of them.
+# Allowed lengths of service frames by CiA 301; a frame without an explicit length gets the smallest.
 CANOPEN_DLC: dict[str, set[int]] = {
     "nmt": {2}, "sync": {0, 1}, "time": {6}, "heartbeat": {1}, "sdo_tx": {8}, "sdo_rx": {8},
 }

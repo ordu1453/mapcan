@@ -38,7 +38,7 @@ C_KEYWORDS = frozenset("""
 """.split())
 PY_KEYWORDS = frozenset(keyword.kwlist)
 # Members of the generated frame class in the Python module.
-PY_FRAME_MEMBERS = frozenset({"ID", "DLC", "IS_EXTENDED", "IS_FD", "BITRATE_SWITCH", "pack", "unpack"})
+PY_FRAME_MEMBERS = frozenset({"ID", "LENGTH", "DLC", "IS_EXTENDED", "IS_FD", "BITRATE_SWITCH", "pack", "unpack"})
 # Standard classic CAN bitrates, bit/s (33.3 and 83.3 kbit/s: GMLAN and low-speed buses).
 STANDARD_BITRATES = frozenset({10_000, 20_000, 33_333, 50_000, 83_333, 100_000, 125_000, 250_000,
                                500_000, 800_000, 1_000_000})
@@ -55,6 +55,7 @@ RULES = {
     "number-comma": ("error", N_("Number written with a decimal comma (0,1 instead of 0.1)")),
     "number-cyrillic-x": ("error", N_("Cyrillic “х” in a hexadecimal number")),
     "number-quoted": ("warning", N_("Number written as a quoted string")),
+    "deprecated-key": ("warning", N_("Former name of a field: still read, mapcan migrate rewrites it")),
     "invalid-identifier": ("error", N_("Name cannot be used as a C/Python identifier")),
     "duplicate-device-name": ("error", N_("Duplicate device name on the bus")),
     "duplicate-node-id": ("error", N_("Duplicate node_id on the bus")),
@@ -63,11 +64,11 @@ RULES = {
     "frame-id-missing": ("error", N_("Cannot determine the frame's CAN ID")),
     "duplicate-can-id": ("error", N_("Duplicate CAN ID on the bus")),
     "can-id-range": ("error", N_("CAN ID does not fit in 11 bits (needs extended: true)")),
-    "dlc-range": ("error", N_("Invalid DLC")),
-    "dlc-missing": ("error", N_("Frame DLC is not set")),
+    "dlc-range": ("error", N_("Frame length that no DLC can encode")),
+    "dlc-missing": ("error", N_("Frame length is not set")),
     "include": ("error", N_("Included file is missing or has keys that cannot be included")),
     "value-table": ("error", N_("No value table with this name in value_tables")),
-    "canopen-dlc": ("warning", N_("DLC of a CANopen service frame does not match CiA 301")),
+    "canopen-dlc": ("warning", N_("Length of a CANopen service frame does not match CiA 301")),
     "bitrate-nonstandard": ("warning", N_("Non-standard bus bit rate")),
     "brs-without-fd": ("warning", N_("brs is set on a bus that is not CAN FD and is not used")),
     "bus-load": ("warning", N_("Estimated bus load from cyclic frames above 70%")),
@@ -75,7 +76,7 @@ RULES = {
     "reserved-identifier": ("error", N_("Name is a C/Python keyword or a member of the generated class")),
     "name-collision": ("error", N_("Names collide in generated code (differ only in case, or clash with a _phys "
                                    "property)")),
-    "signal-out-of-frame": ("error", N_("Signal extends beyond the DLC")),
+    "signal-out-of-frame": ("error", N_("Signal extends beyond the frame length")),
     "bit-overlap": ("error", N_("Overlapping signals (multiplexing-aware)")),
     "enum-overflow": ("error", N_("Enum value does not fit in the field width")),
     "duplicate-enum-name": ("warning", N_("Same name for different enum values")),
@@ -363,7 +364,7 @@ def _check_spn(ctx: _Ctx, bus) -> None:
 
 def _is_tp(frame: Frame) -> bool:
     """A PGN sent with the J1939-21 transport protocol: longer than one frame of the bus."""
-    return frame.bus.protocol == "j1939" and frame.dlc > (64 if frame.bus.fd else 8)
+    return frame.bus.protocol == "j1939" and frame.length > (64 if frame.bus.fd else 8)
 
 
 def _tp_mode(frame: Frame) -> str:
@@ -374,7 +375,7 @@ def _tp_mode(frame: Frame) -> str:
 
 def _tp_bits(frame: Frame) -> int:
     """Bits on the bus of a PGN with the transport protocol: TP.DT packets of 7 bytes and the TP.CM frames."""
-    packets = -(-frame.dlc // 7)
+    packets = -(-frame.length // 7)
     control = 1 if _tp_mode(frame) == "BAM" else 3      # BAM; RTS, CTS, EndOfMsgAck
     return (packets + control) * _frame_bits(8, True)
 
@@ -391,7 +392,7 @@ def _check_bus_load(ctx: _Ctx, bus) -> None:
         return
     cyclic = [f for f in bus.all_frames()
               if f.can_id is not None and f.cycle_ms and f.trigger is None]
-    bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.dlc, f.extended)) * 1000 / f.cycle_ms
+    bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.length, f.extended)) * 1000 / f.cycle_ms
                      for f in cyclic)
     load = 100 * bits_per_s / bus.bitrate
     if load > BUS_LOAD_LIMIT:
@@ -415,25 +416,27 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
     bus = frame.bus
     _ident(ctx, frame.name, _("frame name"), p + ("name",), ctx.cmap.lint.frame_name)
 
-    if frame._dlc_missing:
-        ctx.emit("dlc-missing", _("frame {name!r}: dlc (data length, bytes) is not set", name=frame.name), p)
+    if frame._length_missing:
+        ctx.emit("dlc-missing", _("frame {name!r}: length (data length, bytes) is not set", name=frame.name), p)
     if _is_tp(frame):
-        ctx.emit("j1939-tp", _("{dlc}-byte PGN: sent with the J1939-21 transport protocol ({mode})",
-                               dlc=frame.dlc, mode=_tp_mode(frame)), p + ("dlc",))
+        ctx.emit("j1939-tp", _("{length}-byte PGN: sent with the J1939-21 transport protocol ({mode})",
+                               length=frame.length, mode=_tp_mode(frame)), p + ("length",))
     elif bus.fd:
-        if frame.dlc not in FD_DLC:
-            ctx.emit("dlc-range", _("DLC {dlc} is not valid for CAN FD", dlc=frame.dlc), p + ("dlc",))
-    elif frame.dlc > 8:
-        ctx.emit("dlc-range", _("DLC {dlc} > 8 (for CAN FD set fd: true on the bus)", dlc=frame.dlc), p + ("dlc",))
+        if frame.length not in FD_DLC:
+            ctx.emit("dlc-range", _("length {length} is not a CAN FD frame length (0..8, 12, 16, 20, 24, 32, 48, 64)",
+                                    length=frame.length), p + ("length",))
+    elif frame.length > 8:
+        ctx.emit("dlc-range", _("length {length} > 8 (for CAN FD set fd: true on the bus)", length=frame.length),
+                 p + ("length",))
     if frame.brs is not None and not bus.fd:
         ctx.emit("brs-without-fd", _("brs of a frame on a bus without fd: true is not used"), p + ("brs",))
 
     fc = FUNCTION_CODES.get(frame.type)
     allowed = CANOPEN_DLC.get(frame.type)
-    if bus.protocol == "canopen" and allowed and frame.dlc not in allowed:
-        ctx.emit("canopen-dlc", _("a {type} frame has DLC {expected} under CiA 301, but {dlc} is set",
-                                  type=frame.type, expected=" / ".join(map(str, sorted(allowed))), dlc=frame.dlc),
-                 p + ("dlc",))
+    if bus.protocol == "canopen" and allowed and frame.length not in allowed:
+        ctx.emit("canopen-dlc", _("a {type} frame is {expected} bytes long under CiA 301, but {length} is set",
+                                  type=frame.type, expected=" / ".join(map(str, sorted(allowed))), length=frame.length),
+                 p + ("length",))
     devices = {d.name for d in bus.devices}
     for i, r in enumerate(frame.receivers):
         if r not in devices:
@@ -502,7 +505,7 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
             seen[key] = ex.name
 
     if not frame.layout:
-        if frame.dlc > 0:
+        if frame.length > 0:
             ctx.emit("empty-frame", _("frame {name!r} has no signals", name=frame.name), p)
         return
 
@@ -512,7 +515,7 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
 def _check_signals(ctx: _Ctx, frame: Frame) -> None:
     lint = ctx.cmap.lint
     sigs = frame.layout
-    nbits = frame.dlc * 8
+    nbits = frame.length * 8
 
     # Names
     names: dict[str, tuple] = {}
@@ -567,8 +570,8 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
         if min(occ) < 0 or max(occ) >= nbits:
             first, last = B.byte_span(s.start_bit, s.bit_length, be)
             ctx.emit("signal-out-of-frame",
-                     _("signal {name!r} occupies bytes {first}..{last}, but DLC = {dlc}",
-                       name=s.name, first=first, last=last, dlc=frame.dlc), sp)
+                     _("signal {name!r} occupies bytes {first}..{last}, but the frame is {length} bytes long",
+                       name=s.name, first=first, last=last, length=frame.length), sp)
 
         lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code)
         for v, ev in enum_entries(s.values):

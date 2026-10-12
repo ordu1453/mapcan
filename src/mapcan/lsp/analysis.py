@@ -607,7 +607,7 @@ def frame_markdown(frame: M.Frame) -> str:
     head = f"**{frame.name}**"
     if frame.can_id is not None:
         head += f" · `{_hex(frame.can_id, frame.extended)}`" + (" ext" if frame.extended else "")
-    head += f" · DLC {frame.dlc}"
+    head += f" · DLC {frame.length}"
     out = [head]
     facts = []
     if frame.mode == "cyclic":
@@ -625,7 +625,7 @@ def frame_markdown(frame: M.Frame) -> str:
 def frame_layout(frame: M.Frame) -> str:
     """Bit map of a frame as a markdown table: rows are bytes, columns are bits 7…0."""
     sigs = frame.layout
-    if not sigs or frame.dlc == 0:
+    if not sigs or frame.length == 0:
         return ""
     cells: dict[int, list[int]] = {}
     for i, s in enumerate(sigs, 1):
@@ -633,7 +633,7 @@ def frame_layout(frame: M.Frame) -> str:
             cells.setdefault(b, []).append(i)
     rows = ["| " + _("Byte") + " | " + " | ".join(str(b) for b in range(7, -1, -1)) + " |",
             "|---:|" + ":-:|" * 8]
-    for byte in range(frame.dlc):
+    for byte in range(frame.length):
         row = [",".join(map(str, cells.get(byte * 8 + bit, []))) or "·" for bit in range(7, -1, -1)]
         rows.append(f"| {byte} | " + " | ".join(row) + " |")
     legend = "\n".join(f"{i}. `{s.name}` — {signal_bits(s)}" for i, s in enumerate(sigs, 1))

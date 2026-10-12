@@ -29,7 +29,7 @@ LABELS = {
         "device": "Устройство", "frame": "Кадр", "id": "ID", "byte": "Байт", "bits": "Биты",
         "signal": "Сигнал", "description": "Описание", "encoding": "Кодирование",
         "values": "Значения", "type": "Тип", "period": "Передача", "direction": "Направление",
-        "dlc": "DLC", "message_type": "Тип сообщения", "purpose": "Назначение",
+        "length": "Длина, байт", "dlc": "Длина, байт", "message_type": "Тип сообщения", "purpose": "Назначение",
         "broadcast": "Широковещательные", "node": "Узел", "version": "Версия", "date": "Дата",
         "author": "Автор", "bus": "Шина", "bitrate": "Скорость", "interface": "Интерфейс",
         "protocol": "Протокол", "history": "История изменений", "summary": "Сводка",
@@ -62,7 +62,7 @@ LABELS = {
         "device": "Device", "frame": "Frame", "id": "ID", "byte": "Byte", "bits": "Bits",
         "signal": "Signal", "description": "Description", "encoding": "Encoding",
         "values": "Values", "type": "Type", "period": "Transmission", "direction": "Direction",
-        "dlc": "DLC", "message_type": "Message type", "purpose": "Purpose",
+        "length": "Length, bytes", "dlc": "Length, bytes", "message_type": "Message type", "purpose": "Purpose",
         "broadcast": "Broadcast", "node": "Node", "version": "Version", "date": "Date",
         "author": "Author", "bus": "Bus", "bitrate": "Bitrate", "interface": "Interface",
         "protocol": "Protocol", "history": "Revision history", "summary": "Summary",
@@ -292,7 +292,7 @@ class ViewBuilder:
         if f.bus.protocol == "j1939" and f.pgn is not None:
             return "J1939 PDU1" if j1939_is_pdu1(f.pgn) else "J1939 PDU2"
         bits = ("29" if f.extended else "11") + (" бит" if self.lang == "ru" else "-bit")
-        if not (f.bus.fd and f.dlc > 8):
+        if not (f.bus.fd and f.length > 8):
             return f"CAN {bits}"
         return f"CAN FD {bits}" + ("" if f.bit_rate_switch else ", без BRS" if self.lang == "ru" else ", no BRS")
 
@@ -336,7 +336,8 @@ class ViewBuilder:
             "type_label": (fc.label_ru if self.lang == "ru" else fc.label_en) if fc else self.raw_type(f),
             "id": hex_id(f.can_id, f.extended),
             "id_formula": formula,
-            "dlc": f.dlc,
+            "length": f.length,
+            "dlc": f.length,         # former name, for custom templates
             "direction": (f.direction or "").upper(),
             "period": self.mode_label(f),
             "pgn": f"0x{f.pgn:04X}" if f.pgn is not None else "",
@@ -466,7 +467,7 @@ class ViewBuilder:
                 for k in range(fl.bit, min(fl.bit + fl.bit_length, len(occ))):
                     flag_at[occ[k]] = fl.name
         rows = []
-        for byte in range(f.dlc):
+        for byte in range(f.length):
             cells = []
             for bit in range(7, -1, -1):
                 p = byte * 8 + bit

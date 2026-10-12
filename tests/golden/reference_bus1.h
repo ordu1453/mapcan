@@ -130,21 +130,23 @@ static inline double mapcan_round_d(double x)
 /* ------------------------------------------------------------------------ */
 /* sync: Синхронизация со всеми устройствами */
 #define SYNC_ID 0x080u
-#define SYNC_DLC 0u
+#define SYNC_LENGTH 0u
+#define SYNC_DLC SYNC_LENGTH /* устарело: используйте SYNC_LENGTH */
 
 typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } sync_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int sync_pack(uint8_t *data, size_t size, const sync_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int sync_unpack(sync_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* time_stamp: Дата и время */
 #define TIME_STAMP_ID 0x100u
-#define TIME_STAMP_DLC 6u
+#define TIME_STAMP_LENGTH 6u
+#define TIME_STAMP_DLC TIME_STAMP_LENGTH /* устарело: используйте TIME_STAMP_LENGTH */
 
 #define TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR (1.0)
 #define TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET (0.0)
@@ -181,15 +183,16 @@ typedef struct {
     uint16_t days_since_1984; /* Дни с 1 января 1984 г. [сут] */
 } time_stamp_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int time_stamp_pack(uint8_t *data, size_t size, const time_stamp_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int time_stamp_unpack(time_stamp_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* imd_state: Состояние изоляции */
 #define IMD_STATE_ID 0x1A1u
-#define IMD_STATE_DLC 3u
+#define IMD_STATE_LENGTH 3u
+#define IMD_STATE_DLC IMD_STATE_LENGTH /* устарело: используйте IMD_STATE_LENGTH */
 #define IMD_STATE_CYCLE_MS 100u
 
 /* insulation_status: Статус изоляции */
@@ -222,15 +225,16 @@ typedef struct {
     uint8_t imd_state; /* Состояние работы */
 } imd_state_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_state_pack(uint8_t *data, size_t size, const imd_state_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_state_unpack(imd_state_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* imd_data: Данные по изоляции */
 #define IMD_DATA_ID 0x2A1u
-#define IMD_DATA_DLC 8u
+#define IMD_DATA_LENGTH 8u
+#define IMD_DATA_DLC IMD_DATA_LENGTH /* устарело: используйте IMD_DATA_LENGTH */
 #define IMD_DATA_CYCLE_MS 100u
 
 /* resistance_calculated: Флаг расчёта сопротивления изоляции */
@@ -298,15 +302,16 @@ typedef struct {
     uint16_t bus_voltage; /* Напряжение шины питания [В] */
 } imd_data_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_data_pack(uint8_t *data, size_t size, const imd_data_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_data_unpack(imd_data_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* imd_command: Команды монитору изоляции */
 #define IMD_COMMAND_ID 0x221u
-#define IMD_COMMAND_DLC 2u
+#define IMD_COMMAND_LENGTH 2u
+#define IMD_COMMAND_DLC IMD_COMMAND_LENGTH /* устарело: используйте IMD_COMMAND_LENGTH */
 #define IMD_COMMAND_CYCLE_MS 100u
 
 /* allow_work: Команда разрешения работы устройства */
@@ -326,15 +331,16 @@ typedef struct {
     uint8_t force_selftest; /* Команда принудительной самодиагностики */
 } imd_command_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_command_pack(uint8_t *data, size_t size, const imd_command_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_command_unpack(imd_command_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* imd_sdo_request: Настройка граничных значений */
 #define IMD_SDO_REQUEST_ID 0x621u
-#define IMD_SDO_REQUEST_DLC 8u
+#define IMD_SDO_REQUEST_LENGTH 8u
+#define IMD_SDO_REQUEST_DLC IMD_SDO_REQUEST_LENGTH /* устарело: используйте IMD_SDO_REQUEST_LENGTH */
 
 /* sdo_command: Команда SDO */
 typedef enum {
@@ -390,15 +396,16 @@ typedef struct {
     uint16_t warning_resistance; /* Порог предупредительного сопротивления изоляции [кОм] */
 } imd_sdo_request_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_sdo_request_pack(uint8_t *data, size_t size, const imd_sdo_request_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_sdo_request_unpack(imd_sdo_request_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* imd_sdo_response: Обратная связь по принятой настройке */
 #define IMD_SDO_RESPONSE_ID 0x5A1u
-#define IMD_SDO_RESPONSE_DLC 8u
+#define IMD_SDO_RESPONSE_LENGTH 8u
+#define IMD_SDO_RESPONSE_DLC IMD_SDO_RESPONSE_LENGTH /* устарело: используйте IMD_SDO_RESPONSE_LENGTH */
 
 /* sdo_command: Команда SDO */
 typedef enum {
@@ -422,15 +429,16 @@ typedef struct {
     uint8_t sdo_subindex; /* Субиндекс объекта */
 } imd_sdo_response_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_sdo_response_pack(uint8_t *data, size_t size, const imd_sdo_response_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_sdo_response_unpack(imd_sdo_response_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* cmu_state: Состояние ячеек */
 #define CMU_STATE_ID 0x1A2u
-#define CMU_STATE_DLC 2u
+#define CMU_STATE_LENGTH 2u
+#define CMU_STATE_DLC CMU_STATE_LENGTH /* устарело: используйте CMU_STATE_LENGTH */
 #define CMU_STATE_CYCLE_MS 50u
 
 /* cmu_status: Состояние работы устройства */
@@ -461,15 +469,16 @@ typedef struct {
     uint8_t systems_status; /* Код состояния систем */
 } cmu_state_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_state_pack(uint8_t *data, size_t size, const cmu_state_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cmu_state_unpack(cmu_state_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* cmu_event: Изменение состояния */
 #define CMU_EVENT_ID 0x0A2u
-#define CMU_EVENT_DLC 3u
+#define CMU_EVENT_LENGTH 3u
+#define CMU_EVENT_DLC CMU_EVENT_LENGTH /* устарело: используйте CMU_EVENT_LENGTH */
 
 /* event_type: Код события */
 typedef enum {
@@ -494,15 +503,16 @@ typedef struct {
     uint8_t event_object; /* Объект события — номер модуля или датчика */
 } cmu_event_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_event_pack(uint8_t *data, size_t size, const cmu_event_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cmu_event_unpack(cmu_event_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* cmu_parse_data: Парсинг данных (по запросу) */
 #define CMU_PARSE_DATA_ID 0x2A2u
-#define CMU_PARSE_DATA_DLC 8u
+#define CMU_PARSE_DATA_LENGTH 8u
+#define CMU_PARSE_DATA_DLC CMU_PARSE_DATA_LENGTH /* устарело: используйте CMU_PARSE_DATA_LENGTH */
 
 /* parse_type: Тип парсинга (селектор мультиплексора) */
 typedef enum {
@@ -517,15 +527,16 @@ typedef struct {
     uint8_t temperature_data[7]; /* Данные парсинга температур */
 } cmu_parse_data_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_parse_data_pack(uint8_t *data, size_t size, const cmu_parse_data_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cmu_parse_data_unpack(cmu_parse_data_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* cmu_request: Объём передаваемых данных */
 #define CMU_REQUEST_ID 0x222u
-#define CMU_REQUEST_DLC 2u
+#define CMU_REQUEST_LENGTH 2u
+#define CMU_REQUEST_DLC CMU_REQUEST_LENGTH /* устарело: используйте CMU_REQUEST_LENGTH */
 
 /* data_request: Запрос на отправку данных */
 typedef enum {
@@ -540,15 +551,16 @@ typedef struct {
     uint8_t frame_request; /* Номер повторно запрашиваемого кадра */
 } cmu_request_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_request_pack(uint8_t *data, size_t size, const cmu_request_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cmu_request_unpack(cmu_request_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* pcu_state: Состояние преобразователя */
 #define PCU_STATE_ID 0x1A3u
-#define PCU_STATE_DLC 2u
+#define PCU_STATE_LENGTH 2u
+#define PCU_STATE_DLC PCU_STATE_LENGTH /* устарело: используйте PCU_STATE_LENGTH */
 #define PCU_STATE_CYCLE_MS 100u
 
 /* dc_state: Состояние работы */
@@ -578,15 +590,16 @@ typedef struct {
     uint8_t error_code; /* Код ошибки преобразователя */
 } pcu_state_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_state_pack(uint8_t *data, size_t size, const pcu_state_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int pcu_state_unpack(pcu_state_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* pcu_data: Данные о работе */
 #define PCU_DATA_ID 0x2A3u
-#define PCU_DATA_DLC 8u
+#define PCU_DATA_LENGTH 8u
+#define PCU_DATA_DLC PCU_DATA_LENGTH /* устарело: используйте PCU_DATA_LENGTH */
 #define PCU_DATA_CYCLE_MS 100u
 
 #define PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR (10.0f)
@@ -656,15 +669,16 @@ typedef struct {
     uint16_t dc_input_current; /* Входной ток [А] */
 } pcu_data_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_data_pack(uint8_t *data, size_t size, const pcu_data_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int pcu_data_unpack(pcu_data_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* pcu_command: Установка режима работы преобразователя */
 #define PCU_COMMAND_ID 0x223u
-#define PCU_COMMAND_DLC 2u
+#define PCU_COMMAND_LENGTH 2u
+#define PCU_COMMAND_DLC PCU_COMMAND_LENGTH /* устарело: используйте PCU_COMMAND_LENGTH */
 #define PCU_COMMAND_CYCLE_MS 50u
 
 /* requested_mode: Запрашиваемый режим работы */
@@ -698,65 +712,69 @@ typedef struct {
     uint8_t target_voltage; /* Целевое значение напряжения [В] */
 } pcu_command_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_command_pack(uint8_t *data, size_t size, const pcu_command_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int pcu_command_unpack(pcu_command_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* bypass_command: Установка режима работы байпаса */
 #define BYPASS_COMMAND_ID 0x224u
-#define BYPASS_COMMAND_DLC 8u
+#define BYPASS_COMMAND_LENGTH 8u
+#define BYPASS_COMMAND_DLC BYPASS_COMMAND_LENGTH /* устарело: используйте BYPASS_COMMAND_LENGTH */
 
 typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } bypass_command_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int bypass_command_pack(uint8_t *data, size_t size, const bypass_command_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int bypass_command_unpack(bypass_command_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* bypass_state: Текущий режим работы ключа и состояние ошибки */
 #define BYPASS_STATE_ID 0x2A4u
-#define BYPASS_STATE_DLC 8u
+#define BYPASS_STATE_LENGTH 8u
+#define BYPASS_STATE_DLC BYPASS_STATE_LENGTH /* устарело: используйте BYPASS_STATE_LENGTH */
 
 typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } bypass_state_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int bypass_state_pack(uint8_t *data, size_t size, const bypass_state_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int bypass_state_unpack(bypass_state_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* cooling_command: Установка скорости вентиляторов и положения заслонок */
 #define COOLING_COMMAND_ID 0x225u
-#define COOLING_COMMAND_DLC 8u
+#define COOLING_COMMAND_LENGTH 8u
+#define COOLING_COMMAND_DLC COOLING_COMMAND_LENGTH /* устарело: используйте COOLING_COMMAND_LENGTH */
 
 typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } cooling_command_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int cooling_command_pack(uint8_t *data, size_t size, const cooling_command_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cooling_command_unpack(cooling_command_t *msg, const uint8_t *data, size_t size);
 
 /* ------------------------------------------------------------------------ */
 /* cooling_state: Скорость вентиляторов и положение заслонок */
 #define COOLING_STATE_ID 0x2A5u
-#define COOLING_STATE_DLC 8u
+#define COOLING_STATE_LENGTH 8u
+#define COOLING_STATE_DLC COOLING_STATE_LENGTH /* устарело: используйте COOLING_STATE_LENGTH */
 
 typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } cooling_state_t;
 
-/* Упаковать: возвращает DLC или -1, если буфер меньше DLC. */
+/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
 int cooling_state_pack(uint8_t *data, size_t size, const cooling_state_t *msg);
-/* Распаковать: возвращает 0 или -1, если данных меньше DLC. */
+/* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cooling_state_unpack(cooling_state_t *msg, const uint8_t *data, size_t size);
 
 #ifdef __cplusplus

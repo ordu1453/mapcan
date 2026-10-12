@@ -19,7 +19,7 @@ const data = {
 };
 
 const frame = (path: Array<string | number>, extra: Partial<ResolvedFrame>): ResolvedFrame => ({
-  path, name: "", can_id: 0x181, extended: false, dlc: 8, type: "pdo_tx1", direction: "tx",
+  path, name: "", can_id: 0x181, extended: false, length: 8, type: "pdo_tx1", direction: "tx",
   device: null, sender: null, receivers: [], signals: [], ...extra,
 });
 

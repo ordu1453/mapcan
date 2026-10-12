@@ -95,7 +95,7 @@ export const TYPE_DIRECTION: Record<string, string> = {
   pdo_tx1: "tx", pdo_tx2: "tx", pdo_tx3: "tx", pdo_tx4: "tx", pdo_rx1: "rx", pdo_rx2: "rx", pdo_rx3: "rx", pdo_rx4: "rx",
 };
 
-/** Data lengths of CANopen service frames by CiA 301 (as in canopen.py); without dlc the smallest is used. */
+/** Data lengths of CANopen service frames by CiA 301 (as in canopen.py); without length the smallest is used. */
 export const CANOPEN_DLC: Record<string, number[]> = {
   nmt: [2], sync: [0, 1], time: [6], heartbeat: [1], sdo_tx: [8], sdo_rx: [8],
 };
@@ -257,7 +257,7 @@ export const FORMS: Record<FormKind, Section[]> = {
     ] },
     { title: N_("Timing"), fields: [
       // The type of a CANopen service frame sets its length; SYNC is 0 or 1
-      { key: "dlc", label: "DLC", type: "int", half: true,
+      { key: "length", label: N_("Length, bytes"), type: "int", half: true,
         placeholder: (c) => (c.protocol === "canopen" && CANOPEN_DLC[frameType(c)]
           ? t(N_("{n} (CiA 301)"), { n: Math.min(...CANOPEN_DLC[frameType(c)]) }) : ""),
         when: (c) => !(c.protocol === "canopen" && CANOPEN_DLC[frameType(c)]?.length === 1),

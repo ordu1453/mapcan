@@ -1,0 +1,113 @@
+"""Former names of fields (deprecated-key): read with a warning, written under the current name, migrated."""
+
+from __future__ import annotations
+
+from typer.testing import CliRunner
+
+from mapcan.cli import app
+from mapcan.lsp import analysis as A
+from mapcan.lsp import edits as E
+from mapcan.upgrade import node_kind, upgrade_tree
+from mapcan.web.session import EditorSession
+from mapcan.web.yamlops import migrate_text
+
+from .conftest import ROOT, run
+from .test_lsp_edits import FRAME, apply, fixed
+
+MINIMAL = (ROOT / "examples" / "minimal.yaml").read_text(encoding="utf-8")
+# The same map as written before the rename: the frame's length under its former name
+LEGACY = MINIMAL.replace("            length: 8\n", "            dlc: 8        # bytes\n", 1)
+
+
+def test_minimal_has_the_length():
+    assert LEGACY != MINIMAL
+
+
+def test_former_name_is_read_with_a_warning():
+    res, report = run(LEGACY)
+    assert res.map.buses[0].devices[0].frames[0].length == 8
+    d = next(d for d in report.diagnostics if d.code == "deprecated-key")
+    assert d.level == "warning" and "'dlc'" in d.message and "'length'" in d.message
+    assert LEGACY.splitlines()[d.line - 1].strip().startswith("dlc:")
+
+
+def test_messages_about_the_field_point_at_the_former_key():
+    res, report = run(LEGACY.replace("dlc: 8 ", "dlc: 9 "))
+    d = next(d for d in report.diagnostics if d.code == "dlc-range")
+    assert LEGACY.splitlines()[d.line - 1].strip().startswith("dlc:")
+
+
+def test_both_names_is_an_error():
+    text = LEGACY.replace("dlc: 8        # bytes\n", "dlc: 8\n            length: 4\n")
+    res, report = run(text)
+    d = next(d for d in report.diagnostics if d.code == "deprecated-key")
+    assert d.level == "error"
+    assert res.map.buses[0].devices[0].frames[0].length == 4
+
+
+def test_node_kinds():
+    assert node_kind(("buses", 0, "devices", 1, "frames", 2)) == "frame"
+    assert node_kind(("buses", 0, "frames", 2)) == "frame"
+    assert node_kind(("buses", 0, "devices", 1, "frames", 2, "signals", 0)) == "signal"
+    assert node_kind(("buses", 0, "devices", 1, "frames", 2, "signals", 0, "flags", 3)) == "flag"
+    assert node_kind(("buses", 0, "devices", 1, "frames", 2, "sdo", 0, "value")) == "sdo_value"
+    assert node_kind(("buses", 0, "devices", 1)) == "device"
+    assert node_kind(("value_tables", "x")) is None
+
+
+def test_migrate_keeps_the_rest_of_the_text():
+    out = migrate_text(LEGACY)
+    assert "length: 8     # bytes\n" in out
+    assert out.replace("length: 8     # bytes\n", "length: 8\n") == MINIMAL
+    assert migrate_text(MINIMAL) == MINIMAL
+
+
+def test_cli_migrate(tmp_path):
+    p = tmp_path / "m.yaml"
+    p.write_bytes(LEGACY.replace("\n", "\r\n").encode())
+    r = CliRunner().invoke(app, ["migrate", "--check", str(p)])
+    assert r.exit_code == 1 and "migrate" in r.output
+    r = CliRunner().invoke(app, ["migrate", str(p)])
+    assert r.exit_code == 0
+    text = p.read_bytes().decode()
+    assert "length: 8" in text and "dlc:" not in text and "\r\n" in text and "\n" not in text.replace("\r\n", "")
+    assert CliRunner().invoke(app, ["migrate", "--check", str(p)]).exit_code == 0
+
+
+def test_cli_migrate_included_files(tmp_path):
+    (tmp_path / "part.yaml").write_text("buses:\n  - name: b\n    frames:\n      - {name: f, id: 0x10, dlc: 1}\n",
+                                        encoding="utf-8")
+    main = tmp_path / "m.yaml"
+    main.write_text("mapcan: 1\ninclude: [part.yaml]\n", encoding="utf-8")
+    assert CliRunner().invoke(app, ["migrate", str(main)]).exit_code == 0
+    assert "length: 1" in (tmp_path / "part.yaml").read_text(encoding="utf-8")
+
+
+def test_upgrade_tree_does_not_change_its_input():
+    data = {"buses": [{"name": "b", "frames": [{"name": "f", "dlc": 2, "id": 1}]}]}
+    out = upgrade_tree(data)
+    assert list(out["buses"][0]["frames"][0]) == ["name", "length", "id"]
+    assert data["buses"][0]["frames"][0]["dlc"] == 2
+
+
+def test_lsp_form_reads_and_writes_the_current_name():
+    a = A.analyze(LEGACY, "m.yaml")
+    assert E.node_fields(a, FRAME)["values"]["length"] == 8
+    out = apply(LEGACY, E.set_field(a, FRAME + ("length",), 6))
+    assert "            length: 6     # bytes\n" in out and "dlc" not in out
+    out = apply(LEGACY, E.set_field(a, FRAME + ("length",), None))
+    assert "dlc" not in out and "length" not in out.split("pump_state")[1].split("signals")[0]
+
+
+def test_lsp_quick_fix_migrates_the_map():
+    assert fixed(LEGACY, "deprecated-key") == migrate_text(LEGACY)
+
+
+def test_web_editor_data_and_writes(tmp_path):
+    p = tmp_path / "m.yaml"
+    p.write_text(LEGACY, encoding="utf-8")
+    s = EditorSession(p)
+    frame = s.state()["data"]["buses"][0]["devices"][0]["frames"][0]
+    assert frame["length"] == 8 and "dlc" not in frame
+    s.apply([{"op": "set", "path": list(FRAME) + ["length"], "value": 4}])
+    assert "            length: 4     # bytes\n" in s.text and "dlc" not in s.text

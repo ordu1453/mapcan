@@ -207,6 +207,47 @@ def diff(
     typer.echo(render_diff(d, fmt.value, lang or maps[1].lang))
 
 
+@app.command(help=_("Rewrite the former names of fields (deprecated-key) to the current ones, keeping comments and "
+                    "layout. Included files are rewritten too."))
+def migrate(
+    paths: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help=_("Map files.")),
+    check: bool = typer.Option(False, "--check", help=_("Do not write; exit code 1 if a file has former names.")),
+) -> None:
+    from ruamel.yaml import YAML
+
+    from .web.yamlops import migrate_text
+
+    files: list[Path] = []
+    for p in paths:
+        files.append(p)
+        try:
+            data = YAML(typ="safe").load(p.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — a broken file is reported by validate
+            data = None
+        for inc in data.get("include") or [] if isinstance(data, dict) else []:
+            q = p.parent / str(inc)
+            if q.is_file() and q not in files:
+                files.append(q)
+    outdated = []
+    for f in files:
+        raw = f.read_bytes().decode("utf-8")
+        text = raw.replace("\r\n", "\n")
+        new = migrate_text(text)
+        if new == text:
+            continue
+        outdated.append(f)
+        if check:
+            typer.echo(_("{file}: former field names, run mapcan migrate", file=f))
+        else:
+            # The file keeps its line endings
+            f.write_bytes((new.replace("\n", "\r\n") if "\r\n" in raw else new).encode("utf-8"))
+            _done(f)
+    if not outdated:
+        typer.echo(_("No former field names found."))
+    elif check:
+        raise typer.Exit(1)
+
+
 @app.command(help=_("List validation rules."))
 def rules() -> None:
     for code, (level, desc) in RULES.items():

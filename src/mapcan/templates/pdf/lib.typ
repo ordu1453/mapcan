@@ -102,7 +102,7 @@
   )
 }
 
-/// Summary of the frame's properties (ID, type, DLC, direction, period).
+/// Summary of the frame's properties (ID, type, length, direction, period).
 #let frame-props(fr, L, th: theme-color) = {
   table(
     columns: (auto, 1fr, auto, 1fr, auto, 1fr),
@@ -111,7 +111,7 @@
     [*#L.frame*], mono(fr.name, th: th),
     [*#L.id*], [#mono(fr.id, th: th) #if fr.id_formula != "" { text(size: 0.85em, fill: luma(90), "(" + fr.id_formula + ")") }],
     [*#L.type*], fr.type_label,
-    [*#L.dlc*], str(fr.dlc),
+    [*#L.length*], str(fr.length),
     [*#L.direction*], fr.direction,
     [*#L.period*], fr.period,
     ..if fr.at("pgn", default: "") != "" { ([*#L.pgn*], mono(fr.pgn, th: th), [*#L.priority*], fr.priority, [], []) },

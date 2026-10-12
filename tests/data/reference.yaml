@@ -48,14 +48,14 @@ buses:
         type: sync
         title: SYNC
         description: Синхронизация со всеми устройствами
-        dlc: 0
+        length: 0
         trigger: event
 
       - name: time_stamp
         type: time
         title: TIME
         description: Дата и время
-        dlc: 6
+        length: 6
         trigger: event
         signals:
           - name: ms_after_midnight
@@ -83,7 +83,7 @@ buses:
             type: pdo_tx1
             title: СОСТОЯНИЯ
             description: Состояние изоляции
-            dlc: 3
+            length: 3
             cycle_ms: 100
             signals:
               - name: insulation_status
@@ -130,7 +130,7 @@ buses:
 
           - name: imd_data
             type: pdo_tx2
-            dlc: 8
+            length: 8
             title: ДАННЫЕ
             description: Данные по изоляции
             cycle_ms: 100
@@ -181,7 +181,7 @@ buses:
             type: pdo_rx1
             title: КОМАНДЫ
             description: Команды монитору изоляции
-            dlc: 2
+            length: 2
             cycle_ms: 100
             signals:
               - name: allow_work
@@ -253,7 +253,7 @@ buses:
             type: pdo_tx1
             title: СОСТОЯНИЯ
             description: Состояние ячеек
-            dlc: 2
+            length: 2
             cycle_ms: 50
             signals:
               - name: cmu_status
@@ -284,7 +284,7 @@ buses:
             type: emcy
             title: СОБЫТИЯ
             description: Изменение состояния
-            dlc: 3
+            length: 3
             trigger: event
             signals:
               - name: event_type
@@ -316,7 +316,7 @@ buses:
 
           - name: cmu_parse_data
             type: pdo_tx2
-            dlc: 8
+            length: 8
             title: ДАННЫЕ ПО НАПРЯЖЕНИЮ
             description: Парсинг данных (по запросу)
             trigger: on_request
@@ -353,7 +353,7 @@ buses:
             type: pdo_rx1
             title: ЗАПРОСЫ
             description: Объём передаваемых данных
-            dlc: 2
+            length: 2
             trigger: event
             signals:
               - name: data_request
@@ -382,7 +382,7 @@ buses:
             type: pdo_tx1
             title: СОСТОЯНИЯ
             description: Состояние преобразователя
-            dlc: 2
+            length: 2
             cycle_ms: 100
             signals:
               - name: dc_state
@@ -416,7 +416,7 @@ buses:
 
           - name: pcu_data
             type: pdo_tx2
-            dlc: 8
+            length: 8
             title: ДАННЫЕ
             description: Данные о работе
             cycle_ms: 100
@@ -430,7 +430,7 @@ buses:
             type: pdo_rx1
             title: КОМАНДЫ
             description: Установка режима работы преобразователя
-            dlc: 2
+            length: 2
             cycle_ms: 50
             signals:
               - name: requested_mode
@@ -456,11 +456,11 @@ buses:
         frames:
           - name: bypass_command
             type: pdo_rx1
-            dlc: 8
+            length: 8
             description: Установка режима работы байпаса
           - name: bypass_state
             type: pdo_tx2
-            dlc: 8
+            length: 8
             description: Текущий режим работы ключа и состояние ошибки
 
       - name: cooling
@@ -470,11 +470,11 @@ buses:
         frames:
           - name: cooling_command
             type: pdo_rx1
-            dlc: 8
+            length: 8
             description: Установка скорости вентиляторов и положения заслонок
           - name: cooling_state
             type: pdo_tx2
-            dlc: 8
+            length: 8
             description: Скорость вентиляторов и положение заслонок
 
   # ======================================================================= #
@@ -494,7 +494,7 @@ buses:
             id: 0x001
             title: Данные верхнего уровня
             description: Режим питания и режим работы установки
-            dlc: 5
+            length: 5
             cycle_ms: 100
             signals:
               - name: power_mode
@@ -542,7 +542,7 @@ buses:
             id: 0x002
             title: Состояние системы
             description: Состояние системы питания
-            dlc: 5
+            length: 5
             cycle_ms: 250
             signals:
               - name: system_status

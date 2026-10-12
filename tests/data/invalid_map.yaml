@@ -13,7 +13,7 @@ buses:
         frames:
           - name: imd_data
             type: pdo_tx2
-            dlc: 8
+            length: 8
             cycle_ms: 100
             signals:
               - name: bus_voltage
@@ -26,7 +26,7 @@ buses:
           - name: imd_state
             id: 0х196
             type: pdo_tx1
-            dlc: 2
+            length: 2
             cycle_ms: 100
             signals:
               - name: cmu_status
@@ -56,7 +56,7 @@ buses:
         frames:
           - name: pcu_state
             type: pdo_tx1
-            dlc: 8
+            length: 8
             cycle_ms: 100
             signals:
               - name: dc_status
@@ -75,7 +75,7 @@ buses:
                   - {bit: 8, name: OutOfRange}
           - name: pcu_dup
             id: 0x1A3
-            dlc: 8
+            length: 8
             cycle_ms: 50
             trigger: event
             signals:

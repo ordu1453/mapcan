@@ -308,7 +308,7 @@ class _Writer:
                     fr["title"] or fr["name"],
                     fr["description"],
                     " · ".join(x for x in (fr["type_label"], fr["period"], fr["direction"]) if x),
-                    f"DLC {fr['dlc']}",
+                    f"{L['length']}: {fr['length']}",
                     f"{L['pgn']} {fr['pgn']} · {L['priority']} {fr['priority']}" if fr.get("pgn") else "",
                     f"{L['sender']}: {fr['sender']}" if fr.get("sender") else "",
                     f"{L['receivers']}: {fr['receivers']}" if fr.get("receivers") else "",

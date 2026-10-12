@@ -102,3 +102,18 @@ Tests point at most of the steps when one is missed.
 
 The commit that added `brs` (bit rate switch of CAN FD frames) is a compact example of most of these
 steps: `git log --grep "bit rate switch"`.
+
+## Renaming a field
+
+A rename keeps format v1 (see "Versioning and compatibility" in [docs/format.md](docs/format.md)):
+the former name stays readable. Add a `Rename` to `RENAMES` in [upgrade.py](src/mapcan/upgrade.py)
+(with a converter when the value changes too) and rename the field everywhere else as if it had always
+had the new name. The loader rewrites the former key before validation and reports
+`deprecated-key`; the editors get the current names
+([session.py](src/mapcan/web/session.py), `node_fields` in [lsp/edits.py](src/mapcan/lsp/edits.py));
+writing a field renames the former key in place (`upgrade_map` in
+[yamlops.py](src/mapcan/web/yamlops.py)); `mapcan migrate` and the quick fix rewrite whole files.
+Keep the codes of validation rules, and keep former names in the context of custom document
+templates and in generated code as deprecated aliases. Add a row to the table in
+[docs/format.md](docs/format.md#versioning-and-compatibility) and an entry to
+[docs/format-changelog.md](docs/format-changelog.md). `tests/test_upgrade.py` shows the checks.
