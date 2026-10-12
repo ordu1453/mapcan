@@ -10,6 +10,8 @@
 * A frame's **Type** is **CANopen function** (`canopen`); "none — explicit ID" leaves it out.
 * A signal's **Invalid (raw)** is **Not available (raw)** (`invalid_raw`) and takes ranges such as
   `0xFF00..0xFFFF`. Values given by meaning (`not_available`, `error`) are shown read-only.
+* A file included by a map, which now starts with `mapcan: 1` and `part_of`, is not taken for a map
+  of its own.
 * The language server is started when the first map is opened, not for any YAML file, and only maps
   are sent to it. Other YAML files (CI configs, manifests) no longer start a `mapcan` process or show
   an error when `mapcan` is not installed. A new file is picked up once `mapcan:` is typed into it.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import datetime as _dt
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -288,6 +289,12 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
 
     data = _plain(raw, (), src, report)
     src.positions.setdefault((), (1, 1))
+    if isinstance(data, dict) and "part_of" in data and "document" not in data:
+        # An included file opened on its own: it is valid only as a part of its map
+        report.add(src.diag("error", "include",
+                            _("this file is a part of the map {map!r}: open or validate that map",
+                              map=data["part_of"]), ("part_of",)))
+        return LoadResult(None, report, src, raw)
     if isinstance(data, dict):
         base = Path(base_dir) if base_dir is not None else Path(filename).resolve().parent if filename else None
         _include(data, base, src, report)
@@ -338,7 +345,7 @@ def _upgrade(data: dict, src: SourceMap, report: Report) -> dict:
 # Included files (include) and named value tables (value_tables)
 # --------------------------------------------------------------------------- #
 
-INCLUDE_KEYS = {"buses", "value_tables"}
+INCLUDE_KEYS = {"mapcan", "part_of", "buses", "value_tables"}
 # An included file can only add devices and frames to a bus described in the main file
 BUS_EXTENSION_KEYS = {"name", "devices", "frames"}
 
@@ -375,6 +382,7 @@ def _include(data: dict, base: Path | None, src: SourceMap, report: Report) -> N
             continue
         sub_src = SourceMap(fname)
         part = _plain(raw, (), sub_src, report) if raw is not None else {}
+        sub_src.positions.setdefault((), (1, 1))
         src.includes.append((i, fname))
         if not isinstance(part, dict):
             report.add(Diagnostic("error", "include", _("an included file must be a YAML mapping"), fname, 1, 1))
@@ -384,8 +392,31 @@ def _include(data: dict, base: Path | None, src: SourceMap, report: Report) -> N
                 report.add(sub_src.diag("error", "include",
                                         _("key {key!r} cannot be included: only buses and value_tables", key=key),
                                         (key,)))
+        _check_part_header(part, path, base / Path(src.file).name if src.file else None, sub_src, data, report)
         _merge_tables(data, part, sub_src, src, report)
         _merge_buses(data, part, sub_src, src, report)
+
+
+def _check_part_header(part: dict, path: Path, map_file: Path | None, sub_src: SourceMap, data: dict,
+                       report: Report) -> None:
+    """An included file says its format version (``mapcan``) and the map it belongs to (``part_of``)."""
+    main = map_file.resolve() if map_file else None
+    expected = os.path.relpath(main, path.resolve().parent).replace(os.sep, "/") if main else None
+    if "mapcan" not in part or "part_of" not in part:
+        report.add(sub_src.diag("warning", "include-part-of",
+                                _("an included file starts with mapcan: 1 and part_of: {map} (the map it belongs to)",
+                                  map=expected or "<map file>"), ()))
+    if "mapcan" in part and part["mapcan"] != data.get("mapcan"):
+        report.add(sub_src.diag("error", "include",
+                                _("format version {part} differs from the map's {main}", part=part["mapcan"],
+                                  main=data.get("mapcan")), ("mapcan",)))
+    of = part.get("part_of")
+    if of is not None and not isinstance(of, str):
+        report.add(sub_src.diag("error", "include", _("part_of is the path of the map file"), ("part_of",)))
+    elif isinstance(of, str) and main is not None and (path.resolve().parent / of).resolve() != main:
+        report.add(sub_src.diag("error", "include",
+                                _("part_of names {named!r}, but the file is included by {map!r}", named=of,
+                                  map=expected), ("part_of",)))
 
 
 def _copy_positions(sub_src: SourceMap, src: SourceMap, remap) -> None:

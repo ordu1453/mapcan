@@ -172,3 +172,36 @@ def test_web_state_has_included_nodes(tmp_path):
     assert len(st["data"]["buses"]) == 1                         # data of the main file, without the included ones
     with pytest.raises(OpError):
         s.apply([{"op": "set", "path": ["buses", 1, "name"], "value": "x"}])
+
+
+HEADER = "mapcan: 1\npart_of: main.yaml\n"
+
+
+def test_included_file_names_its_map(tmp_path):
+    # Without the header: a warning (files written before it keep loading)
+    _, rep = run(write(tmp_path))
+    d = next(d for d in rep.diagnostics if d.code == "include-part-of")
+    assert d.level == "warning" and d.file.endswith("common.yaml") and "part_of: main.yaml" in d.message
+    # With it: no message
+    _, rep = run(write(tmp_path, common=HEADER + COMMON))
+    assert not {"include", "include-part-of"} & rep.codes(), [d.format() for d in rep.diagnostics]
+    # part_of of another map is an error at part_of
+    _, rep = run(write(tmp_path, common=HEADER.replace("main.yaml", "other.yaml") + COMMON))
+    d = next(d for d in rep.diagnostics if d.code == "include")
+    assert "'other.yaml'" in d.message and d.line == 2
+    # A different format version is an error
+    _, rep = run(write(tmp_path, common=HEADER.replace("mapcan: 1", "mapcan: 2") + COMMON))
+    assert any(d.code == "include" and "version" in d.message for d in rep.diagnostics)
+
+
+def test_included_file_alone_points_to_its_map(tmp_path):
+    write(tmp_path, common=HEADER + COMMON)
+    res, rep = run(tmp_path / "common.yaml")
+    assert res.map is None and [d.code for d in rep.diagnostics] == ["include"]
+    assert "'main.yaml'" in rep.diagnostics[0].message
+
+
+def test_included_file_is_not_a_map_for_the_editors():
+    from mapcan.lsp.analysis import is_mapcan
+
+    assert is_mapcan(MAIN) and not is_mapcan(HEADER + COMMON)

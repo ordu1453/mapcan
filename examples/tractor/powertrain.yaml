@@ -1,6 +1,11 @@
-# Powertrain of the tractor, included by tractor.yaml. An included file holds only buses and
-# value tables: a bus the main file already describes (cab) gets more devices and frames here,
-# a new bus (powertrain) is described in full.
+# yaml-language-server: $schema=../../schema/mapcan-part.schema.json
+#
+# Powertrain of the tractor, included by tractor.yaml. An included file says which map it belongs
+# to and holds only buses and value tables: a bus the main file already describes (cab) gets more
+# devices and frames here, a new bus (powertrain) is described in full.
+
+mapcan: 1
+part_of: tractor.yaml
 
 value_tables:
   switch_states:

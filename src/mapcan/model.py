@@ -12,12 +12,13 @@ of byte 1 and so on. Bytes are numbered from 0.
 
 from __future__ import annotations
 
+import copy
 import datetime as _dt
 import re
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, create_model, model_validator
 
 from .i18n import N_
 
@@ -695,3 +696,37 @@ class MapCan(_Base):
         if not p.is_absolute():
             p = (self._base_dir or Path.cwd()) / p
         return p
+
+
+# --------------------------------------------------------------------------- #
+# Included file (for its JSON Schema; the loader merges it into the map)
+# --------------------------------------------------------------------------- #
+
+
+def _partial(model: type[_Base], name: str, keep: tuple[str, ...]) -> type[_Base]:
+    """The model with every field optional except ``keep``: a bus of an included file may only add devices and
+    frames to a bus of the main file."""
+    fields: dict[str, Any] = {}
+    for n, f in model.model_fields.items():
+        fi = copy.copy(f)
+        if n not in keep:
+            fi.default, fi.default_factory = None, None
+        fields[n] = (f.annotation if n in keep else Optional[f.annotation], fi)
+    return create_model(name, __base__=_Base, __doc__=model.__doc__, **fields)
+
+
+BusPart = _partial(Bus, "BusPart", keep=("name",))
+
+
+class MapPart(_Base):
+    """A file of ``include``: buses and value tables added to the map named by ``part_of``."""
+
+    mapcan: Literal[1] = Field(title="mapcan", description=N_("File format version: the same as the map's."))
+    part_of: str = Field(
+        description=N_("The map this file belongs to: the path of its file, relative to this one. The map includes "
+                       "this file in its include list."))
+    value_tables: dict[str, ValueTable] = Field(
+        default_factory=dict, description=N_("Named value tables: in a signal, values: <name>."))
+    buses: list[BusPart] = Field(  # type: ignore[valid-type]
+        default_factory=list,
+        description=N_("New buses, or buses of the map (by name) that get more devices and frames."))

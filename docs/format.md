@@ -455,6 +455,9 @@ buses:
 
 ```yaml
 # powertrain.yaml
+# yaml-language-server: $schema=./schema/mapcan-part.schema.json
+mapcan: 1
+part_of: vehicle.yaml   # the map that includes this file
 value_tables: {...}
 buses:
   - name: can1          # already described: devices and frames are added to it
@@ -466,10 +469,18 @@ buses:
 
 See [examples/tractor/](../examples/tractor/tractor.yaml) for a complete map in two files.
 
-An included file may contain only `buses` and `value_tables`. A bus that the main file (or an
-earlier included file) already describes can only get more `devices` and `frames`; its other
-fields, and a value table name used twice, are errors (`include`). Included files are not
-nested.
+An included file starts with `mapcan: 1` (the same format version as the map) and `part_of`:
+the path of the map that includes it, relative to the included file. A file that names another
+map, or another format version, is an error (`include`); a file without these two keys still
+loads, with the warning `include-part-of`. Opened on its own, such a file is reported as a part
+of its map: validate the map instead. Its schema is
+[`schema/mapcan-part.schema.json`](../schema/mapcan-part.schema.json)
+(`mapcan schema --part`).
+
+Besides them an included file may contain only `buses` and `value_tables`. A bus that the main
+file (or an earlier included file) already describes can only get more `devices` and `frames`;
+its other fields, and a value table name used twice, are errors (`include`). Included files are
+not nested.
 
 Validation, documents and generated code use the whole map. Messages about an included file
 point into that file on the command line; in the editors they are shown on the `include` line
@@ -522,7 +533,8 @@ turned off with `--disable CODE` or `lint.disable`.
 | `number-cyrillic-x` | error | Cyrillic “х” in a hexadecimal number |
 | `number-quoted` | warning | Number written as a quoted string |
 | `deprecated-key` | warning | A field under its former name: still read, `mapcan migrate` rewrites it (an error when the current name is set too). See [Versioning and compatibility](#versioning-and-compatibility) |
-| `include` | error | Included file not found, or it has keys that cannot be included |
+| `include` | error | Included file not found, it has keys that cannot be included, or it names another map (`part_of`) or format version |
+| `include-part-of` | warning | Included file does not start with `mapcan: 1` and `part_of` |
 | `value-table` | error | `values` names a table that is not in `value_tables` |
 
 ### Names

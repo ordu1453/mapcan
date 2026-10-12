@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import posixpath
+import re
 from pathlib import Path
 
 from ..i18n import N_, _
@@ -50,7 +52,11 @@ def example_text(name: str) -> str:
     path = _example_path(name)
     if path is None:
         raise ValueError(_("unknown example: {name}", name=name))
-    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    return _without_schema_line(path.read_text(encoding="utf-8"))
+
+
+def _without_schema_line(text: str) -> str:
+    lines = text.splitlines(keepends=True)
     if lines and lines[0].startswith("# yaml-language-server:"):
         lines = lines[1:]
         if lines and lines[0].strip() == "#":
@@ -58,10 +64,11 @@ def example_text(name: str) -> str:
     return "".join(lines)
 
 
-def example_includes(name: str) -> dict[str, str]:
+def example_includes(name: str, map_file: str | None = None) -> dict[str, str]:
     """Files the example includes (``include``): path relative to the map → text.
 
-    They are copied next to the copy of the map, otherwise its included files would not be found."""
+    They are copied next to the copy of the map, otherwise its included files would not be found; their
+    ``part_of`` names the copy of the map (``map_file``, its file name)."""
     from ruamel.yaml import YAML
 
     path = _example_path(name)
@@ -69,4 +76,13 @@ def example_includes(name: str) -> dict[str, str]:
         raise ValueError(_("unknown example: {name}", name=name))
     data = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
     files = data.get("include") if isinstance(data, dict) else None
-    return {f: (path.parent / f).read_text(encoding="utf-8") for f in files or [] if isinstance(f, str)}
+    out = {}
+    for f in files or []:
+        if not isinstance(f, str):
+            continue
+        text = _without_schema_line((path.parent / f).read_text(encoding="utf-8"))
+        if map_file:
+            target = posixpath.relpath(map_file, posixpath.dirname(f) or ".")
+            text = re.sub(r"(?m)^part_of\s*:.*$", lambda _m, t=target: f"part_of: {t}", text, count=1)
+        out[f] = text
+    return out

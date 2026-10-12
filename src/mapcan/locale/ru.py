@@ -420,8 +420,6 @@ RU: dict[str, str] = {
     "{frame}: sender {name!r} is not a DBC node": "{frame}: отправитель {name!r} не описан как узел DBC",
     "{frame}.{signal}: nested multiplexing is imported as one level":
         "{frame}.{signal}: вложенное мультиплексирование перенесено одним уровнем",
-    "Included file is missing or has keys that cannot be included":
-        "Подключаемый файл не найден или содержит недопустимые ключи",
     "No value table with this name in value_tables": "Таблица значений с таким именем не описана в value_tables",
     "include: the map has no path to resolve included files from":
         "include: у карты нет пути, подключать файлы не от чего",
@@ -838,4 +836,24 @@ RU: dict[str, str] = {
     "invalid_raw {value} maps to {phys}, inside min..max: a receiver cannot tell it from a real value":
         "invalid_raw {value} соответствует {phys} — внутри min..max: получатель не отличит его от настоящего "
         "значения",
+    "Schema of a file included by a map (part_of).": "Схема файла, подключаемого картой (part_of).",
+    "this file is a part of the map {map!r}: open or validate that map":
+        "этот файл — часть карты {map!r}: откройте или проверьте эту карту",
+    "an included file starts with mapcan: 1 and part_of: {map} (the map it belongs to)":
+        "подключаемый файл начинается с mapcan: 1 и part_of: {map} (карта, к которой он относится)",
+    "format version {part} differs from the map's {main}": "версия формата {part} отличается от версии карты {main}",
+    "part_of is the path of the map file": "part_of — путь к файлу карты",
+    "part_of names {named!r}, but the file is included by {map!r}":
+        "part_of указывает {named!r}, а файл подключает {map!r}",
+    "File format version: the same as the map's.": "Версия формата файла: та же, что у карты.",
+    "The map this file belongs to: the path of its file, relative to this one. The map includes this file in its "
+    "include list.":
+        "Карта, к которой относится файл: путь к её файлу относительно этого. Карта подключает этот файл в списке "
+        "include.",
+    "New buses, or buses of the map (by name) that get more devices and frames.":
+        "Новые шины или шины карты (по имени), в которые добавляются устройства и кадры.",
+    "mapcan — file included by a map (format v1)": "mapcan — файл, подключаемый картой (формат v1)",
+    "Included file is missing, has keys that cannot be included or belongs to another map":
+        "Подключаемый файл не найден, содержит недопустимые ключи или относится к другой карте",
+    "Included file does not start with mapcan and part_of": "Подключаемый файл не начинается с mapcan и part_of",
 }

@@ -221,7 +221,8 @@ def test_web_requisites_ops(client):
 
 # Maps of the examples; files the maps include are not maps
 EXAMPLES = sorted(p for p in (REFERENCE.parent.parent.parent / "examples").rglob("*.yaml")
-                  if re.search(r"^mapcan\s*:", p.read_text(encoding="utf-8"), re.MULTILINE))
+                  if re.search(r"^mapcan\s*:", p.read_text(encoding="utf-8"), re.MULTILINE)
+                  and not re.search(r"^part_of\s*:", p.read_text(encoding="utf-8"), re.MULTILINE))
 
 
 @pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.stem if p.parent.name == "examples" else p.parent.name)

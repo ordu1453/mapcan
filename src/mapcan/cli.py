@@ -255,10 +255,13 @@ def rules() -> None:
 
 
 @app.command(help=_("Print the format's JSON Schema (for IDE hints)."))
-def schema(out: Optional[Path] = typer.Option(None, "-o", "--output", help=_("JSON Schema file."))) -> None:
+def schema(
+    out: Optional[Path] = typer.Option(None, "-o", "--output", help=_("JSON Schema file.")),
+    part: bool = typer.Option(False, "--part", help=_("Schema of a file included by a map (part_of).")),
+) -> None:
     from .schema import json_schema
 
-    text = json.dumps(json_schema(), ensure_ascii=False, indent=2)
+    text = json.dumps(json_schema(part), ensure_ascii=False, indent=2)
     if out:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text + "\n", encoding="utf-8")

@@ -18,4 +18,7 @@ needs at least the version of mapcan that introduced it; former names stay reada
 - The signal field `invalid` is `invalid_raw`: raw-valued keys end in `_raw`. It also accepts
   ranges (`0xFF00..0xFFFF`) and values by meaning (`{not_available: …, error: …}`), with
   `…_is_not_available()` / `…_is_error()` in the generated C and Python code.
+- An included file starts with `mapcan: 1` and `part_of: <map>`; the loader checks that it is
+  included by that map (`include`), and warns about files without them (`include-part-of`).
+  Its JSON Schema is `schema/mapcan-part.schema.json` (`mapcan schema --part`).
 - `mapcan migrate` rewrites former field names; the rule `deprecated-key` reports them.

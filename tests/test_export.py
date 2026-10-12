@@ -167,6 +167,21 @@ def test_schema_file_up_to_date():
 
     on_disk = json.loads((ROOT / "schema" / "mapcan.schema.json").read_text(encoding="utf-8"))
     assert on_disk == json_schema(), "обновите: mapcan schema -o schema/mapcan.schema.json"
+    part = json.loads((ROOT / "schema" / "mapcan-part.schema.json").read_text(encoding="utf-8"))
+    assert part == json_schema(part=True), "обновите: mapcan schema --part -o schema/mapcan-part.schema.json"
+
+
+def test_part_schema_accepts_the_included_example():
+    jsonschema = pytest.importorskip("jsonschema")
+    from mapcan.diagnostics import Report
+    from mapcan.loader import SourceMap, _make_yaml, _plain
+
+    from .conftest import ROOT
+
+    path = ROOT / "examples" / "tractor" / "powertrain.yaml"
+    data = _plain(_make_yaml().load(path.read_text(encoding="utf-8")), (), SourceMap(None), Report())
+    data = json.loads(json.dumps(data, default=str), object_hook=lambda d: {str(k): v for k, v in d.items()})
+    jsonschema.validate(data, json_schema(part=True))
 
 
 # --------------------------------------------------------------------------- CLI

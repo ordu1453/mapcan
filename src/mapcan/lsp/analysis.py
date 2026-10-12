@@ -30,9 +30,13 @@ _TOKEN = re.compile(rf"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|{_WORD}(?:[ \t]+{_WOR
 _KEY = re.compile(r"([A-Za-z_][\w]*)\s*:(?=\s|$)")
 
 
+_PART = re.compile(r"^part_of\s*:", re.MULTILINE)
+
+
 def is_mapcan(text: str) -> bool:
-    """Whether the YAML looks like a mapcan map (the top-level key ``mapcan:``)."""
-    return _HEADER.search(text) is not None
+    """Whether the YAML looks like a mapcan map (the top-level key ``mapcan:``). A file included by a map
+    (``part_of:``) is not one: it is checked as a part of its map."""
+    return _HEADER.search(text) is not None and _PART.search(text) is None
 
 
 # --------------------------------------------------------------------------- #

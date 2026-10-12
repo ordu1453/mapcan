@@ -8,12 +8,17 @@ import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
 const MAP_HEADER = /^(mapcan|canmap)\s*:/m;
+/** A file included by a map (`part_of:`) has the header too, but is not a map of its own. */
+const PART_HEADER = /^part_of\s*:/m;
 const DECORATION_SCHEME = "mapcan-node";
 
 /** A map open for editing: versions from the history (read-only documents) are not. */
 export function isMap(doc: vscode.TextDocument | undefined): doc is vscode.TextDocument {
-  return doc !== undefined && (doc.uri.scheme === "file" || doc.uri.scheme === "untitled")
-    && doc.languageId === "yaml" && MAP_HEADER.test(doc.getText());
+  if (doc === undefined || (doc.uri.scheme !== "file" && doc.uri.scheme !== "untitled") || doc.languageId !== "yaml") {
+    return false;
+  }
+  const text = doc.getText();
+  return MAP_HEADER.test(text) && !PART_HEADER.test(text);
 }
 
 export type Kind = "bus" | "device" | "frame" | "signal" | "flag" | "sdo";

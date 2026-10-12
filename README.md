@@ -262,7 +262,7 @@ mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,eds,c,py] [--pd
 mapcan diff        OLD NEW [--format text|md|json]
 mapcan import dbc  FILE.dbc [-o FILE.yaml] [--title TEXT] [--lang en] [--force]
 mapcan migrate     FILE… [--check]      # former field names → current ones
-mapcan schema      [-o schema.json]
+mapcan schema      [-o schema.json] [--part]   # --part: schema of an included file
 mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
 mapcan rules
 ```

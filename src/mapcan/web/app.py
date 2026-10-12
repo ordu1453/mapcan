@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 import zipfile
 from collections.abc import Callable, Collection
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -656,7 +656,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     @app.post("/api/file/example")
     async def file_example(body: ExampleBody) -> dict:
         try:
-            included = example_includes(body.name)
+            included = example_includes(body.name, PurePath(body.path).name)
         except ValueError as e:
             raise AppError(400, "template", str(e)) from e
         return await create_file(body.path, body.force, body.overwrite, lambda _path: example_text(body.name),

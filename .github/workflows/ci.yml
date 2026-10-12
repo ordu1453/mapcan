@@ -38,7 +38,10 @@ jobs:
       - name: Lint
         run: uv run ruff check src tests
       - name: Schema is up to date
-        run: uv run mapcan schema -o schema/mapcan.schema.json && git diff --exit-code schema/
+        run: |
+          uv run mapcan schema -o schema/mapcan.schema.json
+          uv run mapcan schema --part -o schema/mapcan-part.schema.json
+          git diff --exit-code schema/
       - name: Tests
         run: uv run pytest
 
