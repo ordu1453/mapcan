@@ -125,6 +125,10 @@ const tests = {
     await vscode.commands.executeCommand("mapcan.addSignal", frame());
     const added = await until("new signal", () => frame().children.find((s) => s.raw.ident === "signal"));
     assert.deepEqual(form.openPath, added.path);
+    // The webview ran its script and drew the signal's fields (it is served from dist/webview, see #75)
+    const drawn = await until("the form drawn", () =>
+      JSON.stringify(form.rendered?.path) === JSON.stringify(added.path) && form.rendered);
+    assert.ok(drawn.fields.includes("name") && drawn.fields.includes("bit_length"), drawn.fields.join(", "));
     const set = (key, value) => vscode.commands.executeCommand("mapcan.lsp.set",
       { uri: ctx.doc.uri.toString(), path: [...added.path, key], value });
     const result = await set("title", "Battery voltage");

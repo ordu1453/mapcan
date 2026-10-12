@@ -66,7 +66,8 @@ type Message =
   | { type: "select"; path: Path }
   | { type: "done" }
   | { type: "discard" }
-  | { type: "reveal" };
+  | { type: "reveal" }
+  | { type: "rendered"; path: Path | null; fields: string[] };
 
 const samePath = (a: Path, b: Path) => a.length === b.length && a.every((x, i) => String(x) === String(b[i]));
 
@@ -123,6 +124,9 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
     view.webview.onDidReceiveMessage((m: Message) => this.onMessage(m));
     view.onDidDispose(() => (this.view = undefined));
   }
+
+  /** The node and fields the webview last drew: proof that its script loaded (checked by the integration tests). */
+  rendered: { path: Path | null; fields: string[] } | undefined;
 
   get openPath(): Path | undefined {
     return this.path;
@@ -197,6 +201,9 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
         break;
       case "reveal":
         void this.reveal();
+        break;
+      case "rendered":
+        this.rendered = { path: m.path, fields: m.fields };
         break;
     }
   }

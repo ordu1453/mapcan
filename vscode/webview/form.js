@@ -820,6 +820,8 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
       fill();
       if (m.focus) focusFirst();
     }
+    // What was drawn, so the extension (and its tests) can tell that the script runs in the webview
+    if (rebuild) vscode.postMessage({ type: "rendered", path: node?.path ?? null, fields: [...rows.keys()] });
   });
 
   vscode.postMessage({ type: "ready" });
