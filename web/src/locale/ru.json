@@ -436,5 +436,6 @@
   "Values by meaning: edit them in the YAML": "Значения по смыслу: правьте их в YAML",
   "Data phase bitrate, bit/s": "Скорость фазы данных, бит/с",
   "Sample point, %": "Точка выборки, %",
-  "Data phase sample point, %": "Точка выборки фазы данных, %"
+  "Data phase sample point, %": "Точка выборки фазы данных, %",
+  "Receive timeout, ms": "Тайм-аут приёма, мс"
 }

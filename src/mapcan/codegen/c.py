@@ -212,6 +212,8 @@ class CGen:
             out.append(f"#define {self.P(F, 'BRS')} {int(f.bit_rate_switch)}")
         if f.mode == "cyclic":
             out.append(f"#define {self.P(F, 'CYCLE_MS')} {f.cycle_ms}u")
+        if f.timeout_ms is not None:
+            out.append(f"#define {self.P(F, 'TIMEOUT_MS')} {f.timeout_ms}u")
         out.append("")
 
         for s in f.layout:

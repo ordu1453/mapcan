@@ -30,6 +30,7 @@ buses:
             priority: 3
             length: 8
             cycle_ms: 20
+            timeout_ms: 60
             receivers: [cluster]
             signals:
               - name: torque_mode

@@ -536,6 +536,10 @@ class Frame(_Base):
         description=N_("Cyclic transmission period in milliseconds."))
     trigger: Trigger | None = Field(
         None, description=N_("Non-cyclic transmission: event — on event, on_request — on request."))
+    timeout_ms: int | None = Field(
+        None, gt=0,
+        description=N_("Receive timeout in milliseconds: when the frame has not arrived for this long, the receivers "
+                       "treat its data as lost. Usually a few periods, e.g. 3 × cycle_ms. In code: …_TIMEOUT_MS."))
     signals: list[Signal] = Field(default_factory=list)
     sdo: list[SdoExchange] | None = None
     comment: Text | None = Field(None, description=COMMENT)

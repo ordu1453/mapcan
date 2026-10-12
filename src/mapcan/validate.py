@@ -100,6 +100,7 @@ RULES = {
     "mux-value-unknown": ("warning", N_("mux value is not in the selector's value table")),
     "mux-selector-muxed": ("error", N_("Selector is itself multiplexed")),
     "cycle-unexpected": ("error", N_("cycle_ms is set together with trigger")),
+    "timeout-short": ("warning", N_("Receive timeout not longer than the period of a cyclic frame")),
     "direction-mismatch": ("warning", N_("Direction conflicts with the CANopen frame type")),
     "frame-type-protocol": ("warning", N_("CANopen frame type on a non-CANopen bus")),
     "sdo-frame-type": ("warning", N_("sdo description on a frame that is not sdo_tx/sdo_rx")),
@@ -532,6 +533,10 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
     if frame.cycle_ms is not None and frame.trigger is not None:
         ctx.emit("cycle-unexpected", _("cycle_ms is set on a frame with trigger: {trigger}", trigger=frame.trigger),
                  p + ("cycle_ms",))
+    if frame.timeout_ms is not None and frame.cycle_ms is not None and frame.timeout_ms <= frame.cycle_ms:
+        ctx.emit("timeout-short", _("timeout {timeout} ms is not longer than the period {cycle} ms: the frame "
+                                    "would time out between two transmissions", timeout=frame.timeout_ms,
+                                    cycle=frame.cycle_ms), p + ("timeout_ms",))
 
     if frame.sdo:
         if frame.type not in ("sdo_tx", "sdo_rx"):

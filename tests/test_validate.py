@@ -788,3 +788,12 @@ def test_can_fd_bus_load():
     assert "bus-load" in codes(fd.replace("    fd: true\n", "    fd: true\n    data_bitrate: 2000000\n"))
     assert "bus-load" not in codes(fd.replace("    fd: true\n", "    fd: true\n    data_bitrate: 8000000\n")
                                    .replace("cycle_ms: 1", "cycle_ms: 10"))
+
+
+def test_receive_timeout():
+    text = one_bus(OK_SIGNAL.replace("cycle_ms: 100", "cycle_ms: 100\n          timeout_ms: TIMEOUT"))
+    assert "timeout-short" not in codes(text.replace("TIMEOUT", "300"))
+    assert "timeout-short" in codes(text.replace("TIMEOUT", "100"))
+    res, _ = run(text.replace("TIMEOUT", "300"))
+    frame =build_view(res.map)["buses"][0]["devices"][0]["frames"][0]
+    assert frame["period"] == "цикл 100 мс, тайм-аут 300 мс" and frame["timeout_ms"] == 300

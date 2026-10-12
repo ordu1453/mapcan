@@ -275,6 +275,8 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "trigger", label: N_("Trigger"), type: "select", half: true, layout: true,
         options: () => [["", N_("not set")], ["event", N_("on event")], ["on_request", N_("on request")]],
         when: (c) => value(c, "cycle_ms") == null },
+      { key: "timeout_ms", label: N_("Receive timeout, ms"), type: "int", half: true,
+        placeholder: (c) => (typeof value(c, "cycle_ms") === "number" ? String(3 * (value(c, "cycle_ms") as number)) : "") },
     ] },
     { title: N_("Routing"), fields: [
       // Only a frame of a device has a direction; a CANopen type sets it

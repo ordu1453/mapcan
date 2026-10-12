@@ -133,6 +133,7 @@ lint:
 | `direction` | `tx` / `rx` relative to the owning device. Defaults from the CANopen function: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen function whose `sender` is another device → `rx`; otherwise `tx` |
 | `cycle_ms` | Cyclic transmission period, ms |
 | `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
+| `timeout_ms` | Receive timeout, ms: when the frame has not arrived for this long, the receivers treat its data as lost (usually a few periods, e.g. 3 × `cycle_ms`). Shown in documents next to the transmission, written to code as `<FRAME>_TIMEOUT_MS` |
 | `signals` | Signals |
 | `sdo` | SDO exchanges (for `sdo_tx`/`sdo_rx`) |
 | `comment` | A note or caveat (see [Text fields](#text-fields)) |
@@ -603,6 +604,7 @@ turned off with `--disable CODE` or `lint.disable`.
 
 | Code | Severity | What is checked |
 |---|---|---|
+| `timeout-short` | warning | `timeout_ms` is not longer than `cycle_ms`: the frame would time out between two transmissions |
 | `cycle-unexpected` | error | cycle_ms set together with trigger |
 
 ### Signal layout

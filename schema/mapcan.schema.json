@@ -780,6 +780,20 @@
           "description": "Non-cyclic transmission: event — on event, on_request — on request.",
           "title": "Trigger"
         },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Receive timeout in milliseconds: when the frame has not arrived for this long, the receivers treat its data as lost. Usually a few periods, e.g. 3 × cycle_ms. In code: …_TIMEOUT_MS.",
+          "title": "Timeout Ms"
+        },
         "signals": {
           "items": {
             "$ref": "#/$defs/Signal"

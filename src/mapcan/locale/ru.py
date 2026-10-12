@@ -874,4 +874,13 @@ RU: dict[str, str] = {
         "скорость фазы данных {data} бит/с ниже номинальной скорости {bitrate} бит/с",
     "data phase bit rate {bitrate} bit/s is not a standard value (1000000, 2000000, 5000000, 8000000…)":
         "скорость фазы данных {bitrate} бит/с — нестандартное значение (1000000, 2000000, 5000000, 8000000…)",
+    "Receive timeout in milliseconds: when the frame has not arrived for this long, the receivers treat its data as "
+    "lost. Usually a few periods, e.g. 3 × cycle_ms. In code: …_TIMEOUT_MS.":
+        "Тайм-аут приёма в миллисекундах: если кадр не приходил столько времени, получатели считают его данные "
+        "потерянными. Обычно несколько периодов, например 3 × cycle_ms. В коде: …_TIMEOUT_MS.",
+    "Receive timeout not longer than the period of a cyclic frame":
+        "Тайм-аут приёма не длиннее периода циклического кадра",
+    "timeout {timeout} ms is not longer than the period {cycle} ms: the frame would time out between two "
+    "transmissions":
+        "тайм-аут {timeout} мс не длиннее периода {cycle} мс: кадр будет считаться потерянным между двумя передачами",
 }
