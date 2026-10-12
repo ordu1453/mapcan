@@ -111,7 +111,14 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
 
   resolveWebviewView(view: vscode.WebviewView): void {
     this.view = view;
-    view.webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "media")] };
+    view.webview.options = {
+      enableScripts: true,
+      // media/ holds the stylesheet, dist/webview/ the bundled script
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.extensionUri, "media"),
+        vscode.Uri.joinPath(this.extensionUri, "dist", "webview"),
+      ],
+    };
     view.webview.html = webviewHtml(view.webview, this.extensionUri, "dist/webview/form.js", "mapcan: node");
     view.webview.onDidReceiveMessage((m: Message) => this.onMessage(m));
     view.onDidDispose(() => (this.view = undefined));
