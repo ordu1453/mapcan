@@ -9,6 +9,8 @@ Open an issue with the smallest map that shows it (a few lines of YAML), the com
 action, and what you expected. For a wrong DBC, document or generated code, say which tool reads it
 and what it shows.
 
+Security problems are reported privately, not in an issue: see [SECURITY.md](SECURITY.md).
+
 ## Setting up
 
 You need [uv](https://docs.astral.sh/uv/) (it installs Python 3.12), and for the UI parts

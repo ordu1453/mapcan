@@ -13,6 +13,10 @@ on:
         type: boolean
         default: false
 
+# Read-only token by default, also for pull requests from forks.
+permissions:
+  contents: read
+
 defaults:
   run:
     shell: bash

@@ -21,6 +21,12 @@ dependencies = [
     "python-multipart>=0.0.9",
 ]
 
+[project.urls]
+Homepage = "https://github.com/ordu1453/mapcan"
+Repository = "https://github.com/ordu1453/mapcan"
+Issues = "https://github.com/ordu1453/mapcan/issues"
+Changelog = "https://github.com/ordu1453/mapcan/releases"
+
 [project.optional-dependencies]
 # Stage 8 (working with a bus): reserved.
 bus = ["python-can>=4.3"]

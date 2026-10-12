@@ -312,7 +312,8 @@ pip install -e .
 <details>
 <summary><b>Releasing a version</b></summary>
 
-1. Bump the version in `pyproject.toml`, `src/mapcan/__init__.py` and `web/package.json`
+1. Bump the version in `pyproject.toml`, `src/mapcan/__init__.py`, `web/package.json` and
+   `CITATION.cff` (also its `date-released`)
    (`uv lock`, `npm run build` in `web/`), commit.
 2. Create and push a tag: `git tag -a vX.Y.Z -m "mapcan X.Y.Z: …" && git push origin main vX.Y.Z`.
 

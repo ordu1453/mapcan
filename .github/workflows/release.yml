@@ -1,6 +1,6 @@
 name: release
 
-# Releasing a version: bump the version (pyproject.toml, src/mapcan/__init__.py, web/package.json),
+# Releasing a version: bump the version (pyproject.toml, src/mapcan/__init__.py, web/package.json, CITATION.cff),
 # commit, and push the tag vX.Y.Z. The workflow checks, builds and publishes a GitHub Release:
 #   mapcan-X.Y.Z-setup.exe          the Windows installer
 #   mapcan-X.Y.Z-windows-x64.zip    the same build without installing
