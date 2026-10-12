@@ -21,4 +21,6 @@ needs at least the version of mapcan that introduced it; former names stay reada
 - An included file starts with `mapcan: 1` and `part_of: <map>`; the loader checks that it is
   included by that map (`include`), and warns about files without them (`include-part-of`).
   Its JSON Schema is `schema/mapcan-part.schema.json` (`mapcan schema --part`).
+- Buses have `sample_point`, and CAN FD buses `data_bitrate` and `data_sample_point`. The
+  `bus-load` estimate covers CAN FD buses (the data phase of BRS frames at `data_bitrate`).
 - `mapcan migrate` rewrites former field names; the rule `deprecated-key` reports them.

@@ -762,3 +762,29 @@ def test_brs_without_fd():
     assert "brs-without-fd" in codes(bus_brs)
     fd = frame_brs.replace("    protocol: canopen\n", "    protocol: canopen\n    fd: true\n    brs: false\n")
     assert "brs-without-fd" not in codes(fd)
+
+
+def test_can_fd_data_phase():
+    fd = one_bus(OK_SIGNAL, protocol="can").replace("    protocol: can\n", "    protocol: can\n    fd: true\n"
+                                                    "    bitrate: 500000\n    data_bitrate: DATA\n")
+    assert not {"data-bitrate-range", "bitrate-nonstandard"} & codes(fd.replace("DATA", "2000000"))
+    assert "data-bitrate-range" in codes(fd.replace("DATA", "250000"))
+    assert "bitrate-nonstandard" in codes(fd.replace("DATA", "3000000"))
+    classic = fd.replace("    fd: true\n", "").replace("DATA", "2000000")
+    assert "data-bitrate-without-fd" in codes(classic)
+
+
+def test_can_fd_bus_load():
+    """The data phase of BRS frames is estimated at data_bitrate; without it the load is not estimated."""
+    frames = "\n".join(f"""
+        - name: f{i}
+          id: 0x{0x100 + i:X}
+          length: 64
+          cycle_ms: 1
+          signals: []""" for i in range(3))
+    fd = one_bus(frames, protocol="can").replace("    protocol: can\n", "    protocol: can\n    fd: true\n"
+                                                 "    bitrate: 500000\n")
+    assert "bus-load" not in codes(fd)                                    # BRS frames, no data_bitrate
+    assert "bus-load" in codes(fd.replace("    fd: true\n", "    fd: true\n    data_bitrate: 2000000\n"))
+    assert "bus-load" not in codes(fd.replace("    fd: true\n", "    fd: true\n    data_bitrate: 8000000\n")
+                                   .replace("cycle_ms: 1", "cycle_ms: 10"))

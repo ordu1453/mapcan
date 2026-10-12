@@ -119,8 +119,11 @@ buses:
   - name: logger
     title: Data logger bus (CAN FD)
     bitrate: 500000
+    sample_point: 80
     protocol: can
     fd: true
+    data_bitrate: 2000000     # the data field of frames with the bit rate switch (BRS)
+    data_sample_point: 75
     devices:
       - name: datalogger
         short: LOG

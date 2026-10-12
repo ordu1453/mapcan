@@ -31,7 +31,7 @@ LABELS = {
         "values": "Значения", "type": "Тип", "period": "Передача", "direction": "Направление",
         "length": "Длина, байт", "dlc": "Длина, байт", "message_type": "Тип сообщения", "purpose": "Назначение",
         "broadcast": "Широковещательные", "node": "Узел", "version": "Версия", "date": "Дата",
-        "author": "Автор", "bus": "Шина", "bitrate": "Скорость", "interface": "Интерфейс",
+        "author": "Автор", "bus": "Шина", "bitrate": "Скорость", "data_phase": "данные", "interface": "Интерфейс",
         "protocol": "Протокол", "history": "История изменений", "summary": "Сводка",
         "bit_note": "Нумерация байт и бит начинается с 0. Бит 0 — младший бит байта 0; "
                     "бит N находится в байте N div 8 на позиции N mod 8.",
@@ -64,7 +64,7 @@ LABELS = {
         "values": "Values", "type": "Type", "period": "Transmission", "direction": "Direction",
         "length": "Length, bytes", "dlc": "Length, bytes", "message_type": "Message type", "purpose": "Purpose",
         "broadcast": "Broadcast", "node": "Node", "version": "Version", "date": "Date",
-        "author": "Author", "bus": "Bus", "bitrate": "Bitrate", "interface": "Interface",
+        "author": "Author", "bus": "Bus", "bitrate": "Bitrate", "data_phase": "data", "interface": "Interface",
         "protocol": "Protocol", "history": "Revision history", "summary": "Summary",
         "bit_note": "Bytes and bits are numbered from 0. Bit 0 is the LSB of byte 0; "
                     "bit N is in byte N div 8 at position N mod 8.",
@@ -182,6 +182,22 @@ class ViewBuilder:
             "empty_color": EMPTY_COLOR,
         }
 
+    def rate(self, bitrate: int | None) -> str:
+        if not bitrate:
+            return ""
+        return f"{fmt_num(bitrate / 1000)} " + ("кбит/с" if self.lang == "ru" else "kbit/s")
+
+    def bitrate_text(self, bus) -> str:
+        """The bit rate with its sample point and, on CAN FD, the data phase: "500 kbit/s (87.5 %), data 2000 …"."""
+        def with_point(rate: str, point: float | None) -> str:
+            return f"{rate} ({fmt_num(point)} %)" if rate and point is not None else rate
+
+        out = with_point(self.rate(bus.bitrate), bus.sample_point)
+        if bus.fd and bus.data_bitrate:
+            data = with_point(self.rate(bus.data_bitrate), bus.data_sample_point)
+            out = f"{out}, {self.L['data_phase']} {data}" if out else f"{self.L['data_phase']} {data}"
+        return out
+
     def bus(self, bus) -> dict:
         devices = [self.device(dv, bus) for dv in bus.devices]
         broadcast = [self.frame(f) for f in bus.frames]
@@ -191,8 +207,12 @@ class ViewBuilder:
             "name": bus.name,
             "title": self.t(bus.title) or bus.name,
             "interface": bus.interface or "",
-            "bitrate": f"{bus.bitrate // 1000} кбит/с" if bus.bitrate and self.lang == "ru"
-                       else (f"{bus.bitrate // 1000} kbit/s" if bus.bitrate else ""),
+            # "500 kbit/s (87.5 %), data 2000 kbit/s (75 %)": the separate values are below, for custom templates
+            "bitrate": self.bitrate_text(bus),
+            "data_bitrate": self.rate(bus.data_bitrate) if bus.fd else "",
+            "sample_point": f"{fmt_num(bus.sample_point)} %" if bus.sample_point is not None else "",
+            "data_sample_point": f"{fmt_num(bus.data_sample_point)} %"
+                                 if bus.fd and bus.data_sample_point is not None else "",
             "protocol": {"canopen": "CANopen", "j1939": "SAE J1939"}.get(bus.protocol, "CAN FD" if bus.fd else "CAN"),
             "description": self.t(bus.description),
             "devices": devices,

@@ -93,9 +93,12 @@ lint:
 | `title` | Name for people ("Powertrain CAN"); without it, `missing-title` is reported |
 | `description` | What the bus is for |
 | `interface` | Interface (`can0`, `PCAN_USBBUS1`, …) |
-| `bitrate` | Bit rate, bit/s |
+| `bitrate` | Bit rate, bit/s (of the arbitration phase on CAN FD) |
+| `sample_point` | Sample point of `bitrate`, percent of the bit time (`87.5`). Shown in documents |
 | `protocol` | Required. `canopen`: IDs are computed from the function code and `node_id`; `j1939`: from the PGN, priority and device address; `can`: IDs are set explicitly |
-| `fd` | `true` for CAN FD (DLC up to 64) |
+| `fd` | `true` for CAN FD (frames up to 64 bytes) |
+| `data_bitrate` | CAN FD: bit rate of the data phase, bit/s (`2000000`): the data field of frames with BRS is sent at it. Used in the `bus-load` estimate, shown in documents and as `<BUS>_DATA_BITRATE` in C. DBC keeps the nominal bit rate only |
+| `data_sample_point` | CAN FD: sample point of the data phase, percent (`75`) |
 | `brs` | CAN FD: bit rate switch (BRS) of the frames by default, `true` if omitted. Set `false` when the nodes or the wiring cannot handle the data phase bit rate |
 | `frames` | Broadcast frames with no owning device (`nmt`, `sync`, `time`) |
 | `devices` | Devices |
@@ -556,9 +559,11 @@ turned off with `--disable CODE` or `lint.disable`.
 
 | Code | Severity | What is checked |
 |---|---|---|
-| `bitrate-nonstandard` | warning | Non-standard bus bit rate |
-| `bus-load` | warning | Estimated bus load from cyclic frames above 70% |
+| `bitrate-nonstandard` | warning | Non-standard bit rate (125000, 250000, 500000, 1000000…), or data phase bit rate (1000000, 2000000, 5000000, 8000000…) |
+| `bus-load` | warning | Estimated bus load from cyclic frames above 70%. On CAN FD the data phase of frames with BRS is counted at `data_bitrate`; without it, the load of such a bus is not estimated |
 | `brs-without-fd` | warning | brs is set on a bus that is not CAN FD and is not used |
+| `data-bitrate-without-fd` | warning | `data_bitrate` or `data_sample_point` on a bus that is not CAN FD |
+| `data-bitrate-range` | error | `data_bitrate` is lower than `bitrate` |
 | `duplicate-node-id` | error | Duplicate node_id on the bus |
 | `node-id-range` | error | CANopen node_id outside 1..127 |
 | `frame-id-missing` | error | Cannot determine the frame's CAN ID |

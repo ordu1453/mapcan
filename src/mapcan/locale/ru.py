@@ -856,4 +856,22 @@ RU: dict[str, str] = {
     "Included file is missing, has keys that cannot be included or belongs to another map":
         "Подключаемый файл не найден, содержит недопустимые ключи или относится к другой карте",
     "Included file does not start with mapcan and part_of": "Подключаемый файл не начинается с mapcan и part_of",
+    "CAN FD: bit rate of the data phase in bit/s, e.g. 2000000. Frames with the bit rate switch (BRS) send their "
+    "data field at this rate; it is used in the bus load estimate and shown in documents.":
+        "CAN FD: скорость фазы данных в бит/с, например 2000000. Кадры с переключением скорости (BRS) передают поле "
+        "данных на этой скорости; она учитывается в оценке загрузки шины и показывается в документах.",
+    "Sample point of the (nominal) bit rate, percent of the bit time, e.g. 87.5. All nodes of a bus should use the "
+    "same one. Shown in documents.":
+        "Точка выборки (номинальной) скорости, процент от длительности бита, например 87.5. У всех узлов шины она "
+        "должна быть одинаковой. Показывается в документах.",
+    "CAN FD: sample point of the data phase, percent, e.g. 75. Shown in documents.":
+        "CAN FD: точка выборки фазы данных, процент, например 75. Показывается в документах.",
+    "data_bitrate or data_sample_point on a bus that is not CAN FD":
+        "data_bitrate или data_sample_point на шине без CAN FD",
+    "CAN FD data phase bit rate lower than the bit rate": "Скорость фазы данных CAN FD ниже номинальной скорости",
+    "{key} on a bus without fd: true is not used": "{key} на шине без fd: true не используется",
+    "data phase bit rate {data} bit/s is lower than the bit rate {bitrate} bit/s":
+        "скорость фазы данных {data} бит/с ниже номинальной скорости {bitrate} бит/с",
+    "data phase bit rate {bitrate} bit/s is not a standard value (1000000, 2000000, 5000000, 8000000…)":
+        "скорость фазы данных {bitrate} бит/с — нестандартное значение (1000000, 2000000, 5000000, 8000000…)",
 }

@@ -95,6 +95,50 @@
           "description": "Default bit rate switch (BRS) of CAN FD frames: the data field is sent at the data phase bit rate. Turn it off if the nodes or the wiring of the bus cannot handle the higher rate. A frame can set its own value.",
           "title": "Brs"
         },
+        "data_bitrate": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CAN FD: bit rate of the data phase in bit/s, e.g. 2000000. Frames with the bit rate switch (BRS) send their data field at this rate; it is used in the bus load estimate and shown in documents.",
+          "title": "Data Bitrate"
+        },
+        "sample_point": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 50,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sample point of the (nominal) bit rate, percent of the bit time, e.g. 87.5. All nodes of a bus should use the same one. Shown in documents.",
+          "title": "Sample Point"
+        },
+        "data_sample_point": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 50,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CAN FD: sample point of the data phase, percent, e.g. 75. Shown in documents.",
+          "title": "Data Sample Point"
+        },
         "description": {
           "anyOf": [
             {

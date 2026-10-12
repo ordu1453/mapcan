@@ -42,6 +42,8 @@ PY_FRAME_MEMBERS = frozenset({"ID", "LENGTH", "DLC", "IS_EXTENDED", "IS_FD", "BI
 # Standard classic CAN bitrates, bit/s (33.3 and 83.3 kbit/s: GMLAN and low-speed buses).
 STANDARD_BITRATES = frozenset({10_000, 20_000, 33_333, 50_000, 83_333, 100_000, 125_000, 250_000,
                                500_000, 800_000, 1_000_000})
+# Common CAN FD data phase bitrates, bit/s
+STANDARD_DATA_BITRATES = frozenset({500_000, 1_000_000, 2_000_000, 4_000_000, 5_000_000, 8_000_000, 10_000_000})
 BUS_LOAD_LIMIT = 70  # %, threshold of the bus load warning
 # Data length of CANopen service frames by CiA 301. EMCY is not checked: CiA 301 requires 8 bytes,
 # but many devices send a shorter frame, and that does not prevent receiving it.
@@ -72,6 +74,8 @@ RULES = {
     "canopen-dlc": ("warning", N_("Length of a CANopen service frame does not match CiA 301")),
     "bitrate-nonstandard": ("warning", N_("Non-standard bus bit rate")),
     "brs-without-fd": ("warning", N_("brs is set on a bus that is not CAN FD and is not used")),
+    "data-bitrate-without-fd": ("warning", N_("data_bitrate or data_sample_point on a bus that is not CAN FD")),
+    "data-bitrate-range": ("error", N_("CAN FD data phase bit rate lower than the bit rate")),
     "bus-load": ("warning", N_("Estimated bus load from cyclic frames above 70%")),
     "duplicate-signal-name": ("error", N_("Duplicate signal/flag name in the frame")),
     "reserved-identifier": ("error", N_("Name is a C/Python keyword or a member of the generated class")),
@@ -208,6 +212,19 @@ def _check_bus(ctx: _Ctx, bus) -> None:
                  bus._path + ("bitrate",))
     if bus.brs is not None and not bus.fd:
         ctx.emit("brs-without-fd", _("brs on a bus without fd: true is not used"), bus._path + ("brs",))
+    for key in ("data_bitrate", "data_sample_point"):
+        if getattr(bus, key) is not None and not bus.fd:
+            ctx.emit("data-bitrate-without-fd", _("{key} on a bus without fd: true is not used", key=key),
+                     bus._path + (key,))
+    if bus.fd and bus.data_bitrate is not None:
+        if bus.bitrate is not None and bus.data_bitrate < bus.bitrate:
+            ctx.emit("data-bitrate-range", _("data phase bit rate {data} bit/s is lower than the bit rate {bitrate} "
+                                             "bit/s", data=bus.data_bitrate, bitrate=bus.bitrate),
+                     bus._path + ("data_bitrate",))
+        elif bus.data_bitrate not in STANDARD_DATA_BITRATES:
+            ctx.emit("bitrate-nonstandard", _("data phase bit rate {bitrate} bit/s is not a standard value (1000000, "
+                                              "2000000, 5000000, 8000000…)", bitrate=bus.data_bitrate),
+                     bus._path + ("data_bitrate",))
     if bus.title is None:
         ctx.emit("missing-title", _("bus {name!r} has no name (title)", name=bus.name), bus._path + ("title",))
     names, nodes, addrs, shorts = {}, {}, {}, {}
@@ -387,15 +404,39 @@ def _frame_bits(dlc: int, extended: bool) -> int:
     return n + 67 + (54 + n - 1) // 4 if extended else n + 47 + (34 + n - 1) // 4
 
 
+def _fd_frame_time(length: int, extended: bool, brs: bool, nominal: int, data: int) -> float:
+    """Time of a CAN FD frame on the bus in seconds, with worst-case dynamic bit stuffing (ISO 11898-1:2015).
+
+    At the nominal rate: SOF, ID, RRS, IDE, FDF, res and BRS (17 bits with an 11-bit ID, 36 with a 29-bit one),
+    and after the data phase the CRC delimiter, ACK, EOF and intermission (13 bits). At the data rate when BRS is
+    set: ESI, DLC and the data, then the stuff count and the CRC (17 bits up to 16 bytes, 21 above) with their fixed
+    stuff bits."""
+    arbitration = 36 if extended else 17
+    arbitration += (arbitration - 1) // 4
+    payload = 1 + 4 + 8 * length
+    payload += (payload - 1) // 4
+    crc = 4 + (17 if length <= 16 else 21)
+    crc += crc // 4
+    return (arbitration + 13) / nominal + (payload + crc) / (data if brs else nominal)
+
+
 def _check_bus_load(ctx: _Ctx, bus) -> None:
-    # In CAN FD the data phase runs at another bitrate, which the map does not have: the estimate would be wrong.
-    if bus.fd or not bus.bitrate:
+    if not bus.bitrate:
         return
     cyclic = [f for f in bus.all_frames()
               if f.can_id is not None and f.cycle_ms and f.trigger is None]
-    bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.length, f.extended)) * 1000 / f.cycle_ms
-                     for f in cyclic)
-    load = 100 * bits_per_s / bus.bitrate
+    if bus.fd:
+        # The data phase of frames with BRS runs at data_bitrate: without it the estimate would be wrong
+        if not bus.data_bitrate and any(f.bit_rate_switch and not _is_tp(f) for f in cyclic):
+            return
+        seconds = sum((_tp_bits(f) / bus.bitrate if _is_tp(f) else _fd_frame_time(
+            f.length, f.extended, bool(f.bit_rate_switch), bus.bitrate, bus.data_bitrate or bus.bitrate))
+            * 1000 / f.cycle_ms for f in cyclic)
+        load = 100 * seconds
+    else:
+        bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.length, f.extended)) * 1000 / f.cycle_ms
+                         for f in cyclic)
+        load = 100 * bits_per_s / bus.bitrate
     if load > BUS_LOAD_LIMIT:
         ctx.emit("bus-load", _("estimated load of bus {bus!r} is {load:.0f}% (cyclic frames: {count}, {bitrate} "
                                "bit/s); keep it at or below {limit}%",

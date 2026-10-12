@@ -646,6 +646,18 @@ class Bus(_Base):
         description=N_("Default bit rate switch (BRS) of CAN FD frames: the data field is sent at the data phase "
                        "bit rate. Turn it off if the nodes or the wiring of the bus cannot handle the higher rate. "
                        "A frame can set its own value."))
+    data_bitrate: int | None = Field(
+        None, gt=0,
+        description=N_("CAN FD: bit rate of the data phase in bit/s, e.g. 2000000. Frames with the bit rate switch "
+                       "(BRS) send their data field at this rate; it is used in the bus load estimate and shown in "
+                       "documents."))
+    sample_point: float | None = Field(
+        None, ge=50, le=100,
+        description=N_("Sample point of the (nominal) bit rate, percent of the bit time, e.g. 87.5. All nodes of a "
+                       "bus should use the same one. Shown in documents."))
+    data_sample_point: float | None = Field(
+        None, ge=50, le=100,
+        description=N_("CAN FD: sample point of the data phase, percent, e.g. 75. Shown in documents."))
     description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(
         default_factory=list,

@@ -183,6 +183,8 @@ class CGen:
         ]
         if self.bus.bitrate:
             out.append(f"#define {self.P(self.bus.name, 'BITRATE')} {self.bus.bitrate}u")
+        if self.bus.fd and self.bus.data_bitrate:
+            out.append(f"#define {self.P(self.bus.name, 'DATA_BITRATE')} {self.bus.data_bitrate}u")
         for dev in self.bus.devices:
             if dev.node_id is not None:
                 out.append(f"#define {self.P(dev.name, 'NODE_ID')} 0x{dev.node_id:02X}u")

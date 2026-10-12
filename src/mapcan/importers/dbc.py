@@ -159,6 +159,9 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
         bus["bitrate"] = int(bitrate)
     if fd:
         bus["fd"] = True
+        data_bitrate = db.buses[0].fd_baudrate if db.buses else None
+        if data_bitrate:
+            bus["data_bitrate"] = int(data_bitrate)
     no_brs = {m.name for m in db.messages if m.is_fd and not _brs(db, m)}
     # BRS off on every CAN FD frame: once on the bus instead of on each frame
     bus_no_brs = bool(no_brs) and all(m.name in no_brs for m in db.messages if m.is_fd)

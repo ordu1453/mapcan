@@ -433,5 +433,8 @@
   "unsigned": "беззнаковое",
   "CANopen function": "Функция CANopen",
   "“{raw}”: a range goes from the lower bound to the upper one": "«{raw}»: диапазон записывается от нижней границы к верхней",
-  "Values by meaning: edit them in the YAML": "Значения по смыслу: правьте их в YAML"
+  "Values by meaning: edit them in the YAML": "Значения по смыслу: правьте их в YAML",
+  "Data phase bitrate, bit/s": "Скорость фазы данных, бит/с",
+  "Sample point, %": "Точка выборки, %",
+  "Data phase sample point, %": "Точка выборки фазы данных, %"
 }
