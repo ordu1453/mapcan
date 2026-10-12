@@ -39,6 +39,8 @@ def _representation(old: dict) -> Any:
 
 RENAMES: list[Rename] = [
     Rename("frame", ("dlc",), "length", since="0.21"),
+    # type: raw meant "no CANopen function": the current field is not written then
+    Rename("frame", ("type",), "canopen", lambda old: DROP if old.get("type") == "raw" else old["type"], since="0.21"),
     Rename("signal", ("signed", "signed_code"), "representation", _representation, since="0.21"),
     Rename("sdo_value", ("signed",), "representation",
            lambda old: "twos_complement" if old.get("signed") is True else DROP, since="0.21"),

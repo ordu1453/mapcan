@@ -119,15 +119,15 @@ lint:
 | `name` | Frame identifier (unique on the bus) |
 | `title` | Name for people ("States") |
 | `description` | What the frame carries |
-| `type` | `nmt`, `sync`, `emcy`, `time`, `pdo_tx1..4`, `pdo_rx1..4`, `sdo_tx`, `sdo_rx`, `heartbeat`, `raw` (default) |
+| `canopen` | CANopen function of the frame (CiA 301): `nmt`, `sync`, `emcy`, `time`, `pdo_tx1..4`, `pdo_rx1..4`, `sdo_tx`, `sdo_rx`, `heartbeat`. Omitted: not a CANopen service frame, the ID is explicit. Only on CANopen buses. Formerly `type` (`raw` = omitted) |
 | `id` | Explicit CAN ID (required on `can` buses; on CANopen and J1939 it overrides the computed ID) |
 | `pgn`, `priority`, `destination` | J1939: parameter group number, priority 0..7 (default 6), destination address for PDU1 (default 0xFF) |
 | `receivers` | Names of the bus devices that receive the frame |
 | `sender` | Name of the bus device that transmits the frame when it is not the owner: an RX frame (a node's PDO RX sent by the master) or a bus frame (NMT, SYNC). If omitted, the sender is outside the map |
 | `extended` | 29-bit ID |
 | `brs` | CAN FD: bit rate switch (BRS), the data field is sent at the data phase bit rate. If omitted, the bus `brs` applies. Written to DBC as the `CANFD_BRS` attribute |
-| `length` | Data length, bytes (formerly `dlc`: the DLC on the bus is the code of this length). Required, except for CANopen service frames, which take the CiA 301 length of the type when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8. On a J1939 bus up to 1785 bytes (see [Transport protocol](#transport-protocol)) |
-| `direction` | `tx` / `rx` relative to the owning device. Defaults from the type: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen type whose `sender` is another device → `rx`; otherwise `tx` |
+| `length` | Data length, bytes (formerly `dlc`: the DLC on the bus is the code of this length). Required, except for CANopen service frames, which take the CiA 301 length of their function when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8. On a J1939 bus up to 1785 bytes (see [Transport protocol](#transport-protocol)) |
+| `direction` | `tx` / `rx` relative to the owning device. Defaults from the CANopen function: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen function whose `sender` is another device → `rx`; otherwise `tx` |
 | `cycle_ms` | Cyclic transmission period, ms |
 | `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
 | `signals` | Signals |
@@ -245,7 +245,7 @@ without `mux` is present for every selector value.
 
 | `protocol` | How the ID is obtained |
 |---|---|
-| `canopen` | From the frame `type` and the device `node_id` (see the table above); `id` overrides it |
+| `canopen` | From the frame's `canopen` function and the device `node_id` (see the table above); `id` overrides it |
 | `j1939` | 29 bits: `priority << 26 \| PGN << 8 \| address`. For PDU1 (PF < 240) the low byte of the PGN is replaced by `destination` |
 | `can` | Explicit `id` only; `extended: true` for a 29-bit ID; `fd: true` on the bus for CAN FD |
 
@@ -312,7 +312,7 @@ signals are filled with dummy objects.
 
 ```yaml
 - name: drive_status
-  type: pdo_tx1
+  canopen: pdo_tx1
   length: 6
   cycle_ms: 10
   signals:
@@ -330,7 +330,7 @@ For `sdo_rx`/`sdo_tx` frames you can describe expedited SDO exchanges instead of
 
 ```yaml
 - name: imd_sdo_request
-  type: sdo_rx
+  canopen: sdo_rx
   sdo:
     - name: set_alarm_resistance
       description: Set ALARM_RESISTANCE
@@ -364,18 +364,18 @@ devices:
     node_id: 0x01
     frames:
       - name: master_status
-        type: pdo_tx1          # sent by master, received by node
+        canopen: pdo_tx1          # sent by master, received by node
         length: 8
         receivers: [node]
   - name: node
     node_id: 0x05
     frames:
       - name: node_command
-        type: pdo_rx1          # ID 0x205, from the node's node_id
+        canopen: pdo_rx1          # ID 0x205, from the node's node_id
         length: 8
         sender: master         # sent by the master
       - name: node_status
-        type: pdo_tx1
+        canopen: pdo_tx1
         length: 8
         receivers: [master]
 ```
@@ -477,6 +477,7 @@ Included devices can be chosen as senders and receivers of the main file's frame
 | frame `dlc` | `length` | 0.21 |
 | signal `signed` + `signed_code` | `representation` | 0.21 |
 | SDO value `signed` | `representation` | 0.21 |
+| frame `type` (`raw`: omitted) | `canopen` | 0.21 |
 
 ## Validation rules
 
@@ -527,8 +528,8 @@ turned off with `--disable CODE` or `lint.disable`.
 | `dlc-range` | error | Frame length that no DLC can encode: above 8 on a classic CAN bus, not 0..8, 12, 16, 20, 24, 32, 48, 64 on CAN FD |
 | `dlc-missing` | error | Frame has no `length` (only CANopen service frames may omit it) |
 | `canopen-dlc` | warning | Length of a CANopen service frame does not match CiA 301 |
-| `frame-type-protocol` | warning | CANopen frame type on a non-CANopen bus |
-| `direction-mismatch` | warning | Direction conflicts with the CANopen frame type |
+| `frame-type-protocol` | warning | `canopen` set on a frame of a non-CANopen bus |
+| `direction-mismatch` | warning | Direction conflicts with the frame's CANopen function |
 
 ### SAE J1939
 

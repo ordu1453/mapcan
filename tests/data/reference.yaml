@@ -45,14 +45,14 @@ buses:
 
     frames:
       - name: sync
-        type: sync
+        canopen: sync
         title: SYNC
         description: Синхронизация со всеми устройствами
         length: 0
         trigger: event
 
       - name: time_stamp
-        type: time
+        canopen: time
         title: TIME
         description: Дата и время
         length: 6
@@ -80,7 +80,7 @@ buses:
         description: Контроль сопротивления изоляции шины питания относительно корпуса.
         frames:
           - name: imd_state
-            type: pdo_tx1
+            canopen: pdo_tx1
             title: СОСТОЯНИЯ
             description: Состояние изоляции
             length: 3
@@ -129,7 +129,7 @@ buses:
                   2: {name: CRITICAL_FAULT, description: критический сбой в работе устройства}
 
           - name: imd_data
-            type: pdo_tx2
+            canopen: pdo_tx2
             length: 8
             title: ДАННЫЕ
             description: Данные по изоляции
@@ -178,7 +178,7 @@ buses:
                 unit: В
 
           - name: imd_command
-            type: pdo_rx1
+            canopen: pdo_rx1
             title: КОМАНДЫ
             description: Команды монитору изоляции
             length: 2
@@ -206,7 +206,7 @@ buses:
                       (если активно, выполняется только самодиагностика)
 
           - name: imd_sdo_request
-            type: sdo_rx
+            canopen: sdo_rx
             title: НАСТРОЙКА
             description: Настройка граничных значений
             trigger: on_request
@@ -227,7 +227,7 @@ buses:
                         description: Порог предупредительного сопротивления изоляции}
 
           - name: imd_sdo_response
-            type: sdo_tx
+            canopen: sdo_tx
             title: ОТВЕТ НА НАСТРОЙКУ
             description: Обратная связь по принятой настройке
             trigger: on_request
@@ -250,7 +250,7 @@ buses:
         node_id: 0x22
         frames:
           - name: cmu_state
-            type: pdo_tx1
+            canopen: pdo_tx1
             title: СОСТОЯНИЯ
             description: Состояние ячеек
             length: 2
@@ -281,7 +281,7 @@ buses:
                   - {bit: 6, name: temperature_sensor_lost, description: нет связи с датчиком температуры}
 
           - name: cmu_event
-            type: emcy
+            canopen: emcy
             title: СОБЫТИЯ
             description: Изменение состояния
             length: 3
@@ -315,7 +315,7 @@ buses:
                 byte_length: 1
 
           - name: cmu_parse_data
-            type: pdo_tx2
+            canopen: pdo_tx2
             length: 8
             title: ДАННЫЕ ПО НАПРЯЖЕНИЮ
             description: Парсинг данных (по запросу)
@@ -350,7 +350,7 @@ buses:
                 mux: 1
 
           - name: cmu_request
-            type: pdo_rx1
+            canopen: pdo_rx1
             title: ЗАПРОСЫ
             description: Объём передаваемых данных
             length: 2
@@ -379,7 +379,7 @@ buses:
         node_id: 0x23
         frames:
           - name: pcu_state
-            type: pdo_tx1
+            canopen: pdo_tx1
             title: СОСТОЯНИЯ
             description: Состояние преобразователя
             length: 2
@@ -415,7 +415,7 @@ buses:
                   - {bit: 4, name: err_igbt_driver, description: ошибка драйверов силовых ключей}
 
           - name: pcu_data
-            type: pdo_tx2
+            canopen: pdo_tx2
             length: 8
             title: ДАННЫЕ
             description: Данные о работе
@@ -427,7 +427,7 @@ buses:
               - {name: dc_input_current, encoding: scaled, description: Входной ток, byte: 6, byte_length: 2, factor: 10, unit: А}
 
           - name: pcu_command
-            type: pdo_rx1
+            canopen: pdo_rx1
             title: КОМАНДЫ
             description: Установка режима работы преобразователя
             length: 2
@@ -455,11 +455,11 @@ buses:
         node_id: 0x24
         frames:
           - name: bypass_command
-            type: pdo_rx1
+            canopen: pdo_rx1
             length: 8
             description: Установка режима работы байпаса
           - name: bypass_state
-            type: pdo_tx2
+            canopen: pdo_tx2
             length: 8
             description: Текущий режим работы ключа и состояние ошибки
 
@@ -469,11 +469,11 @@ buses:
         node_id: 0x25
         frames:
           - name: cooling_command
-            type: pdo_rx1
+            canopen: pdo_rx1
             length: 8
             description: Установка скорости вентиляторов и положения заслонок
           - name: cooling_state
-            type: pdo_tx2
+            canopen: pdo_tx2
             length: 8
             description: Скорость вентиляторов и положение заслонок
 

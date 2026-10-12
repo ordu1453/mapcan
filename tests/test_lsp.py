@@ -35,7 +35,7 @@ def test_is_mapcan():
 def test_diagnostics_have_ranges():
     text = one_bus("""
         - name: st
-          type: pdo_tx1
+          canopen: pdo_tx1
           length: 8
           signals:
             - {name: a, encoding: raw, byte: 0, bit_length: 99999}

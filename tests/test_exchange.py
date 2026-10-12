@@ -26,7 +26,7 @@ buses:
     protocol: canopen
     frames:
       - name: nmt
-        type: nmt
+        canopen: nmt
         sender: master
         receivers: [node]
     devices:
@@ -34,18 +34,18 @@ buses:
         node_id: 0x01
         frames:
           - name: master_status
-            type: pdo_tx1
+            canopen: pdo_tx1
             length: 8
             receivers: [node]
       - name: node
         node_id: 0x05
         frames:
           - name: node_command
-            type: pdo_rx1
+            canopen: pdo_rx1
             length: 8
             sender: master
           - name: node_status
-            type: pdo_tx1
+            canopen: pdo_tx1
             length: 8
             receivers: [master]
 """

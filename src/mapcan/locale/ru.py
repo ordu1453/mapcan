@@ -689,10 +689,6 @@ RU: dict[str, str] = {
     "Optional; without it, the tree shows the identifier.":
         "Название кадра для людей, напр. «Состояния»: заголовок кадра в документах и подпись в дереве карты. "
         "Необязательно — без него в дереве выводится идентификатор.",
-    "CANopen frame type. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id) and the default direction. raw means the "
-    "ID is set explicitly.":
-        "Тип кадра CANopen. Задаёт базовый ID (напр. PDO TX 1 = 0x180 + node_id) и направление по умолчанию. raw — ID "
-        "задаётся явно.",
     "Frame CAN ID: 11-bit (0x000..0x7FF) or 29-bit (up to 0x1FFFFFFF). Leave empty to compute it: for CANopen from "
     "the type and node_id, for J1939 from the PGN, priority and address.":
         "CAN ID кадра: 11 бит (0x000..0x7FF) или 29 бит (до 0x1FFFFFFF). Пусто — вычисляется: CANopen — из типа и "
@@ -820,4 +816,12 @@ RU: dict[str, str] = {
         "unsigned или twos_complement (знаковое целое). Прежде — signed: true.",
     "Ones' complement or sign-magnitude signal: DBC stores two's complement only":
         "Сигнал в обратном или прямом коде: DBC хранит только дополнительный код",
+    "CANopen function of the frame (CiA 301): nmt, sync, emcy, time, pdo_tx1..4, pdo_rx1..4, sdo_tx, sdo_rx, "
+    "heartbeat. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id), the default direction and the length of service "
+    "frames. Empty: not a CANopen service frame, the ID is set explicitly. Only on CANopen buses. Formerly type "
+    "(raw: empty).":
+        "Функция кадра CANopen (CiA 301): nmt, sync, emcy, time, pdo_tx1..4, pdo_rx1..4, sdo_tx, sdo_rx, heartbeat. "
+        "Задаёт базовый ID (например, PDO TX 1 = 0x180 + node_id), направление по умолчанию и длину служебных "
+        "кадров. Пусто — не служебный кадр CANopen, ID задаётся явно. Только на шинах CANopen. Прежде — type (raw — "
+        "пусто).",
 }

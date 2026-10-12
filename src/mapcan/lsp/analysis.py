@@ -269,7 +269,7 @@ def _detail(a: Analysis, node: dict, path: Path_, kind: str) -> str:
         for key in ("id", "pgn"):
             if isinstance(node.get(key), int):
                 return f"{key} 0x{node[key]:X}" if key == "pgn" else f"0x{node[key]:X}"
-        return str(node.get("type", ""))
+        return str(node.get("canopen", node.get("type", "")))
     if kind == "signal":
         return str(node.get("encoding", ""))
     return ""
@@ -679,7 +679,7 @@ def inlay_hints(a: Analysis) -> list[Hint]:
 SNIPPET_CTX = re.compile(r"^\s*(-\s+)([A-Za-z_]*)$")
 SNIPPETS = [
     ("device", "mapcan device",
-     "- name: ${1:device}\n  node_id: ${2:0x01}\n  frames:\n    - name: ${3:frame}\n      type: ${4:pdo_tx1}\n"
+     "- name: ${1:device}\n  node_id: ${2:0x01}\n  frames:\n    - name: ${3:frame}\n      canopen: ${4:pdo_tx1}\n"
      "      cycle_ms: ${5:100}\n      signals: []"),
     ("frame", "mapcan frame",
      "- name: ${1:frame}\n  id: ${2:0x100}\n  cycle_ms: ${3:100}\n  receivers: [$4]\n  signals:\n"

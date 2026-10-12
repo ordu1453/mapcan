@@ -302,7 +302,7 @@ def _check_bus(ctx: _Ctx, bus) -> None:
                 ctx.emit("duplicate-can-id",
                          _("CAN ID {can_id:#05x} of frame {name!r} matches frame {other!r}",
                            can_id=frame.can_id, name=frame.name, other=other.name),
-                         p + (("id",) if frame.id is not None else ("type",)))
+                         p + (("id",) if frame.id is not None else ("canopen",)))
         else:
             ids[key] = frame
         if frame.can_id > 0x7FF and not frame.extended:
@@ -481,7 +481,7 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
                 "PGN {pgn:#06x} is PDU2 (broadcast), destination is not used", pgn=frame.pgn), p + ("destination",))
     if bus.protocol != "canopen" and frame.type != "raw":
         ctx.emit("frame-type-protocol", _("type {type} on a bus with protocol {protocol}",
-                                          type=frame.type, protocol=bus.protocol), p + ("type",))
+                                          type=frame.type, protocol=bus.protocol), p + ("canopen",))
     if fc and fc.direction and frame.direction and frame.direction != fc.direction and frame.device:
         ctx.emit("direction-mismatch",
                  _("a {type} frame is usually {expected} for the device, but {actual} is set", type=frame.type,

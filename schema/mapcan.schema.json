@@ -543,29 +543,35 @@
           "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
         },
-        "type": {
-          "default": "raw",
-          "description": "CANopen frame type. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id) and the default direction. raw means the ID is set explicitly.",
-          "enum": [
-            "nmt",
-            "sync",
-            "emcy",
-            "time",
-            "pdo_tx1",
-            "pdo_rx1",
-            "pdo_tx2",
-            "pdo_rx2",
-            "pdo_tx3",
-            "pdo_rx3",
-            "pdo_tx4",
-            "pdo_rx4",
-            "sdo_tx",
-            "sdo_rx",
-            "heartbeat",
-            "raw"
+        "canopen": {
+          "anyOf": [
+            {
+              "enum": [
+                "nmt",
+                "sync",
+                "emcy",
+                "time",
+                "pdo_tx1",
+                "pdo_rx1",
+                "pdo_tx2",
+                "pdo_rx2",
+                "pdo_tx3",
+                "pdo_rx3",
+                "pdo_tx4",
+                "pdo_rx4",
+                "sdo_tx",
+                "sdo_rx",
+                "heartbeat"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Type",
-          "type": "string"
+          "default": null,
+          "description": "CANopen function of the frame (CiA 301): nmt, sync, emcy, time, pdo_tx1..4, pdo_rx1..4, sdo_tx, sdo_rx, heartbeat. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id), the default direction and the length of service frames. Empty: not a CANopen service frame, the ID is set explicitly. Only on CANopen buses. Formerly type (raw: empty).",
+          "title": "Canopen"
         },
         "id": {
           "anyOf": [

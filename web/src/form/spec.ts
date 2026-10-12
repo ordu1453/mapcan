@@ -47,7 +47,7 @@ export interface FormContext {
   /** CANopen frame types for the Type field, `taken` names the frame that already has that CAN ID. */
   frameTypes?: { type: string; label: string; taken: string | null }[];
   /** Frames of the device as in the YAML, when the host has them (a node address is required if an ID needs it). */
-  frames?: { id?: unknown; type?: unknown }[];
+  frames?: { id?: unknown; canopen?: unknown }[];
 }
 
 export interface FieldDef {
@@ -101,7 +101,7 @@ export const CANOPEN_DLC: Record<string, number[]> = {
 };
 
 const FRAME_TYPES: Option[] = [
-  ["raw", N_("raw — explicit ID")], ["nmt", "NMT"], ["sync", "SYNC"], ["emcy", "EMCY"], ["time", "TIME"],
+  ["", N_("none — explicit ID")], ["nmt", "NMT"], ["sync", "SYNC"], ["emcy", "EMCY"], ["time", "TIME"],
   ["pdo_tx1", "PDO TX 1"], ["pdo_rx1", "PDO RX 1"], ["pdo_tx2", "PDO TX 2"], ["pdo_rx2", "PDO RX 2"],
   ["pdo_tx3", "PDO TX 3"], ["pdo_rx3", "PDO RX 3"], ["pdo_tx4", "PDO TX 4"], ["pdo_rx4", "PDO RX 4"],
   ["sdo_tx", "SDO TX"], ["sdo_rx", "SDO RX"], ["heartbeat", "Heartbeat"],
@@ -115,7 +115,8 @@ const ENCODINGS: Option[] = [
 const SDO_ENCODINGS: Option[] = ENCODINGS.filter(([v]) => ["enum", "scaled", "raw"].includes(v));
 
 const value = (c: FormContext, key: string): unknown => c.values[key];
-const frameType = (c: FormContext): string => String(value(c, "type") ?? "raw");
+/** CANopen function of the frame; "raw" for a frame without one. */
+const frameType = (c: FormContext): string => String(value(c, "canopen") ?? "raw");
 /** Encoding of the signal: as set in the form, else as computed from the map. */
 export const signalEncoding = (c: FormContext): string => String(value(c, "encoding") ?? c.signalEncoding ?? "raw");
 const encoding = signalEncoding;
@@ -147,7 +148,7 @@ const brsOptions = (base: string, on: boolean): Option[] =>
   [["", `${t(base)} (${t(on ? N_("on") : N_("off"))})`], ["true", N_("on")], ["false", N_("off")]];
 
 /** A device needs an address if the ID of one of its frames is computed from it (a frame without an explicit id). */
-const needsAddress = (c: FormContext, computed: (f: { type?: unknown }) => boolean): boolean =>
+const needsAddress = (c: FormContext, computed: (f: { canopen?: unknown }) => boolean): boolean =>
   (c.frames ?? []).some((f) => f?.id == null && computed(f));
 
 // Signal position: by bytes (byte/bit/byte_length) or by bits (start_bit/bit_length)
@@ -219,7 +220,7 @@ export const FORMS: Record<FormKind, Section[]> = {
     { title: N_("Address"), fields: [
       { key: "node_id", label: N_("Node address (node_id)"), type: "hex", half: true, placeholder: "0x01",
         when: (c) => c.protocol === "canopen",
-        required: (c) => c.protocol === "canopen" && needsAddress(c, (f) => (f.type ?? "raw") !== "raw") },
+        required: (c) => c.protocol === "canopen" && needsAddress(c, (f) => f.canopen != null) },
       { key: "address", label: N_("Address (SA)"), type: "hex", half: true, placeholder: "0x00",
         when: (c) => c.protocol === "j1939",
         required: (c) => c.protocol === "j1939" && needsAddress(c, () => true) },
@@ -234,7 +235,7 @@ export const FORMS: Record<FormKind, Section[]> = {
     { title: N_("Identification"), fields: [
       // Outside CANopen the type is not used (explicit ID or one from the PGN); a type written in the YAML is shown
       // so that it can be fixed. The VS Code form gets the types from the server, with the frames that took their IDs.
-      { key: "type", label: N_("Type"), type: "select", when: (c) => c.protocol === "canopen",
+      { key: "canopen", label: N_("CANopen function"), type: "select", when: (c) => c.protocol === "canopen",
         options: (c) => (c.frameTypes
           ? c.frameTypes.map(({ type, label, taken }): Option => [type, taken ? `${label} — ${taken}` : label, !!taken])
           : c.protocol === "canopen" ? FRAME_TYPES : FRAME_TYPES.slice(0, 1)) },

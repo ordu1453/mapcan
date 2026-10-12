@@ -13,4 +13,6 @@ needs at least the version of mapcan that introduced it; former names stay reada
 - The signal fields `signed` and `signed_code` are one field, `representation`: `unsigned`
   (default), `twos_complement`, `ones_complement` or `sign_magnitude`; `signed: true` alone is
   `twos_complement`. An SDO value's `signed: true` is `representation: twos_complement`.
+- The frame field `type` is `canopen`, the frame's CANopen function. `type: raw` is written as no
+  `canopen` at all: a frame without a function has an explicit ID.
 - `mapcan migrate` rewrites former field names; the rule `deprecated-key` reports them.

@@ -95,9 +95,9 @@ def test_dbc_keeps_cyrillic_title(cmap, tmp_path):
 def test_canopen_service_frame_dlc_from_type():
     frames = """
         - name: hb
-          type: heartbeat
+          canopen: heartbeat
         - name: sync_frame
-          type: sync
+          canopen: sync
     """
     res = loads(one_bus(frames), "t.yaml")
     hb, sync = res.map.buses[0].devices[0].frames
@@ -106,6 +106,6 @@ def test_canopen_service_frame_dlc_from_type():
     # an explicitly written dlc takes precedence and is checked
     assert "canopen-dlc" in codes(one_bus("""
         - name: hb
-          type: heartbeat
+          canopen: heartbeat
           length: 8
     """))

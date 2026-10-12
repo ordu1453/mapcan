@@ -20,7 +20,7 @@ buses:
         node_id: 0x21
         frames:
           - name: pump_state          # ID = 0x180 + 0x21 = 0x1A1
-            type: pdo_tx1
+            canopen: pdo_tx1
             length: 8
             description: Pump state
             cycle_ms: 100

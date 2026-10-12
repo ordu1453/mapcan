@@ -32,7 +32,7 @@ def test_example_is_clean():
 def test_od_rules():
     frame = """
         - name: f
-          type: pdo_tx1
+          canopen: pdo_tx1
           length: 4
           signals:
             - {name: a, encoding: raw, description: x, byte: 0, byte_length: 2, index: INDEX}
@@ -41,7 +41,7 @@ def test_od_rules():
     assert "canopen-od" not in codes(one_bus(frame.replace("INDEX", "0x2000")))
     assert "canopen-od" in codes(one_bus(frame.replace("INDEX", "0x1000")))         # communication area
     assert "od-duplicate" in codes(one_bus(frame.replace("INDEX", "0x2001")))
-    assert "canopen-od" in codes(one_bus(frame.replace("INDEX", "0x2000").replace("pdo_tx1", "raw")
+    assert "canopen-od" in codes(one_bus(frame.replace("INDEX", "0x2000").replace("          canopen: pdo_tx1\n", "")
                                          .replace("length: 4", "length: 4\n          id: 0x300")))
     be = frame.replace("INDEX", "0x2000").replace("byte_length: 2, index: 0x2000",
                                                   "byte_length: 2, byte_order: big_endian, index: 0x2000")
@@ -77,7 +77,7 @@ def test_eds_structure():
 def test_eds_dummies_fill_gaps():
     text = one_bus("""
         - name: f
-          type: pdo_tx1
+          canopen: pdo_tx1
           length: 4
           signals:
             - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1, index: 0x2000}

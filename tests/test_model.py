@@ -94,15 +94,15 @@ def test_compute_id():
 def test_id_override_and_direction():
     res, _ = run(one_bus("""
         - name: a
-          type: pdo_tx1
+          canopen: pdo_tx1
           length: 8
         - name: b
-          type: pdo_tx2
+          canopen: pdo_tx2
           id: 0x123
           length: 8
           direction: rx
         - name: c
-          type: sdo_rx
+          canopen: sdo_rx
     """))
     frames = res.map.buses[0].devices[0].frames
     assert [f.can_id for f in frames] == [0x190, 0x123, 0x610]
@@ -112,7 +112,7 @@ def test_id_override_and_direction():
 def test_cycle_ms_means_cyclic():
     res, _ = run(one_bus("""
         - name: a
-          type: pdo_tx1
+          canopen: pdo_tx1
           length: 8
           cycle_ms: 20
     """))

@@ -162,7 +162,7 @@ def test_any_iso_language():
 
     frame = """
         - name: f
-          type: pdo_tx1
+          canopen: pdo_tx1
           length: 1
           title: {de: Zustand, en: State}
           signals:

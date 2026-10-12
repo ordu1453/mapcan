@@ -399,7 +399,7 @@
   "ones' complement": "обратный",
   "or": "или",
   "outside the map": "вне карты",
-  "raw — explicit ID": "raw — явный ID",
+  "none — explicit ID": "нет — явный ID",
   "raw — integer": "raw — целое",
   "same as the identifier": "как идентификатор",
   "scaled — scaled value": "scaled — масштабированное",
@@ -430,5 +430,6 @@
   "“{raw}”: expected a list of integers": "«{raw}» — список целых чисел",
   "“{raw}”: expected a number, such as 0x1A or 26": "«{raw}» — ожидается число (0x1A или 26)",
   "✓ map is valid": "✓ карта корректна",
-  "unsigned": "беззнаковое"
+  "unsigned": "беззнаковое",
+  "CANopen function": "Функция CANopen"
 }

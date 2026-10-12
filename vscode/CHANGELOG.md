@@ -7,6 +7,7 @@
   updates the whole map.
 * A signal's **Signed** and **Sign encoding** are one field, **Number representation**
   (`representation`: unsigned, two's complement, ones' complement, sign-magnitude).
+* A frame's **Type** is **CANopen function** (`canopen`); "none — explicit ID" leaves it out.
 * The language server is started when the first map is opened, not for any YAML file, and only maps
   are sent to it. Other YAML files (CI configs, manifests) no longer start a `mapcan` process or show
   an error when `mapcan` is not installed. A new file is picked up once `mapcan:` is typed into it.

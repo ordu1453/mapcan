@@ -85,7 +85,7 @@ def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, a
             "        node_id: 0x10",
             "        frames:",
             "          - name: device_state",
-            "            type: pdo_tx1",
+            "            canopen: pdo_tx1",
             device_state,
             "            length: 1",
             "            cycle_ms: 100",

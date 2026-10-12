@@ -77,7 +77,7 @@ def test_j1939_rules():
     """, protocol="can"))
     assert "frame-type-protocol" in codes(_bus("""
         - name: f
-          type: pdo_tx1
+          canopen: pdo_tx1
           pgn: 0xFEEE
           length: 8
     """))

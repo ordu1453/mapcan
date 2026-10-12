@@ -91,11 +91,11 @@ export function addFrame(ownerPath: Path): Promise<boolean> {
     return insertAndSelect([...ownerPath, "frames"], value, [], false);
   }
   if (bus.protocol === "canopen" && isDevice) {
-    const usedTypes = new Set((owner.frames ?? []).map((f: Data) => f.type));
-    value.type = ["pdo_tx1", "pdo_tx2", "pdo_tx3", "pdo_tx4", "pdo_rx1", "pdo_rx2", "pdo_rx3", "pdo_rx4"]
-      .find((t) => !usedTypes.has(t)) ?? "raw";
+    const usedTypes = new Set((owner.frames ?? []).map((f: Data) => f.canopen));
+    value.canopen = ["pdo_tx1", "pdo_tx2", "pdo_tx3", "pdo_tx4", "pdo_rx1", "pdo_rx2", "pdo_rx3", "pdo_rx4"]
+      .find((t) => !usedTypes.has(t));
   }
-  if (!value.type || value.type === "raw") {
+  if (!value.canopen) {
     const used = new Set<number>();
     for (const f of store.state?.resolved?.frames ?? []) if (f.can_id != null) used.add(f.can_id);
     let id = 0x100;

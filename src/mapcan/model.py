@@ -34,11 +34,12 @@ Trigger = Literal["event", "on_request"]
 Protocol = Literal["canopen", "j1939", "can"]
 NameStyle = Literal["snake_case", "UPPER_SNAKE", "camelCase", "PascalCase", "any"]
 
-FrameType = Literal[
+# CANopen function of a frame (CiA 301); a frame without one has an explicit ID ("raw" in derived data)
+CanopenFunction = Literal[
     "nmt", "sync", "emcy", "time",
     "pdo_tx1", "pdo_rx1", "pdo_tx2", "pdo_rx2",
     "pdo_tx3", "pdo_rx3", "pdo_tx4", "pdo_rx4",
-    "sdo_tx", "sdo_rx", "heartbeat", "raw",
+    "sdo_tx", "sdo_rx", "heartbeat",
 ]
 
 
@@ -413,10 +414,12 @@ class Frame(_Base):
         description=N_("Human-readable frame name, e.g. “Status”: the frame heading in documents and its label in "
                        "the map tree. Optional; without it, the tree shows the identifier."))
     description: Text | None = Field(None, description=DESCRIPTION)
-    type: FrameType = Field(
-        "raw",
-        description=N_("CANopen frame type. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id) and the default "
-                       "direction. raw means the ID is set explicitly."))
+    canopen: CanopenFunction | None = Field(
+        None,
+        description=N_("CANopen function of the frame (CiA 301): nmt, sync, emcy, time, pdo_tx1..4, pdo_rx1..4, "
+                       "sdo_tx, sdo_rx, heartbeat. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id), the default "
+                       "direction and the length of service frames. Empty: not a CANopen service frame, the ID is "
+                       "set explicitly. Only on CANopen buses. Formerly type (raw: empty)."))
     id: int | None = Field(
         None, ge=0, le=0x1FFFFFFF,
         description=N_("Frame CAN ID: 11-bit (0x000..0x7FF) or 29-bit (up to 0x1FFFFFFF). Leave empty to compute "
@@ -475,6 +478,11 @@ class Frame(_Base):
     _bus: Any = PrivateAttr(default=None)
     _synthetic: list | None = PrivateAttr(default=None)
     _length_missing: bool = PrivateAttr(default=False)
+
+    @property
+    def type(self) -> str:
+        """The CANopen function, or "raw" for a frame without one (the former field type)."""
+        return self.canopen or "raw"
 
     @property
     def layout(self) -> list[Signal]:

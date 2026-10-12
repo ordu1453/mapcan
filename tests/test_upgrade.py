@@ -131,3 +131,14 @@ def test_sdo_value_signed_becomes_representation():
     from mapcan.upgrade import upgrade_tree as up
     data = {"buses": [{"frames": [{"sdo": [{"value": {"name": "v", "signed": True}}]}]}]}
     assert up(data)["buses"][0]["frames"][0]["sdo"][0]["value"] == {"name": "v", "representation": "twos_complement"}
+
+
+def test_frame_type_becomes_canopen():
+    frames = [{"name": "a", "type": "pdo_tx1"}, {"name": "b", "type": "raw", "id": 1}]
+    data = {"buses": [{"devices": [{"frames": frames}]}]}
+    frames = upgrade_tree(data)["buses"][0]["devices"][0]["frames"]
+    assert frames == [{"name": "a", "canopen": "pdo_tx1"}, {"name": "b", "id": 1}]
+    legacy = MINIMAL.replace("canopen: pdo_tx1", "type: pdo_tx1")
+    res, report = run(legacy)
+    assert res.map.buses[0].devices[0].frames[0].canopen == "pdo_tx1" and "deprecated-key" in report.codes()
+    assert migrate_text(legacy) == MINIMAL

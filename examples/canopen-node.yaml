@@ -25,7 +25,7 @@ buses:
         node_id: 0x05
         frames:
           - name: drive_status            # TPDO1, ID 0x185
-            type: pdo_tx1
+            canopen: pdo_tx1
             length: 6
             cycle_ms: 10
             receivers: [controller]
@@ -48,7 +48,7 @@ buses:
                 unit: rpm
 
           - name: drive_measurements      # TPDO2, ID 0x285
-            type: pdo_tx2
+            canopen: pdo_tx2
             length: 4
             cycle_ms: 100
             receivers: [controller]
@@ -85,7 +85,7 @@ buses:
                 unit: V
 
           - name: drive_command           # RPDO1, ID 0x205, sent by the controller
-            type: pdo_rx1
+            canopen: pdo_rx1
             sender: controller
             length: 6
             cycle_ms: 10
@@ -108,6 +108,6 @@ buses:
                 unit: rpm
 
           - name: drive_heartbeat
-            type: heartbeat
+            canopen: heartbeat
             cycle_ms: 500
             receivers: [controller]

@@ -172,7 +172,7 @@ def test_node_fields():
     f = E.node_fields(a, FRAME)
     assert (f["kind"], f["lang"], f["protocol"], f["owner"]) == ("frame", "en", "canopen", "pump")
     assert f["frameDirection"] == "tx"   # not written: from the type pdo_tx1
-    assert f["values"] == {"name": "pump_state", "type": "pdo_tx1", "description": "Pump state", "length": 8,
+    assert f["values"] == {"name": "pump_state", "canopen": "pdo_tx1", "description": "Pump state", "length": 8,
                            "cycle_ms": 100}
     assert f["devices"] == [{"name": "pump", "label": "PMP"}]
     assert E.node_fields(a, ("buses", 0))["values"]["title"] == "Demo bus"
@@ -362,7 +362,7 @@ def test_new_frame_like_web_editor():
     a = A.analyze(MINIMAL, "m.yaml")
     out = _change(MINIMAL, E.add_node(a, DEV, "frame"))
     frame = A.analyze(out, "r.yaml").result.raw["buses"][0]["devices"][0]["frames"][-1]
-    assert frame == {"name": "pump_frame", "type": "pdo_tx2", "length": 8, "cycle_ms": 100, "signals": []}
+    assert frame == {"name": "pump_frame", "canopen": "pdo_tx2", "length": 8, "cycle_ms": 100, "signals": []}
     # A frame of the bus: with an explicit ID
     bus_frame = _change(MINIMAL, E.add_node(a, ("buses", 0), "frame"))
     raw = A.analyze(bus_frame, "r.yaml").result.raw["buses"][0]["frames"][-1]
@@ -380,11 +380,11 @@ def test_new_frame_like_web_editor():
 def test_frame_type_change_drops_invalid_dlc():
     text = MINIMAL.replace("            length: 8\n", "            length: 7\n", 1)
     a = A.analyze(text, "m.yaml")
-    out = apply(text, E.set_field(a, FRAME + ("type",), "sdo_tx"))
-    assert "type: sdo_tx\n" in out and "length: 7" not in out
+    out = apply(text, E.set_field(a, FRAME + ("canopen",), "sdo_tx"))
+    assert "canopen: sdo_tx\n" in out and "length: 7" not in out
     # An allowed DLC stays
-    out = apply(text, E.set_field(a, FRAME + ("type",), "pdo_tx2"))
-    assert "type: pdo_tx2\n" in out and "length: 7\n" in out
+    out = apply(text, E.set_field(a, FRAME + ("canopen",), "pdo_tx2"))
+    assert "canopen: pdo_tx2\n" in out and "length: 7\n" in out
 
 
 def test_frame_types_mark_taken_ids():
@@ -392,19 +392,19 @@ def test_frame_types_mark_taken_ids():
     types = {t["type"]: t["taken"] for t in E.frame_types(a, FRAME)}
     assert types["pdo_tx1"] is None             # the frame's own type is not taken by itself
     second = MINIMAL.replace("          - name: pump_state", (
-        "          - name: other\n            type: pdo_tx2\n            signals: []\n          - name: pump_state"))
+        "          - name: other\n            canopen: pdo_tx2\n            signals: []\n          - name: pump_state"))
     b = A.analyze(second, "m.yaml")
     types = {t["type"]: t["taken"] for t in E.frame_types(b, DEV + ("frames", 1))}
     assert types["pdo_tx2"] == "other" and types["pdo_rx1"] is None
     # A frame of the bus has no node_id: only the types whose ID does not depend on the node
     bus_frame = E.frame_types(a, ("buses", 0, "frames", 0))
-    assert [t["type"] for t in bus_frame] == ["raw", "nmt", "sync", "time"]
+    assert [t["type"] for t in bus_frame] == ["", "nmt", "sync", "time"]
 
 
 def test_duplicate_pdo_type_quick_fix():
-    text = MINIMAL + ("          - name: pump_frame\n            type: pdo_tx1\n            length: 8\n"
+    text = MINIMAL + ("          - name: pump_frame\n            canopen: pdo_tx1\n            length: 8\n"
                       "            signals: []\n")
     # The first (preferred) one is a free PDO of the same direction; PDO RX is not offered
-    assert "            type: pdo_tx2\n            length: 8\n" in fixed(text, "duplicate-can-id")
+    assert "            canopen: pdo_tx2\n            length: 8\n" in fixed(text, "duplicate-can-id")
     titles = [t for c, t, _ in fixes(text) if c == "duplicate-can-id"]
     assert titles and all("pdo_tx" in t for t in titles)

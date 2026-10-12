@@ -12,7 +12,7 @@ buses:
         node_id: 0x21
         frames:
           - name: imd_data
-            type: pdo_tx2
+            canopen: pdo_tx2
             length: 8
             cycle_ms: 100
             signals:
@@ -25,7 +25,7 @@ buses:
                 unit: В
           - name: imd_state
             id: 0х196
-            type: pdo_tx1
+            canopen: pdo_tx1
             length: 2
             cycle_ms: 100
             signals:
@@ -55,7 +55,7 @@ buses:
         node_id: 0x23
         frames:
           - name: pcu_state
-            type: pdo_tx1
+            canopen: pdo_tx1
             length: 8
             cycle_ms: 100
             signals:

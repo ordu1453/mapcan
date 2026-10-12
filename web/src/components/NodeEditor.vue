@@ -107,7 +107,7 @@ function commit(def: FieldDef, value: unknown) {
     return;
   }
   // Changing the CANopen type: a written length not allowed for the new type is removed, the type's length applies
-  const allowed = kind.value === "frame" && def.key === "type" ? CANOPEN_DLC[String(value ?? "raw")] : undefined;
+  const allowed = kind.value === "frame" && def.key === "canopen" ? CANOPEN_DLC[String(value ?? "")] : undefined;
   const length = node.value?.length;
   // encoding is required for an SDO value: a new value is created with encoding: raw right away
   // Without an identifier an SDO exchange has no value: the value mapping is removed as a whole
@@ -305,7 +305,7 @@ const childFrames = computed(() => {
   return (node.value?.frames ?? []).map((f: any, i: number) => {
     const p = [...path.value, "frames", i];
     const rf = resolvedFrames.value.get(pathKey(p));
-    return { path: p, name: f?.name ?? "—", label: displayName(f, lang.value), id: rf ? hex(rf.can_id) : "—", type: f?.type ?? "raw",
+    return { path: p, name: f?.name ?? "—", label: displayName(f, lang.value), id: rf ? hex(rf.can_id) : "—", type: f?.canopen ?? "raw",
       desc: txt(f?.description, lang.value), n: rf?.signals.length ?? 0 };
   });
 });
@@ -357,7 +357,7 @@ const buses = computed(() => {
 });
 // SDO exchanges only for CANopen frames
 const canAddSdo = computed(() => kind.value === "frame" && (data.value?.buses?.[Number(path.value[1])]?.protocol ?? "canopen") === "canopen"
-  && (node.value?.sdo != null || ["sdo_tx", "sdo_rx"].includes(node.value?.type)));
+  && (node.value?.sdo != null || ["sdo_tx", "sdo_rx"].includes(node.value?.canopen)));
 const isListItem = computed(() => typeof path.value[path.value.length - 1] === "number" && path.value.length > 1);
 
 function onCreate(start: number, length: number) {

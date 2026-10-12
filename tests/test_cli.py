@@ -17,7 +17,7 @@ from .conftest import DATA, REFERENCE, ROOT, one_bus
 MINIMAL = ROOT / "examples" / "minimal.yaml"
 FRAME = """
     - name: f
-      type: pdo_tx1
+      canopen: pdo_tx1
       length: 1
       cycle_ms: 100
       signals:

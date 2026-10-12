@@ -251,7 +251,7 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
         act = move_to_free_bits(a, path)
         return [act] if act else []
 
-    if code == "duplicate-can-id" and path and path[-1] == "type":
+    if code == "duplicate-can-id" and path and path[-1] == "canopen":
         # Another type of the same purpose (PDO TX → a free PDO TX) whose ID is not taken
         current = raw_at(a, path)
         prefix = re.sub(r"\d+$", "", current) if isinstance(current, str) else ""
@@ -597,9 +597,10 @@ def _new_frame(a: Analysis, owner: Path_) -> list[tuple[str, str]]:
         pgn = next((p for p in range(0xFF00, 0x10000) if p not in used), 0xFF00)
         fields += [("pgn", f"0x{pgn:04X}"), ("priority", "6")]
     else:
-        types = {f.get("type") for f in raw_at(a, owner + ("frames",)) or [] if isinstance(f, dict)}
+        types = {f.get("canopen", f.get("type"))
+                 for f in raw_at(a, owner + ("frames",)) or [] if isinstance(f, dict)}
         free = next((t for t in PDO_TYPES if t not in types), None) if protocol == "canopen" and device else None
-        fields.append(("type", free) if free else ("id", f"0x{_free_id(a, owner[:2]):03X}"))
+        fields.append(("canopen", free) if free else ("id", f"0x{_free_id(a, owner[:2]):03X}"))
     return fields + [("length", "8"), ("cycle_ms", "100"), ("signals", "[]")]
 
 
@@ -826,7 +827,7 @@ def frame_types(a: Analysis, path: Path_) -> list[dict]:
         for f in bus.all_frames() if isinstance(bus, M.Bus) else []:
             if f is not me and f.can_id is not None:
                 used.setdefault(f.can_id, f.name)
-    out = [{"type": "raw", "label": "Raw (explicit ID)", "taken": None}]
+    out = [{"type": "", "label": "None (explicit ID)", "taken": None}]
     for fc in FUNCTION_CODES.values():
         if fc.per_node and owner is None:
             continue
@@ -966,7 +967,7 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
         op = ({"op": "remove", "path": list(path)} if value is None or value == ""
               else {"op": "set", "path": list(path), "value": value})
         return [minimal_edit(a.text, apply_ops(a, [op]))]
-    if key == "type" and node_kind(path[:-1]) == "frame":
+    if key == "canopen" and node_kind(path[:-1]) == "frame":
         return _set_frame_type(a, path, value)
     if not isinstance(raw_at(a, path[:-1]), dict):
         # A field of a nested mapping that does not exist yet (value.name of an SDO): the mapping is added with it
@@ -1022,7 +1023,7 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
 def _set_frame_type(a: Analysis, path: Path_, value) -> list[Edit]:
     """CANopen frame type; a written length not allowed for the new type is removed, so the type's length is used."""
     edits = _set_plain(a, path, value)
-    allowed = CANOPEN_DLC.get(str(value or "raw"))
+    allowed = CANOPEN_DLC.get(str(value or ""))
     for key in ("length",) + U.deprecated_of("frame", "length"):
         length = raw_at(a, path[:-1] + (key,))
         if edits and allowed and isinstance(length, int) and length not in allowed:

@@ -21,7 +21,7 @@ const field = (kind: FormKind, key: string) => formFields(kind).find((f) => f.ke
 
 group("frame", () => {
   it("CANopen RX frame on a bus with one device: no direction, sender or receivers", () => {
-    const keys = visible("frame", ctx({ values: { type: "pdo_rx1" }, frameDirection: "rx" }));
+    const keys = visible("frame", ctx({ values: { canopen: "pdo_rx1" }, frameDirection: "rx" }));
     expect(keys).not.toContain("direction");
     expect(keys).not.toContain("sender");
     expect(keys).not.toContain("receivers");
@@ -36,33 +36,33 @@ group("frame", () => {
   });
 
   it("TX frame: receivers, no sender", () => {
-    const keys = visible("frame", ctx({ values: { type: "pdo_tx1" }, devices: devices("pump", "master") }));
+    const keys = visible("frame", ctx({ values: { canopen: "pdo_tx1" }, devices: devices("pump", "master") }));
     expect(keys).toContain("receivers");
     expect(keys).not.toContain("sender");
   });
 
   it("frame of the bus: no direction, a sender and receivers", () => {
-    const keys = visible("frame", ctx({ values: { type: "sync" }, devices: devices("pump", "master"), owner: null }));
+    const keys = visible("frame", ctx({ values: { canopen: "sync" }, devices: devices("pump", "master"), owner: null }));
     expect(keys).not.toContain("direction");
     expect(keys).toEqual(expect.arrayContaining(["sender", "receivers"]));
   });
 
   it("the type of a CANopen service frame sets its DLC; SYNC has 0 or 1", () => {
-    expect(visible("frame", ctx({ values: { type: "nmt" } }))).not.toContain("length");
-    expect(visible("frame", ctx({ values: { type: "heartbeat" } }))).not.toContain("length");
-    expect(visible("frame", ctx({ values: { type: "sync" } }))).toContain("length");
-    expect(visible("frame", ctx({ values: { type: "nmt" }, protocol: "can" }))).toContain("length");
-    expect(isRequired(field("frame", "length"), ctx({ values: { type: "sync" } }))).toBe(false);
+    expect(visible("frame", ctx({ values: { canopen: "nmt" } }))).not.toContain("length");
+    expect(visible("frame", ctx({ values: { canopen: "heartbeat" } }))).not.toContain("length");
+    expect(visible("frame", ctx({ values: { canopen: "sync" } }))).toContain("length");
+    expect(visible("frame", ctx({ values: { canopen: "nmt" }, protocol: "can" }))).toContain("length");
+    expect(isRequired(field("frame", "length"), ctx({ values: { canopen: "sync" } }))).toBe(false);
     expect(isRequired(field("frame", "length"), ctx({ protocol: "can" }))).toBe(true);
   });
 
   it("no type outside CANopen; J1939 has a PGN and no 29-bit flag", () => {
     const j = visible("frame", ctx({ protocol: "j1939", devices: [], owner: "ecu" }));
-    expect(j).not.toContain("type");
+    expect(j).not.toContain("canopen");
     expect(j).not.toContain("extended");
     expect(j).toEqual(expect.arrayContaining(["pgn", "priority"]));
     const c = visible("frame", ctx({ protocol: "can", devices: [], owner: "dev" }));
-    expect(c).not.toContain("type");
+    expect(c).not.toContain("canopen");
     expect(c).toContain("extended");
   });
 
@@ -90,8 +90,8 @@ group("other nodes", () => {
     expect(visible("device", ctx())).toContain("node_id");
     expect(visible("device", ctx({ protocol: "j1939" }))).toContain("address");
     expect(visible("device", ctx({ protocol: "can" }))).not.toContain("node_id");
-    expect(isRequired(field("device", "node_id"), ctx({ frames: [{ type: "pdo_tx1" }] }))).toBe(true);
-    expect(isRequired(field("device", "node_id"), ctx({ frames: [{ type: "raw", id: 0x100 }] }))).toBe(false);
+    expect(isRequired(field("device", "node_id"), ctx({ frames: [{ canopen: "pdo_tx1" }] }))).toBe(true);
+    expect(isRequired(field("device", "node_id"), ctx({ frames: [{ id: 0x100 }] }))).toBe(false);
   });
 
   it("the title of a bus and a device is required, of a frame and a signal it is not", () => {
