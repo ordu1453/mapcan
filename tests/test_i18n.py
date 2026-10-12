@@ -137,9 +137,10 @@ def test_export_language_choice(tmp_path):
         ru = c.get("/api/export/md?lang=ru").text
         en = c.get("/api/export/md?lang=en").text
         assert ru != en
-        # Any ISO 639-1 code; document labels for languages other than ru and en are English
+        # Any ISO 639-1 code; document labels for languages other than ru and en are English,
+        # texts without a German translation are in the document language (Russian)
         de = c.get("/api/export/md?lang=de")
-        assert de.status_code == 200 and de.text == en
+        assert de.status_code == 200 and de.text not in (ru, en)
         assert c.get("/api/export/md?lang=1x").status_code == 400
         tpls = {t["name"]: t["lang"] for t in c.get("/api/templates").json()["pdf"]}
         assert tpls["mapcan"] is None
@@ -154,6 +155,7 @@ def test_gost_templates_always_russian():
 
 
 def test_any_iso_language():
+    from mapcan.docmodel import ViewBuilder
     from mapcan.model import LocalizedText, text
 
     from .conftest import one_bus, run
@@ -168,10 +170,18 @@ def test_any_iso_language():
     """
     res, rep = run(one_bus(frame).replace("  language: ru", "  language: de"))
     assert res.map is not None and not rep.errors and res.map.document.language == "de"
-    # No translation: English, then Russian
+    # No translation: the document language, then English, then any other
     assert text(LocalizedText(ru="Состояние", en="State"), "fr") == "State"
     assert text(LocalizedText(ru="Состояние", de="Zustand"), "fr") == "Состояние"
     assert text(LocalizedText(de="Zustand", en="State"), "de") == "Zustand"
+    assert text(LocalizedText(de="Zustand", fr="État"), "en", "de") == "Zustand"
+    assert text(LocalizedText(ru="Состояние", en="State", de="Zustand"), "fr", "de") == "Zustand"
+    assert text(LocalizedText(de="Zustand", en="State"), "fr", "it") == "State"
+    # A German map exported in English keeps the German original, not an arbitrary translation
+    de_map = one_bus(frame.replace("{de: Zustand, en: State}", "{fr: État, de: Zustand}"))
+    res, rep = run(de_map.replace("  language: ru", "  language: de"))
+    assert res.map is not None and not rep.errors
+    assert ViewBuilder(res.map, "en").t(res.map.buses[0].all_frames()[0].title) == "Zustand"
     # The translation key is only a language code
     res, _ = run(one_bus(frame.replace("de: Zustand", "deutsch: Zustand")))
     assert res.map is None

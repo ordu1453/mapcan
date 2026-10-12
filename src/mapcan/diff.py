@@ -56,24 +56,24 @@ SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "signed", "signed_code
 FLAG_FIELDS = ("bit", "bit_length", "description")
 
 
-def _frame_attrs(f: Frame, lang: str) -> dict:
+def _frame_attrs(f: Frame, langs: tuple[str, str]) -> dict:
     return {
         "can_id": f.can_id, "type": f.type, "dlc": f.dlc, "direction": f.direction,
         "mode": f.mode, "cycle_ms": f.cycle_ms,
         "extended": f.extended, "brs": f.bit_rate_switch, "device": f.device.name if f.device else None,
         "pgn": f.pgn, "priority": f.priority, "sender": f.sender_name, "receivers": list(f.receivers),
-        "description": text(f.description, lang),
+        "description": text(f.description, *langs),
     }
 
 
-def _signal_attrs(s: Signal, lang: str) -> dict:
+def _signal_attrs(s: Signal, langs: tuple[str, str]) -> dict:
     return {
         "start_bit": s.start_bit, "bit_length": s.bit_length, "byte_order": s.byte_order,
         "signed": s.signed, "signed_code": s.signed_code, "encoding": s.encoding,
         "factor": s.factor, "offset": s.offset, "unit": s.unit,
         "min": s.min, "max": s.max, "initial": s.initial, "invalid": s.invalid_values or None,
         "multiplexer": s.multiplexer, "mux": s.mux_values,
-        "description": text(s.description, lang),
+        "description": text(s.description, *langs),
     }
 
 
@@ -82,7 +82,7 @@ def _attrs_diff(old: dict, new: dict, names) -> list[tuple[str, Any, Any]]:
 
 
 def diff_maps(old: MapCan, new: MapCan, lang: str | None = None) -> MapDiff:
-    lang = lang or new.lang
+    langs = (lang or new.lang, new.lang)   # the requested language, then the document language
     d = MapDiff(old.document.version, new.document.version)
     ob = {b.name: b for b in old.buses}
     nb = {b.name: b for b in new.buses}
@@ -94,7 +94,7 @@ def diff_maps(old: MapCan, new: MapCan, lang: str | None = None) -> MapDiff:
             for f in nb[name].all_frames():
                 d.changes.append(_frame_change("added", name, f))
             continue
-        _diff_bus(d, ob[name], nb[name], lang)
+        _diff_bus(d, ob[name], nb[name], langs)
     return d
 
 
@@ -103,7 +103,7 @@ def _frame_change(kind, bus: str, f: Frame, **kw) -> Change:
                   device=f.device.name if f.device else "", **kw)
 
 
-def _diff_bus(d: MapDiff, old: Bus, new: Bus, lang: str) -> None:
+def _diff_bus(d: MapDiff, old: Bus, new: Bus, langs: tuple[str, str]) -> None:
     od = {x.name: x for x in old.devices}
     nd = {x.name: x for x in new.devices}
     for name in nd.keys() - od.keys():
@@ -112,9 +112,9 @@ def _diff_bus(d: MapDiff, old: Bus, new: Bus, lang: str) -> None:
         d.changes.append(Change("removed", "device", new.name, device=name))
     for name in nd.keys() & od.keys():
         oa = {"node_id": od[name].node_id, "address": od[name].address, "short": od[name].short,
-              "title": text(od[name].title, lang)}
+              "title": text(od[name].title, *langs)}
         na = {"node_id": nd[name].node_id, "address": nd[name].address, "short": nd[name].short,
-              "title": text(nd[name].title, lang)}
+              "title": text(nd[name].title, *langs)}
         for fld, a, b in _attrs_diff(oa, na, DEVICE_FIELDS):
             d.changes.append(Change("changed", "device", new.name, device=name, field=fld, old=a, new=b))
 
@@ -128,12 +128,12 @@ def _diff_bus(d: MapDiff, old: Bus, new: Bus, lang: str) -> None:
             d.changes.append(_frame_change("added", new.name, f))
             continue
         o = of[f.name]
-        for fld, a, b in _attrs_diff(_frame_attrs(o, lang), _frame_attrs(f, lang), FRAME_FIELDS):
+        for fld, a, b in _attrs_diff(_frame_attrs(o, langs), _frame_attrs(f, langs), FRAME_FIELDS):
             d.changes.append(_frame_change("changed", new.name, f, field=fld, old=a, new=b))
-        _diff_signals(d, new.name, o, f, lang)
+        _diff_signals(d, new.name, o, f, langs)
 
 
-def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, lang: str) -> None:
+def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, langs: tuple[str, str]) -> None:
     base = {"bus": bus, "frame": nf.name, "can_id": hex_id(nf.can_id, nf.extended),
             "device": nf.device.name if nf.device else ""}
     os_ = {s.name: s for s in of.layout}
@@ -147,7 +147,7 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, lang: str) -> None
             d.changes.append(Change("added", "signal", signal=s.name, **base, new=(s.start_bit, s.bit_length)))
             continue
         o = os_[s.name]
-        for fld, a, b in _attrs_diff(_signal_attrs(o, lang), _signal_attrs(s, lang), SIGNAL_FIELDS):
+        for fld, a, b in _attrs_diff(_signal_attrs(o, langs), _signal_attrs(s, langs), SIGNAL_FIELDS):
             d.changes.append(Change("changed", "signal", signal=s.name, field=fld, old=a, new=b, **base))
         # enum values
         ov = {v: ev for v, ev in enum_entries(o.values)}
@@ -160,10 +160,10 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, lang: str) -> None
             if ov[v].name != nv[v].name:
                 d.changes.append(Change("changed", "value", signal=s.name, item=str(v), field="name",
                                         old=ov[v].name, new=nv[v].name, **base))
-            elif text(ov[v].description, lang) != text(nv[v].description, lang):
+            elif text(ov[v].description, *langs) != text(nv[v].description, *langs):
                 d.changes.append(Change("changed", "value", signal=s.name, item=str(v), field="description",
-                                        old=text(ov[v].description, lang),
-                                        new=text(nv[v].description, lang), **base))
+                                        old=text(ov[v].description, *langs),
+                                        new=text(nv[v].description, *langs), **base))
         # flags
         ofl = {x.name: x for x in o.flags or []}
         nfl = {x.name: x for x in s.flags or []}
@@ -175,8 +175,8 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, lang: str) -> None
                 d.changes.append(Change("added", "flag", signal=s.name, item=x.name, new=x.bit, **base))
                 continue
             y = ofl[x.name]
-            oa = {"bit": y.bit, "bit_length": y.bit_length, "description": text(y.description, lang)}
-            na = {"bit": x.bit, "bit_length": x.bit_length, "description": text(x.description, lang)}
+            oa = {"bit": y.bit, "bit_length": y.bit_length, "description": text(y.description, *langs)}
+            na = {"bit": x.bit, "bit_length": x.bit_length, "description": text(x.description, *langs)}
             for fld, a, b in _attrs_diff(oa, na, FLAG_FIELDS):
                 d.changes.append(Change("changed", "flag", signal=s.name, item=x.name, field=fld,
                                         old=a, new=b, **base))

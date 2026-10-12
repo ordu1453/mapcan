@@ -54,7 +54,7 @@ buses: [...]              # one or more buses
 | `history` | list | `{version, date, author, github, changes: [text, ...]}`; `github` is the author's GitHub user name |
 
 **Text** fields accept a string or an object with translations: `{en: "State", ru: "Состояние"}`.
-Keys are ISO 639-1 language codes (`de`, `fr`…). Documents use the translation for the selected language; without it, English, then Russian, then any other.
+Keys are ISO 639-1 language codes (`de`, `fr`…). Documents use the translation for the selected language; without it, the document language (`document.language`), then English, then any other.
 
 ### Text fields
 

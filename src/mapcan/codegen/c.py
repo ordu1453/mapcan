@@ -145,7 +145,7 @@ class CGen:
         self.base = (prefix + bus.name).lower() if prefix else bus.name.lower()
 
     def t(self, v) -> str:
-        return _c_comment(text(v, self.lang))
+        return _c_comment(text(v, self.lang, self.cmap.lang))
 
     def P(self, *parts: str) -> str:
         """Macro name: PREFIX_PART1_PART2."""
@@ -166,7 +166,7 @@ class CGen:
         guard = f"{self.base.upper()}_MAPCAN_H"
         d = self.cmap.document
         out = [
-            self.T["c_header"].format(base=self.base, title=_c_comment(text(d.title, self.lang)),
+            self.T["c_header"].format(base=self.base, title=_c_comment(text(d.title, self.lang, self.cmap.lang)),
                                       version=d.version),
             f"#ifndef {guard}",
             f"#define {guard}",

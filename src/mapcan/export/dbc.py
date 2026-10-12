@@ -70,7 +70,11 @@ def _signal(name: str, s: Signal, start: int, length: int, lang: str, comment: s
 
 def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.database.Database:
     lang = lang or cmap.lang
-    nodes = [Node(name=d.name, comment=text(d.title, lang) or None) for d in bus.devices]
+
+    def t(value) -> str:
+        return text(value, lang, cmap.lang)
+
+    nodes = [Node(name=d.name, comment=t(d.title) or None) for d in bus.devices]
     messages = []
     for f in bus.all_frames():
         if f.can_id is None:
@@ -79,7 +83,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         sel = next((s for s in f.layout if s.multiplexer), None) if has_mux else None
         sigs = []
         for s in f.layout:
-            desc = _comment(text(s.description, lang) or text(s.title, lang), text(s.comment, lang))
+            desc = _comment(t(s.description) or t(s.title), t(s.comment))
             if s.encoding == "bitfield" and s.flags:
                 occ = B.occupied_bits(s.start_bit, s.bit_length, s.byte_order == "big_endian")
                 for fl in s.flags:
@@ -91,7 +95,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
                     flag_sig._path = s._path
                     sigs.append(_signal(
                         fl.name, flag_sig, occ[fl.bit], fl.bit_length, lang,
-                        comment=text(fl.description, lang)
+                        comment=t(fl.description)
                         or f"{s.name}, {'бит' if lang == 'ru' else 'bit'} {fl.bit}",
                         choices=choices, mux_signal=sel.name if sel else None))
                 continue
@@ -119,7 +123,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
             length=f.dlc,
             signals=sigs,
             senders=senders,
-            comment=_comment(text(f.description, lang), text(f.comment, lang)),
+            comment=_comment(t(f.description), t(f.comment)),
             cycle_time=cycle,
             send_type=SEND_TYPES[f.mode] if f.mode else None,
             dbc_specifics=msg_specifics,

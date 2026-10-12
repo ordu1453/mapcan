@@ -121,7 +121,7 @@ class ViewBuilder:
         self.L = LABELS.get(self.lang, LABELS["en"])
 
     def t(self, value) -> str:
-        return text(value, self.lang)
+        return text(value, self.lang, self.cmap.lang)
 
     def unit(self, value: str | None) -> str:
         """Unit in the document language (from the units reference) or as written; None → ""."""

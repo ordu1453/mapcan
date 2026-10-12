@@ -67,15 +67,16 @@ class LocalizedText(_Base):
 Text = Union[str, LocalizedText]
 
 
-def text(value: Text | None, lang: str = "ru") -> str:
-    """The text in the given language; without a translation, English, Russian, then any available."""
+def text(value: Text | None, lang: str, fallback: str | None = None) -> str:
+    """The text in the given language; without a translation, the fallback (the document language),
+    English, then any available."""
     if value is None:
         return ""
     if isinstance(value, str):
         return value
     data = value.model_dump(exclude_none=True)
-    for key in (lang, "en", "ru"):
-        if data.get(key):
+    for key in (lang, fallback, "en"):
+        if key and data.get(key):
             return data[key]
     for v in data.values():
         if v:

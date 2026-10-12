@@ -88,7 +88,7 @@ class PyGen:
         self.T = code_text(self.lang)
 
     def t(self, v) -> str:
-        return text(v, self.lang).replace("\n", " ")
+        return text(v, self.lang, self.cmap.lang).replace("\n", " ")
 
     def module(self) -> str:
         d = self.cmap.document
