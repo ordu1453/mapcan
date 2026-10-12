@@ -39,7 +39,8 @@ LABELS = {
         "tx": "TX", "rx": "RX", "no_signals": "Сигналы не описаны.",
         "unused": "не используется", "little_endian": "little-endian", "big_endian": "big-endian",
         "enum": "перечисление", "flag": "флаг", "bitfield": "битовое поле", "scaled": "масштабированное",
-        "raw": "целое", "bytes": "байт", "signed": "знаковое", "per_bit": "/бит",
+        "raw": "целое", "bytes": "байт", "string": "строка", "terminator": "конец", "signed": "знаковое",
+        "per_bit": "/бит",
         "ones_complement": "обратный код", "sign_magnitude": "прямой код",
         "range": "диапазон", "offset": "смещение", "phys": "физ. = raw × {f}{o}",
         "bit": "бит", "when": "при {sel} = {vals}", "selector": "селектор mux",
@@ -72,7 +73,8 @@ LABELS = {
         "tx": "TX", "rx": "RX", "no_signals": "No signals defined.",
         "unused": "unused", "little_endian": "little-endian", "big_endian": "big-endian",
         "enum": "enum", "flag": "flag", "bitfield": "bit field", "scaled": "scaled",
-        "raw": "integer", "bytes": "bytes", "signed": "signed", "per_bit": "/bit",
+        "raw": "integer", "bytes": "bytes", "string": "string", "terminator": "terminator", "signed": "signed",
+        "per_bit": "/bit",
         "ones_complement": "ones' complement", "sign_magnitude": "sign-magnitude",
         "range": "range", "offset": "offset", "phys": "phys = raw × {f}{o}",
         "bit": "bit", "when": "when {sel} = {vals}", "selector": "multiplexer selector",
@@ -410,6 +412,14 @@ class ViewBuilder:
             enc.append(L["bitfield"])
         elif s.encoding == "bytes":
             enc.append(f"{s.bit_length // 8} {L['bytes']}" if whole_bytes else f"{s.bit_length} {L['bit']}")
+        elif s.encoding == "string":
+            # "string, 17 bytes, ASCII, terminator "*""
+            enc.append(f"{L['string']}, {s.bit_length // 8} {L['bytes']}, {(s.charset or 'ascii').upper()}")
+            if s.terminator is not None:
+                t = s.terminator_byte
+                shown = f"\"{s.terminator}\"" if isinstance(s.terminator, str) else f"0x{t:02X}" if t is not None \
+                    else str(s.terminator)
+                enc[-1] += f", {L['terminator']} {shown}"
         unit = self.unit(s.unit)
         if s.encoding == "scaled" or s.factor != 1 or s.offset != 0:
             enc.append(f"{fmt_num(s.factor)} {unit}{L['per_bit']}".replace(" /", "/"))
@@ -417,7 +427,7 @@ class ViewBuilder:
                 enc.append(f"{L['offset']} {fmt_num(s.offset)} {unit}".strip())
         elif unit:
             enc.append(unit)
-        if b1 > b0 and s.encoding != "bytes":
+        if b1 > b0 and s.encoding not in ("bytes", "string"):
             enc.append(L[s.byte_order])
         if s.multiplexer:
             enc.append(L["selector"])

@@ -17,7 +17,7 @@ from ..canopen import FUNCTION_CODES
 from ..i18n import _
 from ..model import Bus, Device, Frame, MapCan, Signal, text
 
-BOOLEAN, UNSIGNED8, OCTET_STRING = 0x0001, 0x0005, 0x000A
+BOOLEAN, UNSIGNED8, VISIBLE_STRING, OCTET_STRING = 0x0001, 0x0005, 0x0009, 0x000A
 UNSIGNED = {8: 0x0005, 16: 0x0006, 24: 0x0016, 32: 0x0007, 40: 0x0018, 48: 0x0019, 56: 0x001A, 64: 0x001B}
 INTEGER = {8: 0x0002, 16: 0x0003, 24: 0x0010, 32: 0x0004, 40: 0x0012, 48: 0x0013, 56: 0x0014, 64: 0x0015}
 REAL = {32: 0x0008, 64: 0x0011}
@@ -30,6 +30,8 @@ def data_type(s: Signal) -> int:
         return REAL[64 if s.bit_length > 32 else 32]
     if s.encoding == "bytes":
         return OCTET_STRING
+    if s.encoding == "string":
+        return VISIBLE_STRING
     if s.bit_length == 1 and not s.signed:
         return BOOLEAN
     size = next(n for n in sorted(UNSIGNED) if n >= s.bit_length)

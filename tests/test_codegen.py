@@ -35,7 +35,10 @@ def sample(frame) -> dict:
     vals = {}
     sel = selector_of(frame)
     for i, s in enumerate(frame.layout):
-        if is_byte_array(s):
+        if is_byte_array(s) and s.encoding == "string":
+            # Text that fills the field: no terminator, so it reads back the same
+            vals[s.name] = "".join(chr(ord("A") + (k + i) % 26) for k in range(s.bit_length // 8))
+        elif is_byte_array(s):
             vals[s.name] = bytes((0x11 * (k + 1) + i) & 0xFF for k in range(s.bit_length // 8))
         else:
             vals[s.name] = 1.5 + 0.25 * i if s.encoding == "float" else _value(s, i)
@@ -212,7 +215,10 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
                 if s.name not in vals:
                     continue
                 v = vals[s.name]
-                if isinstance(v, bytes):
+                if isinstance(v, str):
+                    for k, b in enumerate(v.encode("ascii")):
+                        main.append(f"        m.{s.name}[{k}] = (char)0x{b:02X};")
+                elif isinstance(v, bytes):
                     for k, b in enumerate(v):
                         main.append(f"        m.{s.name}[{k}] = 0x{b:02X};")
                 else:
@@ -222,8 +228,9 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
             main.append(f"        if ({t}_unpack(&u, buf, (size_t)rc) != 0) return 1;")
             for s in present(f, vals):
                 if is_byte_array(s):
-                    main.append(f'        hex("{f.name}.{s.name}", u.{s.name}, {s.bit_length // 8});')
-                    expected.append(f"{f.name}.{s.name}" + "".join(f" {b:02X}" for b in vals[s.name]))
+                    main.append(f'        hex("{f.name}.{s.name}", (const uint8_t *)u.{s.name}, {s.bit_length // 8});')
+                    data = vals[s.name].encode("ascii") if isinstance(vals[s.name], str) else vals[s.name]
+                    expected.append(f"{f.name}.{s.name}" + "".join(f" {b:02X}" for b in data))
                 elif s.encoding == "float":
                     # Compared by the exact IEEE 754 bits.
                     w = 64 if s.bit_length == 64 else 32
@@ -524,3 +531,50 @@ def test_invalid_helpers_c(tmp_path):
                    check=True, capture_output=True, text=True)
     out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
     assert out == [str(x) for _, na, err in INVALID_CASES for x in (na, err)]
+
+
+STRING_MAP = """
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: ident
+        id: 0x100
+        length: 8
+        signals:
+          - {name: code, encoding: string, byte: 0, byte_length: 5, terminator: "*"}
+          - {name: tag, encoding: string, byte: 5, byte_length: 3}
+"""
+
+
+def test_strings_python(tmp_path):
+    from mapcan.loader import loads
+
+    mod = _import(generate_py(loads(STRING_MAP, "t.yaml").map, tmp_path)[0])
+    packed = mod.Ident(code="AB", tag="xyz").pack()
+    assert packed == b"AB***xyz"
+    back = mod.Ident.unpack(packed)
+    assert (back.code, back.tag) == ("AB", "xyz")
+    assert mod.Ident.unpack(b"ABCDEq" + bytes(2)).tag == "q"      # trailing 0x00 bytes are not text
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_strings_c(tmp_path):
+    from mapcan.loader import loads
+
+    sources = [p for p in generate_c(loads(STRING_MAP, "t.yaml").map, tmp_path) if p.suffix == ".c"]
+    main = ["#include <stdio.h>", "#include <string.h>", '#include "bus.h"', "int main(void) {",
+            "    ident_t m, u;", "    uint8_t buf[8];",
+            '    memcpy(m.code, "AB***", 5);', '    memcpy(m.tag, "xyz", 3);',
+            "    ident_pack(buf, sizeof buf, &m);", "    ident_unpack(&u, buf, sizeof buf);",
+            '    printf("%.8s", (const char *)buf);', '    printf(" %.5s %.3s", u.code, u.tag);', '    puts("");',
+            "    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
+    assert out == ["AB***xyz", "AB***", "xyz"]

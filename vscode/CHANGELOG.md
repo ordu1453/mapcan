@@ -12,6 +12,8 @@
   `0xFF00..0xFFFF`. Values given by meaning (`not_available`, `error`) are shown read-only.
 * A file included by a map, which now starts with `mapcan: 1` and `part_of`, is not taken for a map
   of its own.
+* New fields from mapcan 0.21: a frame's **Receive timeout**, a bus's sample points and CAN FD data
+  phase bit rate, and the `string` encoding of signals with **Charset** and **Terminator**.
 * The language server is started when the first map is opened, not for any YAML file, and only maps
   are sent to it. Other YAML files (CI configs, manifests) no longer start a `mapcan` process or show
   an error when `mapcan` is not installed. A new file is picked up once `mapcan:` is typed into it.

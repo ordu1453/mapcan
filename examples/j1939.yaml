@@ -135,11 +135,12 @@ buses:
             receivers: [diag]
             signals:
               - name: software_id
-                encoding: bytes
+                encoding: string
                 description: Software identification fields, separated by '*'
                 spn: 234
                 byte: 0
                 byte_length: 20
+                terminator: "*"
 
       - name: cluster
         short: IC

@@ -168,7 +168,9 @@ class PyGen:
                 f"    BITRATE_SWITCH = {bool(f.bit_rate_switch)}", ""]
         for s in f.layout:
             init = s.initial_raw
-            if is_byte_array(s):
+            if is_byte_array(s) and s.encoding == "string":
+                out.append(f"    {s.name}: str = \"\"")
+            elif is_byte_array(s):
                 out.append(f"    {s.name}: bytes = field(default=bytes({s.bit_length // 8}))")
             elif s.encoding == "float":
                 out.append(f"    {s.name}: float = {num(init if init is not None else 0.0)}")
@@ -223,6 +225,11 @@ class PyGen:
 
     @staticmethod
     def _pack_stmt(s) -> list[str]:
+        if is_byte_array(s) and s.encoding == "string":
+            # The text in its charset, cut to the field; the rest is the terminator (or 0x00)
+            n, b0, pad = s.bit_length // 8, s.start_bit // 8, s.terminator_byte or 0
+            return [f"        buf[{b0}:{b0 + n}] = self.{s.name}.encode({s.charset or 'ascii'!r}, 'replace')[:{n}]"
+                    f".ljust({n}, b'\\x{pad:02x}')"]
         if is_byte_array(s):
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        buf[{b0}:{b0 + n}] = bytes(self.{s.name})[:{n}].ljust({n}, b'\\0')"]
@@ -235,6 +242,12 @@ class PyGen:
 
     @staticmethod
     def _unpack_stmt(s) -> list[str]:
+        if is_byte_array(s) and s.encoding == "string":
+            # The text ends at the terminator, or before the trailing 0x00 bytes
+            n, b0, end = s.bit_length // 8, s.start_bit // 8, s.terminator_byte
+            raw = f"bytes(data[{b0}:{b0 + n}])"
+            cut = f".split(b'\\x{end:02x}')[0]" if end is not None else ".rstrip(b'\\0')"
+            return [f"        msg.{s.name} = {raw}{cut}.decode({s.charset or 'ascii'!r}, 'replace')"]
         if is_byte_array(s):
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        msg.{s.name} = bytes(data[{b0}:{b0 + n}])"]

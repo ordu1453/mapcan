@@ -65,8 +65,8 @@ def code_text(lang: str) -> dict[str, str]:
 
 
 def is_byte_array(s: Signal) -> bool:
-    """A byte-aligned signal with encoding=bytes is represented as an array."""
-    return s.encoding == "bytes" and s.start_bit % 8 == 0 and s.bit_length % 8 == 0 \
+    """A byte-aligned signal with encoding bytes or string is represented as an array (of chars for a string)."""
+    return s.encoding in ("bytes", "string") and s.start_bit % 8 == 0 and s.bit_length % 8 == 0 \
         and s.byte_order == "little_endian"
 
 

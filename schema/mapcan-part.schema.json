@@ -1024,7 +1024,7 @@
           "title": "Description"
         },
         "encoding": {
-          "description": "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array.",
+          "description": "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array; string — text (VIN, software version).",
           "enum": [
             "enum",
             "flag",
@@ -1032,10 +1032,45 @@
             "scaled",
             "raw",
             "bytes",
+            "string",
             "float"
           ],
           "title": "Encoding",
           "type": "string"
+        },
+        "charset": {
+          "anyOf": [
+            {
+              "enum": [
+                "ascii",
+                "utf-8",
+                "latin-1"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "String: character encoding of the text, ascii (default), utf-8 or latin-1.",
+          "title": "Charset"
+        },
+        "terminator": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "String: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or \"*\" (as in J1939 text parameters). Without it the text fills the field and unused bytes are 0x00.",
+          "title": "Terminator"
         },
         "start_bit": {
           "anyOf": [

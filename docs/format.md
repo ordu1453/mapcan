@@ -160,7 +160,9 @@ CANopen ID computation:
 | `name` | Identifier (unique within the frame, together with flag names) |
 | `title` | Name for people ("Battery voltage") |
 | `description` | What the signal means |
-| `encoding` | Required: `enum`, `flag`, `bitfield`, `scaled`, `raw`, `float`, `bytes` |
+| `encoding` | Required: `enum`, `flag`, `bitfield`, `scaled`, `raw`, `float`, `bytes`, `string` |
+| `charset` | `string`: character encoding, `ascii` (default), `utf-8` or `latin-1` |
+| `terminator` | `string`: the byte that ends a shorter text and fills the rest of the field: a number (`0x00`) or one character (`"*"`, as in J1939 text parameters). Without it the text fills the field and unused bytes are 0x00 |
 | `start_bit` + `bit_length` | Canonical position |
 | `byte` [+ `bit`] + `byte_length` \| `bit_length` | Shorthand position (see below) |
 | `byte_order` | `little_endian` (default) or `big_endian` |
@@ -190,6 +192,7 @@ CANopen ID computation:
 | `bitfield` | Set of flags | `flags` |
 | `float` | IEEE 754 | `factor`, `offset`, `unit`, `min`, `max`, `initial` |
 | `bytes` | Byte array | — |
+| `string` | Text (VIN, software identification): whole bytes from a byte boundary, like `bytes`. `str` in Python, a `char` array in C (not NUL-terminated when the text fills it); DBC has no text type and gets a byte array | `charset`, `terminator` |
 
 A field that does not apply is an error (`encoding-field`).
 
@@ -615,6 +618,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `bit-overlap` | error | Overlapping signals (multiplexing-aware) |
 | `float-length` | error | A float signal must be 32 or 64 bits |
 | `signal-length` | error | A signal longer than 64 bits that is not an aligned byte array |
+| `string-field` | error | A `string` that does not start at a byte boundary or take whole bytes, or a `terminator` that is not one byte |
 
 ### Values and conversion
 

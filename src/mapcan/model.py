@@ -26,7 +26,8 @@ FORMAT_VERSION = 1
 
 ByteOrder = Literal["little_endian", "big_endian"]
 Representation = Literal["unsigned", "twos_complement", "ones_complement", "sign_magnitude"]
-SignalEncoding = Literal["enum", "flag", "bitfield", "scaled", "raw", "bytes", "float"]
+SignalEncoding = Literal["enum", "flag", "bitfield", "scaled", "raw", "bytes", "string", "float"]
+Charset = Literal["ascii", "utf-8", "latin-1"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
 # Largest PGN sent with the J1939-21 transport protocol (255 packets of 7 bytes)
@@ -269,7 +270,15 @@ class Signal(_Base):
     encoding: SignalEncoding = Field(
         description=N_("How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — "
                        "a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; "
-                       "float — IEEE 754; bytes — a byte array."))
+                       "float — IEEE 754; bytes — a byte array; string — text (VIN, software version)."))
+    charset: Charset | None = Field(
+        None,
+        description=N_("String: character encoding of the text, ascii (default), utf-8 or latin-1."))
+    terminator: int | str | None = Field(
+        None,
+        description=N_("String: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or "
+                       "\"*\" (as in J1939 text parameters). Without it the text fills the field and unused bytes "
+                       "are 0x00."))
 
     # Position: the canonical form
     start_bit: int | None = Field(
@@ -348,6 +357,20 @@ class Signal(_Base):
                               description=N_("CANopen: index of the dictionary object mapped into the PDO."))
     subindex: int | None = Field(None, ge=0, le=0xFF,
                                  description=N_("CANopen: subindex of the dictionary object (0 by default)."))
+
+    @property
+    def terminator_byte(self) -> int | None:
+        """The terminator of a string as a byte (None: not set or not one byte in the charset)."""
+        t = self.terminator
+        if isinstance(t, int):
+            return t if 0 <= t <= 0xFF else None
+        if isinstance(t, str):
+            try:
+                b = t.encode(self.charset or "ascii")
+            except UnicodeEncodeError:
+                return None
+            return b[0] if len(b) == 1 else None
+        return None
 
     @property
     def signed(self) -> bool:

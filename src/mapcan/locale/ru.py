@@ -627,11 +627,6 @@ RU: dict[str, str] = {
     "shows the identifier.":
         "Название сигнала для людей, напр. «Напряжение батареи»: подпись в дереве карты. Необязательно — без него в "
         "дереве выводится идентификатор.",
-    "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; "
-    "scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array.":
-        "Как трактуется значение. enum — таблица значений; flag — один бит да/нет; bitfield — набор флагов; scaled — "
-        "масштабированное значение: raw × factor + offset; raw — целое как есть; float — IEEE 754; bytes — массив "
-        "байт.",
     "Position of the signal's least significant bit (LSB) in the frame, counting from 0. Bit N is in byte N div 8 at "
     "position N mod 8.":
         "Номер младшего бита (LSB) сигнала в кадре, от 0. Бит N находится в байте N div 8 на позиции N mod 8.",
@@ -883,4 +878,22 @@ RU: dict[str, str] = {
     "timeout {timeout} ms is not longer than the period {cycle} ms: the frame would time out between two "
     "transmissions":
         "тайм-аут {timeout} мс не длиннее периода {cycle} мс: кадр будет считаться потерянным между двумя передачами",
+    "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; "
+    "scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array; "
+    "string — text (VIN, software version).":
+        "Как трактуется значение. enum — таблица значений; flag — один бит да/нет; bitfield — набор флагов; scaled — "
+        "масштабированное значение: raw × factor + offset; raw — целое как есть; float — IEEE 754; bytes — массив "
+        "байт; string — текст (VIN, версия ПО).",
+    "String: character encoding of the text, ascii (default), utf-8 or latin-1.":
+        "Строка: кодировка текста, ascii (по умолчанию), utf-8 или latin-1.",
+    "String: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or \"*\" (as in J1939 text "
+    "parameters). Without it the text fills the field and unused bytes are 0x00.":
+        "Строка: байт, которым заканчивается более короткий текст и заполняется остаток поля, например 0x00 или \"*\" "
+        "(как в текстовых параметрах J1939). Без него текст занимает поле, а неиспользованные байты — 0x00.",
+    "String not aligned to whole bytes, or a terminator that is not one byte":
+        "Строка не выровнена по целым байтам или признак конца — не один байт",
+    "string {name!r} must start at a byte boundary and take whole bytes (little-endian)":
+        "строка {name!r} должна начинаться с границы байта и занимать целые байты (little-endian)",
+    "terminator of {name!r} must be one byte: 0x00..0xFF or one character of the charset":
+        "признак конца {name!r} должен быть одним байтом: 0x00..0xFF или одним символом кодировки",
 }

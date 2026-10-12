@@ -292,7 +292,9 @@ class CGen:
         for s in f.layout:
             d = self.t(s.description) or self.t(s.title)
             if is_byte_array(s):
-                out.append(f"    uint8_t {s.name}[{s.bit_length // 8}];{' /* ' + d + ' */' if d else ''}")
+                # A string is text of the charset, not NUL-terminated when it fills the field
+                ctype = "char" if s.encoding == "string" else "uint8_t"
+                out.append(f"    {ctype} {s.name}[{s.bit_length // 8}];{' /* ' + d + ' */' if d else ''}")
             else:
                 unit = f" [{_c_comment(translate_unit(s.unit, self.lang))}]" if s.unit else ""
                 out.append(f"    {self.ctype(s)} {s.name};{' /* ' + d + unit + ' */' if d or unit else ''}")
@@ -393,11 +395,11 @@ class CGen:
                 n, b0 = s.bit_length // 8, s.start_bit // 8
                 pack += self._guard(s, sel, [
                     f"    for (size_t i = 0u; i < {n}u; i++) {{",
-                    f"        data[{b0}u + i] = msg->{s.name}[i];",
+                    f"        data[{b0}u + i] = (uint8_t)msg->{s.name}[i];",
                     "    }"])
                 unpack += self._guard(s, sel, [
                     f"    for (size_t i = 0u; i < {n}u; i++) {{",
-                    f"        msg->{s.name}[i] = data[{b0}u + i];",
+                    f"        msg->{s.name}[i] = ({'char' if s.encoding == 'string' else 'uint8_t'})data[{b0}u + i];",
                     "    }"])
                 continue
             T = self.ctype(s)

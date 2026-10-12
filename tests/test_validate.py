@@ -797,3 +797,13 @@ def test_receive_timeout():
     res, _ = run(text.replace("TIMEOUT", "300"))
     frame =build_view(res.map)["buses"][0]["devices"][0]["frames"][0]
     assert frame["period"] == "цикл 100 мс, тайм-аут 300 мс" and frame["timeout_ms"] == 300
+
+
+def test_string_signals():
+    def sig(extra: str) -> str:
+        return one_bus(OK_SIGNAL.replace("encoding: raw, description: x, byte: 0, byte_length: 1",
+                                         "encoding: string, description: x, " + extra))
+    assert not {"string-field", "encoding-field", "schema"} & codes(sig("byte: 0, byte_length: 8, terminator: '*'"))
+    assert "string-field" in codes(sig("start_bit: 4, bit_length: 16"))
+    assert "string-field" in codes(sig("byte: 0, byte_length: 8, terminator: '**'"))
+    assert "encoding-field" in codes(one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, charset: ascii}")))

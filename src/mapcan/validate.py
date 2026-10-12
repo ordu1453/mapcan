@@ -126,6 +126,7 @@ RULES = {
     "history-version": ("warning", N_("Document version differs from the latest revision history entry")),
     "float-length": ("error", N_("A float signal must be 32 or 64 bits")),
     "signal-length": ("error", N_("Signal longer than 64 bits that is not an aligned byte array")),
+    "string-field": ("error", N_("String not aligned to whole bytes, or a terminator that is not one byte")),
     "initial-range": ("warning", N_("Default value outside the signal's range")),
     "invalid-overflow": ("error", N_("A raw value of invalid_raw does not fit in the signal width")),
     "logo-missing": ("warning", N_("Logo file not found")),
@@ -651,8 +652,15 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                              _("{key} = {value:g} is outside the representable range {lo:g}..{hi:g} {unit}",
                                key=k, value=val, lo=phys[0], hi=phys[1], unit=s.unit or "").rstrip(), sp + (k,))
 
-        if s.bit_length > 64 and not (s.encoding == "bytes" and s.start_bit % 8 == 0 and s.bit_length % 8 == 0
-                                      and s.byte_order == "little_endian"):
+        aligned = s.start_bit % 8 == 0 and s.bit_length % 8 == 0 and s.byte_order == "little_endian"
+        if s.encoding == "string":
+            if not aligned:
+                ctx.emit("string-field", _("string {name!r} must start at a byte boundary and take whole bytes "
+                                           "(little-endian)", name=s.name), sp + ("bit_length",))
+            if s.terminator is not None and s.terminator_byte is None:
+                ctx.emit("string-field", _("terminator of {name!r} must be one byte: 0x00..0xFF or one character of "
+                                           "the charset", name=s.name), sp + ("terminator",))
+        elif s.bit_length > 64 and not (s.encoding == "bytes" and aligned):
             ctx.emit("signal-length", _("signal {name!r} is {bits} bits long: only a byte array (encoding: bytes, "
                                         "little-endian, starting at a byte boundary) can be longer than 64 bits",
                                         name=s.name, bits=s.bit_length), sp + ("bit_length",))
@@ -743,6 +751,8 @@ ENCODING_FIELDS = {
     "flags": ("bitfield",),
     "representation": ("raw", "scaled", "enum"),
     "invalid_raw": ("raw", "scaled", "enum"),
+    "charset": ("string",),
+    "terminator": ("string",),
     "initial": ("raw", "scaled", "enum", "flag", "float"),
 }
 

@@ -112,7 +112,7 @@ const FRAME_TYPES: Option[] = [
 const ENCODINGS: Option[] = [
   ["enum", N_("enum — enumeration")], ["flag", N_("flag — single flag")], ["bitfield", N_("bitfield — bit field")],
   ["scaled", N_("scaled — scaled value")], ["raw", N_("raw — integer")], ["float", N_("float — IEEE 754 (32/64 bit)")],
-  ["bytes", N_("bytes — raw bytes")],
+  ["bytes", N_("bytes — raw bytes")], ["string", N_("string — text")],
 ];
 const SDO_ENCODINGS: Option[] = ENCODINGS.filter(([v]) => ["enum", "scaled", "raw"].includes(v));
 
@@ -160,7 +160,7 @@ const bitLength = (c: FormContext): number | null => {
   return (value(c, "bit_length") as number | undefined) ?? (typeof bytes === "number" ? bytes * 8 : c.bitLength);
 };
 // Byte order matters for a value longer than a byte (any protocol: the format allows big-endian everywhere)
-const multiByte = (c: FormContext) => !["flag", "bytes"].includes(encoding(c)) && (bitLength(c) ?? 0) > 8;
+const multiByte = (c: FormContext) => !["flag", "bytes", "string"].includes(encoding(c)) && (bitLength(c) ?? 0) > 8;
 // The bit in the byte matters only for a value shorter than a byte
 const subByte = (c: FormContext) => encoding(c) === "flag" || (bitLength(c) ?? 8) < 8;
 // The other fields of the SDO exchange's value appear once it has an identifier
@@ -322,7 +322,11 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "min", label: N_("Minimum (min)"), type: "float", half: true, when: numeric },
       { key: "max", label: N_("Maximum (max)"), type: "float", half: true, when: numeric },
       { key: "initial", label: N_("Initial value"), type: "float", half: true,
-        when: (c) => !["bitfield", "bytes"].includes(encoding(c)) },
+        when: (c) => !["bitfield", "bytes", "string"].includes(encoding(c)) },
+      { key: "charset", label: N_("Charset"), type: "select", half: true, when: encodingIn("string"),
+        options: () => [["", "ASCII"], ["utf-8", "UTF-8"], ["latin-1", "Latin-1"]] },
+      { key: "terminator", label: N_("Terminator"), type: "text", half: true, placeholder: "0x00, *",
+        when: encodingIn("string") },
       { key: "invalid_raw", label: N_("Not available (raw)"), type: "rawlist", half: true, mono: true,
         placeholder: "0xFF, 0xFF00..0xFFFF",
         when: encodingIn("raw", "scaled", "enum") },

@@ -24,4 +24,6 @@ needs at least the version of mapcan that introduced it; former names stay reada
 - Buses have `sample_point`, and CAN FD buses `data_bitrate` and `data_sample_point`. The
   `bus-load` estimate covers CAN FD buses (the data phase of BRS frames at `data_bitrate`).
 - Frames have `timeout_ms`, the receive timeout (`<FRAME>_TIMEOUT_MS` in code; rule `timeout-short`).
+- Signals have `encoding: string` with `charset` and `terminator` (text such as a VIN or a
+  software identification).
 - `mapcan migrate` rewrites former field names; the rule `deprecated-key` reports them.

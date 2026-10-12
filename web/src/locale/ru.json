@@ -437,5 +437,8 @@
   "Data phase bitrate, bit/s": "Скорость фазы данных, бит/с",
   "Sample point, %": "Точка выборки, %",
   "Data phase sample point, %": "Точка выборки фазы данных, %",
-  "Receive timeout, ms": "Тайм-аут приёма, мс"
+  "Receive timeout, ms": "Тайм-аут приёма, мс",
+  "string — text": "string — текст",
+  "Charset": "Кодировка",
+  "Terminator": "Признак конца"
 }
