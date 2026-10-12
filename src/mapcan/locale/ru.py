@@ -187,8 +187,6 @@ RU: dict[str, str] = {
     "Unsupported logo format": "Неподдерживаемый формат логотипа",
     "Signal has no description": "Нет описания сигнала",
     "Bus or device has no full name": "Нет полного названия шины или устройства",
-    "Signed number code cannot be expressed in DBC or is set on an unsigned signal":
-        "Код знакового числа не выражается в DBC или задан у беззнакового сигнала",
     "Frame has no signals": "В кадре не описаны сигналы",
     # ------------------------------------------------------------------ сообщения проверки
     "frame name": "имя кадра",
@@ -306,7 +304,6 @@ RU: dict[str, str] = {
     "signal {name!r} has no description": "сигнал {name!r} без описания",
     "bus {name!r} has no name (title)": "у шины {name!r} нет названия (title)",
     "device {name!r} has no full name (title)": "у устройства {name!r} нет полного названия (title)",
-    "signed_code is ignored on unsigned signal {name!r}": "signed_code у беззнакового сигнала {name!r} не используется",
     "{path}: DBC stores signed values in two's complement only; signals in ones' complement or sign and magnitude are "
     "written as two's complement: {names}":
         "{path}: DBC хранит знаковые значения только в дополнительном коде, сигналы в обратном или прямом коде "
@@ -653,16 +650,6 @@ RU: dict[str, str] = {
     "J1939. big-endian (Motorola): most significant byte first.":
         "Порядок байт многобайтового сигнала. little-endian (Intel) — младший байт первым, обычно для CANopen и "
         "J1939. big-endian (Motorola) — старший байт первым.",
-    "The value can be negative; signed_code sets how the sign is encoded.":
-        "Значение может быть отрицательным; способ кодирования знака задаёт signed_code.",
-    "How negative numbers are encoded. Two's complement is the standard (−1 = all ones). Ones' complement inverts all "
-    "bits (−1 = 1…10). Sign-magnitude uses the top bit for the sign and the rest for the magnitude (−1 = 10…01). "
-    "Generated C and Python code use this code; DBC stores two's complement only, so the export warns about such "
-    "signals.":
-        "Как кодируются отрицательные числа. Дополнительный код — стандарт (−1 = все единицы). Обратный код "
-        "инвертирует все биты (−1 = 1…10). Прямой код: старший бит — знак, остальные — модуль (−1 = 10…01). "
-        "Сгенерированный код на C и Python использует этот код; DBC хранит только дополнительный, поэтому экспорт "
-        "предупреждает о таких сигналах.",
     "Multiplier: physical value = raw × factor + offset. E.g. 0.1 for voltage in 0.1 V steps.":
         "Множитель: физическое значение = raw × масштаб + смещение. Напр. 0.1 для напряжения с шагом 0,1 В.",
     "Offset: physical value = raw × factor + offset. E.g. −40 for temperature.":
@@ -818,4 +805,19 @@ RU: dict[str, str] = {
         "длина {length} > 8 (для CAN FD задайте fd: true у шины)",
     "Rename the former fields of the whole map (mapcan migrate)":
         "Переименовать прежние поля во всей карте (mapcan migrate)",
+    "How the raw value is read as a number. unsigned — no negative values (default). twos_complement — the usual "
+    "signed integer (−1 = all ones). ones_complement — a negative value is its magnitude with all bits inverted (−1 "
+    "= 1…10). sign_magnitude — the top bit is the sign, the rest the magnitude (−1 = 10…01). Generated C and Python "
+    "code use this representation; DBC stores two's complement only, so the export warns about the other two. "
+    "Formerly signed and signed_code.":
+        "Как сырое значение читается как число. unsigned — без отрицательных значений (по умолчанию). "
+        "twos_complement — обычное знаковое целое, дополнительный код (−1 = все единицы). ones_complement — обратный "
+        "код: отрицательное значение — модуль с инвертированными битами (−1 = 1…10). sign_magnitude — прямой код: "
+        "старший бит — знак, остальные — модуль (−1 = 10…01). Сгенерированный код на C и Python использует это "
+        "представление; DBC хранит только дополнительный код, поэтому экспорт предупреждает о двух других. Прежде — "
+        "signed и signed_code.",
+    "unsigned or twos_complement (a signed integer). Formerly signed: true.":
+        "unsigned или twos_complement (знаковое целое). Прежде — signed: true.",
+    "Ones' complement or sign-magnitude signal: DBC stores two's complement only":
+        "Сигнал в обратном или прямом коде: DBC хранит только дополнительный код",
 }

@@ -263,8 +263,8 @@ def test_set_field():
     assert "node_id: 0x22\n" in out
     out = apply(MINIMAL, E.set_field(a, FRAME + ("description",), None))
     assert "Pump state" not in out and errors(out) == errors(MINIMAL)
-    out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 3, "signed"), False))
-    assert "signed: false" in out
+    out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 3, "representation"), "sign_magnitude"))
+    assert "representation: sign_magnitude" in out
     out = apply(MINIMAL, E.set_field(a, FRAME + ("signals", 2, "factor"), 0.1))
     assert "factor: 0.1\n" in out
     # A device's name changes together with the references to it

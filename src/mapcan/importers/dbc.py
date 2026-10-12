@@ -95,7 +95,7 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
     if big:
         out["byte_order"] = "big_endian"
     if s.is_signed and encoding in ("raw", "scaled", "enum"):
-        out["signed"] = True
+        out["representation"] = "twos_complement"
     if encoding in ("scaled", "float") and scaled:
         if s.scale != 1:
             out["factor"] = _num(s.scale)

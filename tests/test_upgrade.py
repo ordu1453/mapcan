@@ -111,3 +111,23 @@ def test_web_editor_data_and_writes(tmp_path):
     assert frame["length"] == 8 and "dlc" not in frame
     s.apply([{"op": "set", "path": list(FRAME) + ["length"], "value": 4}])
     assert "            length: 4     # bytes\n" in s.text and "dlc" not in s.text
+
+
+def test_signed_and_signed_code_become_representation():
+    sig = "              - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1, %s}\n"
+    base = MINIMAL.split("            signals:\n")[0] + "            signals:\n"
+    cases = [("signed: true", "twos_complement"), ("signed: true, signed_code: sign_magnitude", "sign_magnitude"),
+             ("signed: false", "unsigned"), ("signed_code: ones_complement", "unsigned")]
+    for extra, expected in cases:
+        res, report = run(base + sig % extra)
+        assert res.map.buses[0].devices[0].frames[0].signals[0].representation == expected, extra
+        assert "deprecated-key" in report.codes()
+        out = migrate_text(base + sig % extra)
+        assert "signed" not in out.split("signals:")[-1]
+        assert (f"representation: {expected}" in out) == (expected != "unsigned")
+
+
+def test_sdo_value_signed_becomes_representation():
+    from mapcan.upgrade import upgrade_tree as up
+    data = {"buses": [{"frames": [{"sdo": [{"value": {"name": "v", "signed": True}}]}]}]}
+    assert up(data)["buses"][0]["frames"][0]["sdo"][0]["value"] == {"name": "v", "representation": "twos_complement"}

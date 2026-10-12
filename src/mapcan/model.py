@@ -24,7 +24,7 @@ from .i18n import N_
 FORMAT_VERSION = 1
 
 ByteOrder = Literal["little_endian", "big_endian"]
-SignedCode = Literal["twos_complement", "ones_complement", "sign_magnitude"]
+Representation = Literal["unsigned", "twos_complement", "ones_complement", "sign_magnitude"]
 SignalEncoding = Literal["enum", "flag", "bitfield", "scaled", "raw", "bytes", "float"]
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
@@ -241,15 +241,14 @@ class Signal(_Base):
         "little_endian",
         description=N_("Byte order of a multi-byte signal. little-endian (Intel): least significant byte first, "
                        "typical for CANopen and J1939. big-endian (Motorola): most significant byte first."))
-    signed: bool = Field(
-        False,
-        description=N_("The value can be negative; signed_code sets how the sign is encoded."))
-    signed_code: SignedCode | None = Field(
-        None,
-        description=N_("How negative numbers are encoded. Two's complement is the standard (−1 = all ones). Ones' "
-                       "complement inverts all bits (−1 = 1…10). Sign-magnitude uses the top bit for the sign and "
-                       "the rest for the magnitude (−1 = 10…01). Generated C and Python code use this code; DBC "
-                       "stores two's complement only, so the export warns about such signals."))
+    representation: Representation = Field(
+        "unsigned",
+        description=N_("How the raw value is read as a number. unsigned — no negative values (default). "
+                       "twos_complement — the usual signed integer (−1 = all ones). ones_complement — a negative "
+                       "value is its magnitude with all bits inverted (−1 = 1…10). sign_magnitude — the top bit is "
+                       "the sign, the rest the magnitude (−1 = 10…01). Generated C and Python code use this "
+                       "representation; DBC stores two's complement only, so the export warns about the other two. "
+                       "Formerly signed and signed_code."))
 
     values: ValueTableRef | None = Field(None, description=VALUES)
     flags: list[Flag] | None = None
@@ -297,6 +296,16 @@ class Signal(_Base):
                               description=N_("CANopen: index of the dictionary object mapped into the PDO."))
     subindex: int | None = Field(None, ge=0, le=0xFF,
                                  description=N_("CANopen: subindex of the dictionary object (0 by default)."))
+
+    @property
+    def signed(self) -> bool:
+        """The raw value can be negative."""
+        return self.representation != "unsigned"
+
+    @property
+    def signed_code(self) -> str | None:
+        """How a negative value is encoded (None for an unsigned signal)."""
+        return self.representation if self.signed else None
 
     @property
     def invalid_values(self) -> list[int]:
@@ -361,7 +370,9 @@ class SdoValue(_Base):
     encoding: Literal["enum", "scaled", "raw"] = Field(description=N_("Value encoding: enum, scaled, raw."))
     description: Text | None = Field(None, description=DESCRIPTION)
     bit_length: Literal[8, 16, 24, 32]
-    signed: bool = False
+    representation: Literal["unsigned", "twos_complement"] = Field(
+        "unsigned",
+        description=N_("unsigned or twos_complement (a signed integer). Formerly signed: true."))
     factor: float = 1.0
     offset: float = 0.0
     unit: str | None = None

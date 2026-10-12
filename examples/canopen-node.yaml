@@ -44,7 +44,7 @@ buses:
                 index: 0x606C
                 byte: 2
                 byte_length: 4
-                signed: true
+                representation: twos_complement
                 unit: rpm
 
           - name: drive_measurements      # TPDO2, ID 0x285
@@ -104,7 +104,7 @@ buses:
                 index: 0x60FF
                 byte: 2
                 byte_length: 4
-                signed: true
+                representation: twos_complement
                 unit: rpm
 
           - name: drive_heartbeat

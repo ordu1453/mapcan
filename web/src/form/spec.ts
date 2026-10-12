@@ -303,11 +303,10 @@ export const FORMS: Record<FormKind, Section[]> = {
     ] },
     { title: N_("Value"), fields: [
       { key: "unit", label: N_("Unit"), type: "unit", half: true, when: numeric },
-      { key: "signed", label: N_("Signed"), type: "bool", half: true, when: encodingIn("raw", "scaled") },
-      { key: "signed_code", label: N_("Sign encoding"), type: "select", half: true,
-        options: () => [["", N_("two's complement")], ["ones_complement", N_("ones' complement")],
-          ["sign_magnitude", N_("sign-magnitude")]],
-        when: (c) => !!value(c, "signed") },
+      { key: "representation", label: N_("Number representation"), type: "select", half: true,
+        options: () => [["", N_("unsigned")], ["twos_complement", N_("two's complement")],
+          ["ones_complement", N_("ones' complement")], ["sign_magnitude", N_("sign-magnitude")]],
+        when: encodingIn("raw", "scaled") },
       { key: "factor", label: N_("Factor (scale)"), type: "float", half: true, placeholder: "1", when: numeric },
       { key: "offset", label: N_("Offset"), type: "float", half: true, placeholder: "0", when: numeric },
       { key: "min", label: N_("Minimum (min)"), type: "float", half: true, when: numeric },
@@ -375,7 +374,7 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
   signal: { values: "value table", flags: "flags table" },
   flag: { values: "value table" },
   sdo: {
-    "value.description": "YAML", "value.signed": "YAML", "value.min": "YAML", "value.max": "YAML",
+    "value.description": "YAML", "value.representation": "YAML", "value.min": "YAML", "value.max": "YAML",
     "value.values": "value table",
   },
 };

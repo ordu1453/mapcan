@@ -490,7 +490,8 @@ def test_enum_overflow():
           type: pdo_tx1
           length: 8
           signals:
-            - {name: a, encoding: enum, description: x, byte: 0, byte_length: 1, signed: true, values: {-1: NEG}}
+            - {name: a, encoding: enum, description: x, byte: 0, byte_length: 1, representation: twos_complement,
+               values: {-1: NEG}}
     """))
 
 
@@ -633,7 +634,8 @@ def test_missing_unit():
 
 @pytest.mark.parametrize(("extra", "encoding"), [
     ("factor: 0.1", "raw"), ("offset: -40", "enum"), ("unit: V", "enum"), ("min: 0", "bitfield"),
-    ("values: {0: OFF}", "raw"), ("signed: true", "float"), ("invalid: 0xFF", "bytes"), ("initial: 1", "bitfield"),
+    ("values: {0: OFF}", "raw"), ("representation: twos_complement", "float"), ("invalid: 0xFF", "bytes"),
+    ("initial: 1", "bitfield"),
 ])
 def test_encoding_field_rejected(extra, encoding):
     assert "encoding-field" in codes(_sig(extra, encoding))
@@ -641,7 +643,7 @@ def test_encoding_field_rejected(extra, encoding):
 
 @pytest.mark.parametrize(("extra", "encoding"), [
     ("unit: ms, min: 0, max: 100", "raw"), ("values: {0: OFF, 1: ON}", "flag"), ("factor: 0.5", "float"),
-    ("signed: true, values: {-1: NEG}", "enum"), ("invalid: 0xFF", "scaled"),
+    ("representation: twos_complement, values: {-1: NEG}", "enum"), ("invalid: 0xFF", "scaled"),
 ])
 def test_encoding_field_allowed(extra, encoding):
     assert "encoding-field" not in codes(_sig(extra, encoding))
@@ -702,10 +704,10 @@ def test_signed_code():
     def sig(extra: str) -> str:
         return one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, " + extra + "}"))
 
-    assert "signed-code" not in codes(sig("signed: true, signed_code: twos_complement"))
-    assert "signed-code" in codes(sig("signed: true, signed_code: sign_magnitude"))
-    assert "signed-code" in codes(sig("signed_code: ones_complement"))
-    res, _ = run(sig("signed: true, signed_code: ones_complement"))
+    assert "signed-code" not in codes(sig("representation: twos_complement"))
+    assert "signed-code" in codes(sig("representation: sign_magnitude"))
+    assert "signed-code" in codes(sig("representation: ones_complement"))
+    res, _ = run(sig("representation: ones_complement"))
     enc = build_view(res.map)["buses"][0]["devices"][0]["frames"][0]["signals"][0]["encoding"]
     assert enc[-1].endswith("обратный код")
 
@@ -745,7 +747,7 @@ def test_missing_title():
 
 def test_signed_code_range():
     # In ones' complement and sign-magnitude zero has two forms: −128 cannot be expressed in 8 bits
-    text = one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, signed: true, signed_code: CODE,"
+    text = one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, representation: CODE,"
                                      " values: {-128: MIN}}").replace("encoding: raw", "encoding: enum"))
     assert "enum-overflow" in codes(text.replace("CODE", "ones_complement"))
     assert "enum-overflow" in codes(text.replace("CODE", "sign_magnitude"))

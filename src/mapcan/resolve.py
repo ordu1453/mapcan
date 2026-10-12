@@ -92,7 +92,7 @@ def sdo_layout(frame: Frame) -> list[Signal]:
                 continue
             v = e.value
             sigs.append(mk(
-                name=v.name, start_bit=32, bit_length=v.bit_length, signed=v.signed,
+                name=v.name, start_bit=32, bit_length=v.bit_length, representation=v.representation,
                 encoding=v.encoding,
                 factor=v.factor, offset=v.offset, unit=v.unit, min=v.min, max=v.max,
                 values=v.values, description=v.description or e.description, mux=e.subindex))

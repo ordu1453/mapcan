@@ -278,7 +278,8 @@ buses:
             length: 8
             signals:
               - {name: u28, encoding: scaled, start_bit: 0, bit_length: 28, unit: ms}
-              - {name: s32, encoding: scaled, start_bit: 28, bit_length: 32, signed: true, factor: 0.5}
+              - {name: s32, encoding: scaled, start_bit: 28, bit_length: 32, factor: 0.5,
+                 representation: twos_complement}
           - name: f2
             id: 0x102
             length: 8
@@ -288,12 +289,12 @@ buses:
             id: 0x103
             length: 8
             signals:
-              - {name: s64, encoding: scaled, start_bit: 0, bit_length: 64, signed: true, factor: 2}
+              - {name: s64, encoding: scaled, start_bit: 0, bit_length: 64, representation: twos_complement, factor: 2}
           - name: f4
             id: 0x104
             length: 8
             signals:
-              - {name: s8, encoding: scaled, start_bit: 0, bit_length: 8, signed: true, factor: 0.5}
+              - {name: s8, encoding: scaled, start_bit: 0, bit_length: 8, representation: twos_complement, factor: 0.5}
 """
 
 
@@ -398,11 +399,11 @@ buses:
         id: 0x100
         length: 8
         signals:
-          - {name: o8, encoding: raw, byte: 0, byte_length: 1, signed: true, signed_code: ones_complement}
-          - {name: s8, encoding: raw, byte: 1, byte_length: 1, signed: true, signed_code: sign_magnitude}
-          - {name: o12, encoding: raw, start_bit: 16, bit_length: 12, signed: true, signed_code: ones_complement}
-          - {name: s16, encoding: raw, byte: 4, byte_length: 2, byte_order: big_endian, signed: true,
-             signed_code: sign_magnitude}
+          - {name: o8, encoding: raw, byte: 0, byte_length: 1, representation: ones_complement}
+          - {name: s8, encoding: raw, byte: 1, byte_length: 1, representation: sign_magnitude}
+          - {name: o12, encoding: raw, start_bit: 16, bit_length: 12, representation: ones_complement}
+          - {name: s16, encoding: raw, byte: 4, byte_length: 2, byte_order: big_endian,
+             representation: sign_magnitude}
 """
 # Bytes computed by hand: ones' complement −5 = 0xFA, sign-magnitude −5 = 0x85, 12 bits −100 = 0xF9B, −300 = 0x812C
 SIGNED_CASES = [

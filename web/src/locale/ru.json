@@ -273,10 +273,9 @@
   "Search: name, 0x196, description…": "Поиск: имя, 0x196, описание…",
   "Selector": "Селектор",
   "Sender": "Отправитель",
-  "Sign encoding": "Код знакового числа",
+  "Number representation": "Представление числа",
   "Signal": "Сигнал",
   "Signals": "Сигналы",
-  "Signed": "Знаковое",
   "Standards control": "Н. контр.",
   "Start bit (LSB)": "Начальный бит (LSB)",
   "Stop receiving (remove from receivers)": "Не принимать (убрать из получателей)",
@@ -430,5 +429,6 @@
   "“{raw}” must be between {min} and {max}": "«{raw}» — допустимо от {min} до {max}",
   "“{raw}”: expected a list of integers": "«{raw}» — список целых чисел",
   "“{raw}”: expected a number, such as 0x1A or 26": "«{raw}» — ожидается число (0x1A или 26)",
-  "✓ map is valid": "✓ карта корректна"
+  "✓ map is valid": "✓ карта корректна",
+  "unsigned": "беззнаковое"
 }

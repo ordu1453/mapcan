@@ -32,8 +32,16 @@ class Rename:
         return old[self.old[0]] if self.old[0] in old else DROP
 
 
+def _representation(old: dict) -> Any:
+    # signed_code without signed: true was ignored: the value is unsigned
+    return old.get("signed_code") or "twos_complement" if old.get("signed") is True else DROP
+
+
 RENAMES: list[Rename] = [
     Rename("frame", ("dlc",), "length", since="0.21"),
+    Rename("signal", ("signed", "signed_code"), "representation", _representation, since="0.21"),
+    Rename("sdo_value", ("signed",), "representation",
+           lambda old: "twos_complement" if old.get("signed") is True else DROP, since="0.21"),
 ]
 
 _BY_KIND: dict[str, list[Rename]] = {}

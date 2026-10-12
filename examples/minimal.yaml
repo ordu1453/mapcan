@@ -61,7 +61,7 @@ buses:
                 description: Temperature
                 byte: 4
                 byte_length: 1
-                signed: true
+                representation: twos_complement
                 factor: 0.5
                 offset: -20
                 unit: °C

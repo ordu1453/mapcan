@@ -1073,10 +1073,15 @@
           "title": "Bit Length",
           "type": "integer"
         },
-        "signed": {
-          "default": false,
-          "title": "Signed",
-          "type": "boolean"
+        "representation": {
+          "default": "unsigned",
+          "description": "unsigned or twos_complement (a signed integer). Formerly signed: true.",
+          "enum": [
+            "unsigned",
+            "twos_complement"
+          ],
+          "title": "Representation",
+          "type": "string"
         },
         "factor": {
           "default": 1.0,
@@ -1299,29 +1304,17 @@
           "title": "Byte Order",
           "type": "string"
         },
-        "signed": {
-          "default": false,
-          "description": "The value can be negative; signed_code sets how the sign is encoded.",
-          "title": "Signed",
-          "type": "boolean"
-        },
-        "signed_code": {
-          "anyOf": [
-            {
-              "enum": [
-                "twos_complement",
-                "ones_complement",
-                "sign_magnitude"
-              ],
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
+        "representation": {
+          "default": "unsigned",
+          "description": "How the raw value is read as a number. unsigned — no negative values (default). twos_complement — the usual signed integer (−1 = all ones). ones_complement — a negative value is its magnitude with all bits inverted (−1 = 1…10). sign_magnitude — the top bit is the sign, the rest the magnitude (−1 = 10…01). Generated C and Python code use this representation; DBC stores two's complement only, so the export warns about the other two. Formerly signed and signed_code.",
+          "enum": [
+            "unsigned",
+            "twos_complement",
+            "ones_complement",
+            "sign_magnitude"
           ],
-          "default": null,
-          "description": "How negative numbers are encoded. Two's complement is the standard (−1 = all ones). Ones' complement inverts all bits (−1 = 1…10). Sign-magnitude uses the top bit for the sign and the rest for the magnitude (−1 = 10…01). Generated C and Python code use this code; DBC stores two's complement only, so the export warns about such signals.",
-          "title": "Signed Code"
+          "title": "Representation",
+          "type": "string"
         },
         "values": {
           "anyOf": [

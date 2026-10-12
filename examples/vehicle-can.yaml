@@ -98,7 +98,7 @@ buses:
                 description: Torque request
                 byte: 1
                 byte_length: 2
-                signed: true
+                representation: twos_complement
                 factor: 0.1
                 unit: N·m
                 min: -500

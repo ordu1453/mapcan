@@ -124,7 +124,7 @@ RULES = {
     "invalid-overflow": ("error", N_("invalid value does not fit in the signal width")),
     "logo-missing": ("warning", N_("Logo file not found")),
     "logo-format": ("error", N_("Unsupported logo format")),
-    "signed-code": ("info", N_("Signed number code cannot be expressed in DBC or is set on an unsigned signal")),
+    "signed-code": ("info", N_("Ones' complement or sign-magnitude signal: DBC stores two's complement only")),
     "missing-description": ("info", N_("Signal has no description")),
     "missing-title": ("info", N_("Bus or device has no full name")),
     "empty-frame": ("info", N_("Frame has no signals")),
@@ -639,12 +639,9 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
         if s.description is None and not s._path[-1:] == ("sdo",):
             ctx.emit("missing-description", _("signal {name!r} has no description", name=s.name), sp + ("description",))
 
-        if s.signed_code is not None and not s.signed:
-            ctx.emit("signed-code", _("signed_code is ignored on unsigned signal {name!r}", name=s.name),
-                     sp + ("signed_code",))
-        elif s.signed and s.signed_code in ("ones_complement", "sign_magnitude"):
+        if s.representation in ("ones_complement", "sign_magnitude"):
             ctx.emit("signed-code", _("{name!r}: DBC stores signed values in two's complement only, so the DBC file "
-                                      "reads this signal differently", name=s.name), sp + ("signed_code",))
+                                      "reads this signal differently", name=s.name), sp + ("representation",))
 
         if s.mux is not None:
             if selector is None:
@@ -694,8 +691,7 @@ ENCODING_FIELDS = {
     "max": ("raw", "scaled", "float"),
     "values": ("enum", "flag"),
     "flags": ("bitfield",),
-    "signed": ("raw", "scaled", "enum"),
-    "signed_code": ("raw", "scaled", "enum"),
+    "representation": ("raw", "scaled", "enum"),
     "invalid": ("raw", "scaled", "enum"),
     "initial": ("raw", "scaled", "enum", "flag", "float"),
 }

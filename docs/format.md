@@ -160,8 +160,7 @@ CANopen ID computation:
 | `start_bit` + `bit_length` | Canonical position |
 | `byte` [+ `bit`] + `byte_length` \| `bit_length` | Shorthand position (see below) |
 | `byte_order` | `little_endian` (default) or `big_endian` |
-| `signed` | Signed value |
-| `signed_code` | Signed number representation: `twos_complement` (default), `ones_complement` or `sign_magnitude`. Generated C and Python code packs and unpacks the value in this code, and the value range is symmetric (−127…127 for 8 bits). DBC stores two's complement only, so the export warns about such signals |
+| `representation` | How the raw value is read as a number: `unsigned` (default), `twos_complement` (the usual signed integer), `ones_complement` or `sign_magnitude`. Generated C and Python code packs and unpacks the value in this representation; the last two have a symmetric range (−127…127 for 8 bits). DBC stores two's complement only, so the export warns about the other two. Formerly `signed` + `signed_code` |
 | `values` | Value table: `{0: NO_DATA, 1: {name: OK, description: "normal"}}` |
 | `value_format` | `dec` \| `hex`: how values are shown in documents |
 | `flags` | Bit field flags: `{bit, bit_length: 1, name, description, values}`; `bit` is the offset from the least significant bit of the field |
@@ -180,15 +179,15 @@ CANopen ID computation:
 
 | `encoding` | Meaning | Value fields |
 |---|---|---|
-| `raw` | Integer as is | `signed`, `unit`, `min`, `max`, `invalid`, `initial` |
-| `scaled` | Scaled physical value: `raw * factor + offset` | `signed`, `factor`, `offset`, `unit`, `min`, `max`, `invalid`, `initial` |
-| `enum` | Value from the `values` table | `values`, `value_format`, `signed`, `invalid`, `initial` |
+| `raw` | Integer as is | `representation`, `unit`, `min`, `max`, `invalid`, `initial` |
+| `scaled` | Scaled physical value: `raw * factor + offset` | `representation`, `factor`, `offset`, `unit`, `min`, `max`, `invalid`, `initial` |
+| `enum` | Value from the `values` table | `values`, `value_format`, `representation`, `invalid`, `initial` |
 | `flag` | One yes/no bit | `values`, `initial` |
 | `bitfield` | Set of flags | `flags` |
 | `float` | IEEE 754 | `factor`, `offset`, `unit`, `min`, `max`, `initial` |
 | `bytes` | Byte array | — |
 
-A field that does not apply is an error (`encoding-field`). `signed_code` follows `signed`.
+A field that does not apply is an error (`encoding-field`).
 
 The length (`bit_length` or `byte_length`) is required. Only two encodings set it
 themselves: a `flag` is 1 bit, and a `float` is 32 bits unless `bit_length: 64` is given.
@@ -318,7 +317,7 @@ signals are filled with dummy objects.
   cycle_ms: 10
   signals:
     - {name: statusword, encoding: raw, index: 0x6041, byte: 0, byte_length: 2}
-    - {name: actual_velocity, encoding: scaled, index: 0x606C, byte: 2, byte_length: 4, signed: true, unit: rpm}
+    - {name: actual_velocity, encoding: scaled, index: 0x606C, byte: 2, byte_length: 4, representation: twos_complement, unit: rpm}
 ```
 
 The object's data type is the smallest standard type that holds the signal (`UNSIGNED16`,
@@ -476,6 +475,8 @@ Included devices can be chosen as senders and receivers of the main file's frame
 | Former name | Current name | Since |
 |---|---|---|
 | frame `dlc` | `length` | 0.21 |
+| signal `signed` + `signed_code` | `representation` | 0.21 |
+| SDO value `signed` | `representation` | 0.21 |
 
 ## Validation rules
 
@@ -579,7 +580,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `initial-range` | warning | Default value outside the signal's range |
 | `invalid-overflow` | error | invalid value does not fit in the signal width |
 | `invalid-in-range` | warning | invalid value falls inside the min..max range |
-| `signed-code` | info | Signed number code cannot be expressed in DBC, or is set on an unsigned signal |
+| `signed-code` | info | `ones_complement` or `sign_magnitude`: DBC stores two's complement only |
 | `missing-unit` | info | Physical quantity without a unit |
 
 ### Bit fields

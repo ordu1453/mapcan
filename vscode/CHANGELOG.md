@@ -5,6 +5,8 @@
 * Follows mapcan 0.21: the frame field **DLC** is **Length, bytes** (`length`). A map with the former
   name `dlc` still works; the form writes `length` in its place, and the quick fix of `deprecated-key`
   updates the whole map.
+* A signal's **Signed** and **Sign encoding** are one field, **Number representation**
+  (`representation`: unsigned, two's complement, ones' complement, sign-magnitude).
 * The language server is started when the first map is opened, not for any YAML file, and only maps
   are sent to it. Other YAML files (CI configs, manifests) no longer start a `mapcan` process or show
   an error when `mapcan` is not installed. A new file is picked up once `mapcan:` is typed into it.
