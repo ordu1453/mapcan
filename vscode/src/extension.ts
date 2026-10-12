@@ -1,6 +1,6 @@
 // mapcan for VS Code: starts the mapcan language server (`mapcan lsp`) and shows the Map view.
 // The server is started when the first map (a YAML file with a top-level `mapcan:` key) is opened,
-// and gets only maps: other YAML files never reach it.
+// and gets only maps: other YAML files never reach it. It stops when no map has been open for a while.
 
 import * as vscode from "vscode";
 import {
@@ -23,6 +23,9 @@ let form: NodeForm | undefined;
 let failed = false;
 /** Documents the server knows (sent with didOpen). */
 const synced = new Set<string>();
+/** How long the server keeps running with no map open. */
+let idleStopMs = 5 * 60_000;
+let idleTimer: NodeJS.Timeout | undefined;
 
 function serverOptions(): ServerOptions {
   const config = vscode.workspace.getConfiguration("mapcan.server");
@@ -67,6 +70,7 @@ const middleware: Middleware = {
 
 /** Starts the server if a map is open (or, with `force`, anyway) and it is not running yet. */
 async function start(force = false): Promise<void> {
+  clearTimeout(idleTimer);
   if (client || (!force && (failed || !vscode.workspace.textDocuments.some(isMap)))) return;
   failed = false;
   const clientOptions: LanguageClientOptions = {
@@ -100,7 +104,20 @@ async function start(force = false): Promise<void> {
   await tree?.refresh();
 }
 
+/** The last map was closed: stop the server unless a map is opened again in time. */
+function scheduleIdleStop(): void {
+  clearTimeout(idleTimer);
+  if (!client || vscode.workspace.textDocuments.some(isMap)) return;
+  idleTimer = setTimeout(async () => {
+    if (!client || vscode.workspace.textDocuments.some(isMap)) return;
+    output?.info("No map is open: stopping the language server.");
+    await stop();
+    await tree?.refresh();
+  }, idleStopMs);
+}
+
 async function stop(): Promise<void> {
+  clearTimeout(idleTimer);
   const c = client;
   client = undefined;
   synced.clear();
@@ -130,7 +147,8 @@ async function openMap(): Promise<void> {
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<{
-  tree: MapTree; form: NodeForm; history: HistoryTree; changes: ChangesPanel; client: () => LanguageClient | undefined;
+  tree: MapTree; form: NodeForm; history: HistoryTree; changes: ChangesPanel;
+  client: () => LanguageClient | undefined; setIdleStop: (ms: number) => void;
 }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
   tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
@@ -175,12 +193,13 @@ export async function activate(
     vscode.workspace.onDidOpenTextDocument((doc) => isMap(doc) && start()),
     // A new file becomes a map when `mapcan:` is typed into it.
     vscode.workspace.onDidChangeTextDocument((e) => !client && isMap(e.document) && start()),
+    vscode.workspace.onDidCloseTextDocument(() => scheduleIdleStop()),
   );
   registerTreeActions(context, tree, form, () => client);
   const showChanges = registerPreview(context, () => client, currentMap, changes);
   registerHistory(context, history, currentMap, showChanges, () => client);
   await start();
-  return { tree, form, history, changes, client: () => client };
+  return { tree, form, history, changes, client: () => client, setIdleStop: (ms) => (idleStopMs = ms) };
 }
 
 export function deactivate(): Promise<void> {

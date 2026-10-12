@@ -466,6 +466,17 @@ const tests = {
       { uri: ctx.doc.uri.toString(), formats: ["md"], outDir: path.join(workspace, "build2") });
     assert.match(result.error, /errors/);
   },
+
+  // Last: closes every editor.
+  async "the server stops when no map is open and starts with the next one"(ctx) {
+    ctx.api.setIdleStop(500);
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    await until("the server to stop", () => ctx.api.client() === undefined, 300000);
+    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(ctx.doc.uri));
+    await until("the server", () => ctx.api.client()?.isRunning());
+    await until("the tree", () => ctx.api.tree.getChildren().length);
+  },
 };
 
 exports.run = async function run() {

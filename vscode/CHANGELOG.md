@@ -5,6 +5,8 @@
 * The language server is started when the first map is opened, not for any YAML file, and only maps
   are sent to it. Other YAML files (CI configs, manifests) no longer start a `mapcan` process or show
   an error when `mapcan` is not installed. A new file is picked up once `mapcan:` is typed into it.
+* The language server stops when no map has been open for five minutes and starts again with the
+  next map.
 
 ## 0.5.1
 
