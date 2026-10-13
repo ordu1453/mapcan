@@ -135,7 +135,8 @@ const tests = {
     const edit = new vscode.WorkspaceEdit();
     for (const e of result.edits) edit.replace(ctx.doc.uri, new vscode.Range(...e.range), e.text);
     await vscode.workspace.applyEdit(edit);
-    assert.match(ctx.doc.getText(), /- name: signal\n {16}encoding: raw\n {16}start_bit: 60\n {16}bit_length: 1\n {16}title: Battery voltage\n/);
+    // The title goes to its place in the canonical order (mapcan fmt): after the name
+    assert.match(ctx.doc.getText(), /- name: signal\n {16}title: Battery voltage\n {16}encoding: raw\n {16}start_bit: 60\n {16}bit_length: 1\n/);
     await until("tree with the title", () => frame().children.some((s) => s.raw.label === "Battery voltage"));
     await vscode.commands.executeCommand("mapcan.deleteNode", frame().children.find((s) => s.raw.ident === "signal"));
     assert.equal(form.openPath, undefined);
@@ -459,13 +460,11 @@ const tests = {
     await editor.edit((e) => e.replace(
       new vscode.Range(positionOf(ctx.doc, "byte: 4", 0), positionOf(ctx.doc, "byte: 4", 7)),
       "byte: 4\n                bit_length: 99999"));
-    const diags = await until("diagnostics", () => {
-      const d = vscode.languages.getDiagnostics(ctx.doc.uri);
-      return d.length ? d : undefined;
-    });
-    assert.equal(diags[0].source, "mapcan");
-    assert.equal(diags[0].code, "schema");
-    assert.equal(ctx.doc.getText(diags[0].range), "99999");
+    // The server analyses once typing pauses: the messages of the text before the edit may still be shown
+    const diag = await until("diagnostics", () =>
+      vscode.languages.getDiagnostics(ctx.doc.uri).find((d) => d.code === "schema"));
+    assert.equal(diag.source, "mapcan");
+    assert.equal(ctx.doc.getText(diag.range), "99999");
     const result = await vscode.commands.executeCommand("mapcan.lsp.export",
       { uri: ctx.doc.uri.toString(), formats: ["md"], outDir: path.join(workspace, "build2") });
     assert.match(result.error, /errors/);
