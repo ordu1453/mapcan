@@ -180,11 +180,15 @@ def to_node(value: Any, key: Any = None, old: Any = None) -> Any:
         for k, v in value.items():
             kk = _key(k) if key in ("values",) else k
             m[kk] = to_node(v, k)
+        if isinstance(old, CommentedMap) and old.fa.flow_style():
+            m.fa.set_flow_style()           # a replaced "{…}" stays on its line
         return m
     if isinstance(value, list):
         s = CommentedSeq()
         for v in value:
             s.append(to_node(v, key))
+        if isinstance(old, CommentedSeq) and old.fa.flow_style():
+            s.fa.set_flow_style()           # receivers: [a, b] stays a "[…]" list
         return s
     if isinstance(value, bool) or value is None:
         return value

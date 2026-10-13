@@ -186,6 +186,24 @@ def test_included_node_fields_are_read_only(tmp_path):
         apply_ops(a, [{"op": "remove", "path": list(path)}])
 
 
+def test_lsp_form_edits_go_to_the_included_file(tmp_path):
+    from mapcan.lsp.analysis import analyze
+    from mapcan.lsp.edits import field_ops, in_other_file, routed_ops
+
+    main = write(tmp_path)
+    common = str((tmp_path / "common.yaml").resolve())
+    a = analyze(main.read_text(encoding="utf-8"), str(main))
+    bms = ("buses", 0, "devices", 1, "name")
+    assert in_other_file(a, bms) and not in_other_file(a, ("buses", 0, "devices", 0, "name"))
+    # Renaming bms renames it in common.yaml; a receiver in the main file follows
+    text = main.read_text(encoding="utf-8").replace("length: 1\n", "length: 1\n            receivers: [bms]\n", 1)
+    main.write_text(text, encoding="utf-8")
+    a = analyze(text, str(main))
+    own, others = routed_ops(a, field_ops(a, bms, "battery"), lambda p: open(p, encoding="utf-8").read())
+    assert "receivers: [battery]" in own
+    assert list(others) == [common] and "- name: battery" in others[common]
+
+
 def test_web_state_has_included_nodes(tmp_path):
     from mapcan.web.session import EditorSession
 

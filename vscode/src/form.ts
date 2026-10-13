@@ -27,8 +27,10 @@ interface NodeFields {
   owner: string | null;
   devices: { name: string; label: string }[];
   signalEncoding: string | null;
-  /** The included file the node is described in (full path); the form is then read-only. */
+  /** The other file of the map the node is described in (full path): the form's changes go to that file. */
   file?: string | null;
+  /** The node cannot be edited in the form. */
+  readonly?: boolean;
   /** Name of a value table from value_tables when the node's values refer to one. */
   valueTableRef?: string | null;
   /** Frame direction computed from the map (tx/rx), also when the field is not set. */
@@ -50,13 +52,25 @@ interface NodeFields {
   flags: unknown[] | null;
 }
 
+type TextEdit = { range: [number, number, number, number]; text: string };
+
+/** Edits of the other files of the map: a node of an included file is written in that file. */
+type Others = { uri: string; edit: TextEdit }[];
+
 interface SetResult {
-  edits?: { range: [number, number, number, number]; text: string }[];
+  edits?: TextEdit[];
+  others?: Others;
+  error?: string;
 }
 
 interface OpsResult {
-  edit?: { range: [number, number, number, number]; text: string };
+  edit?: TextEdit;
+  others?: Others;
   error?: string;
+}
+
+function addOthers(edit: vscode.WorkspaceEdit, others: Others | undefined): void {
+  for (const o of others ?? []) edit.replace(vscode.Uri.parse(o.uri), new vscode.Range(...o.edit.range), o.edit.text);
 }
 
 type Message =
@@ -216,14 +230,19 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
       command: "mapcan.lsp.set",
       arguments: [{ uri: uri.toString(), path, value }],
     })) as SetResult | null;
+    if (result?.error) {
+      void vscode.window.showErrorMessage(`mapcan: ${result.error}`);
+      return;
+    }
     const edits = result?.edits ?? [];
-    if (!edits.length) return;
+    if (!edits.length && !result?.others?.length) return;
     const edit = new vscode.WorkspaceEdit();
     for (const e of edits) edit.replace(uri, new vscode.Range(...e.range), e.text);
+    addOthers(edit, result?.others);
     if (!(await vscode.workspace.applyEdit(edit))) return;
     // The editor follows the form: show the line just written, without taking the focus
     const editor = vscode.window.visibleTextEditors.find((ed) => ed.document.uri.toString() === uri.toString());
-    if (editor) {
+    if (editor && edits.length) {
       const [sl, sc] = edits[0].range;
       const at = new vscode.Position(sl, sc);
       editor.revealRange(new vscode.Range(at, at), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
@@ -244,9 +263,10 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
       void this.refresh();
       return;
     }
-    if (!result?.edit) return;
+    if (!result?.edit && !result?.others?.length) return;
     const edit = new vscode.WorkspaceEdit();
-    edit.replace(uri, new vscode.Range(...result.edit.range), result.edit.text);
+    if (result.edit) edit.replace(uri, new vscode.Range(...result.edit.range), result.edit.text);
+    addOthers(edit, result.others);
     if (!(await vscode.workspace.applyEdit(edit))) return;
     if (select) {
       await this.tree.refresh();

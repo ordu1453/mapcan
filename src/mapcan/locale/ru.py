@@ -804,8 +804,6 @@ RU: dict[str, str] = {
     "the map {map!r} has {n} error(s) outside this file: open it to see them":
         "в карте {map!r} ошибок вне этого файла: {n}; откройте её, чтобы их увидеть",
     "the included file {file} cannot be read": "подключённый файл {file} не читается",
-    "A file included by a map is edited as text for now.":
-        "Файл, включаемый картой, пока редактируется только как текст.",
     "All files are formatted.": "Все файлы отформатированы.",
     "cannot format: {error}": "не удалось отформатировать: {error}",
     "cannot format: the result would read differently; the file is left as it is":

@@ -203,7 +203,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     }
     if (change) lines.push(change === "added" ? "Added since the last commit" : "Modified since the last commit");
     if (node.file && !node.isLink) {
-      lines.push(`From ${vscode.workspace.asRelativePath(node.file)}: read-only here, edit it in that file`);
+      lines.push(`From ${vscode.workspace.asRelativePath(node.file)}: the form writes its changes to that file`);
     }
     item.tooltip = lines.join("\n");
     item.command = { command: "mapcan.revealNode", title: "Reveal", arguments: [node.file ?? this.uri, node.selection] };

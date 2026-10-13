@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import difflib
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from .. import model as M
 from .. import upgrade as U
@@ -865,9 +867,9 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     """Data of a node for the form: kind, document language, the bus protocol, the frame's owner, the bus devices
     and the scalar fields (texts {ru, en} in the document language).
 
-    A node of an included file (include) is read from the data together with the included files, ``file``
-    is its file: the form shows it read-only. The bus devices also include those of the included files.
-    In an included file opened on its own every node is read-only for now (#49)."""
+    A node of another file of the map is read from the data together with the included files, ``file`` is its
+    file: the form's changes go there (``mapcan.lsp.set`` routes them). The bus devices also include those of the
+    included files. In an included file opened on its own, every node has ``file``."""
     file = a.included_file(path) or a.own_file
 
     def at(p: Path_):
@@ -978,6 +980,87 @@ def apply_ops(a: Analysis, ops: list[dict]) -> str:
     canon_old = Y.dump(y, doc)
     Y.apply_ops(doc, ops)
     return Y.merge_text(a.text, canon_old, Y.dump(y, doc))
+
+
+Reader = Callable[[str], "str | None"]
+
+
+def routed_ops(a: Analysis, ops: list[dict], read: Reader) -> tuple[str, dict[str, str]]:
+    """Operations of the web editor (paths of the map) applied to the files they change, as the web editor does:
+    (new text of this document, {resolved path of another file: its new text}). A node of an included file has
+    its own path there (the loader's path mapping)."""
+    from ..web import yamlops as Y
+
+    src = a.result.source
+    own = a.own_file or src.file
+    groups: dict[str | None, list[dict]] = {}
+    for o in ops:
+        path = o.get("path")
+        if not isinstance(path, list):
+            raise Y.OpError(_("path must be a list"))
+        file, local = src.origin(tuple(int(x) if isinstance(x, str) and x.isdigit() else x for x in path))
+        key = None if file == own else str(Path(file).resolve())
+        groups.setdefault(key, []).append({**o, "path": list(local)})
+
+    def run(text: str, group: list[dict]) -> str:
+        y = Y.make_yaml(text)
+        doc = y.load(text)
+        if doc is None:
+            raise Y.OpError(_("the YAML has a syntax error"))
+        canon_old = Y.dump(y, doc)
+        Y.apply_ops(doc, group)
+        return Y.merge_text(text, canon_old, Y.dump(y, doc))
+
+    others = {}
+    for key, group in groups.items():
+        if key is None:
+            continue
+        text = read(key)
+        if text is None:
+            raise Y.OpError(_("the included file {file} cannot be read", file=Path(key).name))
+        others[key] = run(text, group)
+    return (run(a.text, groups[None]) if None in groups else a.text), others
+
+
+def field_ops(a: Analysis, path: Path_, value) -> list[dict]:
+    """A field written by the form as operations of the web editor: for a node of another file of the map
+    (:func:`routed_ops` sends them there). A text in several languages changes in the document language, and a
+    renamed device takes the references to it on its bus along, in every file."""
+    key = path[-1]
+    current = raw_at_path(a.data, path)
+    if value is None or value == "":
+        if isinstance(current, dict) and key in TEXT_KEYS:
+            return [{"op": "set", "path": [*path, doc_language(a)], "value": None}]
+        return [{"op": "set", "path": list(path), "value": None}]
+    if isinstance(current, dict) and key in TEXT_KEYS and isinstance(value, str):
+        return [{"op": "set", "path": [*path, doc_language(a)], "value": value}]
+    ops = [{"op": "set", "path": list(path), "value": value}]
+    if key == "name" and node_kind(path[:-1]) == "device" and isinstance(current, str) and value != current:
+        bus = raw_at_path(a.data, path[:2])
+        for fp, f in _bus_frames_of(bus, list(path[:2])):
+            if f.get("sender") == current:
+                ops.append({"op": "set", "path": [*fp, "sender"], "value": value})
+            rec = f.get("receivers")
+            if isinstance(rec, list) and current in rec:
+                ops.append({"op": "set", "path": [*fp, "receivers"],
+                            "value": [value if r == current else r for r in rec]})
+    return ops
+
+
+def _bus_frames_of(bus, bp: list) -> list[tuple[list, dict]]:
+    if not isinstance(bus, dict):
+        return []
+    out = [([*bp, "frames", i], f) for i, f in enumerate(bus.get("frames") or [])]
+    for di, d in enumerate(bus.get("devices") or []):
+        if isinstance(d, dict):
+            out += [([*bp, "devices", di, "frames", i], f) for i, f in enumerate(d.get("frames") or [])]
+    return [(p, f) for p, f in out if isinstance(f, dict)]
+
+
+def in_other_file(a: Analysis, path: Path_) -> bool:
+    """The node is written in another file than this text, or this text is a file included by the map: its
+    edits go through :func:`field_ops` and :func:`routed_ops`."""
+    return bool(a.own_file) or a.result.source.is_included(path)
 
 
 def set_field(a: Analysis, path: Path_, value) -> list[Edit]:

@@ -100,6 +100,23 @@ class MapcanServer(LanguageServer):
             return last
         return self.analysis(uri)
 
+    def routed(self, a: A.Analysis, ops: list[dict], style: str) -> dict:
+        """Operations applied to the files of the map they change (E.routed_ops) as an answer to the client:
+        the edit of this document (``style``: "edits", a list, or "edit", one) and ``others``: [{uri, edit}]."""
+        text, others = E.routed_ops(a, ops, self.read)
+
+        def one(old: str, new: str) -> dict:
+            e = E.minimal_edit(old, new)
+            return {"range": [*e.start, *e.end], "text": e.text}
+
+        own = [one(a.text, text)] if text != a.text else []
+        out: dict = {"edits": own} if style == "edits" else ({"edit": own[0]} if own else {})
+        rest = [{"uri": Path(f).as_uri(), "edit": one(self.read(f) or "", t)} for f, t in others.items()
+                if t != (self.read(f) or "")]
+        if rest:
+            out["others"] = rest
+        return out
+
     def dependents(self, uri: str) -> list[str]:
         """Open documents whose analysis read this one: a map and the files it includes depend on each other."""
         path = to_fs_path(uri)
@@ -384,10 +401,18 @@ def set_command(ls: MapcanServer, *args) -> dict:
     Response: {edits: [{range, text}]}."""
     params = _arg(args)
     uri = params.get("uri", "")
-    a = ls.editable(uri) if uri else None
+    a = ls.analysis(uri) if uri else None
     path = tuple(params.get("path") or ())
-    if a is None or not path:
+    if a is None or not path or not isinstance(path[-1], str):
         return {"edits": []}
+    if E.in_other_file(a, path):
+        # A node of another file of the map (or this text is a file included by it): edited in its own file
+        from ..web.yamlops import OpError
+
+        try:
+            return ls.routed(a, E.field_ops(a, path, params.get("value")), "edits")
+        except OpError as e:
+            return {"edits": [], "error": str(e)}
     edits = E.set_field(a, path, params.get("value"))
     return {"edits": [{"range": [*e.start, *e.end], "text": e.text} for e in edits]}
 
@@ -402,10 +427,13 @@ def ops_command(ls: MapcanServer, *args) -> dict:
     a = ls.analysis(params.get("uri", ""))
     if a is None:
         return {"error": _("The document is not a mapcan map.")}
-    if a.own_file:
-        return {"error": _("A file included by a map is edited as text for now.")}
+    ops = list(params.get("ops") or [])
     try:
-        text = E.apply_ops(a, list(params.get("ops") or []))
+        if a.own_file or any(isinstance(o.get("path"), list) and a.result.source.is_included(tuple(o["path"]))
+                             for o in ops):
+            out = ls.routed(a, ops, "edit")
+            return out if out.get("edit") or out.get("others") else {}
+        text = E.apply_ops(a, ops)
     except OpError as e:
         return {"error": str(e)}
     if text == a.text:

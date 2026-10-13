@@ -444,7 +444,8 @@ def map_tree(a: Analysis) -> list[dict]:
 
     def rng(path: Path_) -> dict | None:
         part = a.view_of(path)
-        # In an included file opened on its own every node is read-only for now (#49): its own ones too
+        # In an included file opened on its own every node has its file: the tree's add and delete are not
+        # offered there yet, the form edits it (through mapcan.lsp.set)
         file = a.included_file(path) or a.own_file
         block = part.block(path) if part is not None else None
         if block is None:

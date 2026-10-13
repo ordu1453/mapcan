@@ -407,7 +407,7 @@ const tests = {
     assert.ok(error.error);
   },
 
-  async "nodes of included files are shown read-only"(ctx) {
+  async "nodes of included files are shown and edited in their file"(ctx) {
     fs.writeFileSync(path.join(workspace, "extra.yaml"),
       "buses:\n  - name: aux\n    title: Aux bus\n    protocol: can\n    devices:\n      - name: valve\n");
     const main = path.join(workspace, "with-include.yaml");
@@ -422,11 +422,18 @@ const tests = {
     const aux = ctx.api.tree.getTreeItem(roots[1]);
     assert.equal(own.contextValue, "bus");
     assert.deepEqual([aux.label, aux.description, aux.contextValue], ["Aux bus", "extra.yaml", "included"]);
-    assert.match(aux.tooltip, /read-only here/);
+    assert.match(aux.tooltip, /writes its changes to that file/);
     assert.match(aux.command.arguments[0].fsPath, /extra\.yaml$/);
     // The device under it comes from the same file: the file is named once, at the bus
     const valve = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(roots[1])[0]);
     assert.deepEqual([valve.description, valve.contextValue], ["", "included"]);
+    // A field written by the form goes to the included file
+    const result = await vscode.commands.executeCommand("mapcan.lsp.set",
+      { uri: vscode.Uri.file(main).toString(), path: ["buses", 1, "devices", 0, "title"], value: "Valve" });
+    assert.deepEqual(result.edits, []);
+    assert.equal(result.others.length, 1);
+    assert.match(result.others[0].uri, /extra\.yaml$/);
+    assert.match(result.others[0].edit.text, /title: Valve/);
     await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     await vscode.window.showTextDocument(ctx.doc);
     await until("the first map in the tree", () => ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString()
