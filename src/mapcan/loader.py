@@ -45,6 +45,29 @@ class SourceMap:
     positions: dict[Path_, tuple[int, int]] = field(default_factory=dict)
     files: dict[Path_, str] = field(default_factory=dict)
     includes: list[tuple[int, str]] = field(default_factory=list)   # (number in include, file)
+    # Nodes added by included files: their path in the map → (file, their path in that file). The nodes inside
+    # them follow: the path in the file is the same below the root.
+    origins: dict[Path_, tuple[str, Path_]] = field(default_factory=dict)
+
+    def origin(self, path: Path_) -> tuple[str | None, Path_]:
+        """The file a node of the map is written in and its path there: ``buses[0].devices[2]`` of the map may be
+        ``buses[0].devices[0]`` of an included file. A node of the main file is (the main file, the same path)."""
+        for n in range(len(path), 0, -1):
+            found = self.origins.get(tuple(path[:n]))
+            if found is not None:
+                return found[0], found[1] + tuple(path[n:])
+        return self.file, tuple(path)
+
+    def merged_path(self, file: str, path: Path_) -> Path_ | None:
+        """The opposite of :meth:`origin`: the path in the map of the node at ``path`` of ``file`` (None if that
+        node is not in the map, e.g. a bus of an included file that only extends a bus of the main file)."""
+        if file == self.file:
+            return tuple(path)
+        best: tuple[Path_, Path_] | None = None
+        for root, (f, local) in self.origins.items():
+            if f == file and tuple(path[:len(local)]) == local and (best is None or len(local) > len(best[1])):
+                best = (root, local)
+        return best[0] + tuple(path[len(best[1]):]) if best else None
 
     def _nearest(self, path: Path_) -> Path_:
         cur: tuple = ()
@@ -274,7 +297,10 @@ def _make_yaml() -> YAML:
     return y
 
 
-def loads(text: str, filename: str | None = None, base_dir: str | Path | None = None) -> LoadResult:
+def loads(text: str, filename: str | None = None, base_dir: str | Path | None = None,
+          texts: dict[str, str] | None = None) -> LoadResult:
+    """Load a map from its text. ``texts``: texts of included files to use instead of what is on the disk
+    (the editors pass the files open in them, with unsaved changes), by their resolved path."""
     report = Report()
     src = SourceMap(filename)
     try:
@@ -297,7 +323,7 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
         return LoadResult(None, report, src, raw)
     if isinstance(data, dict):
         base = Path(base_dir) if base_dir is not None else Path(filename).resolve().parent if filename else None
-        _include(data, base, src, report)
+        _include(data, base, src, report, texts or {})
         data = _upgrade(data, src, report)
         merged = copy.deepcopy(data) if src.includes else None
         _value_tables(data, src, report)
@@ -353,7 +379,7 @@ INCLUDE_KEYS = {"mapcan", "part_of", "buses", "value_tables"}
 BUS_EXTENSION_KEYS = {"name", "devices", "frames"}
 
 
-def _include(data: dict, base: Path | None, src: SourceMap, report: Report) -> None:
+def _include(data: dict, base: Path | None, src: SourceMap, report: Report, texts: dict[str, str]) -> None:
     """Include the files of ``include``: their buses, devices, frames and value tables are added to the map.
 
     Nodes of included files get paths after the nodes of the main file (the main file's indices do not change),
@@ -372,7 +398,9 @@ def _include(data: dict, base: Path | None, src: SourceMap, report: Report) -> N
             continue
         path = base / name
         try:
-            text = path.read_text(encoding="utf-8")
+            text = texts.get(str(path.resolve())) if texts else None
+            if text is None:
+                text = path.read_text(encoding="utf-8")
         except OSError:
             report.add(src.diag("error", "include", _("include: file {name!r} not found", name=name), ("include", i)))
             continue
@@ -445,6 +473,7 @@ def _merge_tables(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, re
             continue
         own[name] = table
         added.add(name)
+        src.origins[("value_tables", name)] = (sub_src.file, ("value_tables", name))
     _copy_positions(sub_src, src, lambda p: p if p[:1] == ("value_tables",) and len(p) > 1 and p[1] in added
                     else None)
 
@@ -464,6 +493,7 @@ def _merge_buses(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, rep
         if target is None:
             own.append(bus)
             new = len(own) - 1
+            src.origins[("buses", new)] = (sub_src.file, ("buses", j))
             _copy_positions(sub_src, src, lambda p, j=j, new=new: ("buses", new) + p[2:] if p[:2] == ("buses", j)
                             else None)
             continue
@@ -481,6 +511,8 @@ def _merge_buses(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, rep
                 lst = mine.setdefault(key, [])
                 if isinstance(lst, list):
                     offsets[key] = len(lst)
+                    for m in range(len(items)):
+                        src.origins[("buses", target, key, len(lst) + m)] = (sub_src.file, ("buses", j, key, m))
                     lst.extend(items)
 
         def remap(p, j=j, target=target, offsets=offsets):

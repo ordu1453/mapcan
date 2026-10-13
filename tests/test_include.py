@@ -54,6 +54,31 @@ buses:
 """
 
 
+def test_paths_of_included_nodes_both_ways(tmp_path):
+    src = load(write(tmp_path)).source
+    common = str(tmp_path / "common.yaml")
+    main = src.file
+    # bms extends can1 of the main file: second device of the map, first of common.yaml
+    assert src.origin(("buses", 0, "devices", 1, "frames", 0, "signals", 0)) == \
+        (common, ("buses", 0, "devices", 0, "frames", 0, "signals", 0))
+    assert src.origin(("buses", 1, "devices", 0)) == (common, ("buses", 1, "devices", 0))     # the new bus can2
+    assert src.origin(("value_tables", "faults", 1)) == (common, ("value_tables", "faults", 1))
+    assert src.origin(("buses", 0, "devices", 0)) == (main, ("buses", 0, "devices", 0))      # vcu, main file
+    assert src.merged_path(common, ("buses", 0, "devices", 0, "name")) == ("buses", 0, "devices", 1, "name")
+    assert src.merged_path(common, ("buses", 1)) == ("buses", 1)
+    assert src.merged_path(common, ("buses", 0)) is None        # only extends can1: not a node of the map
+    assert src.merged_path(main, ("buses", 0)) == ("buses", 0)
+
+
+def test_texts_of_open_files_replace_the_disk(tmp_path):
+    p = write(tmp_path)
+    from mapcan.loader import loads
+
+    edited = COMMON.replace("name: charger", "name: charger2")
+    res = loads(p.read_text(encoding="utf-8"), str(p), texts={str((tmp_path / "common.yaml").resolve()): edited})
+    assert res.map.buses[1].devices[0].name == "charger2"
+
+
 def write(tmp_path, main=MAIN, common=COMMON):
     (tmp_path / "common.yaml").write_text(textwrap.dedent(common), encoding="utf-8")
     p = tmp_path / "main.yaml"
