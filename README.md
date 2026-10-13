@@ -14,8 +14,8 @@
   <a href="https://github.com/ordu1453/mapcan/actions/workflows/ci.yml"><img src="https://github.com/ordu1453/mapcan/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ordu1453/mapcan/releases/latest"><img src="https://img.shields.io/badge/release-latest-2f6fb3" alt="Latest release"></a>
   <a href="https://pypi.org/project/mapcan/"><img src="https://img.shields.io/pypi/v/mapcan?color=2f6fb3" alt="PyPI"></a>
-  <img src="https://img.shields.io/badge/python-3.12-3776ab?logo=python&logoColor=white" alt="Python 3.12">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-555" alt="Platforms">
+  <img src="https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-3776ab?logo=python&logoColor=white" alt="Python 3.12 | 3.13 | 3.14">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-555" alt="Platforms">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2f6fb3" alt="License: Apache-2.0"></a>
 </p>
 
@@ -98,8 +98,13 @@ VS Code — see [docs/format.md](docs/format.md).
 |---|---|
 | **Windows** | Download `mapcan-X.Y.Z-setup.exe` from [Releases](https://github.com/ordu1453/mapcan/releases/latest) and run it. No Python or administrator rights needed. |
 | **Linux x64** | Download `mapcan-X.Y.Z-linux-x64.tar.gz`, extract it and run `mapcan/mapcan-app` (editor in the browser) or `mapcan/mapcan` (CLI). |
-| **Any OS with Python 3.12** | `uv tool install "mapcan[desktop]"` or `pipx install "mapcan[desktop]"` ([PyPI](https://pypi.org/project/mapcan/)) |
+| **Any OS with Python 3.12 or newer** | `uv tool install "mapcan[desktop]"` or `pipx install "mapcan[desktop]"` ([PyPI](https://pypi.org/project/mapcan/)) |
 | **Docker** | `ghcr.io/ordu1453/mapcan:<version>` — everything needed for CI |
+
+The package is split into parts: `pip install mapcan` is the core (validation, DBC, EDS, Markdown,
+HTML, C and Python code: enough for CI and firmware builds). Extras add the rest: `web` (the editor
+in a browser), `pdf`, `xlsx`, `lsp` (the language server for VS Code), `desktop` (the app with all
+its exports) and `all`. A command that needs a missing part says which one to install.
 
 No external programs are required: PDFs are built by the bundled Typst compiler, and the PT Sans
 and PT Serif fonts (OFL) ship with the package.
@@ -289,7 +294,7 @@ needed.
 field to the format.
 
 ```sh
-uv sync                           # environment from uv.lock (with the lsp and desktop extras)
+uv sync                           # environment from uv.lock (with every extra)
 uv run pre-commit install         # run ruff before every commit
 uv run mapcan --help
 uv run pytest
@@ -307,7 +312,7 @@ to `src/mapcan/web/static/`.
 ```sh
 python -m venv .venv
 .venv/Scripts/activate            # Linux/macOS: source .venv/bin/activate
-pip install -e .
+pip install -e ".[all]"
 ```
 </details>
 

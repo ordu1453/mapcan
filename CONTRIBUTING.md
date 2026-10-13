@@ -13,12 +13,13 @@ Security problems are reported privately, not in an issue: see [SECURITY.md](SEC
 
 ## Setting up
 
-You need [uv](https://docs.astral.sh/uv/) (it installs Python 3.12), and for the UI parts
+You need [uv](https://docs.astral.sh/uv/) (it installs Python 3.12, the version of `.python-version`;
+3.13 and 3.14 are supported too), and for the UI parts
 Node.js 24. A C compiler (`gcc`, and `arm-none-eabi-gcc` if you have it) lets the tests compile the
 generated C code; without one those tests are skipped.
 
 ```sh
-uv sync                     # Python environment from uv.lock, with the lsp and desktop extras
+uv sync                     # Python environment from uv.lock, with every extra (mapcan[all])
 uv run pre-commit install   # ruff before every commit, as in CI
 uv run mapcan --help
 ```

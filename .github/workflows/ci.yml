@@ -48,13 +48,37 @@ jobs:
   test-linux:
     if: ${{ !inputs.skip-linux }}    # on a plain push inputs is empty, so the test runs
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - run: uv sync --locked --extra lsp
       - run: uv run pytest
+
+  # The core without extras (as in CI and firmware builds): validation and the light outputs work, and a
+  # command that needs an extra says which one.
+  core:
+    if: ${{ !inputs.skip-linux }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+      - run: uv sync --locked --no-dev
+      - name: Validate and build without extras
+        run: |
+          uv run --no-sync mapcan validate examples/j1939.yaml --strict
+          uv run --no-sync mapcan build examples/j1939.yaml -o build --formats md,html,dbc,eds,c,py
+      - name: A command that needs an extra names it
+        run: |
+          ! uv run --no-sync mapcan export pdf examples/j1939.yaml -o build/x.pdf 2> err.txt
+          grep -F 'mapcan[pdf]' err.txt
 
   # A trial build of the Docker image (without publishing): otherwise a broken Dockerfile shows up only
   # in release.yml after the tag.

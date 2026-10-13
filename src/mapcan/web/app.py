@@ -291,10 +291,13 @@ def build_export(cmap: MapCan, fmt: str, stem: str, lang: str | None, template: 
     from ..codegen.c import generate_c
     from ..codegen.py import generate_py
     from ..export.dbc import export_dbc
-    from ..export.pdf import export_pdf
     from ..export.text import render
-    from ..export.xlsx import export_xlsx
+    from ..extras import MissingExtra, require
 
+    try:
+        require(*{"xlsx": ("xlsx",), "pdf": ("pdf",)}.get(fmt, ()))
+    except MissingExtra as e:
+        raise AppError(400, "missing-extra", str(e)) from e
     if fmt == "md":
         return render(cmap, "md", lang=lang).encode("utf-8")
     if fmt == "html":
@@ -302,8 +305,12 @@ def build_export(cmap: MapCan, fmt: str, stem: str, lang: str | None, template: 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         if fmt == "xlsx":
+            from ..export.xlsx import export_xlsx
+
             return export_xlsx(cmap, root / f"{stem}.xlsx", lang=lang).read_bytes()
         if fmt == "pdf":
+            from ..export.pdf import export_pdf
+
             return export_pdf(cmap, root / f"{stem}.pdf", template=template, lang=lang).read_bytes()
         if fmt == "dbc":
             return _zip(export_dbc(cmap, root), root)

@@ -153,7 +153,7 @@ jobs:
           python-version: "3.12"
       - name: Install
         # Without the desktop extra: pywebview on Linux needs GTK/Qt; without it mapcan-app opens the browser.
-        run: uv sync --locked --no-dev --group package
+        run: uv sync --locked --no-dev --extra web --extra pdf --extra xlsx --group package
       - name: Build (PyInstaller)
         run: uv run --no-sync pyinstaller packaging/mapcan.spec --noconfirm
       - name: Smoke test
@@ -237,7 +237,7 @@ jobs:
             echo "- **Windows:** download \`mapcan-$VERSION-setup.exe\` and run it. No administrator rights required."
             echo "  Without installing: \`mapcan-$VERSION-windows-x64.zip\` (run \`mapcan-app.exe\`)."
             echo "- **Linux (x64):** extract \`mapcan-$VERSION-linux-x64.tar.gz\` and run \`mapcan/mapcan-app\` (the editor opens in the browser) or \`mapcan/mapcan\` (command line)."
-            echo "- **Python 3.12:** \`uv tool install \"mapcan[desktop]==$VERSION\"\` (or \`pipx install\`), [PyPI](https://pypi.org/project/mapcan/$VERSION/)"
+            echo "- **Python 3.12 or newer:** \`uv tool install \"mapcan[desktop]==$VERSION\"\` (or \`pipx install\`), [PyPI](https://pypi.org/project/mapcan/$VERSION/)"
             echo "- **Docker:** \`docker run --rm -v \"\$PWD:/work\" ghcr.io/${GITHUB_REPOSITORY,,}:$VERSION build mapcan.yaml -o build\`"
           } > notes.md
           cat notes.md

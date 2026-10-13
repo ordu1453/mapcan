@@ -122,6 +122,7 @@ def serve(
 ) -> None:
     import webbrowser
 
+    _need("web")
     from .launcher import DEFAULT_PORT, LOCAL_HOSTS, ServerThread, browser_url, pick_port
     from .web.app import create_app
     from .web.session import EditorSession
@@ -163,6 +164,7 @@ def app_cmd(
     browser: bool = typer.Option(False, "--browser", help=_("Open in a browser instead of the app window.")),
     readonly: bool = typer.Option(False, "--readonly", help=_("View only, no saving.")),
 ) -> None:
+    _need("web")
     from .launcher import run
 
     raise typer.Exit(run(path, window=not browser, readonly=readonly))
@@ -170,13 +172,21 @@ def app_cmd(
 
 @app.command(help=_("Language server (LSP) over stdio: validation and hints in VS Code and other editors."))
 def lsp() -> None:
-    try:
-        from .lsp.server import main as lsp_main
-    except ImportError as e:
-        typer.secho(_("The language server needs the pygls package: pip install \"mapcan[lsp]\""),
-                    fg=typer.colors.RED, err=True)
-        raise typer.Exit(1) from e
+    _need("lsp")
+    from .lsp.server import main as lsp_main
+
     lsp_main()
+
+
+def _need(*extras: str) -> None:
+    """Stop with a clear message when an optional part of mapcan is not installed (see extras.py)."""
+    from .extras import MissingExtra, require
+
+    try:
+        require(*extras)
+    except MissingExtra as e:
+        typer.secho(str(e), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from e
 
 
 class DiffFormat(str, Enum):
@@ -322,6 +332,7 @@ def export_xlsx_cmd(
     lang: Optional[str] = LangOpt,
     force: bool = ForceOpt,
 ) -> None:
+    _need("xlsx")
     from .export.xlsx import XlsxStyle, export_xlsx
 
     res = _load_checked(path, force)
@@ -339,6 +350,7 @@ def export_pdf_cmd(
     lang: Optional[str] = LangOpt,
     force: bool = ForceOpt,
 ) -> None:
+    _need("pdf")
     from .export.pdf import PdfError, export_pdf
 
     res = _load_checked(path, force)
@@ -479,14 +491,24 @@ def build(
     from .codegen.py import generate_py
     from .export.dbc import export_dbc
     from .export.eds import export_eds
-    from .export.pdf import export_pdf
     from .export.text import export_text
-    from .export.xlsx import export_xlsx
 
     wanted = [f.strip() for f in formats.split(",") if f.strip()]
     unknown = set(wanted) - set(ALL_FORMATS)
     if unknown:
         raise typer.BadParameter(_("unknown formats: {formats}", formats=", ".join(sorted(unknown))))
+    _need(*(f for f in ("xlsx", "pdf") if f in wanted))
+
+    def export_xlsx(*a):
+        from .export.xlsx import export_xlsx as x
+
+        return x(*a)
+
+    def export_pdf(*a):
+        from .export.pdf import export_pdf as p
+
+        return p(*a)
+
     res = _load_checked(path, force)
     m, stem = res.map, path.stem
     out.mkdir(parents=True, exist_ok=True)

@@ -587,8 +587,9 @@ RU: dict[str, str] = {
     # ------------------------------------------------------------------ языковой сервер
     "Language server (LSP) over stdio: validation and hints in VS Code and other editors.":
         "Языковой сервер (LSP) через stdio: проверка и подсказки в VS Code и других редакторах.",
-    "The language server needs the pygls package: pip install \"mapcan[lsp]\"":
-        "Языковому серверу нужен пакет pygls: pip install \"mapcan[lsp]\"",
+    "This needs the optional part “{extra}” of mapcan: pip install \"mapcan[{extra}]\" (or \"mapcan[all]\")":
+        "Для этого нужна дополнительная часть mapcan «{extra}»: pip install \"mapcan[{extra}]\" "
+        "(или \"mapcan[all]\")",
     "bits {msb}…{lsb} (BE)": "биты {msb}…{lsb} (BE)",
     "bits {lo}–{hi}": "биты {lo}–{hi}",
     "unit: {unit}": "единица: {unit}",

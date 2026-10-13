@@ -4,7 +4,7 @@ version = "0.20.0"
 description = "A YAML map of CAN signals as the single source of truth: validation, Excel/PDF/Markdown/HTML, DBC, C/Python code"
 # readme: built from README.md with absolute links for PyPI (see fancy-pypi-readme below)
 dynamic = ["readme"]
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "src/mapcan/fonts/OFL*.txt"]
 keywords = ["CAN", "CAN FD", "CANopen", "SAE J1939", "DBC", "code generation", "automotive", "embedded"]
@@ -20,23 +20,21 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Code Generators",
     "Topic :: Software Development :: Embedded Systems",
 ]
+# The core: validation, DBC/EDS/Markdown/HTML, code generation (CI, firmware builds). The editor, PDF and Excel
+# are extras: `pip install "mapcan[all]"` for everything (src/mapcan/extras.py names them in messages).
 dependencies = [
     "pydantic>=2.7,<3",
-    "ruamel.yaml>=0.18",
+    # ruamel changes its API between minor releases: raised after testing (Dependabot)
+    "ruamel.yaml>=0.18,<0.20",
     "typer>=0.12",
     "jinja2>=3.1",
-    "openpyxl>=3.1",
-    "typst>=0.13",
     "cantools>=39",
-    "pillow>=10",              # logo in Excel (openpyxl)
-    "fastapi>=0.110",
-    "uvicorn>=0.29",
-    "websockets>=12",
-    "python-multipart>=0.0.9",
 ]
 
 [project.urls]
@@ -47,12 +45,17 @@ Issues = "https://github.com/ordu1453/mapcan/issues"
 Changelog = "https://github.com/ordu1453/mapcan/releases"
 
 [project.optional-dependencies]
-# Stage 8 (working with a bus): reserved.
-bus = ["python-can>=4.3"]
-# A separate app window (`mapcan app`); without it the editor opens in the browser.
-desktop = ["pywebview>=5"]
+# The editor in a browser (`mapcan serve`, `mapcan app --browser`).
+web = ["fastapi>=0.110", "uvicorn>=0.29", "websockets>=12", "python-multipart>=0.0.9"]
+# PDF (`mapcan export pdf`): the Typst compiler.
+pdf = ["typst>=0.13"]
+# Excel (`mapcan export xlsx`); pillow puts the logo into the sheet.
+xlsx = ["openpyxl>=3.1", "pillow>=10"]
 # Language server (`mapcan lsp`) for the VS Code extension and other editors.
 lsp = ["pygls>=2.0,<3"]
+# The app (`mapcan app`): the editor in its own window, with every export it offers.
+desktop = ["mapcan[web,pdf,xlsx]", "pywebview>=5"]
+all = ["mapcan[web,pdf,xlsx,lsp,desktop]"]
 
 [project.scripts]
 mapcan = "mapcan.cli:main"
@@ -63,7 +66,7 @@ mapcan-app = "mapcan.launcher:main"
 [dependency-groups]
 # The project itself with the lsp and desktop extras: a plain `uv sync` would otherwise uninstall them.
 dev = [
-    "mapcan[lsp,desktop]",
+    "mapcan[all]",
     "pytest>=8",
     "ruff>=0.5",
     "pre-commit>=4",
