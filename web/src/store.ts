@@ -51,7 +51,46 @@ export const store = reactive({
   git: null as GitStatus | null,               // git state of the map file (the Git menu)
   gitFetching: false,                          // git fetch is running (checking what is new on the server)
   gitFetchError: "",                           // error of the last fetch
+  ask: null as Ask | null,                     // the open question of askUser() (ConfirmDialog.vue)
 });
+
+export interface AskButton {
+  label: string;
+  value: string;
+  kind?: "primary" | "danger";
+}
+
+interface Ask {
+  title: string;
+  message: string;
+  buttons: AskButton[];
+}
+
+let askResolve: ((v: string | null) => void) | null = null;
+
+/** Ask the user with explicit buttons; the value of the chosen one, or null for Cancel, Esc and the close button. */
+export function askUser(title: string, message: string, buttons: AskButton[]): Promise<string | null> {
+  answerAsk(null);     // a question still open is cancelled
+  store.ask = { title, message, buttons };
+  return new Promise((resolve) => {
+    askResolve = resolve;
+  });
+}
+
+export function answerAsk(value: string | null): void {
+  const r = askResolve;
+  askResolve = null;
+  store.ask = null;
+  r?.(value);
+}
+
+const cancel = (): AskButton => ({ label: t("Cancel"), value: "cancel" });
+
+/** "Overwrite" / "Cancel": whether to overwrite. */
+async function askOverwrite(message: string): Promise<boolean> {
+  return (await askUser(t("Overwrite?"), message, [cancel(), { label: t("Overwrite"), value: "overwrite", kind: "danger" }]))
+    === "overwrite";
+}
 
 let toastId = 0;
 export function toast(text: string, kind: Toast["kind"] = "error"): void {
@@ -122,17 +161,23 @@ function acceptSession(r: SessionResult): void {
 
 /** An operation that changes the file; with unsaved edits it asks what to do with them. */
 async function switchFile(fn: (force: boolean) => Promise<SessionResult>, okText?: string): Promise<boolean> {
+  // A draft typed in the YAML tab goes to the server first, so it counts as an unsaved edit
+  if (!(await actions.flushYaml())) return false;
   store.busy = true;
   try {
     try {
       acceptSession(await fn(false));
     } catch (e) {
       if (!(e instanceof ApiError && e.code === "unsaved")) throw e;
-      if (confirm(`${e.message}.\n\n${t("Save them before continuing?")}`)) {
-        accept(await api.save());
-      } else if (!confirm(t("Continue without saving? Unsaved changes will be lost."))) {
-        return false;
-      }
+      store.busy = false;
+      const answer = await askUser(t("Unsaved changes"), `${e.message}.\n\n${t("Save them before continuing?")}`, [
+        cancel(),
+        { label: t("Don't save"), value: "discard", kind: "danger" },
+        { label: t("Save"), value: "save", kind: "primary" },
+      ]);
+      if (answer !== "save" && answer !== "discard") return false;
+      store.busy = true;
+      if (answer === "save") accept(await api.save());
       acceptSession(await fn(true));
     }
     if (okText) toast(okText, "info");
@@ -171,7 +216,7 @@ export const actions = {
       try {
         return await api.fromExample({ name, path, force, overwrite });
       } catch (e) {
-        if (!(e instanceof ApiError && e.code === "exists" && confirm(`${e.message}\n\n${t("Overwrite?")}`))) throw e;
+        if (!(e instanceof ApiError && e.code === "exists" && (await askOverwrite(e.message)))) throw e;
         return api.fromExample({ name, path, force, overwrite: true });
       }
     }),
@@ -181,7 +226,7 @@ export const actions = {
       toast(t("Saved"), "info");
       return true;
     } catch (e) {
-      if (e instanceof ApiError && e.code === "exists" && confirm(`${e.message}\n\n${t("Overwrite?")}`)) {
+      if (e instanceof ApiError && e.code === "exists" && (await askOverwrite(e.message))) {
         return actions.saveAs(path, true);
       }
       if (!(e instanceof ApiError && e.code === "exists")) toast(e instanceof Error ? e.message : String(e));
@@ -233,7 +278,9 @@ export const actions = {
   /** Reload the file from disk; `ask`: ask if there are unsaved edits (they and the undo history are lost). */
   reload: async (ask = true) => {
     const unsaved = !!store.state?.dirty || yamlLocal.value;
-    if (ask && unsaved && !confirm(t("Reload the file from disk? Unsaved changes will be lost."))) return false;
+    if (ask && unsaved && (await askUser(t("Reload from disk"),
+      t("Reload the file from disk? Unsaved changes will be lost."),
+      [cancel(), { label: t("Reload"), value: "reload", kind: "danger" }])) !== "reload") return false;
     store.fileChangedBanner = false;
     store.yaml = { draft: null, applied: null, diags: null };
     return run(api.reload, t("Reloaded from disk"));
@@ -247,7 +294,8 @@ export const actions = {
       toast(t("Saved"), "info");
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        if (confirm(t("The file was modified on disk by another program.\nOverwrite it with your version?"))) {
+        store.busy = false;
+        if (await askOverwrite(t("The file was modified on disk by another program.\nOverwrite it with your version?"))) {
           return actions.save(true);
         }
       } else {
@@ -412,6 +460,7 @@ export function installShortcuts(): void {
     }
   });
   window.addEventListener("beforeunload", (e) => {
-    if (store.state?.dirty) e.preventDefault();
+    // An edit not saved yet, or a YAML draft not applied yet
+    if (store.state?.dirty || yamlLocal.value) e.preventDefault();
   });
 }

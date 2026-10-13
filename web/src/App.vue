@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { api } from "./api";
 import { actions, store } from "./store";
+import ConfirmDialog from "./components/ConfirmDialog.vue";
 import DiagnosticsPanel from "./components/DiagnosticsPanel.vue";
 import DiffDialog from "./components/DiffDialog.vue";
 import FileDialog from "./components/FileDialog.vue";
@@ -119,6 +120,8 @@ function keepMine() {
     <GhPublishDialog v-if="store.dialog === 'gh-publish'" @close="store.dialog = null" />
     <GitLogDialog v-if="store.dialog === 'git-log'" @close="store.dialog = null"
                   @compare="store.dialog = null; openDiff($event)" />
+
+    <ConfirmDialog v-if="store.ask" />
 
     <div class="toasts">
       <div v-for="t in store.toasts" :key="t.id" class="toast" :class="t.kind">{{ t.text }}</div>

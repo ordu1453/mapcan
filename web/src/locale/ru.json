@@ -77,7 +77,6 @@
   "Compare versions…": "Сравнить версии…",
   "Compare with git version:": "С версией из git:",
   "Comparing…": "Сравнение…",
-  "Continue without saving? Unsaved changes will be lost.": "Продолжить без сохранения? Несохранённые изменения будут потеряны.",
   "Copy": "Копировать",
   "Could not reach the server": "Не удалось связаться с сервером",
   "Could not rename": "Не удалось переименовать",
@@ -446,5 +445,9 @@
   "map version: major": "версия карты: старший номер",
   "map version: minor": "версия карты: младший номер",
   "map version: patch": "версия карты: номер исправления",
-  "layout CRC32": "CRC32 раскладки"
+  "layout CRC32": "CRC32 раскладки",
+  "Unsaved changes": "Несохранённые изменения",
+  "Don't save": "Не сохранять",
+  "Overwrite": "Перезаписать",
+  "Reload": "Перечитать"
 }

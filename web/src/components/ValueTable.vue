@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Table of enum values: value, name, description. Writes values[key] with set/rename_key operations.
 import { computed } from "vue";
-import { actions } from "../store";
+import { actions, toast } from "../store";
 import { parseInteger } from "../form/input";
 import { nextFreeKey, startsWith, txt } from "../model";
 import type { Diagnostic, Op, Path } from "../types";
@@ -57,7 +57,7 @@ function setValue(r: Row, e: Event) {
   }
   if (n === r.num) return;
   if (rows.value.some((x) => x.num === n)) {
-    alert(t("Value {n} is already in the table", { n }));
+    toast(t("Value {n} is already in the table", { n }));
     (e.target as HTMLInputElement).value = fmt(r.num);
     return;
   }
