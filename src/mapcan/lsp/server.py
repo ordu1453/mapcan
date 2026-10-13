@@ -7,6 +7,7 @@ other YAML files are skipped.
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 from lsprotocol import types as T
 from pygls.lsp.server import LanguageServer
@@ -54,26 +55,58 @@ class MapcanServer(LanguageServer):
         self.analyses: dict[str, A.Analysis] = {}
         self.pending: dict[str, asyncio.Task] = {}     # the analysis waiting for the typing to pause
 
+    def read(self, path: str) -> str | None:
+        """Text of a file of the map: the editor's if it is open (with unsaved changes), else the disk's."""
+        target = Path(path).resolve()
+        for doc in list(self.workspace.text_documents.values()):
+            p = to_fs_path(doc.uri)
+            if p and Path(p).resolve() == target:
+                return doc.source
+        return A.read_disk(path)
+
+    def _fresh(self, a: A.Analysis, text: str) -> bool:
+        return a.text == text and all(self.read(f) == t for f, t in a.deps.items())
+
+    def _analyze(self, uri: str, text: str) -> A.Analysis:
+        path = to_fs_path(uri) or uri
+        if A.is_part(text) and uri.startswith("file:"):
+            return A.analyze_part(text, path, self.read)
+        return A.analyze(text, path, self.read)
+
     def analysis(self, uri: str) -> A.Analysis | None:
         """The analysis of the current text: for edits, which must start from what is in the editor."""
         doc = self.workspace.get_text_document(uri)
         last = self.analyses.get(uri)
-        if last is not None and last.text == doc.source:
+        if last is not None and self._fresh(last, doc.source):
             return last
-        if not A.is_mapcan(doc.source):
+        if not A.handled(doc.source):
             self.analyses.pop(uri, None)
             return None
-        a = A.analyze(doc.source, to_fs_path(uri) or uri)
+        a = self._analyze(uri, doc.source)
         self.analyses[uri] = a
         return a
+
+    def editable(self, uri: str) -> A.Analysis | None:
+        """The analysis for an edit through the tree, the form or a rename: none yet for an included file opened
+        on its own (#49), only its text is edited there."""
+        a = self.analysis(uri)
+        return a if a is not None and not a.own_file else None
 
     def latest(self, uri: str) -> A.Analysis | None:
         """The last finished analysis, even of a slightly older text: for completion and inlay hints, which come
         with every keystroke and should not wait for a new analysis. Without one, the current text."""
         last = self.analyses.get(uri)
-        if last is not None and A.is_mapcan(self.workspace.get_text_document(uri).source):
+        if last is not None and A.handled(self.workspace.get_text_document(uri).source):
             return last
         return self.analysis(uri)
+
+    def dependents(self, uri: str) -> list[str]:
+        """Open documents whose analysis read this one: a map and the files it includes depend on each other."""
+        path = to_fs_path(uri)
+        if not path:
+            return []
+        key = str(Path(path).resolve())
+        return [u for u, a in list(self.analyses.items()) if u != uri and key in a.deps]
 
     async def publish_later(self, uri: str) -> None:
         """Analyse in a worker thread once the typing pauses; a newer change cancels this run, and a result
@@ -81,12 +114,12 @@ class MapcanServer(LanguageServer):
         await asyncio.sleep(DEBOUNCE)
         doc = self.workspace.get_text_document(uri)
         text = doc.source
-        if not A.is_mapcan(text):
+        if not A.handled(text):
             self.publish(uri)
             return
         last = self.analyses.get(uri)
-        if last is None or last.text != text:
-            last = await asyncio.to_thread(A.analyze, text, to_fs_path(uri) or uri)
+        if last is None or not self._fresh(last, text):
+            last = await asyncio.to_thread(self._analyze, uri, text)
             if self.workspace.get_text_document(uri).source != text:
                 return          # changed meanwhile: the run of that change publishes
             self.analyses[uri] = last
@@ -123,7 +156,10 @@ def did_open(ls: MapcanServer, params: T.DidOpenTextDocumentParams) -> None:
 
 @server.feature(T.TEXT_DOCUMENT_DID_CHANGE)
 async def did_change(ls: MapcanServer, params: T.DidChangeTextDocumentParams) -> None:
-    ls.schedule(params.text_document.uri)
+    uri = params.text_document.uri
+    # The map and its included files open in the editor are checked again too
+    for u in [uri, *ls.dependents(uri)]:
+        ls.schedule(u)
 
 
 @server.feature(T.TEXT_DOCUMENT_DID_CLOSE)
@@ -178,7 +214,7 @@ def inlay_hint(ls: MapcanServer, params: T.InlayHintParams) -> list[T.InlayHint]
 def completion(ls: MapcanServer, params: T.CompletionParams) -> T.CompletionList | None:
     uri = params.text_document.uri
     doc = ls.workspace.get_text_document(uri)
-    if not A.is_mapcan(doc.source):
+    if not A.handled(doc.source):
         return None
     ls.latest(uri)      # completion reads the text itself; the analysis only gives names and choices
     pos = (params.position.line, params.position.character)
@@ -231,8 +267,11 @@ def code_action(ls: MapcanServer, params: T.CodeActionParams) -> list[T.CodeActi
 def definition(ls: MapcanServer, params: T.DefinitionParams) -> T.Location | None:
     uri = params.text_document.uri
     a = ls.analysis(uri)
-    found = E.definition(a, (params.position.line, params.position.character)) if a else None
-    return T.Location(uri=uri, range=_range(*found)) if found else None
+    found = E.definition_location(a, (params.position.line, params.position.character)) if a else None
+    if not found:
+        return None
+    file, rng = found
+    return T.Location(uri=Path(file).resolve().as_uri() if file else uri, range=_range(*rng))
 
 
 @server.feature(T.TEXT_DOCUMENT_REFERENCES)
@@ -248,7 +287,7 @@ def references(ls: MapcanServer, params: T.ReferenceParams) -> list[T.Location] 
 
 @server.feature(T.TEXT_DOCUMENT_PREPARE_RENAME)
 def prepare_rename(ls: MapcanServer, params: T.PrepareRenameParams):
-    a = ls.analysis(params.text_document.uri)
+    a = ls.editable(params.text_document.uri)
     path = E.name_at(a, (params.position.line, params.position.character)) if a else None
     if path is None:
         return None
@@ -259,7 +298,7 @@ def prepare_rename(ls: MapcanServer, params: T.PrepareRenameParams):
 @server.feature(T.TEXT_DOCUMENT_RENAME)
 def rename(ls: MapcanServer, params: T.RenameParams) -> T.WorkspaceEdit | None:
     uri = params.text_document.uri
-    a = ls.analysis(uri)
+    a = ls.editable(uri)
     path = E.name_at(a, (params.position.line, params.position.character)) if a else None
     if path is None or not params.new_name.strip():
         return None
@@ -303,7 +342,7 @@ def edit_command(ls: MapcanServer, *args) -> dict:
     """Argument: {uri, action: add|duplicate|delete, path, kind}. Response: {edit: {range, text}, cursor} or {}."""
     params = _arg(args)
     uri = params.get("uri", "")
-    a = ls.analysis(uri) if uri else None
+    a = ls.editable(uri) if uri else None
     path = tuple(params.get("path") or ())
     action = params.get("action")
     # An empty path: only a new bus (added to the map)
@@ -345,7 +384,7 @@ def set_command(ls: MapcanServer, *args) -> dict:
     Response: {edits: [{range, text}]}."""
     params = _arg(args)
     uri = params.get("uri", "")
-    a = ls.analysis(uri) if uri else None
+    a = ls.editable(uri) if uri else None
     path = tuple(params.get("path") or ())
     if a is None or not path:
         return {"edits": []}
@@ -363,6 +402,8 @@ def ops_command(ls: MapcanServer, *args) -> dict:
     a = ls.analysis(params.get("uri", ""))
     if a is None:
         return {"error": _("The document is not a mapcan map.")}
+    if a.own_file:
+        return {"error": _("A file included by a map is edited as text for now.")}
     try:
         text = E.apply_ops(a, list(params.get("ops") or []))
     except OpError as e:
@@ -488,7 +529,7 @@ def add_history_command(ls: MapcanServer, *args) -> dict:
     """Argument: {uri, version, date, author, github, changes}. The new entry goes first in the revision
     history, and the document's version and date come from it. Response: {edit: {range, text}, cursor} or {error}."""
     params = _arg(args)
-    a = ls.analysis(params.get("uri", ""))
+    a = ls.editable(params.get("uri", ""))
     if a is None or a.result.raw is None:
         return {"error": _("The map cannot be read: fix the errors to compare versions.")}
     entry = {k: params.get(k) for k in ("version", "date", "author", "github")}

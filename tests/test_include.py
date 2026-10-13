@@ -75,7 +75,8 @@ def test_texts_of_open_files_replace_the_disk(tmp_path):
     from mapcan.loader import loads
 
     edited = COMMON.replace("name: charger", "name: charger2")
-    res = loads(p.read_text(encoding="utf-8"), str(p), texts={str((tmp_path / "common.yaml").resolve()): edited})
+    open_files = {str((tmp_path / "common.yaml").resolve()): edited}
+    res = loads(p.read_text(encoding="utf-8"), str(p), read=open_files.get)
     assert res.map.buses[1].devices[0].name == "charger2"
 
 

@@ -31,12 +31,32 @@ _KEY = re.compile(r"([A-Za-z_][\w]*)\s*:(?=\s|$)")
 
 
 _PART = re.compile(r"^part_of\s*:", re.MULTILINE)
+_PART_OF = re.compile(r"""^part_of\s*:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))""", re.MULTILINE)
 
 
 def is_mapcan(text: str) -> bool:
     """Whether the YAML looks like a mapcan map (the top-level key ``mapcan:``). A file included by a map
     (``part_of:``) is not one: it is checked as a part of its map."""
     return _HEADER.search(text) is not None and _PART.search(text) is None
+
+
+def is_part(text: str) -> bool:
+    """A file included by a map (``part_of: <map>``): analysed as a part of that map."""
+    return _PART_OF.search(text) is not None
+
+
+def part_of(text: str) -> str | None:
+    m = _PART_OF.search(text)
+    return next((g for g in m.groups() if g), None) if m else None
+
+
+def handled(text: str) -> bool:
+    """A map or a part of one: the documents the language server works with."""
+    return is_mapcan(text) or is_part(text)
+
+
+def _same_file(a: str | None, b: str | None) -> bool:
+    return a is not None and b is not None and Path(a).resolve() == Path(b).resolve()
 
 
 # --------------------------------------------------------------------------- #
@@ -79,8 +99,14 @@ class Analysis:
     diagnostics: list[Diagnostic]
     lines: list[str] = field(default_factory=list)
     nodes: dict[Path_, Node] = field(default_factory=dict)
-    # Included files (include): file name → its text and the ranges of the nodes in it
+    # The other files of the map: file name → its text and the ranges of the nodes in it. For the main file,
+    # the included files; for an included file (own_file), the main file and the other included files.
     included: dict[str, Analysis] = field(default_factory=dict)
+    # The file this text is, if it is a file included by the map (its name as the loader has it); None: the main
+    # file. Paths stay the map's: an included device that extends a bus of the main file is buses[0].devices[2].
+    own_file: str | None = None
+    # Texts of the other files read for the analysis (file → text): a change in any of them makes it outdated
+    deps: dict[str, str] = field(default_factory=dict)
 
     @property
     def map(self) -> MapCan | None:
@@ -91,10 +117,24 @@ class Analysis:
         """Data of the map for the tree and the form: together with the included files, if any."""
         return self.result.merged if self.result.merged is not None else self.result.raw
 
-    def included_file(self, path: Path_) -> str | None:
-        """Included file the node is described in; None for a node of the main file."""
+    @property
+    def raw(self):
+        """The data at the paths of :attr:`nodes`: the main file's YAML, or for an included file the whole map."""
+        return self.data if self.own_file else self.result.raw
+
+    def file_of(self, path: Path_) -> str | None:
         src = self.result.source
-        return src.file_of(path) if src.is_included(path) else None
+        return src.file_of(path) if src.is_included(path) else src.file
+
+    def included_file(self, path: Path_) -> str | None:
+        """The other file the node is described in; None for a node of this text."""
+        f = self.file_of(path)
+        return None if f == (self.own_file or self.result.source.file) else f
+
+    def view_of(self, path: Path_) -> Analysis | None:
+        """The analysis that has the text of the node: this one or one of :attr:`included`."""
+        f = self.included_file(path)
+        return self.included.get(f) if f else self
 
     def token_end(self, start: Pos) -> Pos:
         """End of the scalar (or the first word) that starts at ``start``."""
@@ -186,21 +226,86 @@ def _strip_comment(line: str) -> str:
     return m.group(1) if m else line
 
 
-def analyze(text: str, filename: str | None = None) -> Analysis:
-    result = loads(text, filename)
+Reader = typing.Callable[[str], "str | None"]
+
+
+def read_disk(path: str) -> str | None:
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def _views(a: Analysis, result: LoadResult, read: Reader, skip: str | None) -> None:
+    """Analyses of the included files (all but ``skip``) for :attr:`Analysis.included`."""
+    for _i, fname in result.source.includes:
+        if fname == skip:
+            continue
+        sub_text = read(str(Path(fname).resolve()))
+        if sub_text is None:
+            continue
+        a.deps[str(Path(fname).resolve())] = sub_text
+        sub_lines = sub_text.splitlines()
+        a.included[fname] = Analysis(sub_text, result, [], sub_lines, node_ranges(result.source, sub_lines, fname),
+                                     own_file=fname)
+
+
+def analyze(text: str, filename: str | None = None, read: Reader = read_disk) -> Analysis:
+    """Analysis of a map; ``read`` gives the texts of its included files (the editor's, if they are open)."""
+    result = loads(text, filename, read=read)
     report = check(result)
     lines = text.splitlines()
     # Messages about included files (include) are shown on the include line of the main file
     diags = [result.source.in_main_file(d) for d in report.sorted()]
     a = Analysis(text, result, diags, lines, node_ranges(result.source, lines))
-    for _i, fname in result.source.includes:
-        try:
-            sub_text = Path(fname).read_text(encoding="utf-8")
-        except OSError:
-            continue
-        sub_lines = sub_text.splitlines()
-        a.included[fname] = Analysis(sub_text, result, [], sub_lines, node_ranges(result.source, sub_lines, fname))
+    _views(a, result, read, None)
     return a
+
+
+def analyze_part(text: str, filename: str, read: Reader = read_disk) -> Analysis:
+    """Analysis of a file included by a map (``part_of``), as a part of that map: its messages in its own text,
+    the map's tree with the nodes of the other files marked with their file."""
+    of = part_of(text) or ""
+    main = str((Path(filename).resolve().parent / of).resolve())
+    own = str(Path(filename).resolve())
+    lines = text.splitlines()
+    main_text = read(main)
+    result = loads(main_text, main, read=lambda p: text if _same_file(p, own) else read(p)) \
+        if main_text is not None else None
+    fname = next((f for _i, f in result.source.includes if _same_file(f, own)), None) if result else None
+    if result is None or fname is None:
+        # The map is not there or does not include this file: the file is read on its own
+        alone = loads(text, filename)
+        line, col = alone.source.positions.get(("part_of",), (1, 1))
+        msg = (_("part_of: the map {map!r} is not found", map=of) if result is None else
+               _("part_of: the map {map!r} does not include this file", map=of))
+        return Analysis(text, alone, [Diagnostic("error", "include", msg, filename, line, col, "part_of",
+                                                 ["part_of"])], lines, {}, own_file=own,
+                        deps={main: main_text} if main_text is not None else {})
+    report = check(result)
+    mine = [d for d in report.sorted() if _same_file(d.file, own)]
+    elsewhere = [d for d in report.sorted() if d.level == "error" and not _same_file(d.file, own)]
+    if elsewhere:
+        line, col = _part_of_pos(lines)
+        mine.insert(0, Diagnostic("warning", "include",
+                                  _("the map {map!r} has {n} error(s) outside this file: open it to see them",
+                                    map=of, n=len(elsewhere)), own, line, col, "part_of", ["part_of"]))
+    a = Analysis(text, result, mine, lines, node_ranges(result.source, lines, fname), own_file=fname,
+                 deps={main: main_text})
+    main_lines = main_text.splitlines()
+    a.included[result.source.file] = Analysis(main_text, result, [], main_lines,
+                                              node_ranges(result.source, main_lines, None))
+    _views(a, result, read, fname)
+    return a
+
+
+def _part_of_pos(lines: list[str]) -> tuple[int, int]:
+    """1-based position of the value of ``part_of`` (the key is not a node of the map)."""
+    for i, ln in enumerate(lines):
+        m = _PART_OF.match(ln)
+        if m:
+            return i + 1, m.start(next(g for g in range(1, 4) if m.group(g))) + 1
+    return 1, 1
 
 
 def diagnostic_range(a: Analysis, d: Diagnostic) -> tuple[Pos, Pos]:
@@ -232,32 +337,40 @@ _CHILDREN = {"bus": (("frames", "frame"), ("devices", "device")),
 
 
 def symbols(a: Analysis) -> list[Symbol]:
-    """Tree of buses, devices, frames and signals from the raw YAML (it works even if the model has errors)."""
-    raw = a.result.raw
+    """Tree of buses, devices, frames and signals from the raw YAML (it works even if the model has errors).
+
+    In an included file a node written in another file (a bus of the main file that the included file extends)
+    is left out, and its children in this file take its place."""
+    raw = a.raw
     if not isinstance(raw, dict):
         return []
 
-    def build(node, path: Path_, kind: str) -> Symbol | None:
-        if not isinstance(node, dict) or path not in a.nodes:
-            return None
+    def children(node, path: Path_, kind: str) -> list[Symbol]:
+        out = []
+        for key, child_kind in _CHILDREN.get(kind, ()):
+            items = node.get(key)
+            if isinstance(items, list):
+                for i, item in enumerate(items):
+                    out += build(item, path + (key, i), child_kind)
+        return out
+
+    def build(node, path: Path_, kind: str) -> list[Symbol]:
+        if not isinstance(node, dict):
+            return []
+        if path not in a.nodes:
+            return children(node, path, kind) if a.own_file else []
         n = a.nodes[path]
         name_path = path + ("name",)
         sel_start = a.nodes[name_path].start if name_path in a.nodes else n.start
         sym = Symbol(str(node.get("name", "?")), kind, _detail(a, node, path, kind),
                      (n.start, n.end), (sel_start, a.token_end(sel_start)))
-        for key, child_kind in _CHILDREN.get(kind, ()):
-            items = node.get(key)
-            if isinstance(items, list):
-                for i, item in enumerate(items):
-                    child = build(item, path + (key, i), child_kind)
-                    if child:
-                        sym.children.append(child)
-        return sym
+        sym.children = children(node, path, kind)
+        return [sym]
 
     buses = raw.get("buses")
     if not isinstance(buses, list):
         return []
-    return [s for i, b in enumerate(buses) if (s := build(b, ("buses", i), "bus"))]
+    return [s for i, b in enumerate(buses) for s in build(b, ("buses", i), "bus")]
 
 
 def _detail(a: Analysis, node: dict, path: Path_, kind: str) -> str:
@@ -330,8 +443,9 @@ def map_tree(a: Analysis) -> list[dict]:
     lang = doc_language(a)
 
     def rng(path: Path_) -> dict | None:
-        file = a.included_file(path)
-        part = a.included.get(file) if file else a
+        part = a.view_of(path)
+        # In an included file opened on its own every node is read-only for now (#49): its own ones too
+        file = a.included_file(path) or a.own_file
         block = part.block(path) if part is not None else None
         if block is None:
             return None

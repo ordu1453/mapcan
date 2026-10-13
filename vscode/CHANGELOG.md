@@ -16,8 +16,10 @@
   quick fix of `deprecated-key` moves them there.
 * A raw signal has **Value from the map** (`source`): the map version or the layout CRC32, for a
   frame in which a device reports the map it was built from.
-* A file included by a map, which now starts with `mapcan: 1` and `part_of`, is not taken for a map
-  of its own.
+* A file included by a map, which now starts with `mapcan: 1` and `part_of`, is checked as a part of
+  that map: its problems show in it (also with unsaved changes in either file), the Map view shows the
+  whole map with the nodes of the other file read-only, and Go to Definition on a receiver leads to the
+  device in the main file. Its forms are read-only for now: edit it as text.
 * New fields from mapcan 0.21: a frame's **Receive timeout**, a bus's sample points and CAN FD data
   phase bit rate, and the `string` encoding of signals with **Charset** and **Terminator**.
 * The language server is started when the first map is opened, not for any YAML file, and only maps

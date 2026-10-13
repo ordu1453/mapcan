@@ -52,7 +52,7 @@ def yaml_scalar(value: str) -> str:
 
 
 def raw_at(a: Analysis, path: Path_):
-    obj = a.result.raw
+    obj = a.raw
     for el in path:
         try:
             obj = obj[el]
@@ -424,12 +424,21 @@ def _device_target(a: Analysis, path: Path_) -> tuple[Path_, str] | None:
 
 
 def definition(a: Analysis, pos: Pos) -> tuple[Pos, Pos] | None:
+    found = definition_location(a, pos)
+    return found[1] if found and found[0] is None else None
+
+
+def definition_location(a: Analysis, pos: Pos) -> tuple[str | None, tuple[Pos, Pos]] | None:
+    """(file, range) of the declaration of the device under the cursor; the file is None for this text, else the
+    other file of the map it is written in (a receiver in an included file declared in the main file)."""
     path = name_at(a, pos)
     target = _device_target(a, path) if path else None
     if target is None:
         return None
     decl, _refs = device_refs(a, *target)
-    return value_range(a, decl) if decl else None
+    view = a.view_of(decl) if decl else None
+    rng = value_range(view, decl) if view is not None else None
+    return (a.included_file(decl), rng) if rng else None
 
 
 def references(a: Analysis, pos: Pos, include_declaration: bool = True) -> list[tuple[Pos, Pos]]:
@@ -857,8 +866,9 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     and the scalar fields (texts {ru, en} in the document language).
 
     A node of an included file (include) is read from the data together with the included files, ``file``
-    is its file: the form shows it read-only. The bus devices also include those of the included files."""
-    file = a.included_file(path)
+    is its file: the form shows it read-only. The bus devices also include those of the included files.
+    In an included file opened on its own every node is read-only for now (#49)."""
+    file = a.included_file(path) or a.own_file
 
     def at(p: Path_):
         return raw_at_path(a.data, p) if file else raw_at(a, p)

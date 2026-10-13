@@ -6,6 +6,7 @@ import copy
 import datetime as _dt
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -298,9 +299,9 @@ def _make_yaml() -> YAML:
 
 
 def loads(text: str, filename: str | None = None, base_dir: str | Path | None = None,
-          texts: dict[str, str] | None = None) -> LoadResult:
-    """Load a map from its text. ``texts``: texts of included files to use instead of what is on the disk
-    (the editors pass the files open in them, with unsaved changes), by their resolved path."""
+          read: Callable[[str], str | None] | None = None) -> LoadResult:
+    """Load a map from its text. ``read``: gives the text of an included file by its resolved path instead of
+    the disk, or None to read the disk (the editors pass the files open in them, with unsaved changes)."""
     report = Report()
     src = SourceMap(filename)
     try:
@@ -323,7 +324,7 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
         return LoadResult(None, report, src, raw)
     if isinstance(data, dict):
         base = Path(base_dir) if base_dir is not None else Path(filename).resolve().parent if filename else None
-        _include(data, base, src, report, texts or {})
+        _include(data, base, src, report, read)
         data = _upgrade(data, src, report)
         merged = copy.deepcopy(data) if src.includes else None
         _value_tables(data, src, report)
@@ -379,7 +380,8 @@ INCLUDE_KEYS = {"mapcan", "part_of", "buses", "value_tables"}
 BUS_EXTENSION_KEYS = {"name", "devices", "frames"}
 
 
-def _include(data: dict, base: Path | None, src: SourceMap, report: Report, texts: dict[str, str]) -> None:
+def _include(data: dict, base: Path | None, src: SourceMap, report: Report,
+             read: Callable[[str], str | None] | None) -> None:
     """Include the files of ``include``: their buses, devices, frames and value tables are added to the map.
 
     Nodes of included files get paths after the nodes of the main file (the main file's indices do not change),
@@ -398,7 +400,7 @@ def _include(data: dict, base: Path | None, src: SourceMap, report: Report, text
             continue
         path = base / name
         try:
-            text = texts.get(str(path.resolve())) if texts else None
+            text = read(str(path.resolve())) if read else None
             if text is None:
                 text = path.read_text(encoding="utf-8")
         except OSError:

@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 from mapcan.lsp import analysis as A
+from mapcan.lsp import edits as E
 
 from .conftest import ROOT, one_bus
 
@@ -257,6 +259,71 @@ def test_server_protocol(tmp_path):
     finally:
         proc.kill()
         proc.wait()
+
+
+TRACTOR = ROOT / "examples" / "tractor"
+PART = (TRACTOR / "powertrain.yaml").read_text(encoding="utf-8")
+
+
+def part_analysis(text: str = PART, main: str | None = None):
+    def read(p: str):
+        if main is not None and p.endswith("tractor.yaml"):
+            return main
+        return A.read_disk(p)
+    return A.analyze_part(text, str(TRACTOR / "powertrain.yaml"), read)
+
+
+def test_included_file_is_analysed_as_part_of_its_map():
+    assert A.is_part(PART) and A.handled(PART) and not A.is_mapcan(PART)
+    a = part_analysis()
+    assert a.map is not None and not [d for d in a.diagnostics if d.level == "error"]
+    # Its nodes are at the paths of the map, with positions in its own text
+    gw = next(p for p, n in a.nodes.items() if p[-1:] == ("name",) and E.raw_at(a, p) == "gateway")
+    assert a.lines[a.nodes[gw].start[0]].strip() == "- name: gateway"
+    # Hover and hints come from the whole map
+    line = next(i for i, ln in enumerate(a.lines) if "name: engine_summary" in ln)
+    assert "0x310" in (A.hover(a, (line, a.lines[line].index("engine_summary"))) or "")
+    assert any("0x" in h.label for h in A.inlay_hints(a))
+
+
+def test_messages_of_an_included_file_are_shown_in_it():
+    text = PART.replace("factor: 0.125", "factor: 0", 1)
+    a = part_analysis(text)
+    d = next(d for d in a.diagnostics if d.code == "zero-factor")
+    assert a.lines[d.line - 1].strip() == "factor: 0"
+    main = (TRACTOR / "tractor.yaml").read_text(encoding="utf-8").replace("cycle_ms: 100", "cycle_ms: 100\n"
+                                                                          "            trigger: event", 1)
+    a = part_analysis(PART, main)
+    d = a.diagnostics[0]
+    assert d.level == "warning" and "outside this file" in d.message and a.lines[d.line - 1].startswith("part_of")
+
+
+def test_tree_and_outline_of_an_included_file():
+    a = part_analysis()
+    tree = A.map_tree(a)
+    cab, powertrain = tree
+    main_file = str(TRACTOR / "tractor.yaml")
+    assert Path(cab["file"]).resolve() == Path(main_file).resolve()      # the bus of the main file: read-only
+    devices = [d["ident"] for d in cab["children"] if d["kind"] == "device"]
+    assert "cab_ctrl" in devices and "gateway" in devices
+    assert all("file" in n for n in powertrain["children"])              # read-only for now (#49)
+    names = [s.name for s in A.symbols(a)]
+    assert names == ["gateway", "powertrain"]       # the cab bus is in tractor.yaml: its device takes its place
+
+
+def test_definition_goes_to_the_main_file():
+    a = part_analysis()
+    line = next(i for i, ln in enumerate(a.lines) if "receivers: [cab_ctrl]" in ln)
+    file, (start, _end) = E.definition_location(a, (line, a.lines[line].index("cab_ctrl") + 1))
+    assert Path(file).name == "tractor.yaml"
+    main_lines = (TRACTOR / "tractor.yaml").read_text(encoding="utf-8").splitlines()
+    assert "cab_ctrl" in main_lines[start[0]]
+
+
+def test_included_file_without_its_map(tmp_path):
+    p = tmp_path / "part.yaml"
+    a = A.analyze_part("mapcan: 1\npart_of: nope.yaml\nbuses: []\n", str(p))
+    assert a.diagnostics[0].code == "include" and "not found" in a.diagnostics[0].message
 
 
 def test_changes_are_analysed_once_typing_pauses(tmp_path):

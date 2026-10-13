@@ -523,8 +523,11 @@ See [examples/tractor/](../examples/tractor/tractor.yaml) for a complete map in 
 An included file starts with `mapcan: 1` (the same format version as the map) and `part_of`:
 the path of the map that includes it, relative to the included file. A file that names another
 map, or another format version, is an error (`include`); a file without these two keys still
-loads, with the warning `include-part-of`. Opened on its own, such a file is reported as a part
-of its map: validate the map instead. Its schema is
+loads, with the warning `include-part-of`. On the command line such a file is reported as a part
+of its map: validate the map instead. In VS Code it is checked as a part of the map named in
+`part_of` (with the unsaved text of both files): its messages show in it, the Map view shows the
+whole map, and Go to Definition leads to devices of the main file. Its nodes are edited as text for
+now; the forms show them read-only. Its schema is
 [`schema/mapcan-part.schema.json`](../schema/mapcan-part.schema.json)
 (`mapcan schema --part`).
 
