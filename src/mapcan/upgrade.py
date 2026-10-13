@@ -38,6 +38,7 @@ def _representation(old: dict) -> Any:
 
 
 RENAMES: list[Rename] = [
+    Rename("bus", ("interface",), "connector", since="0.21"),
     Rename("frame", ("dlc",), "length", since="0.21"),
     # type: raw meant "no CANopen function": the current field is not written then
     Rename("frame", ("type",), "canopen", lambda old: DROP if old.get("type") == "raw" else old["type"], since="0.21"),

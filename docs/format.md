@@ -92,7 +92,7 @@ lint:
 | `name` | Bus identifier (used for DBC and C file names) |
 | `title` | Name for people ("Powertrain CAN"); without it, `missing-title` is reported |
 | `description` | What the bus is for |
-| `interface` | Interface (`can0`, `PCAN_USBBUS1`, …) |
+| `connector` | Connector or harness of the bus (`X3, pins 4–5`), shown in documents. Formerly `interface`. The CAN adapter and channel (`can0`, `PCAN_USBBUS1`) depend on the workstation and are not part of the map |
 | `bitrate` | Bit rate, bit/s (of the arbitration phase on CAN FD) |
 | `sample_point` | Sample point of `bitrate`, percent of the bit time (`87.5`). Shown in documents |
 | `protocol` | Required. `canopen`: IDs are computed from the function code and `node_id`; `j1939`: from the PGN, priority and device address; `can`: IDs are set explicitly |
@@ -518,6 +518,7 @@ Included devices can be chosen as senders and receivers of the main file's frame
 
 | Former name | Current name | Since |
 |---|---|---|
+| bus `interface` | `connector` | 0.21 |
 | frame `dlc` | `length` | 0.21 |
 | signal `signed` + `signed_code` | `representation` | 0.21 |
 | SDO value `signed` | `representation` | 0.21 |

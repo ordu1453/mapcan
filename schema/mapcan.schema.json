@@ -24,7 +24,7 @@
           "description": "Human-readable bus name, e.g. “Bus 1” or “Powertrain CAN”. Used as the section heading in documents and as the bus label in the map tree. Required.",
           "title": "Title"
         },
-        "interface": {
+        "connector": {
           "anyOf": [
             {
               "type": "string"
@@ -34,8 +34,8 @@
             }
           ],
           "default": null,
-          "description": "Physical interface or connector, e.g. “CAN1, X3”. Used in documents only.",
-          "title": "Interface"
+          "description": "Connector or harness of the bus, e.g. “X3, pins 4–5”. Used in documents only. The CAN adapter and channel of a workstation are not part of the map.",
+          "title": "Connector"
         },
         "bitrate": {
           "anyOf": [

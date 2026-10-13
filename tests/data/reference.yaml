@@ -38,7 +38,7 @@ buses:
   # ======================================================================= #
   - name: bus1
     title: Шина 1
-    interface: can0
+    connector: X1
     bitrate: 500000
     protocol: canopen
     description: Внутренняя шина системы питания (CANopen, predefined connection set).
@@ -480,7 +480,7 @@ buses:
   # ======================================================================= #
   - name: bus2
     title: Шина 2
-    interface: can1
+    connector: X2
     bitrate: 250000
     protocol: can
     description: Шина обмена с контроллером верхнего уровня (произвольные ID).

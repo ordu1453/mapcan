@@ -174,11 +174,11 @@ class _Writer:
         r += 1
         ws.cell(r, 1, d["bit_note"]).font = Font(name=self.st.font, size=self.st.font_size, italic=True)
         r += 2
-        self.header(ws, r, [L["bus"], L["protocol"], L["interface"], L["bitrate"], L["devices"],
+        self.header(ws, r, [L["bus"], L["protocol"], L["connector"], L["bitrate"], L["devices"],
                             L["frames_total"].capitalize(), L["signals_total"].capitalize(), L["description"]])
         for bus in self.view["buses"]:
             r += 1
-            vals = [bus["title"], bus["protocol"], bus["interface"], bus["bitrate"],
+            vals = [bus["title"], bus["protocol"], bus["connector"], bus["bitrate"],
                     bus["stats"]["devices"], bus["stats"]["frames"], bus["stats"]["signals"],
                     bus["description"]]
             for i, v in enumerate(vals, 1):

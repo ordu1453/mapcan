@@ -167,3 +167,11 @@ def test_invalid_raw_by_meaning_and_ranges():
     assert "invalid-in-range" in run(base + sig % "[0..10]")[1].codes()
     assert "invalid-overflow" in run(base + sig % "[0xFF00..0x1FFFF]")[1].codes()
     assert "schema" in run(base + sig % "[0xFF..0x10]")[1].codes()
+
+
+def test_bus_interface_becomes_connector():
+    assert upgrade_tree({"buses": [{"name": "b", "interface": "X3"}]}) == {"buses": [{"name": "b", "connector": "X3"}]}
+    legacy = MINIMAL.replace("    protocol:", "    interface: X3\n    protocol:", 1)
+    res, report = run(legacy)
+    assert res.map.buses[0].connector == "X3" and "deprecated-key" in report.codes()
+    assert "    connector: X3\n" in migrate_text(legacy)

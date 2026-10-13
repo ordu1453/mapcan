@@ -732,8 +732,10 @@ RU: dict[str, str] = {
     "bus label in the map tree. Required.":
         "Название шины для людей, напр. «Шина 1» или «CAN силовой части». Заголовок раздела в документах и подпись "
         "шины в дереве карты. Обязательно.",
-    "Physical interface or connector, e.g. “CAN1, X3”. Used in documents only.":
-        "Физический интерфейс или разъём, напр. «CAN1, X3». Только для документов.",
+    "Connector or harness of the bus, e.g. “X3, pins 4–5”. Used in documents only. The CAN adapter and channel of a "
+    "workstation are not part of the map.":
+        "Разъём или жгут шины, напр. «X3, контакты 4–5». Только для документов. CAN-адаптер и канал рабочего места "
+        "в карту не входят.",
     "Bus bitrate in bit/s, e.g. 250000 or 500000. Shown in documents and DBC.":
         "Скорость шины в бит/с, напр. 250000 или 500000. Попадает в документы и DBC.",
     "Higher-layer protocol. CANopen: the frame ID is computed from the frame type and node_id; SAE J1939: from PGN, "

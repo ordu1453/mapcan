@@ -131,7 +131,7 @@
     stroke: none,
     inset: (x: 3pt, y: 2pt),
     [*#L.protocol*], bus.protocol, [*#L.bitrate*], bus.bitrate,
-    [*#L.interface*], mono(bus.interface, th: th),
+    [*#L.connector*], bus.connector,
     [*#L.summary*], [#bus.stats.frames #L.frames_total, #bus.stats.signals #L.signals_total],
   )
 }

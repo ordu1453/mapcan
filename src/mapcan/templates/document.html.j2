@@ -132,7 +132,7 @@ table.bits td.conflict { outline: 2px solid var(--bad); outline-offset: -2px; co
 {% for bus in buses %}
 <h2 id="{{ bus.name }}">{{ bus.title }}</h2>
 {% if bus.description %}<p>{{ bus.description }}</p>{% endif %}
-<div class="meta"><b>{{ L.protocol }}:</b> {{ bus.protocol }}{% if bus.bitrate %} · <b>{{ L.bitrate }}:</b> {{ bus.bitrate }}{% endif %}{% if bus.interface %} · <b>{{ L.interface }}:</b> <code>{{ bus.interface }}</code>{% endif %} · {{ bus.stats.frames }} {{ L.frames_total }}, {{ bus.stats.signals }} {{ L.signals_total }}</div>
+<div class="meta"><b>{{ L.protocol }}:</b> {{ bus.protocol }}{% if bus.bitrate %} · <b>{{ L.bitrate }}:</b> {{ bus.bitrate }}{% endif %}{% if bus.connector %} · <b>{{ L.connector }}:</b> {{ bus.connector }}{% endif %} · {{ bus.stats.frames }} {{ L.frames_total }}, {{ bus.stats.signals }} {{ L.signals_total }}</div>
 
 <h3 id="{{ bus.name }}-addr">{{ L.addressing }}</h3>
 <div class="scroll">

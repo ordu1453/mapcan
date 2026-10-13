@@ -206,7 +206,7 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "protocol", label: N_("Protocol"), type: "select", half: true,
         options: () => [["canopen", "CANopen"], ["j1939", "SAE J1939"], ["can", N_("CAN (explicit IDs)")]] },
       { key: "bitrate", label: N_("Bitrate, bit/s"), type: "int", half: true, placeholder: "500000" },
-      { key: "interface", label: N_("Interface"), type: "text", half: true, placeholder: "can0" },
+      { key: "connector", label: N_("Connector"), type: "text", half: true, placeholder: "X3" },
       { key: "fd", label: "CAN FD", type: "bool", half: true },
       { key: "brs", label: N_("Bit rate switch (BRS)"), type: "select", half: true,
         options: () => brsOptions(N_("by default"), true), when: (c) => !!value(c, "fd") },

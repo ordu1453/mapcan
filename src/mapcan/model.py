@@ -656,9 +656,10 @@ class Bus(_Base):
         None,
         description=N_("Human-readable bus name, e.g. “Bus 1” or “Powertrain CAN”. Used as the section heading in "
                        "documents and as the bus label in the map tree. Required."))
-    interface: str | None = Field(
+    connector: str | None = Field(
         None,
-        description=N_("Physical interface or connector, e.g. “CAN1, X3”. Used in documents only."))
+        description=N_("Connector or harness of the bus, e.g. “X3, pins 4–5”. Used in documents only. The CAN adapter "
+                       "and channel of a workstation are not part of the map."))
     bitrate: int | None = Field(
         None, gt=0,
         description=N_("Bus bitrate in bit/s, e.g. 250000 or 500000. Shown in documents and DBC."))

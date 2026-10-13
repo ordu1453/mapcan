@@ -41,7 +41,7 @@
 {% if bus.description %}{{ bus.description }}
 
 {% endif -%}
-**{{ L.protocol }}:** {{ bus.protocol }}{% if bus.bitrate %} · **{{ L.bitrate }}:** {{ bus.bitrate }}{% endif %}{% if bus.interface %} · **{{ L.interface }}:** `{{ bus.interface }}`{% endif %}
+**{{ L.protocol }}:** {{ bus.protocol }}{% if bus.bitrate %} · **{{ L.bitrate }}:** {{ bus.bitrate }}{% endif %}{% if bus.connector %} · **{{ L.connector }}:** {{ bus.connector }}{% endif %}
 
 ### {{ L.addressing }}
 
