@@ -130,6 +130,20 @@ SHORT = N_("Device abbreviation, e.g. \"BMS\": in document tables and before the
 VALUES = N_("Value table (value → name) or the name of a table in value_tables.")
 
 
+class Print(_Base):
+    """Details that PDF templates print on the title page and in the title block: not part of the network."""
+
+    logo: str | None = Field(
+        None, description=N_("Company logo: path to a PNG/JPG/SVG relative to the map file."))
+    designation: str | None = Field(
+        None, description=N_("Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD)."))
+    litera: str | None = Field(None, description=N_("Document letter (ESKD), e.g. \"О1\"."))
+    city: str | None = Field(None, description=N_("City for the title page."))
+    signatures: Signatures | None = None
+    approve: Person | None = Field(None, description=N_("The \"APPROVED\" block of the title page."))
+    agree: list[Person] = Field(default_factory=list, description=N_("The \"AGREED\" blocks."))
+
+
 class Document(_Base):
     title: Text
     subtitle: Text | None = None
@@ -144,16 +158,10 @@ class Document(_Base):
         description=N_("Bit numbering: lsb0 — bit 0 is the least significant bit of byte 0. The field states the "
                        "convention explicitly and is shown in every document."),
     )
-    # Styling and requisites (GOST templates)
-    logo: str | None = Field(
-        None, description=N_("Company logo: path to a PNG/JPG/SVG relative to the map file."))
-    designation: str | None = Field(
-        None, description=N_("Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD)."))
-    litera: str | None = Field(None, description=N_("Document letter (ESKD), e.g. \"О1\"."))
-    city: str | None = Field(None, description=N_("City for the title page."))
-    signatures: Signatures | None = None
-    approve: Person | None = Field(None, description=N_("The \"APPROVED\" block of the title page."))
-    agree: list[Person] = Field(default_factory=list, description=N_("The \"AGREED\" blocks."))
+    print: Print = Field(
+        default_factory=Print,
+        description=N_("Print details of the title page and the title block (logo, designation, signatures…), "
+                       "read by the PDF templates."))
     history: list[HistoryEntry] = Field(default_factory=list)
 
 
@@ -730,9 +738,9 @@ class MapCan(_Base):
     @property
     def logo_path(self) -> Path | None:
         """Absolute path of the logo (a relative one is relative to the map's folder)."""
-        if not self.document.logo:
+        if not self.document.print.logo:
             return None
-        p = Path(self.document.logo).expanduser()
+        p = Path(self.document.print.logo).expanduser()
         if not p.is_absolute():
             p = (self._base_dir or Path.cwd()) / p
         return p

@@ -271,7 +271,7 @@ mapcan rules
 
 | Format | How to customize |
 |---|---|
-| **PDF** | Two built-in templates: `mapcan` (standard layout) and ESKD `gost-2.105` (frame and title block). Copy one with `mapcan template pdf --name gost-2.105 -o corp.typ`, edit it, then export with `--template corp.typ`. Document details (designation, letter, signatures, approval blocks) and the company logo are set in `document`. See [docs/templates.md](docs/templates.md). |
+| **PDF** | Two built-in templates: `mapcan` (standard layout) and ESKD `gost-2.105` (frame and title block). Copy one with `mapcan template pdf --name gost-2.105 -o corp.typ`, edit it, then export with `--template corp.typ`. Document details (designation, letter, signatures, approval blocks) and the company logo are set in `document.print`. See [docs/templates.md](docs/templates.md). |
 | **Excel** | `mapcan template xlsx-style -o style.yaml`, adjust fonts, colors and columns, then `mapcan export xlsx map.yaml --style style.yaml`. |
 | **Markdown / HTML** | Jinja2 templates over the same data: `mapcan template md -o my.md.j2`. |
 

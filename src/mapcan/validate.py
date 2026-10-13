@@ -158,9 +158,10 @@ def validate_map(cmap: MapCan, src: SourceMap, disable: Iterable[str] = ()) -> R
     if logo is not None:
         if logo.suffix.lower() not in LOGO_FORMATS:
             ctx.emit("logo-format", _("logo {logo!r}: supported formats are {formats}",
-                                      logo=cmap.document.logo, formats=", ".join(LOGO_FORMATS)), ("document", "logo"))
+                                      logo=cmap.document.print.logo, formats=", ".join(LOGO_FORMATS)),
+                     ("document", "print", "logo"))
         elif not logo.is_file():
-            ctx.emit("logo-missing", _("logo file not found: {path}", path=logo), ("document", "logo"))
+            ctx.emit("logo-missing", _("logo file not found: {path}", path=logo), ("document", "print", "logo"))
 
     hist = cmap.document.history
     if hist and hist[0].version != cmap.document.version:

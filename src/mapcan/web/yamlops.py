@@ -22,7 +22,7 @@ from ruamel.yaml.util import load_yaml_guess_indent
 
 from ..i18n import _
 from ..model import Signal
-from ..upgrade import DROP, deprecated_of, node_kind, renames, upgrade_tree
+from ..upgrade import DROP, node_kind, renamed_along, renames, upgrade_tree
 
 # Keys whose numbers are usually written in hex.
 HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
@@ -268,7 +268,7 @@ def _ensure_parent(doc, path: list) -> None:
 
 
 def _kind(path: list) -> str | None:
-    return node_kind(tuple(int(x) if isinstance(x, str) and x.isdigit() else x for x in path))
+    return node_kind(_kind_path(path))
 
 
 def upgrade_map(m: Any, kind: str | None, only: str | None = None) -> bool:
@@ -281,10 +281,13 @@ def upgrade_map(m: Any, kind: str | None, only: str | None = None) -> bool:
     for r in renames(kind):
         if only is not None and r.new != only:
             continue
-        present = [k for k in r.old if k in m]
-        if not present:
-            continue
+        present = r.present(m)
+        if not present or (r.nest and r.new in m):
+            continue        # keys to move next to the mapping already written: left for the author (an error)
         changed = True
+        if r.nest:
+            _nest_keys(m, present, r.new)
+            continue
         value = DROP if r.new in m else r.value({k: plain(m[k]) for k in present})
         if value is not DROP:
             pos = list(m.keys()).index(present[0])
@@ -302,6 +305,21 @@ def upgrade_map(m: Any, kind: str | None, only: str | None = None) -> bool:
                 if comment is not None and before is not None and before not in m.ca.items:
                     m.ca.items[before] = comment
     return changed
+
+
+def _nest_keys(m: CommentedMap, keys: list[str], new: str) -> None:
+    """Move the keys of ``m`` with their nodes and comments into a mapping ``new`` at the place of the first one."""
+    inner = CommentedMap()
+    if m.fa.flow_style():
+        inner.fa.set_flow_style()
+    for k in keys:
+        inner[k] = m[k]
+        if k in m.ca.items:
+            inner.ca.items[k] = m.ca.items.pop(k)
+    pos = list(m.keys()).index(keys[0])
+    for k in keys:
+        del m[k]
+    m.insert(pos, new, inner)
 
 
 def migrate_doc(doc) -> int:
@@ -332,7 +350,7 @@ def migrate_text(text: str) -> str:
     if doc is None:
         return text
     edits = _migration_edits(doc, text.splitlines(keepends=True))
-    if not edits:
+    if not edits and edits is not _UNSUPPORTED:
         return text
     if edits is not _UNSUPPORTED:
         new = _apply_text_edits(text, edits)
@@ -384,12 +402,60 @@ def _migration_edits(doc, lines: list[str]) -> list:
         edits.append((kl, 0, kl + 1, 0, ""))
         return True
 
+    def nest(node: CommentedMap, keys: list[str], new: str) -> bool:
+        """Move block-style keys into a mapping ``new`` written at the place of the first one, one level deeper."""
+        if node.fa.flow_style():
+            return False
+        kcol = node.lc.key(keys[0])[1]
+        if any(lines[node.lc.key(k)[0]][:kcol].strip() for k in keys):
+            return False        # "- key: …": the key shares its line with the sequence dash
+
+        def indent(ln: str) -> int:
+            return len(ln) - len(ln.lstrip())
+
+        def loose(ln: str) -> bool:     # a blank line or a comment line at the level of the keys or above
+            return not ln.strip() or (ln.lstrip().startswith("#") and indent(ln) <= kcol)
+
+        # Lines of a key: from the comment lines just above it to the next line at its level or above
+        starts, ends = {}, {}
+        for k in keys:
+            line = node.lc.key(k)[0]
+            start = line
+            while start > 0 and lines[start - 1].strip().startswith("#") and indent(lines[start - 1]) == kcol:
+                start -= 1
+            end = line + 1
+            while end < len(lines) and (not lines[end].strip() or lines[end].lstrip().startswith("#")
+                                        or indent(lines[end]) > kcol):
+                end += 1
+            while end > line + 1 and loose(lines[end - 1]):
+                end -= 1        # blank lines and comments of what follows stay in place
+            starts[k], ends[k] = start, end
+        step = " " * max(2, kcol - parent_col.get(id(node), 0))
+        moved = [" " * kcol + new + ":\n"]
+        for k in keys:
+            moved += [step + ln if ln.strip() else ln for ln in lines[starts[k]:ends[k]]]
+            edits.append((starts[k], 0, ends[k], 0, ""))
+        first = keys[0]
+        edits.append((starts[first], 0, starts[first], 0, "".join(moved)))
+        return True
+
+    parent_col: dict[int, int] = {}
+
     def walk(node, path) -> bool:
         if isinstance(node, CommentedMap):
             kind = _kind(path)
+            for k in node:
+                if isinstance(node[k], CommentedMap):
+                    parent_col[id(node[k])] = node.lc.key(k)[1]
             for r in renames(kind):
-                present = [k for k in r.old if k in node]
+                present = r.present(node)
                 if not present:
+                    continue
+                if r.nest:
+                    if r.new in node:
+                        continue        # see upgrade_map
+                    if not nest(node, present, r.new):
+                        return False
                     continue
                 value = DROP if r.new in node else r.value({k: plain(node[k]) for k in present})
                 first = present[0]
@@ -470,14 +536,20 @@ def op_set(doc, path: list, value: Any) -> None:
 
 
 def _upgrade_parent(doc, path: list) -> bool:
-    """Before a current key is written or removed, the deprecated keys it replaces in the node are renamed."""
-    if not path or not isinstance(path[-1], str) or not deprecated_of(_kind(path[:-1]), path[-1]):
-        return False
-    try:
-        parent = _get(doc, path[:-1])
-    except OpError:
-        return False
-    return upgrade_map(parent, _kind(path[:-1]), only=path[-1])
+    """Before a current key is written or removed (or a key inside it), the deprecated keys it replaces in its node
+    are renamed."""
+    changed = False
+    for i in renamed_along(_kind_path(path)):
+        try:
+            node = _get(doc, path[:i])
+        except OpError:
+            continue
+        changed |= upgrade_map(node, _kind(path[:i]), only=path[i])
+    return changed
+
+
+def _kind_path(path: list) -> tuple:
+    return tuple(int(x) if isinstance(x, str) and x.isdigit() else x for x in path)
 
 
 def op_remove(doc, path: list) -> None:
@@ -499,7 +571,12 @@ def op_remove(doc, path: list) -> None:
 
 
 def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
-    """Insert an item into the list at ``path`` (the list is created if it is missing)."""
+    """Insert an item into the list at ``path`` (the list and the mappings above it are created if missing)."""
+    _upgrade_parent(doc, path)
+    try:
+        _ensure_parent(doc, path)
+    except (KeyError, IndexError, ValueError, TypeError) as e:
+        raise OpError(_("path not found: {path}", path=path)) from e
     parent, last = _parent(doc, path)
     if isinstance(parent, dict) and (last not in parent or parent[last] is None):
         parent[last] = CommentedSeq()

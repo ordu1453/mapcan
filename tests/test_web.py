@@ -492,7 +492,7 @@ def test_git_logo_tag_identity(client, mapfile, monkeypatch):
     logo = mapfile.parent / "assets" / "logo.png"
     logo.parent.mkdir()
     logo.write_bytes(b"\x89PNG one")
-    ops(client, {"op": "set", "path": ["document", "logo"], "value": "assets/logo.png"})
+    ops(client, {"op": "set", "path": ["document", "print", "logo"], "value": "assets/logo.png"})
     client.post("/api/save", json={})
     assert client.post("/api/git/commit", json={"message": "m"}).json()["code"] == "git-identity"
     client.put("/api/user", json={"name": "Иван", "github": "ivan"})

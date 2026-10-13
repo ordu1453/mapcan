@@ -134,7 +134,8 @@ class ViewBuilder:
     def build(self) -> dict:
         d = self.cmap.document
         date = d.date or _dt.date.today()
-        sig = d.signatures
+        pr = d.print
+        sig = pr.signatures
         logo = self.cmap.logo_path
         buses = [self.bus(b) for b in self.cmap.buses]
         return {
@@ -149,9 +150,10 @@ class ViewBuilder:
                 "year": str(date.year),
                 "author": d.author or "",
                 "organization": d.organization or "",
-                "designation": d.designation or "",
-                "litera": d.litera or "",
-                "city": d.city or "",
+                # Print details (document.print) stay at this level of the template context
+                "designation": pr.designation or "",
+                "litera": pr.litera or "",
+                "city": pr.city or "",
                 # The exporter sets the logo path for the template (logo); logo_file is the source file.
                 "logo": "",
                 "logo_file": str(logo) if logo and logo.is_file() else "",
@@ -159,8 +161,8 @@ class ViewBuilder:
                     k: (getattr(sig, k) or "") if sig else ""
                     for k in ("developed", "checked", "tech_control", "norm_control", "approved")
                 },
-                "approve": {"position": d.approve.position or "", "name": d.approve.name} if d.approve else None,
-                "agree": [{"position": p.position or "", "name": p.name} for p in d.agree],
+                "approve": {"position": pr.approve.position or "", "name": pr.approve.name} if pr.approve else None,
+                "agree": [{"position": p.position or "", "name": p.name} for p in pr.agree],
                 "stats": {
                     "buses": len(buses),
                     "devices": sum(b["stats"]["devices"] for b in buses),

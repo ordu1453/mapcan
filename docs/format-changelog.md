@@ -21,6 +21,10 @@ needs at least the version of mapcan that introduced it; former names stay reada
 - The bus field `interface` is `connector`: the connector or harness of the bus, shown in documents.
   The CAN adapter and channel (`can0`, `PCAN_USBBUS1`) depend on the workstation and are not part of
   the map.
+- The print details of the title page (`logo`, `designation`, `litera`, `city`, `signatures`,
+  `approve`, `agree`) move from `document` into `document.print`. The former place is still read
+  with `deprecated-key`; `mapcan migrate` moves them, keeping comments. Templates get them where
+  they were (`doc.designation`…).
 - An included file starts with `mapcan: 1` and `part_of: <map>`; the loader checks that it is
   included by that map (`include`), and warns about files without them (`include-part-of`).
   Its JSON Schema is `schema/mapcan-part.schema.json` (`mapcan schema --part`).

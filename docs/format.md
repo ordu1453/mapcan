@@ -49,11 +49,17 @@ buses: [...]              # one or more buses
 | `author`, `organization` | string | |
 | `language` | ISO 639-1 code | Default document language (required): `ru`, `en`, `de`…; `--lang` overrides it at export. Document labels (table headings and so on) exist in Russian and English; other languages get the English ones, and units their international symbols |
 | `bit_numbering` | `lsb0` | Explicit statement of the bit numbering |
+| `print` | object | Print details of the title page and the title block, read by the PDF templates (below). Formerly written directly in `document` |
+| `history` | list | `{version, date, author, github, changes: [text, ...]}`; `github` is the author's GitHub user name |
+
+`document.print`: details that templates print, not part of the network:
+
+| Field | Type | Description |
+|---|---|---|
 | `logo` | path | Company logo (PNG/JPG/SVG/GIF/WEBP), relative to the map file |
 | `designation`, `litera`, `city` | string | Document designation, letter and city for the GOST template |
 | `signatures` | object | `{developed, checked, tech_control, norm_control, approved}`: title block signatures |
 | `approve`, `agree` | `{position, name}`, list | "Approved" (УТВЕРЖДАЮ) and "Agreed" (СОГЛАСОВАНО) blocks on the title page |
-| `history` | list | `{version, date, author, github, changes: [text, ...]}`; `github` is the author's GitHub user name |
 
 **Text** fields accept a string or an object with translations: `{en: "State", ru: "Состояние"}`.
 Keys are ISO 639-1 language codes (`de`, `fr`…). Documents use the translation for the selected language; without it, the document language (`document.language`), then English, then any other.
@@ -503,7 +509,8 @@ Included devices can be chosen as senders and receivers of the main file's frame
 - **Additions keep the version.** New optional fields, new values of an enumeration and new rules
   keep `mapcan: 1`. Every map that was valid stays valid; a map that uses a new field needs a mapcan
   that knows it (see [the format changelog](format-changelog.md)).
-- **Renames keep the version too.** When a field gets a clearer name (or several fields become one),
+- **Renames keep the version too.** When a field gets a clearer name (or several fields become one, or
+  fields move into a nested block),
   the former spelling stays accepted for the whole of version 1. It is read as the current one with
   the warning `deprecated-key`; messages about the field still point at what is written. The
   editors show and write the current name: editing such a field renames it in place, keeping its
@@ -519,6 +526,7 @@ Included devices can be chosen as senders and receivers of the main file's frame
 | Former name | Current name | Since |
 |---|---|---|
 | bus `interface` | `connector` | 0.21 |
+| `document` `logo`, `designation`, `litera`, `city`, `signatures`, `approve`, `agree` | the same keys in `document.print` | 0.21 |
 | frame `dlc` | `length` | 0.21 |
 | signal `signed` + `signed_code` | `representation` | 0.21 |
 | SDO value `signed` | `representation` | 0.21 |

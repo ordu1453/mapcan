@@ -12,6 +12,8 @@
   `0xFF00..0xFFFF`. Values given by meaning (`not_available`, `error`) are shown read-only.
 * A bus's **Interface** is **Connector** (`connector`): the connector or harness for documents. The CAN
   adapter and channel of a workstation are not part of the map.
+* The print details of the title page (logo, designation, signatures…) are in `document.print`; the
+  quick fix of `deprecated-key` moves them there.
 * A file included by a map, which now starts with `mapcan: 1` and `part_of`, is not taken for a map
   of its own.
 * New fields from mapcan 0.21: a frame's **Receive timeout**, a bus's sample points and CAN FD data

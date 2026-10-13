@@ -379,7 +379,7 @@ export const FORMS: Record<FormKind, Section[]> = {
 /** Fields of the format that the forms do not show, with where they are edited instead. */
 export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
   document: Object.fromEntries(
-    ["organization", "bit_numbering", "logo", "designation", "litera", "city", "signatures", "approve", "agree"]
+    ["organization", "bit_numbering", "print"]
       .map((k) => [k, "document requisites (web: DocumentRequisites.vue)"])
       .concat([["history", "revision history nodes of the tree"]])),
   revision: { changes: "list of changes (web: HistoryEditor.vue)" },

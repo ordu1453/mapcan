@@ -789,7 +789,9 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     def logo_file() -> Path | None:
         s = wsp.require()
         doc = (s.doc or {}).get("document") or {}
-        raw = doc.get("logo") if isinstance(doc, dict) else None
+        pr = doc.get("print") if isinstance(doc, dict) else None
+        # A map not migrated yet has the logo under its former place, document.logo
+        raw = pr.get("logo") if isinstance(pr, dict) else doc.get("logo") if isinstance(doc, dict) else None
         if not raw:
             return None
         p = Path(str(raw)).expanduser()
@@ -820,7 +822,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                 target.write_bytes(data)
             except OSError as e:
                 raise AppError(400, "write", _("could not save the logo: {error}", error=e)) from e
-            s.apply([{"op": "set", "path": ["document", "logo"], "value": target.name}])
+            s.apply([{"op": "set", "path": ["document", "print", "logo"], "value": target.name}])
             return await changed()
 
     # ---------------------------------------------------------------- diff

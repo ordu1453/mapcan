@@ -25,41 +25,48 @@ In the web editor, open the PDF preview from the **Export** menu and pick the te
 
 ## Document details
 
-The title block, title page and approval sheets are filled in from `document`. Every field is
-optional: empty boxes stay blank and can be filled in by hand.
+The title block, title page and approval sheets are filled in from `document.print`, the print
+details, and from `document.organization`. Every field is optional: empty boxes stay blank and can
+be filled in by hand.
 
 ```yaml
 document:
   title: Product signal map
   version: 1.0.0
   organization: Example LLC
-  logo: logo.png                     # relative to the map file (PNG, JPG, SVG, GIF, WEBP)
-  designation: ABCD.468332.001 D1    # document designation (ESKD)
-  litera: O1                         # letter (ESKD "Лит.")
-  city: Moscow                       # city on the title page
-  signatures:                        # ESKD title block, approval sheet, list of contributors
-    developed: Ivanov                # Разраб. (developed by)
-    checked: Petrov                  # Пров. (checked by)
-    tech_control: Sidorov            # Т. контр. (technical control)
-    norm_control: Kuznetsova         # Н. контр. (standards control)
-    approved: Smirnov                # Утв. (approved by)
-  approve:                           # "УТВЕРЖДАЮ" (approved) block on the title page
-    position: Chief Designer
-    name: A. A. Smirnov
-  agree:                             # "СОГЛАСОВАНО" (agreed) blocks, any number
-    - position: Head of Department
-      name: B. B. Orlov
+  print:
+    logo: logo.png                     # relative to the map file (PNG, JPG, SVG, GIF, WEBP)
+    designation: ABCD.468332.001 D1    # document designation (ESKD)
+    litera: O1                         # letter (ESKD "Лит.")
+    city: Moscow                       # city on the title page
+    signatures:                        # ESKD title block, approval sheet, list of contributors
+      developed: Ivanov                # Разраб. (developed by)
+      checked: Petrov                  # Пров. (checked by)
+      tech_control: Sidorov            # Т. контр. (technical control)
+      norm_control: Kuznetsova         # Н. контр. (standards control)
+      approved: Smirnov                # Утв. (approved by)
+    approve:                           # "УТВЕРЖДАЮ" (approved) block on the title page
+      position: Chief Designer
+      name: A. A. Smirnov
+    agree:                             # "СОГЛАСОВАНО" (agreed) blocks, any number
+      - position: Head of Department
+        name: B. B. Orlov
 ```
+
+Before mapcan 0.21 these fields were written directly in `document`. Such maps still load, with the
+`deprecated-key` warning, and `mapcan migrate` moves the fields into `print`. In the data of a
+template (`doc` in Typst, `document` in HTML and Markdown) they stay where they were:
+`doc.designation`, `doc.signatures` and so on, so custom templates keep working.
 
 In the web editor, the same fields are in the document properties, on the
 **Layout and document details** card.
 
 Where each field appears:
 
-| Field | `mapcan` | ESKD `gost-2.105` |
+| Field of `print` | `mapcan` | ESKD `gost-2.105` |
 |---|---|---|
 | `logo` | title page, header | title page, title block box 9 |
-| `organization` | title page | title page, box 9 |
+| `organization` (in `document`) | title page | title page, box 9 |
 | `designation` | title page | title block box 2, title page |
 | `litera` | — | "Лит." box |
 | `signatures` | — | "Разраб.", "Пров.", "Т. контр.", "Н. контр.", "Утв." boxes; signatures on the title page |
@@ -68,10 +75,10 @@ Where each field appears:
 
 ## Logo
 
-* **File format:** PNG, JPG, GIF, WEBP or SVG. The path in `document.logo` is relative to the map
+* **File format:** PNG, JPG, GIF, WEBP or SVG. The path in `document.print.logo` is relative to the map
   file; an absolute path also works.
 * **Web editor:** **Upload…** saves the file next to the map as `<map name>-logo.<ext>` and sets
-  `document.logo`.
+  `document.print.logo`.
 * **Where it appears:** in PDF (see the table above), in HTML (embedded in the file) and on the
   Excel "Summary" sheet. Excel does not support SVG, so use PNG or JPG if you need the logo there.
 * **Validation:** a missing file produces the `logo-missing` warning; an unsupported format is the

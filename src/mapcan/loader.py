@@ -332,11 +332,14 @@ def _upgrade(data: dict, src: SourceMap, report: Report) -> dict:
                             _("{old!r} is deprecated: use {new!r} (mapcan migrate rewrites the file)",
                               old=", ".join(u.old), new=u.rename.new), old))
         new = u.path + (u.rename.new,)
+        # A key moved into a mapping (nest) keeps its own position there: document.logo → document.print.logo
+        moves = ([(u.path + (k,), new + (k,)) for k in u.old] if u.rename.nest else []) + [(old, new)]
         for p, pos in list(src.positions.items()):
-            if p[:len(old)] == old:
-                src.positions.setdefault(new + p[len(old):], pos)
-                if p in src.files:
-                    src.files.setdefault(new + p[len(old):], src.files[p])
+            for frm, to in moves:
+                if p[:len(frm)] == frm:
+                    src.positions.setdefault(to + p[len(frm):], pos)
+                    if p in src.files:
+                        src.files.setdefault(to + p[len(frm):], src.files[p])
 
     return upgrade_tree(data, found)
 

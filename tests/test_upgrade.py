@@ -175,3 +175,67 @@ def test_bus_interface_becomes_connector():
     res, report = run(legacy)
     assert res.map.buses[0].connector == "X3" and "deprecated-key" in report.codes()
     assert "    connector: X3\n" in migrate_text(legacy)
+
+
+LEGACY_DOCUMENT = """mapcan: 1
+document:
+  title: T   # title
+  language: ru
+  logo: logo.png          # company logo
+  author: me
+  designation: ABC.1
+  signatures:
+    developed: Ivanov     # who
+  # agreed by
+  agree:
+    - {position: Boss, name: X}
+buses: []
+"""
+
+
+def test_print_details_move_into_print():
+    out = migrate_text(LEGACY_DOCUMENT)
+    assert out == """mapcan: 1
+document:
+  title: T   # title
+  language: ru
+  print:
+    logo: logo.png          # company logo
+    designation: ABC.1
+    signatures:
+      developed: Ivanov     # who
+    # agreed by
+    agree:
+      - {position: Boss, name: X}
+  author: me
+buses: []
+"""
+    assert upgrade_tree({"document": {"title": "T", "city": "M", "language": "en", "litera": "O1"}}) == \
+        {"document": {"title": "T", "print": {"city": "M", "litera": "O1"}, "language": "en"}}
+    flow = "mapcan: 1\ndocument: {title: T, language: en, city: Moscow, litera: O1}\nbuses: []\n"
+    assert "document: {title: T, language: en, print: {city: Moscow, litera: O1}}" in migrate_text(flow)
+
+
+def test_print_details_read_with_a_warning_at_their_place():
+    res, report = run(MINIMAL.replace("  language: en\n", "  language: en\n  logo: nope.png\n  city: X\n", 1))
+    assert res.map.document.print.city == "X"
+    lines = [d.line for d in report.diagnostics if d.code in ("deprecated-key", "logo-missing")]
+    assert len(lines) == 2 and lines[0] == lines[1]       # the warning and logo-missing point at "logo:"
+
+
+def test_print_details_next_to_print_are_an_error_and_left_alone():
+    text = LEGACY_DOCUMENT.replace("  author: me\n", "  author: me\n  print: {city: X}\n")
+    res, report = run(text)
+    assert any(d.code == "deprecated-key" and d.level == "error" for d in report.diagnostics)
+    assert "  logo: logo.png" in migrate_text(text)
+
+
+def test_writing_a_print_detail_moves_the_former_keys():
+    from mapcan.web.yamlops import dump, make_yaml, op_insert, op_set
+    y = make_yaml(LEGACY_DOCUMENT)
+    doc = y.load(LEGACY_DOCUMENT)
+    op_set(doc, ["document", "print", "city"], "Moscow")
+    op_insert(doc, ["document", "print", "agree"], {"position": "P", "name": "N"})
+    data = upgrade_tree(make_yaml().load(dump(y, doc)))
+    assert "logo" not in data["document"] and data["document"]["print"]["logo"] == "logo.png"
+    assert data["document"]["print"]["city"] == "Moscow" and len(data["document"]["print"]["agree"]) == 2

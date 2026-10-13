@@ -33,9 +33,9 @@ def pages(pdf: bytes) -> int:
 
 def with_requisites(logo=LOGO_PNG):
     m = load(REFERENCE).map
-    d = m.document
+    m.document.organization = "ООО «Пример»"
+    d = m.document.print
     d.logo = str(logo) if logo else None
-    d.organization = "ООО «Пример»"
     d.designation = "АБВГ.468332.001 Д1"
     d.litera = "О1"
     d.city = "Москва"
@@ -122,16 +122,17 @@ def test_logo_in_html_and_xlsx(tmp_path):
 
 def test_requisites_schema_roundtrip():
     text = REFERENCE.read_text(encoding="utf-8").replace("  language: ru\n", """  language: ru
-  designation: АБВГ.468332.001 Д1
-  litera: О1
-  signatures: {developed: Иванов, norm_control: Кузнецова}
-  approve: {position: Главный конструктор, name: А. А. Смирнов}
-  agree:
-    - {position: Начальник отдела, name: Б. Б. Орлов}
+  print:
+    designation: АБВГ.468332.001 Д1
+    litera: О1
+    signatures: {developed: Иванов, norm_control: Кузнецова}
+    approve: {position: Главный конструктор, name: А. А. Смирнов}
+    agree:
+      - {position: Начальник отдела, name: Б. Б. Орлов}
 """, 1)
     res = loads(text, "t.yaml")
     assert res.map is not None, [d.format() for d in res.report.diagnostics]
-    assert res.map.document.signatures.developed == "Иванов"
+    assert res.map.document.print.signatures.developed == "Иванов"
 
 
 # --------------------------------------------------------------------------- CLI
@@ -195,7 +196,7 @@ def test_web_logo_upload(client, tmp_path):
     r = client.post("/api/logo", files={"file": ("logo.png", LOGO_PNG.read_bytes(), "image/png")})
     assert r.status_code == 200, r.text
     st = r.json()
-    assert st["data"]["document"]["logo"] == "mapcan-logo.png"
+    assert st["data"]["document"]["print"]["logo"] == "mapcan-logo.png"
     assert (tmp_path / "mapcan-logo.png").read_bytes() == LOGO_PNG.read_bytes()
     assert "logo: mapcan-logo.png" in st["text"]
     img = client.get("/api/logo")
@@ -208,15 +209,15 @@ def test_web_logo_upload(client, tmp_path):
 
 def test_web_requisites_ops(client):
     r = client.post("/api/ops", json={"ops": [
-        {"op": "set", "path": ["document", "designation"], "value": "АБВГ.468332.001 Д1"},
-        {"op": "set", "path": ["document", "signatures", "developed"], "value": "Иванов"},
-        {"op": "set", "path": ["document", "approve", "position"], "value": "Главный конструктор"},
-        {"op": "insert", "path": ["document", "agree"], "value": {"position": "Нач. отдела", "name": "Орлов"}},
+        {"op": "set", "path": ["document", "print", "designation"], "value": "АБВГ.468332.001 Д1"},
+        {"op": "set", "path": ["document", "print", "signatures", "developed"], "value": "Иванов"},
+        {"op": "set", "path": ["document", "print", "approve", "position"], "value": "Главный конструктор"},
+        {"op": "insert", "path": ["document", "print", "agree"], "value": {"position": "Нач. отдела", "name": "Орлов"}},
     ]})
     assert r.status_code == 200, r.text
     st = r.json()
     assert not [d for d in st["diagnostics"] if d["level"] == "error"]
-    assert "signatures:\n    developed: Иванов" in st["text"]
+    assert "  print:\n    designation: АБВГ.468332.001 Д1\n    signatures:\n      developed: Иванов" in st["text"]
 
 
 # Maps of the examples; files the maps include are not maps

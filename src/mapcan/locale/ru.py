@@ -732,6 +732,10 @@ RU: dict[str, str] = {
     "bus label in the map tree. Required.":
         "Название шины для людей, напр. «Шина 1» или «CAN силовой части». Заголовок раздела в документах и подпись "
         "шины в дереве карты. Обязательно.",
+    "Print details of the title page and the title block (logo, designation, signatures…), read by the PDF "
+    "templates.":
+        "Реквизиты для печати титульного листа и основной надписи (логотип, обозначение, подписи…): их читают "
+        "шаблоны PDF.",
     "Connector or harness of the bus, e.g. “X3, pins 4–5”. Used in documents only. The CAN adapter and channel of a "
     "workstation are not part of the map.":
         "Разъём или жгут шины, напр. «X3, контакты 4–5». Только для документов. CAN-адаптер и канал рабочего места "

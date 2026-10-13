@@ -344,88 +344,9 @@
           "title": "Bit Numbering",
           "type": "string"
         },
-        "logo": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Company logo: path to a PNG/JPG/SVG relative to the map file.",
-          "title": "Logo"
-        },
-        "designation": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD).",
-          "title": "Designation"
-        },
-        "litera": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Document letter (ESKD), e.g. \"О1\".",
-          "title": "Litera"
-        },
-        "city": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "City for the title page.",
-          "title": "City"
-        },
-        "signatures": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Signatures"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "approve": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Person"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "The \"APPROVED\" block of the title page."
-        },
-        "agree": {
-          "description": "The \"AGREED\" blocks.",
-          "items": {
-            "$ref": "#/$defs/Person"
-          },
-          "title": "Agree",
-          "type": "array"
+        "print": {
+          "$ref": "#/$defs/Print",
+          "description": "Print details of the title page and the title block (logo, designation, signatures…), read by the PDF templates."
         },
         "history": {
           "items": {
@@ -1085,6 +1006,97 @@
         }
       },
       "title": "Person",
+      "type": "object"
+    },
+    "Print": {
+      "additionalProperties": false,
+      "description": "Details that PDF templates print on the title page and in the title block: not part of the network.",
+      "properties": {
+        "logo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Company logo: path to a PNG/JPG/SVG relative to the map file.",
+          "title": "Logo"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD).",
+          "title": "Designation"
+        },
+        "litera": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document letter (ESKD), e.g. \"О1\".",
+          "title": "Litera"
+        },
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "City for the title page.",
+          "title": "City"
+        },
+        "signatures": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signatures"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approve": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Person"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The \"APPROVED\" block of the title page."
+        },
+        "agree": {
+          "description": "The \"AGREED\" blocks.",
+          "items": {
+            "$ref": "#/$defs/Person"
+          },
+          "title": "Agree",
+          "type": "array"
+        }
+      },
+      "title": "Print",
       "type": "object"
     },
     "SdoExchange": {

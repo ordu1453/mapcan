@@ -25,8 +25,15 @@ class Rename:
     new: str
     convert: Callable[[dict], Any] | None = None    # old key → value: the current key's value (or DROP)
     since: str = ""                 # mapcan version that introduced the current key
+    nest: bool = False              # the old keys move as they are into the mapping ``new`` (old key → new.old key)
+
+    def present(self, node) -> list[str]:
+        """The deprecated keys written in ``node``: keys moved into a mapping keep their order in the node."""
+        return [k for k in node if k in self.old] if self.nest else [k for k in self.old if k in node]
 
     def value(self, old: dict) -> Any:
+        if self.nest:
+            return dict(old)
         if self.convert is not None:
             return self.convert(old)
         return old[self.old[0]] if self.old[0] in old else DROP
@@ -37,7 +44,11 @@ def _representation(old: dict) -> Any:
     return old.get("signed_code") or "twos_complement" if old.get("signed") is True else DROP
 
 
+PRINT_KEYS = ("logo", "designation", "litera", "city", "signatures", "approve", "agree")
+
 RENAMES: list[Rename] = [
+    # Print details of the title page belong to the templates, not to the map's metadata
+    Rename("document", PRINT_KEYS, "print", nest=True, since="0.21"),
     Rename("bus", ("interface",), "connector", since="0.21"),
     Rename("frame", ("dlc",), "length", since="0.21"),
     # type: raw meant "no CANopen function": the current field is not written then
@@ -60,6 +71,13 @@ def renames(kind: str | None) -> list[Rename]:
 def deprecated_of(kind: str | None, new: str) -> tuple[str, ...]:
     """Deprecated keys the current key ``new`` replaces in a node of this kind."""
     return next((r.old for r in renames(kind) if r.new == new), ())
+
+
+def renamed_along(path: Path_) -> list[int]:
+    """Positions ``i`` of ``path`` whose key ``path[i]`` replaces deprecated keys of the node ``path[:i]``: before
+    a value is written there, the node has to be upgraded (``document.print.logo`` → ``i`` of ``print``)."""
+    p = tuple(path)
+    return [i for i in range(len(p)) if isinstance(p[i], str) and deprecated_of(node_kind(p[:i]), p[i])]
 
 
 def node_kind(path: Path_) -> str | None:
@@ -108,7 +126,7 @@ def upgrade_node(kind: str | None, node: dict, path: Path_ = ()) -> tuple[dict, 
     found = []
     out = node
     for r in renames(kind):
-        present = tuple(k for k in r.old if k in out)
+        present = tuple(r.present(out))
         if not present:
             continue
         conflict = r.new in out

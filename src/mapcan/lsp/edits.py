@@ -963,8 +963,9 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
     if not path or not isinstance(path[-1], str) or a.result.source.is_included(path):
         return []
     key = path[-1]
-    parent = raw_at(a, path[:-1])
-    if isinstance(parent, dict) and any(k in parent for k in U.deprecated_of(U.node_kind(path[:-1]), key)):
+    if any(isinstance(node := raw_at(a, path[:i]), dict)
+           and any(k in node for k in U.deprecated_of(U.node_kind(path[:i]), path[i]))
+           for i in U.renamed_along(path)):
         # The node has the field under a former name: yamlops renames it in place (keeping its position)
         op = ({"op": "remove", "path": list(path)} if value is None or value == ""
               else {"op": "set", "path": list(path), "value": value})
