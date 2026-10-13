@@ -21,5 +21,7 @@ you ask otherwise.
 The web editor (`mapcan edit`, the desktop app) is meant to run locally: by default it listens on
 `127.0.0.1` and works with the files of the user who started it. Problems that let another local
 user, a web page in the browser or a crafted map file read or change files, run commands or reach
-the editor's API are in scope. Exposing the editor on a network address with `--host` gives everyone
-who can reach it the rights of that user, so this setup is not covered.
+the editor's API are in scope. On a network address (`--host`) the editor requires a token
+([docs/web.md](docs/web.md#security)); a way to use it without the token is in scope. Everyone who
+has the token gets the rights of that user, and `--no-auth` turns the protection off, so these are
+not covered.

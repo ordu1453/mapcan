@@ -253,7 +253,7 @@ opens.
 
 ```text
 mapcan app         [FILE|DIR] [--browser] [--readonly]
-mapcan serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser]
+mapcan serve       [FILE|DIR] [--host 127.0.0.1] [--port 8765] [--readonly] [--no-browser] [--token T | --no-auth]
 mapcan validate    FILE [--strict] [--info] [--format json] [--disable CODE]
 mapcan export xlsx FILE [-o OUT] [--style style.yaml] [--lang en]
 mapcan export pdf  FILE [-o OUT] [--template mapcan|gost-2.105|my.typ] [--font-path DIR] [--lang en]

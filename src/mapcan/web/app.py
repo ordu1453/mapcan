@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import hmac
+import html
 import io
 import os
 import re
@@ -14,12 +16,13 @@ import subprocess
 import tempfile
 import zipfile
 from collections.abc import Callable, Collection
+from http.cookies import CookieError, SimpleCookie
 from pathlib import Path, PurePath
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
@@ -191,6 +194,54 @@ class RequestGuard:
             await send({"type": "websocket.close", "code": 1008})
             return
         await JSONResponse({"detail": message, "code": "forbidden"}, status_code=403)(scope, receive, send)
+
+
+class TokenAuth:
+    """Token authentication of a server on the network (``mapcan serve --host 0.0.0.0``), as in Jupyter.
+
+    A request passes with the cookie ``mapcan_token`` or the header ``Authorization: Bearer <token>``.
+    The address printed by ``serve`` carries ``?token=…``: a GET with the right token sets the cookie
+    (HttpOnly, SameSite=Strict) and redirects to the same address without it, so the token does not stay in
+    the address bar or the history.
+    """
+
+    COOKIE = "mapcan_token"
+
+    def __init__(self, app, token: str):
+        self.app = app
+        self.token = token
+
+    def _ok(self, value: str | None) -> bool:
+        return value is not None and hmac.compare_digest(value.encode(), self.token.encode())
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            return await self.app(scope, receive, send)
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        cookies = SimpleCookie()
+        with contextlib.suppress(CookieError):
+            cookies.load(headers.get("cookie", ""))
+        cookie = cookies[self.COOKIE].value if self.COOKIE in cookies else None
+        auth = headers.get("authorization", "")
+        bearer = auth[7:].strip() if auth.lower().startswith("bearer ") else None
+        if self._ok(cookie) or self._ok(bearer):
+            return await self.app(scope, receive, send)
+        query = parse_qs(scope.get("query_string", b"").decode("latin-1"))
+        if scope["type"] == "http" and scope["method"] == "GET" and self._ok((query.get("token") or [None])[0]):
+            rest = urlencode([(k, v) for k, vs in query.items() if k != "token" for v in vs], doseq=True)
+            target = scope.get("path", "/") + (f"?{rest}" if rest else "")
+            response = RedirectResponse(target, status_code=303)
+            response.set_cookie(self.COOKIE, self.token, httponly=True, samesite="strict", path="/")
+            return await response(scope, receive, send)
+        if scope["type"] == "websocket":
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        message = _("mapcan: open the address with the token that `mapcan serve` printed (…/?token=…)")
+        if scope.get("path", "").startswith("/api/"):
+            response = JSONResponse({"detail": message, "code": "auth"}, status_code=401)
+        else:
+            response = HTMLResponse(f"<h1>mapcan</h1><p>{html.escape(message)}</p>", status_code=401)
+        await response(scope, receive, send)
 
 
 class Workspace:
@@ -469,11 +520,12 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                cwd: Path | None = None, readonly: bool | None = None, *,
                check_updates: bool = False, instance_token: str | None = None,
                on_activate: Callable[[], None] | None = None,
-               allowed_hosts: Collection[str] | None = None) -> FastAPI:
+               allowed_hosts: Collection[str] | None = None, auth_token: str | None = None) -> FastAPI:
     """The editor application.
 
     ``allowed_hosts`` are the names allowed in the ``Host`` header (for a server on localhost),
     None allows any (the server listens on the network);
+    ``auth_token``: every request needs this token (see :class:`TokenAuth`), for a server on the network;
     ``check_updates``: answer /api/update with information from GitHub Releases;
     ``instance_token`` allows /api/instance/activate (mapcan run again
     passes the file to the running instance), ``on_activate`` brings the window to the front.
@@ -513,6 +565,9 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     app.state.workspace = wsp
     app.state.hub = hub
     app.add_middleware(RequestGuard, allowed_hosts=allowed_hosts)
+    if auth_token:
+        # Added last, so it runs first: nothing reaches the editor without the token
+        app.add_middleware(TokenAuth, token=auth_token)
 
     @app.exception_handler(AppError)
     async def _app_error(_: Request, e: AppError):

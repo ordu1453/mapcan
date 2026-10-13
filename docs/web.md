@@ -53,8 +53,28 @@ opens. The mapcan version is shown in the top bar next to the title and on the s
 ### Security
 
 The editor is meant for a single user on their own machine. By default it listens on `127.0.0.1`
-only and has no authentication. With `--host 0.0.0.0` it becomes reachable from the network, and
-mapcan prints a warning at startup.
+only, accepts only its own address in the `Host` header and rejects changing requests from other
+sites, and needs no password.
+
+On a network address (`--host 0.0.0.0`, for example in Docker or on a shared server) it asks for a
+token, as Jupyter does. mapcan prints the address with it:
+
+```
+mapcan 0.21.0: /work → http://127.0.0.1:8765/?token=Qm3…  (Ctrl+C to stop)
+```
+
+Opening that address stores the token in a cookie (HttpOnly, SameSite=Strict) and removes it from
+the address bar; scripts can send `Authorization: Bearer <token>` instead. The token is random on every
+start unless given with `--token` or the `MAPCAN_TOKEN` environment variable:
+
+```sh
+docker run --rm -p 8765:8765 -v "$PWD:/work" -e MAPCAN_TOKEN=… ghcr.io/ordu1453/mapcan serve --host 0.0.0.0 --no-browser
+```
+
+Everyone with the token has the rights of the user the editor runs as, to every file that user can
+reach. The token travels in plain text over HTTP: on a network you do not trust, put the editor
+behind an HTTPS proxy. Behind a proxy that authenticates users itself, `--no-auth` turns the token
+off (mapcan then prints a warning).
 
 ## Author profile
 

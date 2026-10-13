@@ -48,6 +48,12 @@ RU: dict[str, str] = {
     "Port; defaults to 8765 or any free port.": "Порт; по умолчанию 8765 или свободный.",
     "View only, no saving.": "Только просмотр, без сохранения.",
     "Do not open a browser.": "Не открывать браузер.",
+    "Access token on a network address; a random one is generated if not given.":
+        "Токен доступа на сетевом адресе; если не задан, создаётся случайный.",
+    "No token on a network address (behind a proxy that authenticates users).":
+        "Без токена на сетевом адресе (за прокси, который сам проверяет пользователей).",
+    "mapcan: open the address with the token that `mapcan serve` printed (…/?token=…)":
+        "mapcan: откройте адрес с токеном, который вывел `mapcan serve` (…/?token=…)",
     "Warning: the editor is reachable over the network ({host}) without authentication. Anyone who opens the address "
     "can open and change files.":
         "Внимание: редактор доступен по сети ({host}) без аутентификации. Любой, кто откроет адрес, сможет открывать "

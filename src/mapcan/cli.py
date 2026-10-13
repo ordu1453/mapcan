@@ -119,7 +119,13 @@ def serve(
     port: Optional[int] = typer.Option(None, "--port", help=_("Port; defaults to 8765 or any free port.")),
     readonly: bool = typer.Option(False, "--readonly", help=_("View only, no saving.")),
     no_browser: bool = typer.Option(False, "--no-browser", help=_("Do not open a browser.")),
+    token: Optional[str] = typer.Option(
+        None, "--token", envvar="MAPCAN_TOKEN",
+        help=_("Access token on a network address; a random one is generated if not given.")),
+    no_auth: bool = typer.Option(
+        False, "--no-auth", help=_("No token on a network address (behind a proxy that authenticates users).")),
 ) -> None:
+    import secrets
     import webbrowser
 
     _need("web")
@@ -128,10 +134,13 @@ def serve(
     from .web.session import EditorSession
 
     local = host in LOCAL_HOSTS
-    if not local:
+    auth_token = None
+    if not local and no_auth:
         typer.secho(_("Warning: the editor is reachable over the network ({host}) without authentication. Anyone who "
                       "opens the address can open and change files.", host=host),
                     fg=typer.colors.YELLOW, err=True)
+    elif not local:
+        auth_token = token or secrets.token_urlsafe(24)
     session, cwd = None, Path.cwd()
     if path is not None and path.is_dir():
         cwd = path
@@ -140,8 +149,12 @@ def serve(
     if port is None:
         port = pick_port(host, DEFAULT_PORT) if local else DEFAULT_PORT
     url = browser_url(host, port)
+    if auth_token:
+        from urllib.parse import quote
+
+        url += f"?token={quote(auth_token)}"
     server = ServerThread(create_app(session, cwd=cwd.resolve(), readonly=readonly, check_updates=local,
-                                     allowed_hosts=LOCAL_HOSTS if local else None),
+                                     allowed_hosts=LOCAL_HOSTS if local else None, auth_token=auth_token),
                           host, port)
     try:
         server.start()
