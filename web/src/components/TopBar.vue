@@ -223,7 +223,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <button class="primary" :title="t('Save (Ctrl+S)')" :disabled="!store.state?.dirty || store.state?.readonly || store.busy"
+      <button class="primary"
+              :title="store.state?.dirty_files?.length
+                ? t('Save (Ctrl+S): also {files}', { files: store.state.dirty_files.join(', ') }) : t('Save (Ctrl+S)')"
+              :disabled="!store.state?.dirty || store.state?.readonly || store.busy"
               @click="actions.save()">{{ t("Save") }}</button>
     </template>
 

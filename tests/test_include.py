@@ -188,7 +188,6 @@ def test_included_node_fields_are_read_only(tmp_path):
 
 def test_web_state_has_included_nodes(tmp_path):
     from mapcan.web.session import EditorSession
-    from mapcan.web.yamlops import OpError
 
     s = EditorSession(write(tmp_path))
     st = s.state()
@@ -196,8 +195,46 @@ def test_web_state_has_included_nodes(tmp_path):
                               {"path": ["buses", 1], "file": "common.yaml"}]
     assert [b["name"] for b in st["included_buses"]] == ["can1", "can2"]
     assert len(st["data"]["buses"]) == 1                         # data of the main file, without the included ones
-    with pytest.raises(OpError):
-        s.apply([{"op": "set", "path": ["buses", 1, "name"], "value": "x"}])
+
+
+def test_web_edits_included_nodes_in_their_file(tmp_path):
+    from mapcan.web.session import EditorSession
+
+    main = write(tmp_path)
+    common = tmp_path / "common.yaml"
+    main_text, common_text = main.read_text(encoding="utf-8"), common.read_text(encoding="utf-8")
+    s = EditorSession(main)
+    # Rename bms (the second device of can1 in the map, the first in common.yaml) and a reference to it in the
+    # main file: one edit, one undo step, in two files
+    assert s.apply([{"op": "set", "path": ["buses", 0, "devices", 1, "name"], "value": "battery"},
+                    {"op": "set", "path": ["buses", 0, "devices", 0, "frames", 0, "receivers"], "value": ["battery"]}])
+    st = s.state()
+    assert st["dirty"] and st["dirty_files"] == ["common.yaml"]
+    assert [d["name"] for d in st["included_buses"][0]["devices"]] == ["vcu", "battery"]
+    assert s.state()["data"]["buses"][0]["devices"][0]["frames"][0]["receivers"] == ["battery"]
+    assert "- name: battery" in s.parts[str(common.resolve())].text
+    assert common.read_text(encoding="utf-8") == common_text          # nothing written before Save
+    # A field of a node of the included file's own bus
+    assert s.apply([{"op": "set", "path": ["buses", 1, "devices", 0, "title"], "value": "Charger"}])
+    s.undo()
+    s.undo()
+    assert s.text == main_text and s.parts[str(common.resolve())].text == common_text and not s.dirty
+    s.redo()
+    s.save()
+    assert "- name: battery" in common.read_text(encoding="utf-8") and "battery" in main.read_text(encoding="utf-8")
+    assert not s.state()["dirty"] and not s.disk_changed()
+
+
+def test_web_save_checks_included_files_on_disk(tmp_path):
+    from mapcan.web.session import ConflictError, EditorSession
+
+    main = write(tmp_path)
+    s = EditorSession(main)
+    s.apply([{"op": "set", "path": ["buses", 1, "devices", 0, "title"], "value": "Charger"}])
+    (tmp_path / "common.yaml").write_text(COMMON + "\n# changed outside\n", encoding="utf-8")
+    assert s.disk_changed()
+    with pytest.raises(ConflictError):
+        s.save()
 
 
 HEADER = "mapcan: 1\npart_of: main.yaml\n"

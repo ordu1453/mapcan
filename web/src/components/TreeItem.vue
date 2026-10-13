@@ -90,7 +90,7 @@ function click() {
       <span v-if="node.sub" class="tsub mono">{{ node.sub }}</span>
       <span v-if="node.from !== undefined" class="tsub link-mark">↪</span>
       <span v-if="node.fileRoot" class="tsub include-mark"
-            :title="t('From the included file {file}, read-only', { file: node.file })">🔗 {{ node.file }}</span>
+            :title="t('From the included file {file}', { file: node.file })">🔗 {{ node.file }}</span>
       <span v-if="own" class="dot" :class="own" :title="own" />
       <span v-else-if="nested" class="dot ring" :class="nested" />
     </div>

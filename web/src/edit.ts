@@ -1,18 +1,23 @@
 // Structural edits: add / delete / duplicate a node.
 
-import { actions, includedPath, lang, resolvedFrames, store, toast } from "./store";
+import { actions, includedPath, lang, resolvedFrames, store, toast, viewData } from "./store";
 import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, txt, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
 import { t } from "./i18n";
 
-const data = (): Data => store.state?.data;
+// The map together with its included files: their nodes are edited here too, and the server writes each edit
+// to the file the node is described in (the paths are the map's)
+const data = (): Data => viewData.value;
 
 function busOf(path: Path): Data {
   return getAt(data(), path.slice(0, 2));
 }
 
 async function insertAndSelect(listPath: Path, value: unknown, extra: Op[] = [], select = true): Promise<boolean> {
-  const list = getAt(data(), listPath) as unknown[] | undefined;
+  // A list of the main file (the devices of a bus that an included file extends too) gets the new item at the
+  // end of the main file's part, before the included file's items
+  const own = includedPath(listPath) ? data() : store.state?.data;
+  const list = getAt(own, listPath) as unknown[] | undefined;
   const index = list ? list.length : 0;
   const ok = await actions.apply([{ op: "insert", path: listPath, value }, ...extra.map((o) => fixIndex(o, index))]);
   if (ok && select) actions.select([...listPath, index]);
@@ -209,7 +214,7 @@ export async function addRevision(): Promise<boolean> {
 const RENAMABLE: NodeKind[] = ["bus", "device", "frame", "signal", "flag", "sdo"];
 
 export function canRename(path: Path): boolean {
-  return RENAMABLE.includes(nodeKind(path)) && !store.state?.readonly && !includedPath(path);
+  return RENAMABLE.includes(nodeKind(path)) && !store.state?.readonly;
 }
 
 /** Names the new name must not match: siblings in the list, and for frames all frames of the bus. */

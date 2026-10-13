@@ -28,11 +28,11 @@ const KIND_LABEL: Record<string, string> = {
 
 const path = computed<Path>(() => store.selected);
 const kind = computed(() => nodeKind(path.value));
-// Together with the included files (include): their nodes are visible but edited only in their own file
+// Together with the included files (include): their nodes are edited here, the edits go to their own file
 const data = computed(() => viewData.value);
 const node = computed(() => getAt(data.value, kind.value === "document" ? ["document"] : path.value));
 const includedFile = computed(() => includedPath(path.value));
-const readonly = computed(() => !!store.state?.readonly || !!includedFile.value);
+const readonly = computed(() => !!store.state?.readonly);
 const diags = computed(() => store.state?.diagnostics ?? []);
 
 // What the form's conditions know about the node (see FormContext in form/spec.ts)
@@ -409,7 +409,7 @@ function onLayout(p: Path, start: number, length: number) {
     </header>
 
     <div v-if="includedFile" class="banner info">
-      🔗 {{ t("The node is described in the included file {file}: it is read-only here, edit it in that file.",
+      🔗 {{ t("The node is described in the included file {file}: edits go to that file, and Save writes it too.",
               { file: includedFile }) }}
     </div>
     <div v-for="d in ownDiags" :key="d.code + d.message" class="banner" :class="d.level">

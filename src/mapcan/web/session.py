@@ -19,7 +19,7 @@ from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
 from ..upgrade import upgrade_tree
 from ..validate import check
-from .yamlops import OpError, apply_ops, check_editable, device_rename_ops, dump, make_yaml, merge_text, plain
+from .yamlops import OpError, apply_ops, device_rename_ops, dump, make_yaml, merge_text, plain
 
 HISTORY_LIMIT = 200
 
@@ -36,17 +36,47 @@ def _hash(data: str) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
+def _write(path: Path, data: str) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_bytes(data.encode("utf-8"))
+    tmp.replace(path)
+
+
+class _Part:
+    """A file included by the map, edited together with it (#49)."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        raw = path.read_bytes().decode("utf-8")
+        self.newline = "\r\n" if "\r\n" in raw else "\n"
+        self.text = self.saved_text = raw.replace("\r\n", "\n")
+        self.disk_hash = _hash(self.text)
+
+    def disk_changed(self) -> bool:
+        try:
+            return _hash(self.path.read_bytes().decode("utf-8").replace("\r\n", "\n")) != self.disk_hash
+        except (OSError, UnicodeDecodeError):
+            return True
+
+
+# The state of all files for undo: the map's text and the texts of the included files (resolved path → text)
+Snapshot = tuple[str, dict[str, str]]
+
+
 class EditorSession:
+    """The edited map and the files it includes: one undo history, and saving writes every changed file."""
+
     def __init__(self, path: str | Path, readonly: bool = False):
         self.path = Path(path).resolve()
         self.readonly = readonly
         self.lock = threading.RLock()
         self.version = 0
-        self.undo_stack: list[str] = []
-        self.redo_stack: list[str] = []
+        self.undo_stack: list[Snapshot] = []
+        self.redo_stack: list[Snapshot] = []
         self._live_base: str | None = None     # text before a series of edits in the YAML tab while typing
         self._result: LoadResult | None = None
         self._report = None
+        self.parts: dict[str, _Part] = {}       # included files read so far, by resolved path
         self.reload()
 
     # ------------------------------------------------------------------ disk
@@ -56,32 +86,60 @@ class EditorSession:
         self.newline = "\r\n" if "\r\n" in raw else "\n"
         return raw.replace("\r\n", "\n")
 
+    def _read_part(self, path: str) -> str | None:
+        """Text of an included file for the loader: the edited one, read from the disk the first time."""
+        part = self.parts.get(path)
+        if part is None:
+            try:
+                part = self.parts[path] = _Part(Path(path))
+            except (OSError, UnicodeDecodeError):
+                return None
+        return part.text
+
+    def _load(self, text: str) -> LoadResult:
+        return loads(text, str(self.path.name), self.path.parent, read=self._read_part)
+
     def disk_changed(self) -> bool:
-        """The file was changed outside since the last load/save."""
+        """The map or an included file was changed outside since the last load/save."""
         try:
-            return _hash(self.path.read_bytes().decode("utf-8").replace("\r\n", "\n")) != self.disk_hash
+            main = _hash(self.path.read_bytes().decode("utf-8").replace("\r\n", "\n")) != self.disk_hash
         except (OSError, UnicodeDecodeError):
-            return True
+            main = True
+        return main or any(p.disk_changed() for p in self.parts.values())
+
+    @property
+    def dirty(self) -> bool:
+        return self.text != self.saved_text or any(p.text != p.saved_text for p in self.parts.values())
+
+    def part_paths(self) -> list[Path]:
+        """The files included by the map (those the current text includes)."""
+        if self._result is None:
+            return []
+        return [Path(f).resolve() for _i, f in self._result.source.includes]
 
     def reload(self) -> None:
         with self.lock:
             text = self._read_disk()
             self.disk_hash = _hash(text)
             self.saved_text = text
+            self.parts = {}
             self.undo_stack.clear()
             self.redo_stack.clear()
             self._live_base = None
             self._set_text(text)
 
     def save(self, force: bool = False) -> None:
+        """Write the map and every included file with unsaved edits."""
         with self.lock:
             self._check_writable()
             if self.disk_changed() and not force:
                 raise ConflictError(_("the file was changed on disk by another program"))
-            data = self.text.replace("\n", self.newline)
-            tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-            tmp.write_bytes(data.encode("utf-8"))
-            tmp.replace(self.path)
+            for part in self.parts.values():
+                if part.text != part.saved_text:
+                    _write(part.path, part.text.replace("\n", part.newline))
+                    part.saved_text = part.text
+                    part.disk_hash = _hash(part.text)
+            _write(self.path, self.text.replace("\n", self.newline))
             self.disk_hash = _hash(self.text)
             self.saved_text = self.text
             self.version += 1
@@ -95,10 +153,16 @@ class EditorSession:
                 raise FileExistsError(_("file already exists: {path}", path=target))
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(self.text.replace("\n", self.newline).encode("utf-8"))
+            # The included files stay where they are: their unsaved edits are written there
+            for part in self.parts.values():
+                if part.text != part.saved_text:
+                    _write(part.path, part.text.replace("\n", part.newline))
+                    part.saved_text = part.text
+                    part.disk_hash = _hash(part.text)
             self.path = target
             self.disk_hash = _hash(self.text)
             self.saved_text = self.text
-            self._result = loads(self.text, target.name, target.parent)
+            self._result = self._load(self.text)
             self._report = check(self._result)
             self.version += 1
 
@@ -116,48 +180,95 @@ class EditorSession:
             self.doc = self.yaml.load(text)
         except YAMLError:
             self.doc = None           # syntax error: only the YAML tab is available
-        self._result = loads(text, str(self.path.name), self.path.parent)
+        self._result = self._load(text)
         self._report = check(self._result)
         self.version += 1
 
     def check_text(self, text: str) -> list[dict]:
         """Validate a text without applying it (live validation in the YAML tab)."""
-        result = loads(text.replace("\r\n", "\n"), str(self.path.name), self.path.parent)
+        result = self._load(text.replace("\r\n", "\n"))
         return [asdict(result.source.in_main_file(d)) for d in check(result).sorted()]
 
     def recheck(self) -> None:
         """Rebuild the validation messages (after the interface language changed)."""
         with self.lock:
-            self._result = loads(self.text, str(self.path.name), self.path.parent)
+            self._result = self._load(self.text)
             self._report = check(self._result)
             self.version += 1
 
-    def _commit(self, new_text: str) -> bool:
+    def _snapshot(self) -> Snapshot:
+        return self.text, {k: p.text for k, p in self.parts.items()}
+
+    def _restore(self, snap: Snapshot) -> None:
+        text, parts = snap
+        for k, t in parts.items():
+            if k in self.parts:
+                self.parts[k].text = t
+        self._set_text(text)
+
+    def _commit(self, new_text: str, new_parts: dict[str, str] | None = None) -> bool:
+        """A new state of the map (and of included files): one undo step."""
         self._live_base = None
-        if new_text == self.text:
+        changed_parts = {k: t for k, t in (new_parts or {}).items() if self.parts[k].text != t}
+        if new_text == self.text and not changed_parts:
             return False
-        self.undo_stack.append(self.text)
+        self.undo_stack.append(self._snapshot())
         del self.undo_stack[:-HISTORY_LIMIT]
         self.redo_stack.clear()
+        for k, t in changed_parts.items():
+            self.parts[k].text = t
         self._set_text(new_text)
         return True
 
+    def _route(self, ops: list[dict]) -> dict[str | None, list[dict]]:
+        """Operations by the file they change (None: the map), with the paths of that file. A node of an included
+        file has another path there: the second device of a bus may be the first of the included file."""
+        src = self._result.source if self._result is not None else None
+        out: dict[str | None, list[dict]] = {}
+        for o in ops:
+            path = o.get("path")
+            target, local = None, path
+            if src is not None and isinstance(path, list):
+                file, lp = src.origin(tuple(int(x) if isinstance(x, str) and x.isdigit() else x for x in path))
+                if file is not None and file != src.file:
+                    target, local = str(Path(file).resolve()), list(lp)
+            out.setdefault(target, []).append({**o, "path": local} if target else o)
+        return out
+
+    def _apply_to(self, text: str, ops: list[dict]) -> str:
+        """The text with the operations applied (through its ruamel document, keeping the rest of the text)."""
+        y = make_yaml(text)
+        doc = y.load(text)
+        canon_old = dump(y, doc)
+        apply_ops(doc, ops)
+        return merge_text(text, canon_old, dump(y, doc))
+
     def apply(self, ops: list[dict]) -> bool:
-        """Apply operations atomically. Returns True if the text changed."""
+        """Apply operations atomically: to the map and to the included files whose nodes they change.
+        Returns True if a text changed."""
         with self.lock:
             self._check_writable()
             if self.doc is None:
                 raise OpError(_("the YAML has a syntax error; fix the text in the YAML tab"))
-            if self._result is not None:
-                check_editable(self._result.source, ops)
-            canon_old = dump(self.yaml, self.doc)
-            try:
-                apply_ops(self.doc, ops)
-                canon_new = dump(self.yaml, self.doc)
-            except Exception:
-                self.doc = self.yaml.load(self.text)     # roll back
-                raise
-            return self._commit(merge_text(self.text, canon_old, canon_new))
+            routed = self._route(ops)
+            new_parts = {}
+            for file, part_ops in routed.items():
+                if file is None:
+                    continue
+                if file not in self.parts:
+                    raise OpError(_("the included file {file} cannot be read", file=Path(file).name))
+                new_parts[file] = self._apply_to(self.parts[file].text, part_ops)
+            new_text = self.text
+            if None in routed:
+                canon_old = dump(self.yaml, self.doc)
+                try:
+                    apply_ops(self.doc, routed[None])
+                    canon_new = dump(self.yaml, self.doc)
+                except Exception:
+                    self.doc = self.yaml.load(self.text)     # roll back
+                    raise
+                new_text = merge_text(self.text, canon_old, canon_new)
+            return self._commit(new_text, new_parts)
 
     def _carry_renames(self, base: str, text: str) -> str:
         """A device renamed in the text is carried over to sender/receivers of the frames, as when edited in the
@@ -193,7 +304,7 @@ class EditorSession:
             if base is None:
                 changed = self._commit(text)
                 if live and changed:
-                    self._live_base = self.undo_stack[-1]
+                    self._live_base = self.undo_stack[-1][0]
                 return changed
             if text == base:                     # the series brought the text back: no undo step needed
                 self.undo_stack.pop()
@@ -211,8 +322,8 @@ class EditorSession:
             self._live_base = None
             if not self.undo_stack:
                 return False
-            self.redo_stack.append(self.text)
-            self._set_text(self.undo_stack.pop())
+            self.redo_stack.append(self._snapshot())
+            self._restore(self.undo_stack.pop())
             return True
 
     def redo(self) -> bool:
@@ -221,8 +332,8 @@ class EditorSession:
             self._live_base = None
             if not self.redo_stack:
                 return False
-            self.undo_stack.append(self.text)
-            self._set_text(self.redo_stack.pop())
+            self.undo_stack.append(self._snapshot())
+            self._restore(self.redo_stack.pop())
             return True
 
     # ------------------------------------------------------------------ reading
@@ -233,16 +344,15 @@ class EditorSession:
         merged = self._result.merged if self._result else None
         if not isinstance(merged, dict) or not isinstance(merged.get("buses"), list):
             return {"included_buses": None, "included": []}
-
-        def rel(f: str) -> str:
-            try:
-                return Path(os.path.relpath(f, self.path.parent)).as_posix()
-            except ValueError:          # another drive
-                return Path(f).name
-
         roots = self._result.source.included_roots()
         return {"included_buses": merged["buses"],
-                "included": [{"path": list(p), "file": rel(f)} for p, f in sorted(roots, key=lambda r: r[0])]}
+                "included": [{"path": list(p), "file": self._rel(f)} for p, f in sorted(roots, key=lambda r: r[0])]}
+
+    def _rel(self, f: str | Path) -> str:
+        try:
+            return Path(os.path.relpath(f, self.path.parent)).as_posix()
+        except ValueError:          # another drive
+            return Path(f).name
 
     @property
     def map(self) -> MapCan | None:
@@ -254,7 +364,9 @@ class EditorSession:
                 "file": self.path.name,
                 "path": str(self.path),
                 "version": self.version,
-                "dirty": self.text != self.saved_text,
+                "dirty": self.dirty,
+                # Included files with unsaved edits (paths relative to the map): Save writes them too
+                "dirty_files": [self._rel(p.path) for p in self.parts.values() if p.text != p.saved_text],
                 "readonly": self.readonly,
                 "can_undo": bool(self.undo_stack),
                 "can_redo": bool(self.redo_stack),

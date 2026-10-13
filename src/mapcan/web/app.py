@@ -267,7 +267,7 @@ class Workspace:
 
     def check_unsaved(self, force: bool) -> None:
         s = self.session
-        if s is not None and not force and s.text != s.saved_text:
+        if s is not None and not force and s.dirty:
             raise AppError(409, "unsaved", _("“{name}” has unsaved changes", name=s.path.name))
 
     def remember(self, path: Path) -> None:
@@ -626,7 +626,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             path = wsp.resolve(body.path)
             s = wsp.session
             async with lock:
-                if s is not None and s.text != s.saved_text:
+                if s is not None and s.dirty:
                     # There are unsaved edits: the tab opens it after asking the user.
                     await hub.broadcast({"type": "open-request", "path": str(path)})
                     return {"ok": True}
@@ -903,19 +903,19 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     # ---------------------------------------------------------------- git: versions of the map
 
     def git_extra(s: EditorSession) -> list[str]:
-        """Logo of the map inside the repository: a path for git relative to the map's folder (or empty)."""
+        """The logo and the included files of the map inside the repository: paths for git relative to the map's
+        folder. A commit of the map takes them too."""
         logo = logo_file()
-        if logo is None or not logo.is_file():
+        files = [*s.part_paths(), *([logo] if logo is not None and logo.is_file() else [])]
+        if not files:
             return []
         cwd = s.path.parent.resolve()
         try:
             top = Path(_git(["rev-parse", "--show-toplevel"], cwd).strip()).resolve()
         except (HTTPException, OSError, subprocess.SubprocessError):
             return []
-        logo = logo.resolve()
-        if not logo.is_relative_to(top):
-            return []
-        return [Path(os.path.relpath(logo, cwd)).as_posix()]
+        return [Path(os.path.relpath(f.resolve(), cwd)).as_posix() for f in files
+                if f.resolve().is_relative_to(top)]
 
     async def git_state(s: EditorSession) -> dict:
         return await run_in_threadpool(lambda: _git_status(s.path, git_extra(s)))
@@ -995,7 +995,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         """The map for git operations: the editor is not read-only and the edits are saved."""
         writable()
         s = wsp.require()
-        if s.text != s.saved_text:
+        if s.dirty:
             raise AppError(409, "unsaved", _("save the map first"))
         return s
 

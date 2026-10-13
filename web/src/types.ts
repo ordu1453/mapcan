@@ -71,6 +71,8 @@ export interface State {
   path: string;
   version: number;
   dirty: boolean;
+  /** Included files with unsaved edits (relative to the map): Save writes them too. */
+  dirty_files?: string[];
   readonly: boolean;
   can_undo: boolean;
   can_redo: boolean;

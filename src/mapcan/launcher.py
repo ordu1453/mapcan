@@ -268,7 +268,7 @@ def run(path: Path | None = None, *, window: bool = True, readonly: bool = False
 
             def on_closing() -> bool:
                 s = wsp.session
-                if s is None or s.text == s.saved_text:
+                if s is None or not s.dirty:
                     return True
                 answer = _ask_save(_("“{name}” has unsaved changes.\n\nSave before closing?", name=s.path.name))
                 if answer is None:

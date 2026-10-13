@@ -135,7 +135,7 @@
   "Frame layout": "Раскладка кадра",
   "Frame of another device": "Кадр другого устройства",
   "Frames": "Кадры",
-  "From the included file {file}, read-only": "Из подключённого файла {file} — только для просмотра",
+  "From the included file {file}": "Из подключённого файла {file}",
   "Full name": "Полное название",
   "GOST documents are always in Russian": "Документы по ГОСТ оформляются только на русском",
   "General": "Общее",
@@ -303,7 +303,7 @@
   "The name cannot be empty": "Название не может быть пустым",
   "The name “{name}” is already taken": "Имя «{name}» уже занято",
   "The new map will have no author. To fix this,": "Автор новой карты не будет указан —",
-  "The node is described in the included file {file}: it is read-only here, edit it in that file.": "Узел описан в подключённом файле {file}: здесь он только для просмотра, правьте его в том файле.",
+  "The node is described in the included file {file}: edits go to that file, and Save writes it too.": "Узел описан в подключённом файле {file}: правки идут в этот файл, «Сохранить» записывает и его.",
   "The revision history already has an entry for version {version}; no new entry is added.": "Запись версии {version} уже есть в истории изменений — новая не добавится.",
   "The tag goes on the latest commit of {branch}.": "Тег ставится на последний коммит ветки {branch}.",
   "The value table is empty.": "Таблица значений пуста.",
@@ -449,5 +449,6 @@
   "Unsaved changes": "Несохранённые изменения",
   "Don't save": "Не сохранять",
   "Overwrite": "Перезаписать",
-  "Reload": "Перечитать"
+  "Reload": "Перечитать",
+  "Save (Ctrl+S): also {files}": "Сохранить (Ctrl+S): также {files}"
 }
