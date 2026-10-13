@@ -259,6 +259,41 @@ def test_server_protocol(tmp_path):
         proc.wait()
 
 
+def test_changes_are_analysed_once_typing_pauses(tmp_path):
+    """Changes in quick succession give one analysis, of the last text."""
+    pytest.importorskip("pygls")
+    import time
+
+    uri = (tmp_path / "m.yaml").as_uri()
+    proc = subprocess.Popen([sys.executable, "-m", "mapcan.cli", "lsp"], stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE, cwd=ROOT)
+    try:
+        send = proc.stdin.write
+        send(_frame({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                     "params": {"processId": None, "rootUri": None, "capabilities": {}}}))
+        send(_frame({"jsonrpc": "2.0", "method": "initialized", "params": {}}))
+        send(_frame({"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": {
+            "textDocument": {"uri": uri, "languageId": "yaml", "version": 1, "text": MINIMAL}}}))
+        for v, extra in enumerate(("", "  # typing", "byte: 4\n                bit_length: 99\n"), start=2):
+            text = MINIMAL.replace("byte: 4\n", extra) if "bit_length" in extra else MINIMAL + extra
+            send(_frame({"jsonrpc": "2.0", "method": "textDocument/didChange", "params": {
+                "textDocument": {"uri": uri, "version": v}, "contentChanges": [{"text": text}]}}))
+        proc.stdin.flush()
+        time.sleep(2)
+        send(_frame({"jsonrpc": "2.0", "id": 2, "method": "textDocument/documentSymbol",
+                     "params": {"textDocument": {"uri": uri}}}))
+        proc.stdin.flush()
+        msgs: list[dict] = []
+        while not {1, 2} <= {m.get("id") for m in msgs} and len(msgs) < 20:
+            msgs.append(_read(proc.stdout))
+        published = [m["params"]["diagnostics"] for m in msgs if m.get("method") == "textDocument/publishDiagnostics"]
+        assert len(published) == 2                       # didOpen, then one for the three changes
+        assert any(d["code"] == "schema" for d in published[1])
+    finally:
+        proc.kill()
+        proc.wait()
+
+
 def test_diff_command_compares_two_versions():
     pytest.importorskip("pygls")
     from mapcan.lsp.server import diff_command

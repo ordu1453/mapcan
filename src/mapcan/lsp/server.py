@@ -6,6 +6,8 @@ other YAML files are skipped.
 
 from __future__ import annotations
 
+import asyncio
+
 from lsprotocol import types as T
 from pygls.lsp.server import LanguageServer
 from pygls.uris import to_fs_path
@@ -40,13 +42,20 @@ def _arg(args) -> dict:
     return args[0] if args and isinstance(args[0], dict) else {}
 
 
+# Pause after the last change before the map is analysed again: fast typing does not queue a full analysis
+# per keystroke (a large map takes seconds).
+DEBOUNCE = 0.3
+
+
 class MapcanServer(LanguageServer):
     def __init__(self) -> None:
         super().__init__("mapcan", __version__)
         # The last analysis of each document (for completion while the text does not parse).
         self.analyses: dict[str, A.Analysis] = {}
+        self.pending: dict[str, asyncio.Task] = {}     # the analysis waiting for the typing to pause
 
     def analysis(self, uri: str) -> A.Analysis | None:
+        """The analysis of the current text: for edits, which must start from what is in the editor."""
         doc = self.workspace.get_text_document(uri)
         last = self.analyses.get(uri)
         if last is not None and last.text == doc.source:
@@ -57,6 +66,42 @@ class MapcanServer(LanguageServer):
         a = A.analyze(doc.source, to_fs_path(uri) or uri)
         self.analyses[uri] = a
         return a
+
+    def latest(self, uri: str) -> A.Analysis | None:
+        """The last finished analysis, even of a slightly older text: for completion and inlay hints, which come
+        with every keystroke and should not wait for a new analysis. Without one, the current text."""
+        last = self.analyses.get(uri)
+        if last is not None and A.is_mapcan(self.workspace.get_text_document(uri).source):
+            return last
+        return self.analysis(uri)
+
+    async def publish_later(self, uri: str) -> None:
+        """Analyse in a worker thread once the typing pauses; a newer change cancels this run, and a result
+        for an outdated text is dropped."""
+        await asyncio.sleep(DEBOUNCE)
+        doc = self.workspace.get_text_document(uri)
+        text = doc.source
+        if not A.is_mapcan(text):
+            self.publish(uri)
+            return
+        last = self.analyses.get(uri)
+        if last is None or last.text != text:
+            last = await asyncio.to_thread(A.analyze, text, to_fs_path(uri) or uri)
+            if self.workspace.get_text_document(uri).source != text:
+                return          # changed meanwhile: the run of that change publishes
+            self.analyses[uri] = last
+        self.publish(uri)
+        caps = self.client_capabilities.workspace
+        if caps and caps.inlay_hint and caps.inlay_hint.refresh_support:
+            self.workspace_inlay_hint_refresh(None)
+
+    def schedule(self, uri: str) -> None:
+        old = self.pending.pop(uri, None)
+        if old is not None:
+            old.cancel()
+        task = asyncio.ensure_future(self.publish_later(uri))
+        self.pending[uri] = task
+        task.add_done_callback(lambda t: self.pending.pop(uri, None) if self.pending.get(uri) is t else None)
 
     def publish(self, uri: str) -> None:
         a = self.analysis(uri)
@@ -77,13 +122,16 @@ def did_open(ls: MapcanServer, params: T.DidOpenTextDocumentParams) -> None:
 
 
 @server.feature(T.TEXT_DOCUMENT_DID_CHANGE)
-def did_change(ls: MapcanServer, params: T.DidChangeTextDocumentParams) -> None:
-    ls.publish(params.text_document.uri)
+async def did_change(ls: MapcanServer, params: T.DidChangeTextDocumentParams) -> None:
+    ls.schedule(params.text_document.uri)
 
 
 @server.feature(T.TEXT_DOCUMENT_DID_CLOSE)
 def did_close(ls: MapcanServer, params: T.DidCloseTextDocumentParams) -> None:
     uri = params.text_document.uri
+    task = ls.pending.pop(uri, None)
+    if task is not None:
+        task.cancel()
     ls.analyses.pop(uri, None)
     ls.text_document_publish_diagnostics(T.PublishDiagnosticsParams(uri=uri, diagnostics=[]))
 
@@ -115,9 +163,12 @@ def hover(ls: MapcanServer, params: T.HoverParams) -> T.Hover | None:
 
 @server.feature(T.TEXT_DOCUMENT_INLAY_HINT, T.InlayHintOptions(resolve_provider=False))
 def inlay_hint(ls: MapcanServer, params: T.InlayHintParams) -> list[T.InlayHint] | None:
-    a = ls.analysis(params.text_document.uri)
+    a = ls.latest(params.text_document.uri)
     if a is None:
         return None
+    # Hints of an older text would stand at wrong places: none until the new analysis (it asks to refresh)
+    if a.text != ls.workspace.get_text_document(params.text_document.uri).source:
+        return []
     lo, hi = params.range.start.line, params.range.end.line
     return [T.InlayHint(position=_pos(h.pos), label=h.label, padding_left=True)
             for h in A.inlay_hints(a) if lo <= h.pos[0] <= hi]
@@ -129,7 +180,7 @@ def completion(ls: MapcanServer, params: T.CompletionParams) -> T.CompletionList
     doc = ls.workspace.get_text_document(uri)
     if not A.is_mapcan(doc.source):
         return None
-    ls.analysis(uri)
+    ls.latest(uri)      # completion reads the text itself; the analysis only gives names and choices
     pos = (params.position.line, params.position.character)
     found = A.completions(doc.source, pos, ls.analyses.get(uri))
     if not found:
