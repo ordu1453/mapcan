@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .. import bits as B
+from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, Signal, enum_entries, text
 from ..units import translate_unit
 from .common import code_text, frames_with_layout, is_byte_array, num, physical, selector_of, storage_bits
@@ -181,6 +182,12 @@ class CGen:
             HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"])
             .replace("@ONES_NOTE@", self.T["ones_c"]).replace("@SM_NOTE@", self.T["sm_c"]),
         ]
+        # The map this code was built from (the same in every bus header: identical redefinitions are allowed)
+        parts = d.version_parts
+        if parts is not None:
+            for name, v in zip(("MAJOR", "MINOR", "PATCH"), parts, strict=True):
+                out.append(f"#define {self.P('MAP_VERSION', name)} {v}u")
+        out.append(f"#define {self.P('MAP_LAYOUT_CRC32')} 0x{layout_crc32(self.cmap):08X}u")
         if self.bus.bitrate:
             out.append(f"#define {self.P(self.bus.name, 'BITRATE')} {self.bus.bitrate}u")
         if self.bus.fd and self.bus.data_bitrate:

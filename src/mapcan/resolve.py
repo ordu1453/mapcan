@@ -22,6 +22,22 @@ def resolve(cmap: MapCan) -> None:
             dev._path = bus._path + ("devices", di)
             for fi, frame in enumerate(dev.frames):
                 _resolve_frame(frame, bus, dev, dev._path + ("frames", fi))
+    _resolve_sources(cmap)
+
+
+def _resolve_sources(cmap: MapCan) -> None:
+    """Values of signals with ``source``: the map version (None if it is not numeric) or the layout CRC."""
+    signals = [s for bus in cmap.buses for f in bus.all_frames() for s in f.signals if s.source is not None]
+    if not signals:
+        return
+    from .layout import layout_crc32
+
+    parts = cmap.document.version_parts
+    values = {"layout_crc32": layout_crc32(cmap)}
+    if parts is not None:
+        values.update(zip(("map_version.major", "map_version.minor", "map_version.patch"), parts, strict=True))
+    for s in signals:
+        s._source_value = values.get(s.source)
 
 
 def _resolve_frame(frame: Frame, bus, dev, path) -> None:

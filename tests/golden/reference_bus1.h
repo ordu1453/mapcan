@@ -120,6 +120,10 @@ static inline double mapcan_round_d(double x)
 }
 #endif /* MAPCAN_BITS_HELPERS */
 
+#define MAP_VERSION_MAJOR 1u
+#define MAP_VERSION_MINOR 0u
+#define MAP_VERSION_PATCH 0u
+#define MAP_LAYOUT_CRC32 0x32019DD4u
 #define BUS1_BITRATE 500000u
 #define IMD_NODE_ID 0x21u
 #define CMU_NODE_ID 0x22u

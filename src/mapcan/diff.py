@@ -52,7 +52,7 @@ FRAME_FIELDS = ("can_id", "canopen", "length", "direction", "mode", "cycle_ms", 
                 "device", "pgn", "priority", "sender", "receivers", "description")
 SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "representation", "encoding", "factor", "offset",
                  "unit",
-                 "min", "max", "initial", "invalid_raw", "multiplexer", "mux", "description")
+                 "min", "max", "initial", "source", "invalid_raw", "multiplexer", "mux", "description")
 FLAG_FIELDS = ("bit", "bit_length", "description")
 
 
@@ -78,7 +78,8 @@ def _signal_attrs(s: Signal, langs: tuple[str, str]) -> dict:
         "start_bit": s.start_bit, "bit_length": s.bit_length, "byte_order": s.byte_order,
         "representation": s.representation, "encoding": s.encoding,
         "factor": s.factor, "offset": s.offset, "unit": s.unit,
-        "min": s.min, "max": s.max, "initial": s.initial, "invalid_raw": _invalid_text(s),
+        "min": s.min, "max": s.max, "initial": s.initial, "source": s.source,
+        "invalid_raw": _invalid_text(s),
         "multiplexer": s.multiplexer, "mux": s.mux_values,
         "description": text(s.description, *langs),
     }

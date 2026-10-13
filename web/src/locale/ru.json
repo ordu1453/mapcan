@@ -440,5 +440,11 @@
   "Receive timeout, ms": "Тайм-аут приёма, мс",
   "string — text": "string — текст",
   "Charset": "Кодировка",
-  "Terminator": "Признак конца"
+  "Terminator": "Признак конца",
+  "Value from the map": "Значение из карты",
+  "none": "нет",
+  "map version: major": "версия карты: старший номер",
+  "map version: minor": "версия карты: младший номер",
+  "map version: patch": "версия карты: номер исправления",
+  "layout CRC32": "CRC32 раскладки"
 }

@@ -14,6 +14,8 @@
   adapter and channel of a workstation are not part of the map.
 * The print details of the title page (logo, designation, signatures…) are in `document.print`; the
   quick fix of `deprecated-key` moves them there.
+* A raw signal has **Value from the map** (`source`): the map version or the layout CRC32, for a
+  frame in which a device reports the map it was built from.
 * A file included by a map, which now starts with `mapcan: 1` and `part_of`, is not taken for a map
   of its own.
 * New fields from mapcan 0.21: a frame's **Receive timeout**, a bus's sample points and CAN FD data

@@ -110,6 +110,21 @@ buses:
                 encoding: float
                 byte_order: big_endian
                 unit: A
+          - name: vcu_map_info
+            id: 0x7F0
+            length: 7
+            description: The map the VCU software was built from, sent on request
+            trigger: on_request
+            receivers: [dashboard]
+            signals:
+              - {name: map_major, encoding: raw, description: "Map version, major", byte: 0, byte_length: 1,
+                 source: map_version.major}
+              - {name: map_minor, encoding: raw, description: "Map version, minor", byte: 1, byte_length: 1,
+                 source: map_version.minor}
+              - {name: map_patch, encoding: raw, description: "Map version, patch", byte: 2, byte_length: 1,
+                 source: map_version.patch}
+              - {name: map_layout_crc, encoding: raw, description: CRC32 of the map's frame layouts, byte: 3,
+                 byte_length: 4, source: layout_crc32}
 
       - name: dashboard
         short: IC

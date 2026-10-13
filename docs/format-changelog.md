@@ -33,4 +33,8 @@ needs at least the version of mapcan that introduced it; former names stay reada
 - Frames have `timeout_ms`, the receive timeout (`<FRAME>_TIMEOUT_MS` in code; rule `timeout-short`).
 - Signals have `encoding: string` with `charset` and `terminator` (text such as a VIN or a
   software identification).
+- `document.version` is `MAJOR.MINOR[.PATCH]`; another form is the warning `version-format`.
+- Signals have `source`: `map_version.major`, `.minor`, `.patch` or `layout_crc32`, so a device
+  sends the map it was built from (rule `source-value`). Generated code has `MAP_VERSION_*` and
+  `MAP_LAYOUT_CRC32`.
 - `mapcan migrate` rewrites former field names; the rule `deprecated-key` reports them.

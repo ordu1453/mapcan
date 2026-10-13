@@ -291,6 +291,7 @@
         },
         "version": {
           "default": "0.1",
+          "description": "Map version: MAJOR.MINOR or MAJOR.MINOR.PATCH, numbers only (1.4.0). A device can send it in a frame (signal source map_version.*).",
           "title": "Version",
           "type": "string"
         },
@@ -1629,6 +1630,25 @@
           "default": null,
           "description": "Value after power-up or before the first message is received, in physical units. In C: …_INITIAL_RAW; in DBC: GenSigStartValue.",
           "title": "Initial"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "enum": [
+                "map_version.major",
+                "map_version.minor",
+                "map_version.patch",
+                "layout_crc32"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The signal always carries a value taken from the map: map_version.major, .minor or .patch (document.version) or layout_crc32 (the fingerprint of the frame layouts). The value is written to code as the signal's initial value, so a device sends the map it was built from.",
+          "title": "Source"
         },
         "invalid_raw": {
           "anyOf": [

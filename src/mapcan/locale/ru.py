@@ -267,6 +267,20 @@ RU: dict[str, str] = {
         "Версия документа не совпадает с последней записью истории",
     "document version is {version!r}, but the latest revision history entry is {latest!r}":
         "версия документа {version!r}, а последняя запись истории — {latest!r}",
+    "Map version is not MAJOR.MINOR or MAJOR.MINOR.PATCH":
+        "Версия карты не в виде MAJOR.MINOR или MAJOR.MINOR.PATCH",
+    "map version {version!r} is not MAJOR.MINOR or MAJOR.MINOR.PATCH (e.g. 1.4.0)":
+        "версия карты {version!r} не в виде MAJOR.MINOR или MAJOR.MINOR.PATCH (напр. 1.4.0)",
+    "A signal's source value cannot be sent: the map version is not numeric, the value does not fit, or initial is "
+    "set too":
+        "Значение source сигнала нельзя передать: версия карты не числовая, значение не помещается или задан ещё и "
+        "initial",
+    "{name!r} takes its value from {source}: remove initial":
+        "{name!r} получает значение из {source}: уберите initial",
+    "{name!r} sends {source}, but the map version {version!r} is not MAJOR.MINOR[.PATCH]":
+        "{name!r} передаёт {source}, но версия карты {version!r} не в виде MAJOR.MINOR[.PATCH]",
+    "{source} = {value} does not fit in {bits} bits ({lo}..{hi})":
+        "{source} = {value} не помещается в {bits} бит ({lo}..{hi})",
     "bit rate {bitrate} bit/s is not a standard value (125000, 250000, 500000, 1000000…)":
         "скорость {bitrate} бит/с не входит в стандартный ряд (125000, 250000, 500000, 1000000…)",
     "short label {short!r} is already used by device {other!r}": "обозначение {short!r} уже у устройства {other!r}",
@@ -662,6 +676,16 @@ RU: dict[str, str] = {
     "GenSigStartValue.":
         "Значение после включения или до первого приёма, в физических единицах. В C — …_INITIAL_RAW, в DBC — "
         "GenSigStartValue.",
+    "The signal always carries a value taken from the map: map_version.major, .minor or .patch (document.version) "
+    "or layout_crc32 (the fingerprint of the frame layouts). The value is written to code as the signal's initial "
+    "value, so a device sends the map it was built from.":
+        "Сигнал всегда несёт значение из карты: map_version.major, .minor или .patch (document.version) или "
+        "layout_crc32 (отпечаток раскладки кадров). Значение попадает в код как начальное значение сигнала, так что "
+        "устройство передаёт карту, по которой оно собрано.",
+    "Map version: MAJOR.MINOR or MAJOR.MINOR.PATCH, numbers only (1.4.0). A device can send it in a frame (signal "
+    "source map_version.*).":
+        "Версия карты: MAJOR.MINOR или MAJOR.MINOR.PATCH, только числа (1.4.0). Устройство может передавать её в "
+        "кадре (source сигнала map_version.*).",
     "SDO command byte (CCS/SCS), e.g. 0x2B — write 2 bytes, 0x23 — write 4 bytes, 0x40 — read.":
         "Байт команды SDO (CCS/SCS), напр. 0x2B — запись 2 байт, 0x23 — запись 4 байт, 0x40 — чтение.",
     "CANopen object dictionary index, 0x0000..0xFFFF.": "Индекс объекта словаря CANopen, 0x0000..0xFFFF.",

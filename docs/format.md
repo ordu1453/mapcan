@@ -44,7 +44,7 @@ buses: [...]              # one or more buses
 |---|---|---|
 | `title` | text | Document title (required) |
 | `subtitle` | text | Subtitle |
-| `version` | string | Map version (default `0.1`) |
+| `version` | string | Map version: `MAJOR.MINOR` or `MAJOR.MINOR.PATCH`, numbers only (default `0.1`). Another form is the warning `version-format`; a device can send the version in a frame (see [Map version in a frame](#map-version-in-a-frame)). Write `"2.0"` in quotes: YAML reads a bare `2.0` as a number |
 | `date` | date `YYYY-MM-DD` | Release date |
 | `author`, `organization` | string | |
 | `language` | ISO 639-1 code | Default document language (required): `ru`, `en`, `de`…; `--lang` overrides it at export. Document labels (table headings and so on) exist in Russian and English; other languages get the English ones, and units their international symbols |
@@ -180,6 +180,7 @@ CANopen ID computation:
 | `multiplexer` | `true` for the multiplexer selector signal |
 | `mux` | Selector value (or list of values) for which the signal is present |
 | `initial` | Default value in physical units (`…_INITIAL_RAW` in C, `GenSigStartValue` in DBC) |
+| `source` | `raw`: the signal always carries a value from the map: `map_version.major`, `map_version.minor`, `map_version.patch` or `layout_crc32` (see [Map version in a frame](#map-version-in-a-frame)). Replaces `initial` |
 | `invalid_raw` | Raw values that carry no value (see [Values without a value](#values-without-a-value)): `0xFF`, a list, ranges `0xFF00..0xFFFF`, or `{not_available: …, error: …}`. Formerly `invalid` |
 | `index`, `subindex` | CANopen dictionary object mapped into the PDO (see [Object dictionary and EDS](#object-dictionary-and-eds)) |
 | `spn` | J1939 suspect parameter number (SAE J1939-71), 0..524287. Shown in documents, written to DBC as the `SPN` signal attribute and to code as `<FRAME>_<SIGNAL>_SPN` |
@@ -191,7 +192,7 @@ CANopen ID computation:
 
 | `encoding` | Meaning | Value fields |
 |---|---|---|
-| `raw` | Integer as is | `representation`, `unit`, `min`, `max`, `invalid_raw`, `initial` |
+| `raw` | Integer as is | `representation`, `unit`, `min`, `max`, `invalid_raw`, `initial`, `source` |
 | `scaled` | Scaled physical value: `raw * factor + offset` | `representation`, `factor`, `offset`, `unit`, `min`, `max`, `invalid_raw`, `initial` |
 | `enum` | Value from the `values` table | `values`, `value_format`, `representation`, `invalid_raw`, `initial` |
 | `flag` | One yes/no bit | `values`, `initial` |
@@ -230,6 +231,43 @@ Documents list both. Generated C has `<frame>_<signal>_is_not_available(raw)` an
 `<frame>_<signal>_is_error(raw)`, and a single "not available" value is also
 `<FRAME>_<SIGNAL>_INVALID_RAW`; the Python module has the same functions. DBC has one invalid value
 per signal: the first "not available" one is written.
+
+#### Map version in a frame
+
+A device can tell which map it was built from, so a tester or another node sees a mismatch at once.
+Give the signals of such a frame a `source` instead of a value:
+
+```yaml
+- name: vcu_map_info
+  id: 0x7F0
+  length: 7
+  trigger: on_request
+  signals:
+    - {name: map_major, encoding: raw, byte: 0, byte_length: 1, source: map_version.major}
+    - {name: map_minor, encoding: raw, byte: 1, byte_length: 1, source: map_version.minor}
+    - {name: map_patch, encoding: raw, byte: 2, byte_length: 1, source: map_version.patch}
+    - {name: map_layout_crc, encoding: raw, byte: 3, byte_length: 4, source: layout_crc32}
+```
+
+| `source` | Value |
+|---|---|
+| `map_version.major`, `.minor`, `.patch` | The numbers of `document.version` (`1.4` has patch 0) |
+| `layout_crc32` | CRC-32 of the frame layouts of the whole map (32 bits) |
+
+The value is the signal's initial value in generated code (`…_INITIAL_RAW` in C, the field's
+default in Python, `GenSigStartValue` in DBC), so firmware built from the map sends it without code of
+its own. Every C header also has `MAP_VERSION_MAJOR`, `_MINOR`, `_PATCH` and `MAP_LAYOUT_CRC32` (with
+the `--prefix`), and every Python module `MAP_VERSION` and `MAP_LAYOUT_CRC32`, for a receiver to
+compare with.
+
+The version is raised by people; the layout CRC changes by itself when the bits on the bus change,
+so it also catches a change released under the old version. It covers, for every frame, the ID
+(and whether it is 29-bit), the length and CAN FD; for every signal, the position, byte order,
+representation, encoding, factor, offset and multiplexing. Names, texts, units, value tables,
+ranges, the order of the nodes in the file and the values of `source` signals do not change it.
+
+A value that does not fit in the signal, a version that is not numeric, or `initial` next to
+`source` is the error `source-value`.
 
 #### Floating point
 
@@ -638,6 +676,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `range-overflow` | warning | min/max outside the range the field can represent |
 | `min-max` | error | min is greater than max |
 | `initial-range` | warning | Default value outside the signal's range |
+| `source-value` | error | A `source` value that cannot be sent: the map version is not numeric, the value does not fit in the signal, or `initial` is set too |
 | `invalid-overflow` | error | A value or range of `invalid_raw` does not fit in the signal width |
 | `invalid-in-range` | warning | A value or range of `invalid_raw` maps into the `min..max` range: a receiver cannot tell it from a real value |
 | `signed-code` | info | `ones_complement` or `sign_magnitude`: DBC stores two's complement only |
@@ -676,6 +715,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `logo-missing` | warning | Logo file not found |
 | `logo-format` | error | Unsupported logo format |
 | `history-version` | warning | Document version differs from the latest revision history entry |
+| `version-format` | warning | Map version is not `MAJOR.MINOR` or `MAJOR.MINOR.PATCH` |
 | `missing-description` | info | Signal has no description |
 | `missing-title` | info | Bus or device has no full name (`title`) |
 | `empty-frame` | info | Frame has no signals |

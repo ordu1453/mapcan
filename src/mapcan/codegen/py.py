@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, enum_entries, text
 from ..units import translate_unit
 from .common import code_text, frames_with_layout, is_byte_array, num, physical, selector_of
@@ -106,6 +107,11 @@ class PyGen:
             RUNTIME.replace("@F2B@", self.T["f2b"]).replace("@B2F@", self.T["b2f"])
             .replace("@ONES_NOTE@", self.T["ones_py"]).replace("@SM_NOTE@", self.T["sm_py"]),
         ]
+        # The map this module was built from
+        out.append("")
+        if d.version_parts is not None:
+            out.append(f"MAP_VERSION = {d.version_parts}")
+        out.append(f"MAP_LAYOUT_CRC32 = 0x{layout_crc32(self.cmap):08X}")
         frames = frames_with_layout(self.bus)
         for f in frames:
             out += self.frame(f)

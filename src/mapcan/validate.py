@@ -124,6 +124,9 @@ RULES = {
     "no-receivers": ("info", N_("Frame has no receivers on the bus")),
     "duplicate-short": ("warning", N_("Duplicate device short label on the bus")),
     "history-version": ("warning", N_("Document version differs from the latest revision history entry")),
+    "version-format": ("warning", N_("Map version is not MAJOR.MINOR or MAJOR.MINOR.PATCH")),
+    "source-value": ("error", N_("A signal's source value cannot be sent: the map version is not numeric, the "
+                                 "value does not fit, or initial is set too")),
     "float-length": ("error", N_("A float signal must be 32 or 64 bits")),
     "signal-length": ("error", N_("Signal longer than 64 bits that is not an aligned byte array")),
     "string-field": ("error", N_("String not aligned to whole bytes, or a terminator that is not one byte")),
@@ -169,6 +172,9 @@ def validate_map(cmap: MapCan, src: SourceMap, disable: Iterable[str] = ()) -> R
                                       "{latest!r}",
                                       version=cmap.document.version, latest=hist[0].version),
                  ("document", "version"))
+    if cmap.document.version_parts is None:
+        ctx.emit("version-format", _("map version {version!r} is not MAJOR.MINOR or MAJOR.MINOR.PATCH (e.g. 1.4.0)",
+                                     version=cmap.document.version), ("document", "version"))
 
     for bus in cmap.buses:
         _check_bus(ctx, bus)
@@ -686,7 +692,20 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                              _("invalid_raw {value} maps to {phys}, inside min..max: a receiver cannot tell it from "
                                "a real value", value=shown, phys=f"{a:g}" if a == b else f"{a:g}..{b:g}"),
                              sp + ("invalid_raw",))
-        if s.initial is not None and s.factor != 0:
+        if s.source is not None:
+            v = s.initial_raw
+            if s.initial is not None:
+                ctx.emit("source-value", _("{name!r} takes its value from {source}: remove initial",
+                                           name=s.name, source=s.source), sp + ("initial",))
+            elif v is None:
+                ctx.emit("source-value", _("{name!r} sends {source}, but the map version {version!r} is not "
+                                           "MAJOR.MINOR[.PATCH]", name=s.name, source=s.source,
+                                           version=ctx.cmap.document.version), sp + ("source",))
+            elif raw_lo is not None and not raw_lo <= v <= raw_hi:
+                ctx.emit("source-value", _("{source} = {value} does not fit in {bits} bits ({lo}..{hi})",
+                                           source=s.source, value=v, bits=s.bit_length, lo=raw_lo, hi=raw_hi),
+                         sp + ("source",))
+        elif s.initial is not None and s.factor != 0:
             raw = s.initial_raw
             if raw_lo is not None and not raw_lo <= raw <= raw_hi:
                 ctx.emit("initial-range", _("initial = {value:g} → raw {raw} outside {lo}..{hi}",
@@ -755,6 +774,7 @@ ENCODING_FIELDS = {
     "charset": ("string",),
     "terminator": ("string",),
     "initial": ("raw", "scaled", "enum", "flag", "float"),
+    "source": ("raw",),
 }
 
 

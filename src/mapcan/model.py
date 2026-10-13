@@ -28,6 +28,9 @@ ByteOrder = Literal["little_endian", "big_endian"]
 Representation = Literal["unsigned", "twos_complement", "ones_complement", "sign_magnitude"]
 SignalEncoding = Literal["enum", "flag", "bitfield", "scaled", "raw", "bytes", "string", "float"]
 Charset = Literal["ascii", "utf-8", "latin-1"]
+# A value the map gives a signal (see Signal.source); the bits each one needs
+SignalSource = Literal["map_version.major", "map_version.minor", "map_version.patch", "layout_crc32"]
+VERSION_RE = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?$")
 Direction = Literal["tx", "rx"]
 TxMode = Literal["cyclic", "event", "on_request"]
 # Largest PGN sent with the J1939-21 transport protocol (255 packets of 7 bytes)
@@ -147,7 +150,10 @@ class Print(_Base):
 class Document(_Base):
     title: Text
     subtitle: Text | None = None
-    version: str = "0.1"
+    version: str = Field(
+        "0.1",
+        description=N_("Map version: MAJOR.MINOR or MAJOR.MINOR.PATCH, numbers only (1.4.0). A device can send it "
+                       "in a frame (signal source map_version.*)."))
     date: _dt.date | None = None
     author: str | None = None
     organization: str | None = None
@@ -163,6 +169,12 @@ class Document(_Base):
         description=N_("Print details of the title page and the title block (logo, designation, signatures…), "
                        "read by the PDF templates."))
     history: list[HistoryEntry] = Field(default_factory=list)
+
+    @property
+    def version_parts(self) -> tuple[int, int, int] | None:
+        """(major, minor, patch) of the version; None when it is not MAJOR.MINOR[.PATCH]."""
+        m = VERSION_RE.match(self.version.strip())
+        return (int(m[1]), int(m[2]), int(m[3] or 0)) if m else None
 
 
 class LintRules(_Base):
@@ -353,6 +365,12 @@ class Signal(_Base):
         None,
         description=N_("Value after power-up or before the first message is received, in physical units. In C: "
                        "…_INITIAL_RAW; in DBC: GenSigStartValue."))
+    source: SignalSource | None = Field(
+        None,
+        description=N_("The signal always carries a value taken from the map: map_version.major, .minor or .patch "
+                       "(document.version) or layout_crc32 (the fingerprint of the frame layouts). The value is "
+                       "written to code as the signal's initial value, so a device sends the map it was built "
+                       "from."))
     invalid_raw: RawSet | InvalidRaw | None = Field(
         None,
         description=N_("Raw values that carry no value: one value, a list, ranges such as \"0xFF00..0xFFFF\", or by "
@@ -365,6 +383,8 @@ class Signal(_Base):
                               description=N_("CANopen: index of the dictionary object mapped into the PDO."))
     subindex: int | None = Field(None, ge=0, le=0xFF,
                                  description=N_("CANopen: subindex of the dictionary object (0 by default)."))
+
+    _source_value: int | None = PrivateAttr(default=None)     # the value of source, set by resolve()
 
     @property
     def terminator_byte(self) -> int | None:
@@ -412,7 +432,9 @@ class Signal(_Base):
 
     @property
     def initial_raw(self) -> int | float | None:
-        """Raw initial value (for float, the value itself)."""
+        """Raw initial value (for float, the value itself); for a signal with ``source``, the value from the map."""
+        if self.source is not None:
+            return self._source_value
         if self.initial is None or self.factor == 0:
             return None
         raw = (self.initial - self.offset) / self.factor
