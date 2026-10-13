@@ -15,8 +15,8 @@ document:
 buses:
   - name: j1939
     title: J1939 bus
-    bitrate: 250000
     protocol: j1939
+    bitrate: 250000
     devices:
       - name: engine
         short: ECU
@@ -34,9 +34,8 @@ buses:
             receivers: [cluster]
             signals:
               - name: torque_mode
-                encoding: enum
                 description: Engine torque mode
-                spn: 899
+                encoding: enum
                 start_bit: 0
                 bit_length: 4
                 values:
@@ -44,32 +43,32 @@ buses:
                   1: {name: ACCELERATOR, description: accelerator pedal}
                   2: {name: CRUISE, description: cruise control}
                   15: {name: NOT_AVAILABLE, description: not available}
+                spn: 899
               - name: demand_torque
-                encoding: scaled
                 description: Driver's demand torque
-                spn: 512
+                encoding: scaled
                 byte: 1
                 byte_length: 1
-                unit: "%"
                 offset: -125
+                unit: "%"
                 min: -125
                 max: 125
                 invalid_raw: 0xFF
+                spn: 512
               - name: actual_torque
-                encoding: scaled
                 description: Actual engine torque
-                spn: 513
+                encoding: scaled
                 byte: 2
                 byte_length: 1
-                unit: "%"
                 offset: -125
+                unit: "%"
                 min: -125
                 max: 125
                 invalid_raw: 0xFF
+                spn: 513
               - name: engine_speed
-                encoding: scaled
                 description: Engine speed
-                spn: 190
+                encoding: scaled
                 byte: 3
                 byte_length: 2
                 factor: 0.125
@@ -79,13 +78,14 @@ buses:
                 initial: 0
                 # J1939-71 ranges of a 2-byte parameter
                 invalid_raw: {not_available: [0xFF00..0xFFFF], error: [0xFE00..0xFEFF]}
+                spn: 190
               - name: controlling_address
-                encoding: raw
                 description: Address of the device controlling the engine
-                spn: 1483
+                encoding: raw
                 byte: 5
                 byte_length: 1
                 value_format: hex
+                spn: 1483
 
           - name: et1
             title: ET1
@@ -96,9 +96,8 @@ buses:
             receivers: [cluster]
             signals:
               - name: coolant_temp
-                encoding: scaled
                 description: Coolant temperature
-                spn: 110
+                encoding: scaled
                 byte: 0
                 byte_length: 1
                 offset: -40
@@ -106,25 +105,26 @@ buses:
                 min: -40
                 max: 210
                 invalid_raw: 0xFF
+                spn: 110
               - name: fuel_temp
-                encoding: scaled
                 description: Fuel temperature
-                spn: 174
+                encoding: scaled
                 byte: 1
                 byte_length: 1
                 offset: -40
                 unit: °C
                 invalid_raw: 0xFF
+                spn: 174
               - name: oil_temp
-                encoding: scaled
                 description: Oil temperature
-                spn: 175
+                encoding: scaled
                 byte: 2
                 byte_length: 2
                 factor: 0.03125
                 offset: -273
                 unit: °C
                 invalid_raw: 0xFFFF
+                spn: 175
 
           - name: soft
             title: SOFT
@@ -135,12 +135,12 @@ buses:
             receivers: [diag]
             signals:
               - name: software_id
-                encoding: string
                 description: Software identification fields, separated by '*'
-                spn: 234
+                encoding: string
                 byte: 0
                 byte_length: 20
                 terminator: "*"
+                spn: 234
 
       - name: cluster
         short: IC
@@ -156,9 +156,8 @@ buses:
             receivers: [engine]
             signals:
               - name: fuel_level
-                encoding: scaled
                 description: Fuel level
-                spn: 96
+                encoding: scaled
                 byte: 1
                 byte_length: 1
                 factor: 0.4
@@ -166,6 +165,7 @@ buses:
                 min: 0
                 max: 100
                 invalid_raw: 0xFF
+                spn: 96
 
       - name: diag
         short: DT
@@ -182,12 +182,12 @@ buses:
             receivers: [engine]
             signals:
               - name: requested_pgn
-                encoding: enum
                 description: Requested PGN
-                spn: 2540
+                encoding: enum
                 start_bit: 0
                 bit_length: 24
-                value_format: hex
                 values:
                   0xFEEE: {name: ET1, description: engine temperatures}
                   0xFEE5: {name: ENGINE_HOURS, description: engine hours}
+                value_format: hex
+                spn: 2540

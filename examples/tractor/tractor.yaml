@@ -6,20 +6,20 @@
 
 mapcan: 1
 
-include: [powertrain.yaml]
-
 document:
   title: Tractor
   subtitle: Cab and powertrain
   version: 0.1.0
-  language: en
   organization: Example Machines
+  language: en
+
+include: [powertrain.yaml]
 
 buses:
   - name: cab
     title: Cab bus
-    bitrate: 250000
     protocol: can
+    bitrate: 250000
     devices:
       - name: cab_ctrl
         short: CAB
@@ -33,16 +33,16 @@ buses:
             receivers: [gateway]          # the gateway is described in powertrain.yaml
             signals:
               - name: pto_request
-                encoding: enum
                 title: PTO request
                 description: Power take-off switch in the cab
+                encoding: enum
                 byte: 0
                 byte_length: 1
                 values: switch_states     # named table from powertrain.yaml
               - name: hitch_position
-                encoding: scaled
                 title: Hitch position request
                 description: Rear hitch lever position
+                encoding: scaled
                 byte: 1
                 byte_length: 1
                 factor: 0.4

@@ -24,7 +24,7 @@ def test_noop_roundtrip_is_identical(path):
 def test_multiline_flow_map_survives_unrelated_edit():
     text = (ROOT / "examples" / "minimal.yaml").read_text(encoding="utf-8")
     out = _edit(text, [{"op": "set", "path": ["document", "version"], "value": "0.2.0"}])
-    assert "                  - {bit: 4, bit_length: 2, name: sensor_state,\n" in out
+    assert "                  - {name: sensor_state, bit: 4, bit_length: 2,\n" in out
     assert out.replace("version: 0.2.0", "version: 0.1.0") == text
 
 

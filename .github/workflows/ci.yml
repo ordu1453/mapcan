@@ -159,6 +159,8 @@ jobs:
       - name: Validate examples
         run: |
           for f in $(cat maps.txt); do uv run mapcan validate "$f" --strict; done
+      - name: Examples are formatted (mapcan fmt)
+        run: uv run mapcan fmt --check $(cat maps.txt)
       - name: Build documents and code for every example
         run: |
           for f in $(cat maps.txt); do

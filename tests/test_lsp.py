@@ -110,7 +110,7 @@ def test_map_tree_selects_whole_blocks():
     sig = _selected(a, frame["children"][0])
     assert sig.startswith("name: mode") and sig.endswith("{name: FAULT, description: fault}")
     flag = frame["children"][1]["children"][2]
-    assert _selected(a, flag) == ("{bit: 4, bit_length: 2, name: sensor_state,\n"
+    assert _selected(a, flag) == ("{name: sensor_state, bit: 4, bit_length: 2,\n"
                                   "                     values: {0: OK, 1: OPEN, 2: SHORT}}")
     assert [_selected(a, s) for s in f2["children"]] == [
         "{name: a, encoding: raw, byte: 0, byte_length: 1}", "{name: b, encoding: raw, byte: 1, byte_length: 1}",

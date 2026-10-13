@@ -37,4 +37,6 @@ needs at least the version of mapcan that introduced it; former names stay reada
 - Signals have `source`: `map_version.major`, `.minor`, `.patch` or `layout_crc32`, so a device
   sends the map it was built from (rule `source-value`). Generated code has `MAP_VERSION_*` and
   `MAP_LAYOUT_CRC32`.
+- `mapcan fmt [--check]` writes the keys of every node in one order (see
+  [Canonical layout](format.md#canonical-layout)); the map itself does not change.
 - `mapcan migrate` rewrites former field names; the rule `deprecated-key` reports them.

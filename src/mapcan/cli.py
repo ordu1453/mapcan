@@ -236,13 +236,63 @@ def migrate(
     paths: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help=_("Map files.")),
     check: bool = typer.Option(False, "--check", help=_("Do not write; exit code 1 if a file has former names.")),
 ) -> None:
-    from ruamel.yaml import YAML
-
     from .web.yamlops import migrate_text
+
+    outdated = []
+    for f in _with_included(paths):
+        raw, text = _read_map(f)
+        new = migrate_text(text)
+        if new == text:
+            continue
+        outdated.append(f)
+        if check:
+            typer.echo(_("{file}: former field names, run mapcan migrate", file=f))
+        else:
+            _write_map(f, raw, new)
+    if not outdated:
+        typer.echo(_("No former field names found."))
+    elif check:
+        raise typer.Exit(1)
+
+
+@app.command(help=_("Write the keys of every node in one order (that of docs/format.md), keeping comments, "
+                    "layout and number notation. Included files are formatted too."))
+def fmt(
+    paths: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help=_("Map files.")),
+    check: bool = typer.Option(False, "--check", help=_("Do not write; exit code 1 if a file is not formatted.")),
+) -> None:
+    from .fmt import FmtError, format_text
+
+    unformatted, failed = [], False
+    for f in _with_included(paths):
+        raw, text = _read_map(f)
+        try:
+            new = format_text(text)
+        except FmtError as e:
+            typer.secho(f"{f}: {e}", fg=typer.colors.RED, err=True)
+            failed = True
+            continue
+        if new == text:
+            continue
+        unformatted.append(f)
+        if check:
+            typer.echo(_("{file}: not formatted, run mapcan fmt", file=f))
+        else:
+            _write_map(f, raw, new)
+    if failed or (check and unformatted):
+        raise typer.Exit(1)
+    if not unformatted:
+        typer.echo(_("All files are formatted."))
+
+
+def _with_included(paths: list[Path]) -> list[Path]:
+    """The maps and the files they include."""
+    from ruamel.yaml import YAML
 
     files: list[Path] = []
     for p in paths:
-        files.append(p)
+        if p not in files:
+            files.append(p)
         try:
             data = YAML(typ="safe").load(p.read_text(encoding="utf-8"))
         except Exception:  # noqa: BLE001 — a broken file is reported by validate
@@ -251,24 +301,19 @@ def migrate(
             q = p.parent / str(inc)
             if q.is_file() and q not in files:
                 files.append(q)
-    outdated = []
-    for f in files:
-        raw = f.read_bytes().decode("utf-8")
-        text = raw.replace("\r\n", "\n")
-        new = migrate_text(text)
-        if new == text:
-            continue
-        outdated.append(f)
-        if check:
-            typer.echo(_("{file}: former field names, run mapcan migrate", file=f))
-        else:
-            # The file keeps its line endings
-            f.write_bytes((new.replace("\n", "\r\n") if "\r\n" in raw else new).encode("utf-8"))
-            _done(f)
-    if not outdated:
-        typer.echo(_("No former field names found."))
-    elif check:
-        raise typer.Exit(1)
+    return files
+
+
+def _read_map(f: Path) -> tuple[str, str]:
+    """The file's text as it is and with \\n line endings."""
+    raw = f.read_bytes().decode("utf-8")
+    return raw, raw.replace("\r\n", "\n")
+
+
+def _write_map(f: Path, raw: str, new: str) -> None:
+    # The file keeps its line endings
+    f.write_bytes((new.replace("\n", "\r\n") if "\r\n" in raw else new).encode("utf-8"))
+    _done(f)
 
 
 @app.command(help=_("List validation rules."))

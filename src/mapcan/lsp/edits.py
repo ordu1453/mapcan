@@ -101,9 +101,25 @@ def set_value(a: Analysis, path: Path_, text: str) -> list[Edit]:
 
 
 def insert_key(a: Analysis, map_path: Path_, key: str, text: str) -> list[Edit]:
+    """Add ``key: text`` to the mapping at ``map_path``, at its place in the canonical order (mapcan fmt)."""
+    from ..fmt import insert_position
+
     n = a.nodes.get(map_path)
     if n is None:
         return []
+    raw = raw_at(a, map_path)
+    keys = list(raw) if isinstance(raw, dict) else []
+    i = insert_position(map_path, keys, key)
+    before = key_range(a, map_path + (keys[i],)) if i is not None else None
+    if before is not None:
+        line, col = before[0]
+        if _is_flow(a, map_path):
+            return [Edit((line, col), (line, col), f"{key}: {text}, ")]
+        if not a.lines[line][:col].strip():         # not the first key on a "- " line
+            while line > 0 and a.lines[line - 1].strip().startswith("#") and \
+                    len(a.lines[line - 1]) - len(a.lines[line - 1].lstrip()) == col:
+                line -= 1                           # the comment above the key stays with it
+            return [Edit((line, 0), (line, 0), f"{' ' * col}{key}: {text}\n")]
     if _is_flow(a, map_path):
         close = a._closing(n.start)
         if close is None:

@@ -27,9 +27,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - name: Install mapcan
-        run: uv tool install "mapcan==X.Y.Z"
+        # pdf and xlsx: the extras for PDF and Excel; without them, mapcan builds DBC, EDS, Markdown, HTML and code
+        run: uv tool install "mapcan[pdf,xlsx]==X.Y.Z"
       - name: Validate
         run: mapcan validate my-map.yaml --strict
+      - name: Formatted
+        run: mapcan fmt --check my-map.yaml
       - name: Build
         run: mapcan build my-map.yaml -o build
       - uses: actions/upload-artifact@v4
@@ -39,7 +42,8 @@ jobs:
 ```
 
 `--strict` fails the job on warnings as well as errors. Drop it if warnings should not block a
-merge.
+merge. `mapcan fmt --check` fails when the keys of the map are not in the canonical order, so that maps
+edited by different people and editors stay easy to review; `mapcan fmt my-map.yaml` fixes it.
 
 ## GitLab CI
 

@@ -11,8 +11,8 @@ document:
 buses:
   - name: demo
     title: Demo bus
-    bitrate: 500000
     protocol: canopen
+    bitrate: 500000
     devices:
       - name: pump
         short: PMP
@@ -20,14 +20,14 @@ buses:
         node_id: 0x21
         frames:
           - name: pump_state          # ID = 0x180 + 0x21 = 0x1A1
+            description: Pump state
             canopen: pdo_tx1
             length: 8
-            description: Pump state
             cycle_ms: 100
             signals:
               - name: mode            # enum, byte 0
-                encoding: enum
                 description: Operating mode
+                encoding: enum
                 byte: 0
                 byte_length: 1
                 values:
@@ -36,19 +36,19 @@ buses:
                   2: {name: FAULT, description: fault}
 
               - name: alarms          # bit field, byte 1
-                encoding: bitfield
                 description: Alarms
+                encoding: bitfield
                 byte: 1
                 byte_length: 1
                 flags:
-                  - {bit: 0, name: overheat, description: overheating}
-                  - {bit: 1, name: dry_run, description: dry running}
-                  - {bit: 4, bit_length: 2, name: sensor_state,
+                  - {name: overheat, bit: 0, description: overheating}
+                  - {name: dry_run, bit: 1, description: dry running}
+                  - {name: sensor_state, bit: 4, bit_length: 2,
                      values: {0: OK, 1: OPEN, 2: SHORT}}
 
               - name: pressure        # quantity, bytes 2..3, little-endian
-                encoding: scaled
                 description: Pressure
+                encoding: scaled
                 byte: 2
                 byte_length: 2
                 factor: 0.01
@@ -57,8 +57,8 @@ buses:
                 max: 16
 
               - name: temperature     # signed quantity with an offset
-                encoding: scaled
                 description: Temperature
+                encoding: scaled
                 byte: 4
                 byte_length: 1
                 representation: twos_complement
@@ -67,15 +67,15 @@ buses:
                 unit: °C
 
               - name: speed           # big-endian: byte 5 is the high byte, byte 6 the low byte
-                encoding: scaled
                 description: Speed
+                encoding: scaled
                 byte: 5
                 byte_length: 2
                 byte_order: big_endian
                 unit: rpm
 
               - name: counter         # arbitrary position: bits 56..59
-                encoding: raw
                 description: Message counter
+                encoding: raw
                 start_bit: 56
                 bit_length: 4

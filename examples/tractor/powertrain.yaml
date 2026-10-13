@@ -29,9 +29,9 @@ buses:
             receivers: [cab_ctrl]
             signals:
               - name: engine_speed
-                encoding: scaled
                 title: Engine speed
                 description: Engine speed from EEC1
+                encoding: scaled
                 byte: 0
                 byte_length: 2
                 factor: 0.125
@@ -40,17 +40,17 @@ buses:
                 max: 8031.875
                 invalid_raw: 0xFFFF
               - name: pto_state
-                encoding: enum
                 title: PTO state
                 description: Rear power take-off engaged
+                encoding: enum
                 byte: 2
                 byte_length: 1
                 values: switch_states
 
   - name: powertrain
     title: Powertrain bus
-    bitrate: 250000
     protocol: j1939
+    bitrate: 250000
     devices:
       - name: engine
         short: ECU
@@ -67,10 +67,9 @@ buses:
             receivers: [pt_gateway]
             signals:
               - name: engine_speed
-                encoding: scaled
                 title: Engine speed
                 description: Engine speed
-                spn: 190
+                encoding: scaled
                 byte: 3
                 byte_length: 2
                 factor: 0.125
@@ -78,6 +77,7 @@ buses:
                 min: 0
                 max: 8031.875
                 invalid_raw: 0xFFFF
+                spn: 190
 
       - name: pt_gateway
         short: GW
@@ -94,10 +94,10 @@ buses:
             receivers: [engine]
             signals:
               - name: rear_pto
-                encoding: enum
                 title: Rear PTO
                 description: Rear power take-off engagement request
-                spn: 1873
+                encoding: enum
                 start_bit: 0
                 bit_length: 2
                 values: switch_states
+                spn: 1873

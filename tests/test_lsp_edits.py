@@ -239,7 +239,8 @@ def test_sdo_value_fields():
     assert (f["values"]["value.bit_length"], f["values"]["value.unit"]) == (16, "кОм")
     # A field of an existing value
     out = apply(text, E.set_field(a, sdo + ("value", "factor"), 0.1))
-    assert "изоляции, factor: 0.1}" in out
+    # In its place in the canonical order (mapcan fmt): before the unit
+    assert "bit_length: 16, factor: 0.1, unit: кОм," in out
     assert errors(out) == errors(text)
     # No value yet: the mapping is added together with the first field
     bare = next(p for p in a.nodes if E.node_kind(p) == "sdo" and E.raw_at(a, p + ("value",)) is None)
@@ -304,7 +305,7 @@ def test_duplicate_and_delete():
     assert "- name: pump_copy" in out and "node_id: 0x01" in out
     assert "duplicate-node-id" not in errors(out) and "duplicate-can-id" not in errors(out)
     out = _change(MINIMAL, E.duplicate_node(a, FRAME + ("signals", 1, "flags", 0)))
-    assert "{bit: 0, name: overheat_copy" in out
+    assert "{name: overheat_copy, bit: 0" in out
     out = _change(MINIMAL, E.delete_node(a, FRAME + ("signals", 5)))
     assert "counter" not in out and errors(out) == errors(MINIMAL)
     out = _change(MINIMAL, E.delete_node(a, FRAME + ("signals", 1, "flags", 2)))

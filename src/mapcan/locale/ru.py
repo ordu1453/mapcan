@@ -792,6 +792,17 @@ RU: dict[str, str] = {
         "Не записывать; код возврата 1, если в файле есть прежние имена.",
     "No former field names found.": "Прежних имён полей нет.",
     "{file}: former field names, run mapcan migrate": "{file}: прежние имена полей, выполните mapcan migrate",
+    "Write the keys of every node in one order (that of docs/format.md), keeping comments, layout and number "
+    "notation. Included files are formatted too.":
+        "Записать ключи каждого узла в одном порядке (как в docs/format.md), сохранив комментарии, оформление и "
+        "запись чисел. Включаемые файлы тоже форматируются.",
+    "Do not write; exit code 1 if a file is not formatted.":
+        "Не записывать; код выхода 1, если файл не отформатирован.",
+    "{file}: not formatted, run mapcan fmt": "{file}: не отформатирован, выполните mapcan fmt",
+    "All files are formatted.": "Все файлы отформатированы.",
+    "cannot format: {error}": "не удалось отформатировать: {error}",
+    "cannot format: the result would read differently; the file is left as it is":
+        "не удалось отформатировать: результат читался бы иначе; файл оставлен как есть",
     "{old!r} is deprecated: use {new!r} (mapcan migrate rewrites the file)":
         "{old!r} устарело: используйте {new!r} (mapcan migrate обновит файл)",
     "{old!r} is the former name of {new!r}: remove it, {new!r} is already set":

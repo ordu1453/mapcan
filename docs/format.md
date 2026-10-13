@@ -571,6 +571,32 @@ Included devices can be chosen as senders and receivers of the main file's frame
 | frame `type` (`raw`: omitted) | `canopen` | 0.21 |
 | signal `invalid` | `invalid_raw` | 0.21 |
 
+## Canonical layout
+
+The same map can be written with the keys in any order. `mapcan fmt FILE…` writes the keys of every
+node in one order, so that diffs of maps edited by different people and editors show only what changed;
+`mapcan fmt --check` exits 1 if a file is not in that order (for CI and a pre-commit hook). Included
+files are formatted with their map.
+
+Only the order changes. Comments move with their key (a comment line just above a key belongs to it),
+and the author's choices stay: block or flow style (`{name: …}`), the position notation (`start_bit`
+or `byte`), hexadecimal or decimal numbers, blank lines. A flow mapping written over several lines is
+wrapped at the width it had. Keys the format does not know stay after the known ones, and value tables
+keep their order.
+
+| Node | Order |
+|---|---|
+| Map | `mapcan`, `part_of`, `document`, `include`, `lint`, `value_tables`, `buses` |
+| `document` | `title`, `subtitle`, `version`, `date`, `author`, `organization`, `language`, `bit_numbering`, `print`, `history` |
+| Bus | `name`, `title`, `description`, `protocol`, `connector`, `bitrate`, `sample_point`, `fd`, `data_bitrate`, `data_sample_point`, `brs`, `frames`, `devices` |
+| Device | `name`, `short`, `title`, `description`, `node_id`, `address`, `frames` |
+| Frame | `name`, `title`, `description`, `comment`, `canopen`, `id`, `extended`, `pgn`, `priority`, `destination`, `length`, `brs`, `direction`, `cycle_ms`, `trigger`, `timeout_ms`, `sender`, `receivers`, `signals`, `sdo` |
+| Signal | `name`, `title`, `description`, `comment`, `encoding`, `start_bit`, `byte`, `bit`, `bit_length`, `byte_length`, `byte_order`, `representation`, `charset`, `terminator`, `factor`, `offset`, `unit`, `min`, `max`, `values`, `value_format`, `flags`, `multiplexer`, `mux`, `initial`, `source`, `invalid_raw`, `spn`, `index`, `subindex` |
+| Flag | `name`, `bit`, `bit_length`, `description`, `values` |
+| SDO exchange | `name`, `description`, `command`, `index`, `subindex`, `value` |
+
+The examples of the repository are kept in this layout.
+
 ## Validation rules
 
 `mapcan rules` prints the full list. Severities: **error** (generation stops, exit code 1),

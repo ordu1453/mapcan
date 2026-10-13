@@ -7,14 +7,14 @@ mapcan: 1
 document:
   title: CANopen drive
   version: 0.1.0
-  language: en
   organization: Example Motors
+  language: en
 
 buses:
   - name: drive_bus
     title: Drive bus
-    bitrate: 500000
     protocol: canopen
+    bitrate: 500000
     devices:
       - name: controller
         title: Vehicle controller
@@ -31,21 +31,21 @@ buses:
             receivers: [controller]
             signals:
               - name: statusword
-                encoding: raw
                 title: Statusword
                 description: CiA 402 statusword
-                index: 0x6041
+                encoding: raw
                 byte: 0
                 byte_length: 2
+                index: 0x6041
               - name: actual_velocity
-                encoding: scaled
                 title: Velocity actual value
                 description: Motor speed
-                index: 0x606C
+                encoding: scaled
                 byte: 2
                 byte_length: 4
                 representation: twos_complement
                 unit: rpm
+                index: 0x606C
 
           - name: drive_measurements      # TPDO2, ID 0x285
             canopen: pdo_tx2
@@ -54,58 +54,58 @@ buses:
             receivers: [controller]
             signals:
               - name: motor_temp
-                encoding: scaled
                 title: Motor temperature
                 description: Motor winding temperature
-                index: 0x2100
-                subindex: 1
+                encoding: scaled
                 byte: 0
                 byte_length: 1
                 offset: -40
                 unit: °C
+                index: 0x2100
+                subindex: 1
               - name: inverter_temp
-                encoding: scaled
                 title: Inverter temperature
                 description: Power stage temperature
-                index: 0x2100
-                subindex: 2
+                encoding: scaled
                 byte: 1
                 byte_length: 1
                 offset: -40
                 unit: °C
+                index: 0x2100
+                subindex: 2
               - name: dc_voltage
-                encoding: scaled
                 title: DC link voltage
                 description: DC link voltage
-                index: 0x2100
-                subindex: 3
+                encoding: scaled
                 byte: 2
                 byte_length: 2
                 factor: 0.1
                 unit: V
+                index: 0x2100
+                subindex: 3
 
           - name: drive_command           # RPDO1, ID 0x205, sent by the controller
             canopen: pdo_rx1
-            sender: controller
             length: 6
             cycle_ms: 10
+            sender: controller
             signals:
               - name: controlword
-                encoding: raw
                 title: Controlword
                 description: CiA 402 controlword
-                index: 0x6040
+                encoding: raw
                 byte: 0
                 byte_length: 2
+                index: 0x6040
               - name: target_velocity
-                encoding: scaled
                 title: Target velocity
                 description: Requested motor speed
-                index: 0x60FF
+                encoding: scaled
                 byte: 2
                 byte_length: 4
                 representation: twos_complement
                 unit: rpm
+                index: 0x60FF
 
           - name: drive_heartbeat
             canopen: heartbeat

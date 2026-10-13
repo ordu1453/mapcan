@@ -532,6 +532,14 @@ def op_set(doc, path: list, value: Any) -> None:
         if key in parent:
             del parent[key]
         return
+    if key not in parent and isinstance(parent, CommentedMap):
+        # A new key goes to its place in the canonical order (mapcan fmt), not to the end
+        from ..fmt import insert_position
+
+        pos = insert_position(_kind_path(path[:-1]), list(parent.keys()), key)
+        if pos is not None:
+            parent.insert(pos, key, to_node(value, key))
+            return
     parent[key] = to_node(value, key, parent.get(key))
 
 
