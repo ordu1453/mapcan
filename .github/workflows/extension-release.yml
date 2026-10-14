@@ -1,0 +1,124 @@
+name: extension-release
+
+# Releasing the VS Code extension: set the version in vscode/package.json (npm version X.Y.Z --no-git-tag-version
+# in vscode/), rename "## Unreleased" in vscode/CHANGELOG.md to "## X.Y.Z", commit, and push the tag
+# extension-vX.Y.Z. The workflow checks the extension as CI does and then:
+#   creates the GitHub Release "mapcan for VS Code X.Y.Z" with mapcan-X.Y.Z.vsix and the changelog section;
+#   publishes it to the Visual Studio Marketplace (secret VSCE_PAT, publisher ordu1453)
+#   and to Open VSX (secret OVSX_PAT, namespace ordu1453), each only when its secret is set.
+# A manual run (Actions → extension-release → Run workflow) is a trial: it builds, tests and packages,
+# and keeps the .vsix as an artifact, without releasing or publishing.
+#
+# The extension needs the language server of mapcan: release mapcan to PyPI first when the extension
+# needs a newer one (MIN_SERVER in vscode/src/version.ts).
+
+on:
+  push:
+    tags: ["extension-v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Version
+        id: v
+        shell: bash
+        run: |
+          version=$(node -p "require('./vscode/package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/extension-v}"
+            if [[ "$tag" != "$version" ]]; then
+              echo "::error::the tag extension-v$tag does not match vscode/package.json ($version)"
+              exit 1
+            fi
+            if ! grep -q "^## $version\$" vscode/CHANGELOG.md; then
+              echo "::error::vscode/CHANGELOG.md has no section \"## $version\""
+              exit 1
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked --extra lsp
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: vscode/package-lock.json
+      - name: Typecheck
+        working-directory: vscode
+        run: npm ci && npm run typecheck
+      - name: Package
+        working-directory: vscode
+        run: npm run build && npx vsce package --no-dependencies -o "mapcan-${{ steps.v.outputs.version }}.vsix"
+      - name: Integration tests
+        working-directory: vscode
+        run: xvfb-run -a npm test
+      - uses: actions/upload-artifact@v6
+        with:
+          name: vsix
+          path: vscode/mapcan-${{ steps.v.outputs.version }}.vsix
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          name: vsix
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version }}
+        shell: bash
+        run: |
+          # The section of the version in the changelog, without its heading
+          awk -v v="## $VERSION" '$0 == v { on = 1; next } on && /^## / { exit } on' vscode/CHANGELOG.md > notes.md
+          gh release create "extension-v$VERSION" "mapcan-$VERSION.vsix" \
+            --title "mapcan for VS Code $VERSION" --notes-file notes.md --latest=false
+
+  marketplace:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [package, release]
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: vsix
+      - name: Publish to the Visual Studio Marketplace
+        if: env.VSCE_PAT != ''
+        run: npx --yes @vscode/vsce@3 publish --packagePath "mapcan-${{ needs.package.outputs.version }}.vsix"
+      - name: No token
+        if: env.VSCE_PAT == ''
+        run: echo "::warning::VSCE_PAT is not set; the extension was not published to the Marketplace"
+
+  open-vsx:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [package, release]
+    runs-on: ubuntu-latest
+    env:
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: vsix
+      - name: Publish to Open VSX
+        if: env.OVSX_PAT != ''
+        run: npx --yes ovsx@0 publish "mapcan-${{ needs.package.outputs.version }}.vsix" -p "$OVSX_PAT"
+      - name: No token
+        if: env.OVSX_PAT == ''
+        run: echo "::warning::OVSX_PAT is not set; the extension was not published to Open VSX"

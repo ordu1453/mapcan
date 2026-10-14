@@ -342,6 +342,24 @@ iscc /DAppVersion=X.Y.Z packaging/mapcan.iss                # → dist/mapcan-X.
 </details>
 
 <details>
+<summary><b>Releasing the VS Code extension</b></summary>
+
+1. If the extension needs a newer language server, release mapcan first and raise `MIN_SERVER` in
+   `vscode/src/version.ts`.
+2. In `vscode/`: `npm version X.Y.Z --no-git-tag-version`; in `vscode/CHANGELOG.md` rename
+   `## Unreleased` to `## X.Y.Z`; commit.
+3. Create and push a tag: `git tag -a extension-vX.Y.Z -m "mapcan for VS Code X.Y.Z" && git push origin main extension-vX.Y.Z`.
+
+[extension-release.yml](.github/workflows/extension-release.yml) checks that the tag matches
+`vscode/package.json` and that the changelog has the section, runs the typecheck and the integration
+tests, packages the `.vsix`, publishes a GitHub Release with it and the changelog section, and then
+the extension on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ordu1453.mapcan)
+(secret `VSCE_PAT`, a token of the publisher `ordu1453`) and on [Open VSX](https://open-vsx.org/extension/ordu1453/mapcan)
+(secret `OVSX_PAT`, namespace `ordu1453`); without a secret that step only warns. Running the workflow
+by hand makes a trial `.vsix` (an artifact) without releasing.
+</details>
+
+<details>
 <summary><b>Repository layout</b></summary>
 
 ```text

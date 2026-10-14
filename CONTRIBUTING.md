@@ -79,4 +79,5 @@ Generated files that are committed, and that CI checks are up to date:
 ## Releases
 
 Maintainers release by bumping the version and pushing a tag; the steps are in the
-[README](README.md#development) under "Releasing a version".
+[README](README.md#development) under "Releasing a version" (mapcan: tag `vX.Y.Z`) and "Releasing the
+VS Code extension" (tag `extension-vX.Y.Z`).

@@ -8,3 +8,6 @@ tsconfig.json
 test/**
 scripts/**
 media/icon.svg
+.gitignore
+.vscode-test/**
+*.vsix

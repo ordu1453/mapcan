@@ -1,7 +1,7 @@
 {
   "name": "mapcan",
   "displayName": "mapcan",
-  "description": "CAN signal maps as code: validation, hovers with frame bit layouts and computed CAN IDs for mapcan YAML files.",
+  "description": "CAN signal maps as code: validation, a Map view with forms and frame bit layouts, hovers, rename, export and history for mapcan YAML files.",
   "version": "0.5.1",
   "publisher": "ordu1453",
   "private": true,
@@ -14,6 +14,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/ordu1453/mapcan"
+  },
+  "homepage": "https://github.com/ordu1453/mapcan/tree/main/vscode#readme",
+  "bugs": {
+    "url": "https://github.com/ordu1453/mapcan/issues"
   },
   "engines": {
     "vscode": "^1.91.0"
