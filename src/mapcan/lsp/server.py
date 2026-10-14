@@ -401,7 +401,8 @@ def example_command(ls: MapcanServer, *args) -> dict:
 
 @server.command("mapcan.lsp.edit")
 def edit_command(ls: MapcanServer, *args) -> dict:
-    """Argument: {uri, action: add|duplicate|delete, path, kind}. Response: {edit: {range, text}, cursor, uri} or {}.
+    """Argument: {uri, action: add|duplicate|delete, path, kind}. Response: {edit: {range, text}, cursor, uri},
+    {error} (a signal that has no room in its frame) or {}.
 
     The edit goes to the file the node is written in (for a new node, its owner's; a new bus goes to the main
     file): ``uri`` is there when that is another file of the map than the document."""
@@ -417,7 +418,10 @@ def edit_command(ls: MapcanServer, *args) -> dict:
     if view is None:
         return {}
     if action == "add":
-        change = E.add_node(view, path, params.get("kind", ""))
+        try:
+            change = E.add_node(view, path, params.get("kind", ""))
+        except E.EditRefused as e:
+            return {"error": str(e)}
     elif action == "duplicate":
         change = E.duplicate_node(view, path)
     elif action == "delete":

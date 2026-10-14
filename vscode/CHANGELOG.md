@@ -8,6 +8,10 @@
 * The Map view no longer follows an editor that is active only for an instant while tabs switch, as
   VS Code 1.141.2 does when an older version opens from **History**: the tree could show a map open
   beside.
+* **+ Signal** in the Map view no longer puts a new signal over another one at bit 0 when the frame
+  has no free byte or the map has an error. Like the web editor, it takes a free byte, else grows
+  the frame by a byte (on a CAN FD bus, to the next allowed length), else the free bits; a frame
+  with no free bits gets no signal and a message says so.
 
 ## 0.6.2
 

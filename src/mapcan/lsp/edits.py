@@ -726,17 +726,87 @@ def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
     if kind == "frame" and path and path[0] == "buses" and len(path) in (2, 4):
         return append_item(a, path, "frames", _new_frame(a, path))
     if kind == "signal" and len(path) >= 2 and path[-2] == "frames":
-        signals = raw_at(a, path + ("signals",)) or []
-        frame = _find(a.map, path) if a.map else None
-        name = ("name", _unique("signal", _names(signals)))
-        encoding = ("encoding", "raw")
-        byte = free_start(frame, 8, 8) if isinstance(frame, M.Frame) else 0
-        if byte is not None:
-            return append_item(a, path, "signals", [name, encoding, ("byte", str(byte // 8)), ("byte_length", "1")])
-        # No whole free byte: a one-bit signal at the first free bit
-        bit = free_start(frame, 1, 1)
-        return append_item(a, path, "signals", [name, encoding, ("start_bit", str(bit or 0)), ("bit_length", "1")])
+        return _add_signal(a, path)
     return None
+
+
+class EditRefused(ValueError):
+    """An edit that cannot be made; the message says why."""
+
+
+FD_DLC = (0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64)
+
+
+def _taken_bits(a: Analysis, path: Path_) -> tuple[set[int], int, bool, bool]:
+    """(bits taken by the frame's signals, frame length, CAN FD bus, every signal's position is known).
+
+    A map that does not load has no model: the signals are read from the frame's YAML one by one."""
+    taken: set[int] = set()
+    frame = _find(a.map, path) if a.map is not None else None
+    if isinstance(frame, M.Frame):
+        bus = _find(a.map, path[:2])
+        for s in frame.signals:
+            taken.update(occupied_bits(s.start_bit or 0, s.bit_length or 1, s.byte_order == "big_endian"))
+        return taken, frame.length if frame.length is not None else 8, bool(getattr(bus, "fd", False)), True
+    raw = raw_at(a, path)
+    raw = raw if isinstance(raw, dict) else {}
+    bus = raw_at(a, path[:2])
+    known = True
+    for s in raw.get("signals") or []:
+        try:
+            sig = M.Signal.model_validate(s)
+        except ValueError:
+            known = False
+            continue
+        taken.update(occupied_bits(sig.start_bit or 0, sig.bit_length or 1, sig.byte_order == "big_endian"))
+    length = raw.get("length")
+    length = length if isinstance(length, int) and not isinstance(length, bool) and length >= 0 else 8
+    return taken, length, isinstance(bus, dict) and bus.get("fd") is True, known
+
+
+def place_new_signal(a: Analysis, path: Path_) -> tuple[int, int, int | None] | None:
+    """Place of a new signal in the frame: (start bit, bit length, new frame length or None).
+
+    A free byte; if there is none, the frame grows by a byte (on a CAN FD bus, to the next allowed
+    length); if it cannot, the first free bits (up to a byte); None: the frame has no free bits.
+    When the position of some signal is unknown (the map does not load), only the bits after the
+    last taken one count as free."""
+    taken, length, fd, known = _taken_bits(a, path)
+    first = 0 if known or not taken else max(taken) + 1
+    for byte in range((first + 7) // 8, length):
+        if not taken & set(range(byte * 8, byte * 8 + 8)):
+            return byte * 8, 8, None
+    grown = next((d for d in FD_DLC if d > length), None) if fd else length + 1 if length < 8 else None
+    if grown is not None and length * 8 >= first:
+        return length * 8, 8, grown
+    for start in range(first, length * 8):
+        if start not in taken:
+            n = 1
+            while n < 8 and (start + n) % 8 and start + n not in taken:
+                n += 1
+            return start, n, None
+    return None
+
+
+def _add_signal(a: Analysis, path: Path_) -> TextChange | None:
+    place = place_new_signal(a, path)
+    if place is None:
+        raise EditRefused(_("No free bits left in the frame. Free up space or increase the frame length"))
+    start, length, grown = place
+    signals = raw_at(a, path + ("signals",)) or []
+    fields = [("name", _unique("signal", _names(signals))), ("encoding", "raw")]
+    if length == 8 and start % 8 == 0:
+        fields += [("byte", str(start // 8)), ("byte_length", "1")]
+    else:
+        fields += [("start_bit", str(start)), ("bit_length", str(length))]
+    change = append_item(a, path, "signals", fields)
+    if change is None or grown is None:
+        return change
+    # The frame's new length goes in the same edit, before its signals
+    grow = set_value(a, path + ("length",), str(grown))
+    added = minimal_edit(a.text, change.text)
+    shift = sum(e.text.count("\n") - (e.end[0] - e.start[0]) for e in grow if e.start < change.cursor)
+    return TextChange(apply_edits(a.text, [*grow, added]), (change.cursor[0] + shift, change.cursor[1]))
 
 
 def duplicate_node(a: Analysis, path: Path_) -> TextChange | None:

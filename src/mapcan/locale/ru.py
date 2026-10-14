@@ -628,6 +628,8 @@ RU: dict[str, str] = {
     "Export canceled: the map has errors ({errors}). Fix them and try again.":
         "Экспорт отменён: в карте есть ошибки ({errors}). Исправьте их и повторите.",
     "Save the map to a file before exporting.": "Сохраните карту в файл перед экспортом.",
+    "No free bits left in the frame. Free up space or increase the frame length":
+        "В кадре нет свободных бит: освободите место или увеличьте длину кадра",
     "Export failed: {error}": "Ошибка экспорта: {error}",
     "Change to {value}": "Заменить на {value}",
     "Change to {value!r}": "Заменить на {value!r}",

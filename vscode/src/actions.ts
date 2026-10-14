@@ -14,6 +14,8 @@ interface EditResult {
   cursor?: [number, number];
   /** The other file of the map the edit and the cursor are in; none: the map in the tree. */
   uri?: string;
+  /** Why the edit cannot be made (a new signal has no room in its frame). */
+  error?: string;
 }
 
 /** Apply a tree edit; returns the node under the new cursor (the added or copied node). */
@@ -28,6 +30,7 @@ async function runEdit(
     command: "mapcan.lsp.edit",
     arguments: [{ uri: uri.toString(), ...args }],
   })) as EditResult | null;
+  if (result?.error) void vscode.window.showWarningMessage(result.error);
   if (!result?.edit) return undefined;
   const target = result.uri ? vscode.Uri.parse(result.uri) : uri;
   const [sl, sc, el, ec] = result.edit.range;
