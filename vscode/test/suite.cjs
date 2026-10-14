@@ -278,6 +278,8 @@ const tests = {
     await editor.edit((e) => e.insert(new vscode.Position(0, 0), "# edited\n"));
     await until("uncommitted entry", () => history.getChildren().length === 3);
     assert.equal(history.getTreeItem(history.getChildren()[0]).contextValue, "uncommitted");
+    // Undo acts on the focused part of the window: the editor gets the focus first
+    await vscode.window.showTextDocument(doc);
     await vscode.commands.executeCommand("undo");
     await until("no uncommitted entry", () => history.getChildren().length === 2);
 
@@ -495,8 +497,12 @@ const tests = {
   // Last: closes every editor.
   async "the server stops when no map is open and starts with the next one"(ctx) {
     ctx.api.setIdleStop(500);
-    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
-    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    // Earlier tests leave unsaved documents (a new untitled map, edits): closing them with
+    // closeAllEditors would ask to save them, and the dialog would hold the window open
+    for (let i = 0; i < 50 && vscode.window.tabGroups.all.some((g) => g.tabs.length); i++) {
+      await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+      if (!vscode.window.activeTextEditor) await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    }
     await until("the server to stop", () => ctx.api.client() === undefined, 300000);
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(ctx.doc.uri));
     await until("the server", () => ctx.api.client()?.isRunning());
@@ -520,14 +526,21 @@ exports.run = async function run() {
   await until("the server", () => api.client()?.isRunning());
   const ctx = { doc, api };
   const failures = [];
-  for (const [name, test] of Object.entries(tests)) {
-    try {
-      await test(ctx);
-      console.log(`  ✓ ${name}`);
-    } catch (err) {
-      console.log(`  ✗ ${name}\n    ${err.stack ?? err}`);
-      failures.push(name);
+  try {
+    for (const [name, test] of Object.entries(tests)) {
+      try {
+        await test(ctx);
+        console.log(`  ✓ ${name}`);
+      } catch (err) {
+        console.log(`  ✗ ${name}\n    ${err.stack ?? err}`);
+        failures.push(name);
+      }
     }
+  } finally {
+    // test/runTest.mjs closes VS Code once the result is here
+    const result = path.join(workspace, ".result.json");
+    fs.writeFileSync(result, JSON.stringify({ failures: failures.length }));
+    console.log(`  result: ${result}`);
   }
   if (failures.length) throw new Error(`${failures.length} test(s) failed`);
 };

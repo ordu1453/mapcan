@@ -104,12 +104,29 @@ async function start(force = false): Promise<void> {
   await tree?.refresh();
 }
 
+/** A map is open in an editor tab. VS Code keeps the document of a closed tab for a while (an unsaved one for
+ * good), so the documents alone do not tell that the last map was closed. */
+function mapInTab(): boolean {
+  const open = new Set<string>();
+  for (const group of vscode.window.tabGroups.all) {
+    for (const tab of group.tabs) {
+      const input = tab.input;
+      if (input instanceof vscode.TabInputText) open.add(input.uri.toString());
+      else if (input instanceof vscode.TabInputTextDiff) {
+        open.add(input.original.toString());
+        open.add(input.modified.toString());
+      }
+    }
+  }
+  return vscode.workspace.textDocuments.some((d) => isMap(d) && open.has(d.uri.toString()));
+}
+
 /** The last map was closed: stop the server unless a map is opened again in time. */
 function scheduleIdleStop(): void {
   clearTimeout(idleTimer);
-  if (!client || vscode.workspace.textDocuments.some(isMap)) return;
+  if (!client || mapInTab()) return;
   idleTimer = setTimeout(async () => {
-    if (!client || vscode.workspace.textDocuments.some(isMap)) return;
+    if (!client || mapInTab()) return;
     output?.info("No map is open: stopping the language server.");
     await stop();
     await tree?.refresh();
@@ -194,6 +211,11 @@ export async function activate(
     // A new file becomes a map when `mapcan:` is typed into it.
     vscode.workspace.onDidChangeTextDocument((e) => !client && isMap(e.document) && start()),
     vscode.workspace.onDidCloseTextDocument(() => scheduleIdleStop()),
+    // A map whose document VS Code still keeps opens without onDidOpenTextDocument: its new tab starts the server
+    vscode.window.tabGroups.onDidChangeTabs((e) => {
+      if (e.opened.length && !client && mapInTab()) void start();
+      else if (e.closed.length) scheduleIdleStop();
+    }),
   );
   registerTreeActions(context, tree, form, () => client);
   const showChanges = registerPreview(context, () => client, currentMap, changes);
