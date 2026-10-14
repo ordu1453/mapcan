@@ -594,7 +594,7 @@
         "mapcan.server.path": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Path to the `mapcan` executable that runs the language server. Empty means `mapcan` from `PATH`. Requires `mapcan[lsp]`.",
+          "markdownDescription": "Path to the `mapcan` executable that runs the language server. Empty means `mapcan` from the Python environment selected in the Python extension, if it has one, else from `PATH`. Requires `mapcan[lsp]` 0.21 or newer.",
           "scope": "machine-overridable"
         },
         "mapcan.server.args": {

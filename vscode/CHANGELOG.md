@@ -5,6 +5,8 @@
 * Needs mapcan 0.21 or newer. The extension checks the version of the language server when it
   starts and, for an older one, offers the update command in a terminal (also when the server
   cannot be started at all). **mapcan: Show Server Version** gives both versions for bug reports.
+* Without **mapcan.server.path**, `mapcan` is looked for in the Python environment selected in the
+  Python extension (a project's venv) before `PATH`.
 * Works in Restricted Mode (a folder that is not trusted): the command of the language server and
   the export folder come from the user's settings only, not from the folder's
   `.vscode/settings.json`. Trusting the folder restarts the server with its settings.

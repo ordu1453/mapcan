@@ -92,7 +92,9 @@ The extension runs the language server from the `mapcan` command-line tool:
 uv tool install "mapcan[lsp]"     # or: pipx install "mapcan[lsp]"
 ```
 
-If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable. The extension needs
+With the Python extension installed, `mapcan` is looked for first in the Python environment selected
+there (a project's venv or conda environment), then on `PATH`. Otherwise set **mapcan.server.path** to
+the executable. The extension needs
 mapcan 0.21 or newer: with an older one it says so and offers to update it in a terminal.
 
 In [Restricted Mode](https://code.visualstudio.com/docs/editor/workspace-trust) (a folder you have not
@@ -105,7 +107,7 @@ the server restarts with its settings.
 
 | Setting | Default | Description |
 |---|---|---|
-| `mapcan.server.path` | `""` | Path to the `mapcan` executable; empty uses `PATH` |
+| `mapcan.server.path` | `""` | Path to the `mapcan` executable; empty uses the selected Python environment, then `PATH` |
 | `mapcan.server.args` | `["lsp"]` | Arguments for the executable |
 | `mapcan.export.outputDir` | `"build"` | Export folder, relative to the map's folder; a folder chosen in the Export panel takes precedence for that map |
 | `mapcan.tree.showChanges` | `true` | Mark nodes of the Map view added or modified since the last commit |

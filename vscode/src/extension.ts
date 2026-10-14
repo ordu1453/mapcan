@@ -2,6 +2,8 @@
 // The server is started when the first map (a YAML file with a top-level `mapcan:` key) is opened,
 // and gets only maps: other YAML files never reach it. It stops when no map has been open for a while.
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import {
   DidOpenTextDocumentNotification, LanguageClient, LanguageClientOptions, Middleware, ServerOptions,
@@ -30,12 +32,44 @@ let idleStopMs = 5 * 60_000;
 let extensionVersion = "";
 let idleTimer: NodeJS.Timeout | undefined;
 
-function serverOptions(): ServerOptions {
+/** The command the server was last started with. */
+let serverCommand = "mapcan";
+let starting: Promise<void> | undefined;
+
+/** The language server's command: the setting, MAPCAN_SERVER (the Extension Development Host uses the
+ * repository's .venv), mapcan in the Python environment selected in the Python extension, or mapcan on PATH. */
+async function serverOptions(): Promise<ServerOptions & { command: string }> {
   const config = vscode.workspace.getConfiguration("mapcan.server");
-  // MAPCAN_SERVER lets the Extension Development Host use the repository's .venv.
-  const command = config.get<string>("path") || process.env.MAPCAN_SERVER || "mapcan";
+  const command = config.get<string>("path") || process.env.MAPCAN_SERVER || (await pythonEnvMapcan()) || "mapcan";
   const args = config.get<string[]>("args") ?? ["lsp"];
   return { command, args };
+}
+
+/** mapcan installed in the Python environment selected in the Python extension, if that is installed. */
+async function pythonEnvMapcan(): Promise<string | undefined> {
+  const ext = vscode.extensions.getExtension<PythonApi>("ms-python.python");
+  if (!ext) return undefined;
+  try {
+    const envs = (ext.isActive ? ext.exports : await ext.activate())?.environments;
+    const selected = envs?.getActiveEnvironmentPath(vscode.window.activeTextEditor?.document.uri);
+    const env = selected ? await envs?.resolveEnvironment(selected) : undefined;
+    const python = env?.executable?.uri?.fsPath;
+    if (!python) return undefined;
+    const exe = process.platform === "win32" ? "mapcan.exe" : "mapcan";
+    // A venv has mapcan next to python; a conda or system Python on Windows has it in Scripts
+    return [path.join(path.dirname(python), exe), path.join(path.dirname(python), "Scripts", exe)]
+      .find((p) => fs.existsSync(p));
+  } catch {
+    return undefined;
+  }
+}
+
+/** The part of the Python extension's API used here. */
+interface PythonApi {
+  environments?: {
+    getActiveEnvironmentPath(resource?: vscode.Uri): { id: string; path: string };
+    resolveEnvironment(env: { id: string; path: string }): Promise<{ executable?: { uri?: vscode.Uri } } | undefined>;
+  };
 }
 
 /**
@@ -72,7 +106,13 @@ const middleware: Middleware = {
 };
 
 /** Starts the server if a map is open (or, with `force`, anyway) and it is not running yet. */
-async function start(force = false): Promise<void> {
+function start(force = false): Promise<void> {
+  // Finding the command takes a moment: a second call meanwhile waits for the first one
+  starting ??= startNow(force).finally(() => (starting = undefined));
+  return starting;
+}
+
+async function startNow(force: boolean): Promise<void> {
   clearTimeout(idleTimer);
   if (client || (!force && (failed || !vscode.workspace.textDocuments.some(isMap)))) return;
   failed = false;
@@ -84,7 +124,9 @@ async function start(force = false): Promise<void> {
     outputChannel: output,
     middleware,
   };
-  client = new LanguageClient("mapcan", "mapcan", serverOptions(), clientOptions);
+  const options = await serverOptions();
+  serverCommand = options.command;
+  client = new LanguageClient("mapcan", "mapcan", options, clientOptions);
   try {
     await client.start();
     const version = serverVersion();
@@ -92,9 +134,8 @@ async function start(force = false): Promise<void> {
     void checkServerVersion(version);
   } catch (err) {
     failed = true;
-    const { command } = serverOptions() as { command: string };
     const choice = await vscode.window.showErrorMessage(
-      `mapcan: could not start the language server (${command}). ` +
+      `mapcan: could not start the language server (${serverCommand}). ` +
         'Install it with `uv tool install "mapcan[lsp]"` (or `pipx install "mapcan[lsp]"`) or set "mapcan.server.path".',
       "Install in Terminal",
       "Open Settings",
@@ -127,8 +168,7 @@ function serverVersion(): string | undefined {
 
 async function showServerVersion(): Promise<void> {
   const server = client ? `mapcan ${serverVersion() ?? "(no version)"}` : "not running";
-  const { command } = serverOptions() as { command: string };
-  const text = `mapcan extension ${extensionVersion}; language server: ${server} (${command})`;
+  const text = `mapcan extension ${extensionVersion}; language server: ${server} (${serverCommand})`;
   output?.info(text);
   const choice = await vscode.window.showInformationMessage(text, "Copy");
   if (choice === "Copy") await vscode.env.clipboard.writeText(text);
