@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.6.1
 
 * With no map open, the Map view offers **Create Map** (from a template: CANopen, SAE J1939, CAN with
   explicit IDs or empty) and opening an example map as a copy in a folder of yours, as the web editor's
-  start screen does. **Get started with mapcan** on the Welcome page is a short tour of the extension.
+  start screen does. The templates and the examples come with mapcan 0.21.1 or newer; with an older
+  one the extension says so and offers the update. **Get started with mapcan** on the Welcome page is
+  a short tour of the extension.
 
 ## 0.6.0
 

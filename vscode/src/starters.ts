@@ -5,6 +5,10 @@
 import { homedir } from "node:os";
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
+import { openInstallTerminal } from "./version";
+
+/** The first mapcan whose language server serves the templates and the examples. */
+const STARTERS_SERVER = "0.21.1";
 
 interface Starters {
   templates: { id: string; label: string }[];
@@ -19,7 +23,17 @@ async function request<T>(client: Client, command: string, args?: object): Promi
     void vscode.window.showErrorMessage("mapcan: the language server is not running, so its templates and examples are unavailable.");
     return undefined;
   }
-  return (await c.sendRequest(ExecuteCommandRequest.type, { command, arguments: args ? [args] : [] })) as T;
+  try {
+    return (await c.sendRequest(ExecuteCommandRequest.type, { command, arguments: args ? [args] : [] })) as T;
+  } catch {
+    // An older mapcan has no templates and examples for the editors
+    const version = c.initializeResult?.serverInfo?.version ?? "an older version";
+    const choice = await vscode.window.showErrorMessage(
+      `mapcan: creating a map and opening an example need mapcan ${STARTERS_SERVER} or newer; the language server is ${version}.`,
+      "Update in Terminal");
+    if (choice === "Update in Terminal") openInstallTerminal();
+    return undefined;
+  }
 }
 
 /** The folder new files go to by default: the first workspace folder, else the home folder. */
