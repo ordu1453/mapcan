@@ -6,7 +6,7 @@
 // PrintWindow, not from the screen.
 import { downloadAndUnzipVSCode } from "@vscode/test-electron";
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +14,9 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const repo = resolve(root, "..");
-const out = join(repo, "docs", "images");
+// MAPCAN_SHOTS_OUT and MAPCAN_SCENES take other scenes elsewhere (to look at a view while working on it)
+const out = process.env.MAPCAN_SHOTS_OUT ?? join(repo, "docs", "images");
+const scenes = process.env.MAPCAN_SCENES ? resolve(process.env.MAPCAN_SCENES) : join(here, "screenshot-scenes.cjs");
 const server = process.env.MAPCAN_SERVER ?? join(repo, ".venv", "Scripts", "mapcan.exe");
 const capture = join(here, "capture-window.ps1");
 /** The window size of the screenshots, in physical pixels. */
@@ -78,7 +80,7 @@ for (const theme of themes.length ? themes : Object.keys(THEMES)) {
     "--extensions-dir", join(workspace, "..", "extensions"),
     "--no-sandbox", "--disable-gpu-sandbox", "--disable-updates", "--skip-welcome", "--skip-release-notes",
     "--disable-workspace-trust",
-    `--extensionTestsPath=${join(here, "screenshot-scenes.cjs")}`,
+    `--extensionTestsPath=${scenes}`,
     `--extensionDevelopmentPath=${root}`,
   ], { env: { ...process.env, MAPCAN_SERVER: server, MAPCAN_TEST_WORKSPACE: workspace, MAPCAN_SHOTS: shots } });
   code.stdout.on("data", (d) => process.stdout.write(d));
@@ -92,8 +94,8 @@ for (const theme of themes.length ? themes : Object.keys(THEMES)) {
   for (;;) {
     if (exited) break;
     if (existsSync(join(shots, "finished"))) break;
-    for (const name of ["window", "problems", "hover", "map"]) {
-      if (taken.has(name) || !existsSync(join(shots, `${name}.ready`))) continue;
+    for (const name of readdirSync(shots).filter((f) => f.endsWith(".ready")).map((f) => f.slice(0, -6))) {
+      if (taken.has(name)) continue;
       taken.add(name);
       if (name === "window") {
         powershell("-ProcessId", String(code.pid), "-Width", String(SIZE.width), "-Height", String(SIZE.height));

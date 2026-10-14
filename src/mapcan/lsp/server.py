@@ -361,6 +361,44 @@ def export_command(ls: MapcanServer, *args) -> dict:
     return {"files": [str(f) for f in files], "warnings": warnings}
 
 
+@server.command("mapcan.lsp.starters")
+def starters_command(ls: MapcanServer, *args) -> dict:
+    """The templates of a new map and the example maps, as on the web editor's start screen.
+    Response: {templates: [{id, label}], examples: [{name, title}]}."""
+    from ..web.examples import list_examples
+    from ..web.newmap import template_labels
+
+    return {"templates": [{"id": k, "label": v} for k, v in template_labels().items()],
+            "examples": list_examples()}
+
+
+@server.command("mapcan.lsp.newMap")
+def new_map_command(ls: MapcanServer, *args) -> dict:
+    """Argument: {template, title, language}. Response: {text} or {error}."""
+    from ..web.newmap import new_map_text
+
+    params = _arg(args)
+    try:
+        return {"text": new_map_text(str(params.get("template") or ""), str(params.get("title") or ""),
+                                     lang=str(params.get("language") or "en"))}
+    except ValueError as e:
+        return {"error": str(e)}
+
+
+@server.command("mapcan.lsp.example")
+def example_command(ls: MapcanServer, *args) -> dict:
+    """Argument: {name, mapFile}: an example and the file name of its copy. Response: {text, includes: {path
+    relative to the map: text}} or {error}; an included file's part_of names the copy."""
+    from ..web.examples import example_includes, example_text
+
+    params = _arg(args)
+    name = str(params.get("name") or "")
+    try:
+        return {"text": example_text(name), "includes": example_includes(name, params.get("mapFile") or None)}
+    except (ValueError, OSError) as e:
+        return {"error": str(e)}
+
+
 @server.command("mapcan.lsp.edit")
 def edit_command(ls: MapcanServer, *args) -> dict:
     """Argument: {uri, action: add|duplicate|delete, path, kind}. Response: {edit: {range, text}, cursor, uri} or {}.

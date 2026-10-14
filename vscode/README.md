@@ -8,6 +8,11 @@ when the first map is opened and never sees other files.
 
 ## Features
 
+* **Getting started.** With no map open, the Map view offers **Create Map** — a new map from a
+  template (CANopen, SAE J1939, CAN with explicit IDs, empty) saved where you choose — and links to
+  open an example (an electric vehicle, a CANopen drive, a J1939 ECU, a map in several files) as a
+  copy in a folder of yours, or a map you have. **Get started with mapcan** on the Welcome page
+  (Help → Welcome) is a short tour.
 * **Map view.** The mapcan icon in the Activity Bar opens the buses, devices, frames, signals and
   flags of the active map, with computed CAN IDs and signal bits. Nodes are labelled with their
   names for people (`title`, a device as "abbreviation · full name"), as in the web editor; a node
@@ -122,6 +127,7 @@ the server restarts with its settings.
 
 ## Commands
 
+* **mapcan: Create Map…**, **mapcan: Open Example…**
 * **mapcan: Export** (shows the Export panel)
 * **mapcan: Add Bus**
 * **mapcan: Open Document Preview**

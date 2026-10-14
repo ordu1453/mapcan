@@ -92,10 +92,99 @@
         }
       ]
     },
+    "walkthroughs": [
+      {
+        "id": "mapcan.start",
+        "title": "Get started with mapcan",
+        "description": "CAN signal maps as YAML: open an example, see its frames and catch mistakes as you type.",
+        "steps": [
+          {
+            "id": "install",
+            "title": "Install mapcan",
+            "description": "The extension runs the language server of the mapcan tool: install it once with uv (uv tool install mapcan[lsp]) or pipx, as the page on the right shows.\n[Check the Version](command:mapcan.showServerVersion)",
+            "media": {
+              "markdown": "media/walkthrough/install.md"
+            },
+            "completionEvents": [
+              "onCommand:mapcan.showServerVersion"
+            ]
+          },
+          {
+            "id": "example",
+            "title": "Open an example",
+            "description": "A copy of an example map goes to a folder you choose: an electric vehicle on CAN and CAN FD, a CANopen drive, a J1939 ECU or a map in several files.\n[Open Example](command:mapcan.openExample)",
+            "media": {
+              "image": {
+                "light": "media/walkthrough/map-light.jpg",
+                "dark": "media/walkthrough/map-dark.jpg",
+                "hc": "media/walkthrough/map-dark.jpg"
+              },
+              "altText": "The Node panel of a frame with its bit layout next to the map's YAML"
+            },
+            "completionEvents": [
+              "onCommand:mapcan.openExample"
+            ]
+          },
+          {
+            "id": "mapview",
+            "title": "Edit in the Map view",
+            "description": "The mapcan icon in the Activity Bar shows the buses, devices, frames and signals. The pencil opens a node in the Node panel: its fields and the frame's bit layout, where dragging over free bits adds a signal. Every change is written to the YAML.\n[Show the Map View](command:workbench.view.extension.mapcan)",
+            "media": {
+              "image": {
+                "light": "media/walkthrough/map-light.jpg",
+                "dark": "media/walkthrough/map-dark.jpg",
+                "hc": "media/walkthrough/map-dark.jpg"
+              },
+              "altText": "The Node panel of a frame with its bit layout next to the map's YAML"
+            },
+            "completionEvents": [
+              "onView:mapcan.map"
+            ]
+          },
+          {
+            "id": "problems",
+            "title": "Catch mistakes as you type",
+            "description": "Overlapping signals, IDs that clash, unknown receivers: the map is checked on every change. Nodes with problems turn red in the tree, and the light bulb (Ctrl+.) offers a fix.",
+            "media": {
+              "image": {
+                "light": "media/walkthrough/problems-light.jpg",
+                "dark": "media/walkthrough/problems-dark.jpg",
+                "hc": "media/walkthrough/problems-dark.jpg"
+              },
+              "altText": "Two overlapping signals marked in the tree and the editor, with the quick fix that moves one to free bits"
+            }
+          },
+          {
+            "id": "hover",
+            "title": "See a frame at a glance",
+            "description": "Hover a frame for its CAN ID, length, cycle, sender and receivers and which signal owns each bit; the computed bits show next to each signal. **Export** writes DBC, C, Python, Excel, PDF and more from the map.\n[Open Export](command:mapcan.export)",
+            "media": {
+              "image": {
+                "light": "media/walkthrough/hover-light.jpg",
+                "dark": "media/walkthrough/hover-dark.jpg",
+                "hc": "media/walkthrough/hover-dark.jpg"
+              },
+              "altText": "The hover of a frame with its ID, timing, receivers and bit layout"
+            }
+          },
+          {
+            "id": "create",
+            "title": "Create your own map",
+            "description": "Start from a template: CANopen, SAE J1939, CAN with explicit IDs or an empty map.\n[Create Map](command:mapcan.newMap)",
+            "media": {
+              "markdown": "media/walkthrough/create.md"
+            },
+            "completionEvents": [
+              "onCommand:mapcan.newMap"
+            ]
+          }
+        ]
+      }
+    ],
     "viewsWelcome": [
       {
         "view": "mapcan.map",
-        "contents": "[Open Map](command:mapcan.openMap)",
+        "contents": "[Create Map](command:mapcan.newMap)\nOr open [an example](command:mapcan.openExample) or [a map you have](command:mapcan.openMap).",
         "when": "!mapcan.mapOpen"
       },
       {
@@ -452,6 +541,16 @@
       {
         "command": "mapcan.showOutput",
         "title": "Show Language Server Output",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.newMap",
+        "title": "Create Map…",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.openExample",
+        "title": "Open Example…",
         "category": "mapcan"
       },
       {

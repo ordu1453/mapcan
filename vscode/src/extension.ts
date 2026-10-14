@@ -16,6 +16,7 @@ import { NodeForm } from "./form";
 import { HistoryTree, registerHistory } from "./history";
 import { ChangeMarks } from "./marks";
 import { registerPreview } from "./preview";
+import { registerStarters } from "./starters";
 import { isMap, MapTree, revealNode } from "./tree";
 import { checkServerVersion, isOlder, openInstallTerminal } from "./version";
 
@@ -299,6 +300,15 @@ export async function activate(
     }),
   );
   registerTreeActions(context, tree, form, () => client);
+  // The templates and the examples come from the server: it is started for them, and stops again later if
+  // no map gets opened
+  registerStarters(context, async () => {
+    if (!client) {
+      await start(true);
+      scheduleIdleStop();
+    }
+    return client;
+  });
   const showChanges = registerPreview(context, () => client, currentMap, changes);
   registerHistory(context, history, currentMap, showChanges, () => client);
   await start();

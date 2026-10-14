@@ -47,6 +47,22 @@ const tests = {
     assert.equal(ctx.api.tree.mapUri.toString(), ctx.doc.uri.toString());
   },
 
+  async "templates and examples to start from come from the server"() {
+    const starters = await vscode.commands.executeCommand("mapcan.lsp.starters");
+    assert.deepEqual(starters.templates.map((t) => t.id), ["canopen", "j1939", "can", "empty"]);
+    assert.ok(starters.examples.some((e) => e.name === "vehicle-can"));
+    // An example in several files comes with its included file, which names the copy of the map
+    const tractor = await vscode.commands.executeCommand("mapcan.lsp.example", { name: "tractor", mapFile: "tractor.yaml" });
+    assert.match(tractor.text, /^mapcan: 1/m);
+    assert.match(tractor.includes["powertrain.yaml"], /^part_of: tractor\.yaml/m);
+    const created = await vscode.commands.executeCommand("mapcan.lsp.newMap", { template: "j1939", title: "Truck", language: "en" });
+    assert.match(created.text, /title: "Truck"/);
+    const commands = await vscode.commands.getCommands(true);
+    assert.ok(["mapcan.newMap", "mapcan.openExample"].every((c) => commands.includes(c)));
+    const { walkthroughs } = vscode.extensions.getExtension("ordu1453.mapcan").packageJSON.contributes;
+    assert.ok(walkthroughs[0].steps.length >= 4);
+  },
+
   async "the repository and a new issue are a command away"() {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(["mapcan.openRepository", "mapcan.reportIssue", "mapcan.showServerVersion"].every((c) => commands.includes(c)));
