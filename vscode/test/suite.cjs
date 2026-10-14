@@ -437,6 +437,15 @@ const tests = {
     assert.equal(result.others.length, 1);
     assert.match(result.others[0].uri, /extra\.yaml$/);
     assert.match(result.others[0].edit.text, /title: Valve/);
+    // Written there with no tab open on it: the change is reported, so it is not left unsaved unnoticed
+    const extraUri = vscode.Uri.parse(result.others[0].uri);
+    const written = new vscode.WorkspaceEdit();
+    written.replace(extraUri, new vscode.Range(...result.others[0].edit.range), result.others[0].edit.text);
+    assert.ok(await vscode.workspace.applyEdit(written));
+    assert.deepEqual(ctx.api.hiddenChanges([extraUri]).map((d) => path.basename(d.uri.fsPath)), ["extra.yaml"]);
+    await vscode.window.showTextDocument(extraUri, { preview: false });
+    assert.deepEqual(ctx.api.hiddenChanges([extraUri]), []);
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
     // The tree adds and deletes nodes of the included file in that file
     const added = await vscode.commands.executeCommand("mapcan.lsp.edit",
       { uri: vscode.Uri.file(main).toString(), action: "add", path: ["buses", 1, "devices", 0], kind: "frame" });

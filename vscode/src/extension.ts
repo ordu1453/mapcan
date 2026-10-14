@@ -9,6 +9,7 @@ import {
 import { registerTreeActions } from "./actions";
 import { ChangesPanel } from "./changes";
 import { ExportView } from "./export";
+import { hiddenChanges, inTabs } from "./files";
 import { NodeForm } from "./form";
 import { HistoryTree, registerHistory } from "./history";
 import { ChangeMarks } from "./marks";
@@ -107,17 +108,7 @@ async function start(force = false): Promise<void> {
 /** A map is open in an editor tab. VS Code keeps the document of a closed tab for a while (an unsaved one for
  * good), so the documents alone do not tell that the last map was closed. */
 function mapInTab(): boolean {
-  const open = new Set<string>();
-  for (const group of vscode.window.tabGroups.all) {
-    for (const tab of group.tabs) {
-      const input = tab.input;
-      if (input instanceof vscode.TabInputText) open.add(input.uri.toString());
-      else if (input instanceof vscode.TabInputTextDiff) {
-        open.add(input.original.toString());
-        open.add(input.modified.toString());
-      }
-    }
-  }
+  const open = inTabs();
   return vscode.workspace.textDocuments.some((d) => isMap(d) && open.has(d.uri.toString()));
 }
 
@@ -166,6 +157,7 @@ export async function activate(
 ): Promise<{
   tree: MapTree; form: NodeForm; history: HistoryTree; changes: ChangesPanel;
   client: () => LanguageClient | undefined; setIdleStop: (ms: number) => void;
+  hiddenChanges: typeof hiddenChanges;
 }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
   tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
@@ -221,7 +213,8 @@ export async function activate(
   const showChanges = registerPreview(context, () => client, currentMap, changes);
   registerHistory(context, history, currentMap, showChanges, () => client);
   await start();
-  return { tree, form, history, changes, client: () => client, setIdleStop: (ms) => (idleStopMs = ms) };
+  return { tree, form, history, changes, client: () => client, setIdleStop: (ms) => (idleStopMs = ms),
+    hiddenChanges };
 }
 
 export function deactivate(): Promise<void> {

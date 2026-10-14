@@ -22,6 +22,12 @@ when the first map is opened and never sees other files.
     of a bit field are edited in tables below the fields.
   * The context menu also renames (F2), duplicates and deletes (Delete) nodes. Every change is a
     normal edit, so Undo reverts it.
+  * A map split into several files (`include`) shows as one tree, from the main file or from any
+    included file. A node is edited in the file it is written in: the panel, the context menu and
+    Rename write there, a new node goes to the file of the node it is added to, and a renamed device
+    takes its receivers and senders along in every file. A change that touches two files is one edit:
+    Undo in either file offers to undo it in both. A file changed this way that is not open in an
+    editor is named in a message, with **Save** and **Open**, so its changes are not left unsaved.
   * Nodes with errors or warnings are colored, and a badge shows how many problems they have.
   * Nodes added or modified since the last commit, unsaved edits included, are marked as Source
     Control marks files: green with **A**, yellow with **M**; nodes with changes inside are yellow.

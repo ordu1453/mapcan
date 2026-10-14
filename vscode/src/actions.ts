@@ -5,6 +5,7 @@
 
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
+import { addOthers, Others, reportHidden, TextEdit } from "./files";
 import { NodeForm } from "./form";
 import { Kind, MapNode, MapTree } from "./tree";
 
@@ -35,6 +36,7 @@ async function runEdit(
   if (!(await vscode.workspace.applyEdit(edit))) return undefined;
   if (result.uri && args.action === "delete") {
     // The tree stays on its map: nothing is to be shown in the other file
+    void reportHidden([target]);
     await tree.refresh();
     return undefined;
   }
@@ -51,11 +53,9 @@ async function runEdit(
   return tree.nodeAt(pos);
 }
 
-type TextEdit = { range: [number, number, number, number]; text: string };
-
 interface SetResult {
   edits?: TextEdit[];
-  others?: { uri: string; edit: TextEdit }[];
+  others?: Others;
   error?: string;
 }
 
@@ -85,10 +85,8 @@ async function renameNode(tree: MapTree, node: MapNode, client: LanguageClient |
     }
     const edit = new vscode.WorkspaceEdit();
     for (const e of result?.edits ?? []) edit.replace(uri, new vscode.Range(...e.range), e.text);
-    for (const o of result?.others ?? []) {
-      edit.replace(vscode.Uri.parse(o.uri), new vscode.Range(...o.edit.range), o.edit.text);
-    }
-    await vscode.workspace.applyEdit(edit);
+    const others = addOthers(edit, result?.others);
+    if (await vscode.workspace.applyEdit(edit)) void reportHidden(others);
     return;
   }
   const edit = await vscode.commands.executeCommand<vscode.WorkspaceEdit>(

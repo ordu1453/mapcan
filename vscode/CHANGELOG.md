@@ -26,6 +26,8 @@
   file. Rename Symbol (F2) and Find All References on a device cover every file of the map: renaming a
   receiver in the main file renames the device described in an included file too, and the other way
   round.
+* A change the panel or the Map view writes to another file of the map that is not open in an editor
+  is named in a message with **Save** and **Open**, so its changes are not left unsaved unnoticed.
 * New fields from mapcan 0.21: a frame's **Receive timeout**, a bus's sample points and CAN FD data
   phase bit rate, and the `string` encoding of signals with **Charset** and **Terminator**.
 * The language server is started when the first map is opened, not for any YAML file, and only maps

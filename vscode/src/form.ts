@@ -9,6 +9,7 @@
 
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
+import { addOthers, Others, reportHidden, TextEdit } from "./files";
 import { KIND_TITLE, Kind, MapNode, MapTree, revealInView } from "./tree";
 import { webviewHtml } from "./webview";
 
@@ -52,11 +53,6 @@ interface NodeFields {
   flags: unknown[] | null;
 }
 
-type TextEdit = { range: [number, number, number, number]; text: string };
-
-/** Edits of the other files of the map: a node of an included file is written in that file. */
-type Others = { uri: string; edit: TextEdit }[];
-
 interface SetResult {
   edits?: TextEdit[];
   others?: Others;
@@ -67,10 +63,6 @@ interface OpsResult {
   edit?: TextEdit;
   others?: Others;
   error?: string;
-}
-
-function addOthers(edit: vscode.WorkspaceEdit, others: Others | undefined): void {
-  for (const o of others ?? []) edit.replace(vscode.Uri.parse(o.uri), new vscode.Range(...o.edit.range), o.edit.text);
 }
 
 type Message =
@@ -238,8 +230,9 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
     if (!edits.length && !result?.others?.length) return;
     const edit = new vscode.WorkspaceEdit();
     for (const e of edits) edit.replace(uri, new vscode.Range(...e.range), e.text);
-    addOthers(edit, result?.others);
+    const others = addOthers(edit, result?.others);
     if (!(await vscode.workspace.applyEdit(edit))) return;
+    void reportHidden(others);
     // The editor follows the form: show the line just written, without taking the focus
     const editor = vscode.window.visibleTextEditors.find((ed) => ed.document.uri.toString() === uri.toString());
     if (editor && edits.length) {
@@ -266,8 +259,9 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
     if (!result?.edit && !result?.others?.length) return;
     const edit = new vscode.WorkspaceEdit();
     if (result.edit) edit.replace(uri, new vscode.Range(...result.edit.range), result.edit.text);
-    addOthers(edit, result.others);
+    const others = addOthers(edit, result.others);
     if (!(await vscode.workspace.applyEdit(edit))) return;
+    void reportHidden(others);
     if (select) {
       await this.tree.refresh();
       await this.select(select);
