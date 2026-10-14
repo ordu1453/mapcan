@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
+* The first version on the Visual Studio Marketplace and Open VSX, marked **Preview** until mapcan 1.0.
+  The README shows the Node panel with a frame's bit layout, the hover of a frame and a quick fix.
 * Needs mapcan 0.21 or newer. The extension checks the version of the language server when it
   starts and, for an older one, offers the update command in a terminal (also when the server
   cannot be started at all). **mapcan: Show Server Version** gives both versions for bug reports,
