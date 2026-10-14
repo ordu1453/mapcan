@@ -147,7 +147,7 @@ def test_hover_signal_and_frame(minimal):
     assert sig.startswith("**pressure** · `scaled` · bits 16–31 · 16 bit")
     assert "phys = raw × 0.01 + 0" in sig and "unit: bar" in sig
     frame = A.hover(minimal, at("name: pump_state", 8))
-    assert frame.startswith("**pump_state** · `0x1A1` · DLC 8")
+    assert frame.startswith("**pump_state** · `0x1A1` · length 8")
     assert "| 7 | · | · | · | · | 6 | 6 | 6 | 6 |" in frame
     assert "5. `speed` — bits 47…48 (BE)" in frame
 

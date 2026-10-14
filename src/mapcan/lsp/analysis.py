@@ -725,7 +725,7 @@ def frame_markdown(frame: M.Frame) -> str:
     head = f"**{frame.name}**"
     if frame.can_id is not None:
         head += f" · `{_hex(frame.can_id, frame.extended)}`" + (" ext" if frame.extended else "")
-    head += f" · DLC {frame.length}"
+    head += " · " + _("length {n}", n=frame.length)
     out = [head]
     facts = []
     if frame.mode == "cyclic":

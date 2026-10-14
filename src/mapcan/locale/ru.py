@@ -601,6 +601,7 @@ RU: dict[str, str] = {
     "unit: {unit}": "единица: {unit}",
     "range: {lo} … {hi}": "диапазон: {lo} … {hi}",
     "cycle {ms} ms": "цикл {ms} мс",
+    "length {n}": "длина {n}",
     "Value": "Значение",
     "Name": "Имя",
     "Bit": "Бит",
