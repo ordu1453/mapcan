@@ -291,7 +291,7 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     const f = node.frame;
     const dragged = drag && drag.mode !== "create" ? drag.sig : null;
     const out = [];
-    for (let bit = 0; bit < f.dlc * 8; bit++) {
+    for (let bit = 0; bit < f.length * 8; bit++) {
       const owners = f.signals.filter((/** @type {any} */ s) => s.occupied.includes(bit) && !(dragged && samePath(s.path, dragged.path)));
       let conflict = false;
       for (let i = 0; i < owners.length && !conflict; i++)
@@ -323,7 +323,7 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
   function renderLayout() {
     if (!layoutEl) return;
     const f = node.frame;
-    if (!f || !(f.dlc > 0) || !["frame", "signal", "flag", "sdo"].includes(node.kind)) {
+    if (!f || !(f.length > 0) || !["frame", "signal", "flag", "sdo"].includes(node.kind)) {
       layoutEl.hidden = true;
       return;
     }
@@ -333,9 +333,9 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     const p = preview();
     const cs = cells();
     const isSel = (/** @type {any} */ s) => !!sel && samePath(s.path, sel.path);
-    const grid = el("div", { class: "bitgrid", style: `grid-template-rows: 16px repeat(${f.dlc}, 24px)` });
+    const grid = el("div", { class: "bitgrid", style: `grid-template-rows: 16px repeat(${f.length}, 24px)` });
     for (let b = 7; b >= 0; b--) grid.append(el("div", { class: "bg-head", style: `grid-column: ${9 - b}` }, String(b)));
-    for (let row = 0; row < f.dlc; row++) {
+    for (let row = 0; row < f.length; row++) {
       grid.append(el("div", { class: "bg-byte", style: `grid-row: ${row + 2}`, title: `Byte ${row}` }, String(row)));
     }
 
@@ -347,7 +347,7 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     };
     /** @type {HTMLElement[]} */
     const labels = [];
-    for (let row = 0; row < f.dlc; row++) {
+    for (let row = 0; row < f.length; row++) {
       let col = 0;
       while (col < 8) {
         const c = cs[row * 8 + (7 - col)];
@@ -400,7 +400,7 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     const status = el("div", { class: "bitgrid-status" }, statusText());
     layoutEl.replaceChildren(
       el("div", { class: "section-title" }, "Layout",
-        el("span", { class: "section-note" }, ` · ${f.name} · DLC ${f.dlc}`)),
+        el("span", { class: "section-note" }, ` · ${f.name} · ${f.length} bytes`)),
       el("div", { class: "field" }, grid, status, legend(f)),
     );
     // A name that does not fit in its bar is left out: the legend has it
