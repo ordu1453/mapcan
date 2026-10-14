@@ -4,8 +4,10 @@ name: extension-release
 # in vscode/), rename "## Unreleased" in vscode/CHANGELOG.md to "## X.Y.Z", commit, and push the tag
 # extension-vX.Y.Z. The workflow checks the extension as CI does and then:
 #   creates the GitHub Release "mapcan for VS Code X.Y.Z" with mapcan-X.Y.Z.vsix and the changelog section;
-#   publishes it to the Visual Studio Marketplace (secret VSCE_PAT, publisher ordu1453)
-#   and to Open VSX (secret OVSX_PAT, namespace ordu1453), each only when its secret is set.
+#   publishes it to Open VSX (secret OVSX_PAT, namespace ordu1453) and to the Visual Studio Marketplace
+#   (secret VSCE_PAT, publisher ordu1453), each only when its secret is set. The Marketplace token needs an
+#   Azure DevOps organization (and so an Azure subscription): without it, upload the Release's .vsix at
+#   https://marketplace.visualstudio.com/manage/publishers/ordu1453 by hand.
 # A manual run (Actions → extension-release → Run workflow) is a trial: it builds, tests and packages,
 # and keeps the .vsix as an artifact, without releasing or publishing.
 #
@@ -104,7 +106,7 @@ jobs:
         run: npx --yes @vscode/vsce@3 publish --packagePath "mapcan-${{ needs.package.outputs.version }}.vsix"
       - name: No token
         if: env.VSCE_PAT == ''
-        run: echo "::warning::VSCE_PAT is not set; the extension was not published to the Marketplace"
+        run: echo "::warning::VSCE_PAT is not set: upload the .vsix of the release to the Marketplace by hand"
 
   open-vsx:
     if: startsWith(github.ref, 'refs/tags/')

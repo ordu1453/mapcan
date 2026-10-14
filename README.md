@@ -349,14 +349,19 @@ iscc /DAppVersion=X.Y.Z packaging/mapcan.iss                # → dist/mapcan-X.
 2. In `vscode/`: `npm version X.Y.Z --no-git-tag-version`; in `vscode/CHANGELOG.md` rename
    `## Unreleased` to `## X.Y.Z`; commit.
 3. Create and push a tag: `git tag -a extension-vX.Y.Z -m "mapcan for VS Code X.Y.Z" && git push origin main extension-vX.Y.Z`.
+4. Upload the `.vsix` of the GitHub Release to the
+   [Visual Studio Marketplace](https://marketplace.visualstudio.com/manage/publishers/ordu1453): the first
+   time **New extension → Visual Studio Code**, later **⋯ → Update** at the extension.
 
 [extension-release.yml](.github/workflows/extension-release.yml) checks that the tag matches
 `vscode/package.json` and that the changelog has the section, runs the typecheck and the integration
 tests, packages the `.vsix`, publishes a GitHub Release with it and the changelog section, and then
-the extension on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ordu1453.mapcan)
-(secret `VSCE_PAT`, a token of the publisher `ordu1453`) and on [Open VSX](https://open-vsx.org/extension/ordu1453/mapcan)
-(secret `OVSX_PAT`, namespace `ordu1453`); without a secret that step only warns. Running the workflow
-by hand makes a trial `.vsix` (an artifact) without releasing.
+the extension on [Open VSX](https://open-vsx.org/extension/ordu1453/mapcan) (secret `OVSX_PAT`,
+namespace `ordu1453`). The Marketplace is published by hand (step 4): a token for it needs an Azure
+DevOps organization, which needs an Azure subscription. With a secret `VSCE_PAT` (a token of the
+publisher `ordu1453` with the scope Marketplace → Manage) the workflow publishes there too; without
+it that step only warns. Running the workflow by hand makes a trial `.vsix` (an artifact) without
+releasing.
 </details>
 
 <details>
