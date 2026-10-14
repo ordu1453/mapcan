@@ -47,6 +47,11 @@ const tests = {
     assert.equal(ctx.api.tree.mapUri.toString(), ctx.doc.uri.toString());
   },
 
+  async "the repository and a new issue are a command away"() {
+    const commands = await vscode.commands.getCommands(true);
+    assert.ok(["mapcan.openRepository", "mapcan.reportIssue", "mapcan.showServerVersion"].every((c) => commands.includes(c)));
+  },
+
   async "the server reports a version the extension works with"(ctx) {
     const version = ctx.api.serverVersion();
     assert.match(version ?? "", /^\d+\.\d+\.\d+/);

@@ -451,5 +451,9 @@
   "Overwrite": "Перезаписать",
   "Reload": "Перечитать",
   "Save (Ctrl+S): also {files}": "Сохранить (Ctrl+S): также {files}",
-  "{file} is a part of the map {map}: the map is open, and the nodes of {file} are edited in that file": "{file} — часть карты {map}: открыта карта, узлы {file} редактируются в этом файле"
+  "{file} is a part of the map {map}: the map is open, and the nodes of {file} are edited in that file": "{file} — часть карты {map}: открыта карта, узлы {file} редактируются в этом файле",
+  "What is new in mapcan {version} (GitHub)": "Что нового в mapcan {version} (GitHub)",
+  "mapcan on GitHub": "mapcan на GitHub",
+  "Documentation": "Документация",
+  "Report an issue": "Сообщить о проблеме"
 }

@@ -402,7 +402,8 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 }
 
 /* ------------------------------------------------------------------ file menu, profile, version */
-.brand .version { font-weight: 400; font-size: 11px; color: var(--muted); }
+.brand .version { font-weight: 400; font-size: 11px; color: var(--muted); text-decoration: none; }
+.brand .version:hover { color: inherit; text-decoration: underline; }
 .brandmark { display: inline-flex; align-items: center; gap: 0.4em; font-size: 15px; line-height: 1; }
 .brandmark-icon { width: 1.45em; height: 1.45em; flex: none; }
 .brandmark-word { font-family: "Sora Wordmark", "Segoe UI", system-ui, sans-serif; font-weight: 800; letter-spacing: -0.01em; }
@@ -450,6 +451,9 @@ a.gh { color: var(--accent); margin-left: 4px; }
 .start-actions { display: flex; gap: 10px; }
 .start-actions button { padding: 8px 18px; font-size: 14px; }
 .start-card h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
+.start-links { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.start-links a { color: inherit; }
+.start-links a:hover { color: var(--fg); }
 .start-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 
 /* ------------------------------------------------------------------ file dialog */

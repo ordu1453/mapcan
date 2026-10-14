@@ -166,12 +166,27 @@ function serverVersion(): string | undefined {
   return client?.initializeResult?.serverInfo?.version;
 }
 
-async function showServerVersion(): Promise<void> {
+const REPO_URL = "https://github.com/ordu1453/mapcan";
+
+/** The versions of the extension, of mapcan and of VS Code, for a bug report. */
+function versions(): string {
   const server = client ? `mapcan ${serverVersion() ?? "(no version)"}` : "not running";
-  const text = `mapcan extension ${extensionVersion}; language server: ${server} (${serverCommand})`;
+  return `mapcan extension ${extensionVersion}; language server: ${server} (${serverCommand}); ` +
+    `VS Code ${vscode.version}, ${process.platform}`;
+}
+
+/** A new issue on GitHub with the versions filled in. */
+function reportIssue(): Thenable<boolean> {
+  const body = `\n\n---\n${versions()}`;
+  return vscode.env.openExternal(vscode.Uri.parse(`${REPO_URL}/issues/new?body=${encodeURIComponent(body)}`));
+}
+
+async function showServerVersion(): Promise<void> {
+  const text = versions();
   output?.info(text);
-  const choice = await vscode.window.showInformationMessage(text, "Copy");
+  const choice = await vscode.window.showInformationMessage(text, "Copy", "Report Issue");
   if (choice === "Copy") await vscode.env.clipboard.writeText(text);
+  else if (choice === "Report Issue") await reportIssue();
 }
 
 /** The last map was closed: stop the server unless a map is opened again in time. */
@@ -251,6 +266,8 @@ export async function activate(
     }),
     vscode.commands.registerCommand("mapcan.showOutput", () => output?.show()),
     vscode.commands.registerCommand("mapcan.showServerVersion", showServerVersion),
+    vscode.commands.registerCommand("mapcan.openRepository", () => vscode.env.openExternal(vscode.Uri.parse(REPO_URL))),
+    vscode.commands.registerCommand("mapcan.reportIssue", reportIssue),
     vscode.commands.registerCommand("mapcan.export", () => exportView.reveal()),
     vscode.commands.registerCommand("mapcan.closeForm", () => form?.close()),
     vscode.commands.registerCommand("mapcan.revealFormNode", () => form?.reveal()),

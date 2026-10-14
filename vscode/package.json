@@ -126,6 +126,16 @@
           "group": "navigation@0"
         },
         {
+          "command": "mapcan.openRepository",
+          "when": "view == mapcan.map",
+          "group": "9_links@1"
+        },
+        {
+          "command": "mapcan.reportIssue",
+          "when": "view == mapcan.map",
+          "group": "9_links@2"
+        },
+        {
           "command": "mapcan.openPreview",
           "when": "view == mapcan.map && mapcan.mapOpen",
           "group": "navigation@1"
@@ -446,6 +456,16 @@
       {
         "command": "mapcan.showServerVersion",
         "title": "Show Server Version",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.openRepository",
+        "title": "mapcan on GitHub",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.reportIssue",
+        "title": "Report an Issue",
         "category": "mapcan"
       },
       {

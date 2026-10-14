@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { api } from "../api";
 import { actions, exportLang, lang, store } from "../store";
 import { docLanguages, N_, t } from "../i18n";
+import { releaseUrl } from "../links";
 import BrandMark from "./BrandMark.vue";
 
 const emit = defineEmits<{ preview: [fmt: "html" | "pdf" | "md"]; diff: [] }>();
@@ -102,7 +103,10 @@ onBeforeUnmount(() => {
 <template>
   <header class="topbar">
     <div class="brand" :title="`mapcan ${store.meta?.version ?? ''}`">
-      <BrandMark /> <span class="version mono">v{{ store.meta?.version }}</span>
+      <BrandMark />
+      <a v-if="store.meta?.version" class="version mono" :href="releaseUrl(store.meta.version)" target="_blank"
+         rel="noopener" :title="t('What is new in mapcan {version} (GitHub)', { version: store.meta.version })"
+      >v{{ store.meta.version }}</a>
     </div>
 
     <div class="menu">

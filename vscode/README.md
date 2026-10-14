@@ -122,6 +122,8 @@ the server restarts with its settings.
 * **mapcan: Restart Language Server**
 * **mapcan: Show Language Server Output**
 * **mapcan: Show Server Version** (the versions of the extension and of `mapcan`, for bug reports)
+* **mapcan: mapcan on GitHub**, **mapcan: Report an Issue** (also in the **…** menu of the Map view;
+  a new issue gets the versions filled in)
 
 ## Development
 
