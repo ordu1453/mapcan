@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.6.3
 
+* Needs mapcan 0.22.0 or newer, which the extension offers to install or update.
 * With the YAML extension installed, every map and every file a map includes gets the format's
   schema (completion and hovers of keys) without a `# yaml-language-server: $schema=` line. The
   schemas come with the extension and work offline.
