@@ -21,6 +21,12 @@ export function isMap(doc: vscode.TextDocument | undefined): doc is vscode.TextD
   return MAP_HEADER.test(text) || PART_HEADER.test(text);
 }
 
+/** A file included by a map, not a map itself (the loader's rule: `part_of:` without `document:`). */
+export function isPart(doc: vscode.TextDocument): boolean {
+  const text = doc.getText();
+  return PART_HEADER.test(text) && !/^document\s*:/m.test(text);
+}
+
 export type Kind = "bus" | "device" | "frame" | "signal" | "flag" | "sdo";
 
 export const KIND_TITLE: Record<Kind, string> = {
@@ -128,7 +134,9 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     this.view = view;
     this.subscriptions.push(
       vscode.window.registerFileDecorationProvider(this),
-      vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
+      // A moment later: switching tabs can make another editor active for an instant (VS Code 1.141.2 does when an
+      // older version opens from History), which would take the tree to its map
+      vscode.window.onDidChangeActiveTextEditor(() => this.scheduleRefresh(150)),
       vscode.workspace.onDidChangeTextDocument((e) => {
         if (e.document.uri.toString() === this.uri?.toString() || e.document === vscode.window.activeTextEditor?.document) {
           this.scheduleRefresh();
@@ -344,9 +352,9 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
 
   private generation = 0;
 
-  private scheduleRefresh(): void {
+  private scheduleRefresh(ms = 300): void {
     clearTimeout(this.refreshTimer);
-    this.refreshTimer = setTimeout(() => void this.refresh(), 300);
+    this.refreshTimer = setTimeout(() => void this.refresh(), ms);
   }
 
   private scheduleReveal(): void {
