@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import datetime as _dt
+import functools
 import os
 import re
 from collections.abc import Callable
@@ -13,8 +14,17 @@ from typing import Any
 
 from pydantic import ValidationError
 from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.error import MarkedYAMLError
+from ruamel.yaml.nodes import ScalarNode as _RuamelScalar
+from ruamel.yaml.resolver import VersionedResolver
+
+try:  # libyaml through PyYAML: the fast parser (see _fast_load)
+    import yaml as _pyyaml
+    _CLoader = getattr(_pyyaml, "CSafeLoader", None)
+except ImportError:  # pragma: no cover
+    _pyyaml = _CLoader = None
+
 
 from .diagnostics import Diagnostic, Report
 from .i18n import _
@@ -129,35 +139,43 @@ class LoadResult:
     map: MapCan | None
     report: Report
     source: SourceMap
-    raw: Any = None  # ruamel document (to save with the comments)
+    raw: Any = None  # the YAML as written: plain dicts and lists, or ruamel's document (see _fast_load)
     # Data together with the included files (before value tables are substituted); None if nothing is included
     merged: Any = None
 
 
-def _plain(node, path: Path_, src: SourceMap, report: Report, parent_key=None):
-    """ruamel node → plain dicts/lists/scalars, recording positions and applying soft fixes."""
-    if isinstance(node, CommentedMap):
+def _where(node, k, marks: dict[int, Any] | None) -> tuple[int, int] | None:
+    """0-based (line, column) of the value at key or index ``k`` of a mapping or list of the YAML as written: from
+    ruamel's line/column info, or from the marks of the fast parser."""
+    try:
+        if marks is not None:
+            return marks[id(node)][k]
+        return node.lc.value(k) if isinstance(node, CommentedMap) else node.lc.item(k)
+    except (KeyError, IndexError, TypeError, AttributeError):
+        return None
+
+
+def _plain(node, path: Path_, src: SourceMap, report: Report, parent_key=None, marks: dict[int, Any] | None = None):
+    """The YAML as written (ruamel's nodes, or plain data from the fast parser with ``marks``) → plain
+    dicts/lists/scalars, recording positions and applying soft fixes."""
+    if isinstance(node, dict):
         out = {}
         for k in node:
             key = _plain_scalar(k)
             if parent_key == "values":
                 key = _fix_number(key, path + (key,), src, report, is_key=True)
-            try:
-                line, col = node.lc.value(k)
-                src.positions[path + (key,)] = (line + 1, col + 1)
-            except (KeyError, TypeError):
-                pass
-            out[key] = _plain(node[k], path + (key,), src, report, parent_key=key)
+            at = _where(node, k, marks)
+            if at is not None:
+                src.positions[path + (key,)] = (at[0] + 1, at[1] + 1)
+            out[key] = _plain(node[k], path + (key,), src, report, parent_key=key, marks=marks)
         return out
-    if isinstance(node, CommentedSeq):
+    if isinstance(node, list):
         out = []
         for i, item in enumerate(node):
-            try:
-                line, col = node.lc.item(i)
-                src.positions[path + (i,)] = (line + 1, col + 1)
-            except (KeyError, TypeError):
-                pass
-            out.append(_plain(item, path + (i,), src, report, parent_key=parent_key))
+            at = _where(node, i, marks)
+            if at is not None:
+                src.positions[path + (i,)] = (at[0] + 1, at[1] + 1)
+            out.append(_plain(item, path + (i,), src, report, parent_key=parent_key, marks=marks))
         return out
     value = _plain_scalar(node)
     if parent_key in NUMERIC_KEYS:
@@ -208,10 +226,11 @@ def _fix_number(value, path, src: SourceMap, report: Report, is_key=False):
 
 def _pydantic_messages(err: ValidationError, src: SourceMap, report: Report) -> None:
     seen = set()
+    known = _known_keys(src)
     for e in err.errors():
         loc = tuple(e["loc"])
         # For a union pydantic adds the names of the variants to the path: remove them.
-        clean = tuple(x for x in loc if isinstance(x, int) or x in _known_keys(src))
+        clean = tuple(x for x in loc if isinstance(x, int) or x in known)
         msg = e["msg"]
         if msg.startswith("Value error, "):
             msg = _(msg[len("Value error, "):])      # messages of the model's validators are marked with N_()
@@ -234,14 +253,9 @@ def _pydantic_messages(err: ValidationError, src: SourceMap, report: Report) -> 
         report.add(src.diag("error", "schema", msg, clean if e["type"] != "missing" else clean))
 
 
-_KEYS_CACHE: dict[int, set] = {}
-
-
 def _known_keys(src: SourceMap) -> set:
-    k = id(src)
-    if k not in _KEYS_CACHE:
-        _KEYS_CACHE[k] = {el for p in src.positions for el in p if not isinstance(el, int)}
-    return _KEYS_CACHE[k]
+    """The keys written anywhere in the map."""
+    return {el for p in src.positions for el in p if not isinstance(el, int)}
 
 
 # A list item without a space after "-": "-name: x" reads as the key "-name", not as an item.
@@ -297,6 +311,89 @@ def _yaml_error(e: MarkedYAMLError, text: str) -> tuple[str, int | None, int | N
     return problem, line, col
 
 
+# --------------------------------------------------------------------------- #
+# The fast parser
+# --------------------------------------------------------------------------- #
+# ruamel's round-trip loader keeps the comments, which only the edits need (they parse the text themselves),
+# and takes most of the time of an analysis: seconds for a large map, on every change in an editor. libyaml
+# (PyYAML's C parser) gives the same nodes with their positions about twenty times faster. Only its nodes are
+# used: plain scalars are resolved by ruamel's YAML 1.2 rules (PyYAML follows 1.1, where OFF is false), so the
+# values are those of ruamel's loader. What this does not read the same way (a syntax error, whose message comes
+# from ruamel; duplicate keys, aliases and merge keys, tags) goes to ruamel's loader.
+
+_RESOLVER = VersionedResolver()
+_STR = "tag:yaml.org,2002:str"
+# A tag can start where a token does: after a space, at the start of a line, or after [ { ,
+_MAY_TAG = re.compile(r"(?:^|[\s\[{,])!", re.MULTILINE)
+
+
+class _Slow(Exception):
+    """The text needs ruamel's loader."""
+
+
+if _CLoader is not None:
+    class _Composer(_pyyaml.cyaml.CParser, _pyyaml.resolver.BaseResolver):
+        """libyaml's nodes without PyYAML's YAML 1.1 resolution of plain scalars (_plain_value resolves them): with
+        no tags written, every scalar gets the string tag."""
+
+        def __init__(self, stream):
+            _pyyaml.cyaml.CParser.__init__(self, stream)
+            _pyyaml.resolver.BaseResolver.__init__(self)
+
+
+@functools.lru_cache(maxsize=4096)
+def _plain_value(text: str):
+    """A plain (unquoted) scalar as ruamel's loader reads it: a string, or a number, bool, null or date."""
+    if _RESOLVER.resolve(_RuamelScalar, text, (True, False)) == _STR:
+        return text
+    return _plain_scalar(_make_yaml().load(text))
+
+
+def _fast_load(text: str) -> tuple[Any, dict[int, Any]] | None:
+    """(the YAML as written as plain data, the positions of the values of its mappings and lists by id) from
+    libyaml, or None when ruamel's loader must read the text."""
+    if _CLoader is None or _MAY_TAG.search(text):
+        return None
+    try:
+        root = _pyyaml.compose(text, Loader=_Composer)
+    except _pyyaml.YAMLError:
+        return None
+    marks: dict[int, Any] = {}
+    seen: set[int] = set()
+
+    def scalar(n) -> Any:
+        # Quoted, literal and folded scalars are strings as they are; plain ones are read by YAML 1.2 rules
+        return n.value if n.style else _plain_value(n.value)
+
+    def walk(n) -> Any:
+        if id(n) in seen:
+            raise _Slow        # an alias
+        seen.add(id(n))
+        if isinstance(n, _pyyaml.MappingNode):
+            out: dict = {}
+            pos: dict = {}
+            for kn, vn in n.value:
+                if not isinstance(kn, _pyyaml.ScalarNode) or (kn.value == "<<" and not kn.style):
+                    raise _Slow    # a complex key or a merge key
+                k = scalar(kn)
+                if k in out:
+                    raise _Slow    # a duplicate key: ruamel's message
+                out[k] = walk(vn)
+                pos[k] = (vn.start_mark.line, vn.start_mark.column)
+            marks[id(out)] = pos
+            return out
+        if isinstance(n, _pyyaml.SequenceNode):
+            items = [walk(v) for v in n.value]
+            marks[id(items)] = [(v.start_mark.line, v.start_mark.column) for v in n.value]
+            return items
+        return scalar(n)
+
+    try:
+        return (walk(root) if root is not None else None), marks
+    except (_Slow, TypeError):     # TypeError: an unhashable key
+        return None
+
+
 def _make_yaml() -> YAML:
     y = YAML(typ="rt")
     y.preserve_quotes = True
@@ -333,17 +430,22 @@ def loads(text: str, filename: str | None = None, base_dir: str | Path | None = 
     the disk, or None to read the disk (the editors pass the files open in them, with unsaved changes)."""
     report = Report()
     src = SourceMap(filename)
-    try:
-        raw = _make_yaml().load(text)
-    except MarkedYAMLError as e:
-        problem, line, col = _yaml_error(e, text)
-        report.add(Diagnostic("error", "yaml", problem, filename, line, col))
-        return LoadResult(None, report, src)
+    fast = _fast_load(text)
+    if fast is not None:
+        raw, marks = fast
+    else:
+        marks = None
+        try:
+            raw = _make_yaml().load(text)
+        except MarkedYAMLError as e:
+            problem, line, col = _yaml_error(e, text)
+            report.add(Diagnostic("error", "yaml", problem, filename, line, col))
+            return LoadResult(None, report, src)
     if raw is None:
         report.add(Diagnostic("error", "yaml", _("empty file"), filename, 1, 1))
         return LoadResult(None, report, src, raw)
 
-    data = _plain(raw, (), src, report)
+    data = _plain(raw, (), src, report, marks=marks)
     src.positions.setdefault((), (1, 1))
     if isinstance(data, dict) and "part_of" in data and "document" not in data:
         # An included file opened on its own: it is valid only as a part of its map

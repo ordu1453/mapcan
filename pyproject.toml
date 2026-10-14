@@ -32,6 +32,8 @@ dependencies = [
     "pydantic>=2.7,<3",
     # ruamel changes its API between minor releases: raised after testing (Dependabot)
     "ruamel.yaml>=0.18,<0.20",
+    # libyaml's parser for reading maps fast in the editors (loader._fast_load); ruamel's is used without it
+    "pyyaml>=6.0",
     "typer>=0.12",
     "jinja2>=3.1",
     "cantools>=39",

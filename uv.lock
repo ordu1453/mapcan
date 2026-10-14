@@ -456,6 +456,7 @@ dependencies = [
     { name = "cantools" },
     { name = "jinja2" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "ruamel-yaml" },
     { name = "typer" },
 ]
@@ -526,6 +527,7 @@ requires-dist = [
     { name = "pygls", marker = "extra == 'lsp'", specifier = ">=2.0,<3" },
     { name = "python-multipart", marker = "extra == 'web'", specifier = ">=0.0.9" },
     { name = "pywebview", marker = "extra == 'desktop'", specifier = ">=5" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruamel-yaml", specifier = ">=0.18,<0.20" },
     { name = "typer", specifier = ">=0.12" },
     { name = "typst", marker = "extra == 'pdf'", specifier = ">=0.13" },
