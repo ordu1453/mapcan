@@ -6,6 +6,7 @@ The code uses no dynamic memory and no standard library beyond
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 from .. import bits as B
@@ -144,6 +145,19 @@ class CGen:
         self.T = code_text(self.lang)
         self.prefix = prefix
         self.base = (prefix + bus.name).lower() if prefix else bus.name.lower()
+        # Names are unique only within a bus: a frame or device whose name is also on another bus
+        # is qualified by its bus, so the headers of all buses build in one firmware (a gateway).
+        frames = Counter(f.name for b in cmap.buses for f in frames_with_layout(b))
+        devices = Counter(d.name for b in cmap.buses for d in b.devices if d.node_id is not None)
+        self._shared_frames = {n for n, k in frames.items() if k > 1}
+        self._shared_devices = {n for n, k in devices.items() if k > 1}
+
+    def frame_name(self, f: Frame) -> str:
+        """The frame's name in identifiers: <frame>, or <bus>_<frame> if another bus has a frame of that name."""
+        return f"{self.bus.name}_{f.name}" if f.name in self._shared_frames else f.name
+
+    def device_name(self, name: str) -> str:
+        return f"{self.bus.name}_{name}" if name in self._shared_devices else name
 
     def t(self, v) -> str:
         return _c_comment(text(v, self.lang, self.cmap.lang))
@@ -182,19 +196,26 @@ class CGen:
             HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"])
             .replace("@ONES_NOTE@", self.T["ones_c"]).replace("@SM_NOTE@", self.T["sm_c"]),
         ]
-        # The map this code was built from (the same in every bus header: identical redefinitions are allowed)
-        parts = d.version_parts
-        if parts is not None:
-            for name, v in zip(("MAJOR", "MINOR", "PATCH"), parts, strict=True):
-                out.append(f"#define {self.P('MAP_VERSION', name)} {v}u")
-        out.append(f"#define {self.P('MAP_LAYOUT_CRC32')} 0x{layout_crc32(self.cmap):08X}u")
+        # The map this code was built from, named after the bus: headers of two maps build together
+        crc = f"0x{layout_crc32(self.cmap):08X}u"
+        consts = [(("MAP_VERSION", n), f"{v}u") for n, v in zip(("MAJOR", "MINOR", "PATCH"), d.version_parts or (),
+                                                                strict=False)]
+        consts.append((("MAP_LAYOUT_CRC32",), crc))
+        for parts, v in consts:
+            out.append(f"#define {self.P(self.bus.name, *parts)} {v}")
+        # The former names without the bus (the same in every header of a map: identical redefinitions are allowed)
+        out.append("#ifndef MAPCAN_NO_DEPRECATED")
+        for parts, v in consts:
+            out.append(f"#define {self.P(*parts)} {v} "
+                       f"/* {self.T['deprecated_dlc'].format(name=self.P(self.bus.name, *parts))} */")
+        out.append("#endif")
         if self.bus.bitrate:
             out.append(f"#define {self.P(self.bus.name, 'BITRATE')} {self.bus.bitrate}u")
         if self.bus.fd and self.bus.data_bitrate:
             out.append(f"#define {self.P(self.bus.name, 'DATA_BITRATE')} {self.bus.data_bitrate}u")
         for dev in self.bus.devices:
             if dev.node_id is not None:
-                out.append(f"#define {self.P(dev.name, 'NODE_ID')} 0x{dev.node_id:02X}u")
+                out.append(f"#define {self.P(self.device_name(dev.name), 'NODE_ID')} 0x{dev.node_id:02X}u")
         out.append("")
         for f in frames_with_layout(self.bus):
             out += self.frame_decls(f)
@@ -202,7 +223,7 @@ class CGen:
         return "\n".join(out)
 
     def frame_decls(self, f: Frame) -> list[str]:
-        F = f.name
+        F = self.frame_name(f)
         out = [
             "/* " + "-" * 72 + " */",
             f"/* {F}: {self.t(f.description) or self.t(f.title)} */",
@@ -365,7 +386,7 @@ class CGen:
         return [f"    if ({cond}) {{"] + ["    " + b for b in body] + ["    }"]
 
     def frame_impl(self, f: Frame) -> list[str]:
-        name = self.p(f.name)
+        name = self.p(self.frame_name(f))
         sel = selector_of(f)
         be = lambda s: "true" if s.byte_order == "big_endian" else "false"  # noqa: E731
         if f.length == 0:

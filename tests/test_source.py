@@ -59,7 +59,9 @@ def test_code_carries_the_map():
     bus = res.map.buses[0]
     crc = layout_crc32(res.map)
     h = CGen(res.map, bus, "").header()
-    assert "#define MAP_VERSION_MAJOR 1u" in h and f"#define MAP_LAYOUT_CRC32 0x{crc:08X}u" in h
+    B = bus.name.upper()
+    assert f"#define {B}_MAP_VERSION_MAJOR 1u" in h and f"#define {B}_MAP_LAYOUT_CRC32 0x{crc:08X}u" in h
+    assert "#define MAP_VERSION_MAJOR 1u /* deprecated" in h     # the former name, until MAPCAN_NO_DEPRECATED
     assert "#define MAP_INFO_MINOR_INITIAL_RAW 4" in h
     py = PyGen(res.map, bus).module()
     assert "MAP_VERSION = (1, 4, 2)" in py and f"MAP_LAYOUT_CRC32 = 0x{crc:08X}" in py

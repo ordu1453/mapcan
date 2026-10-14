@@ -264,8 +264,8 @@ Give the signals of such a frame a `source` instead of a value:
 
 The value is the signal's initial value in generated code (`…_INITIAL_RAW` in C, the field's
 default in Python, `GenSigStartValue` in DBC), so firmware built from the map sends it without code of
-its own. Every C header also has `MAP_VERSION_MAJOR`, `_MINOR`, `_PATCH` and `MAP_LAYOUT_CRC32` (with
-the `--prefix`), and every Python module `MAP_VERSION` and `MAP_LAYOUT_CRC32`, for a receiver to
+its own. Every C header also has `<BUS>_MAP_VERSION_MAJOR`, `_MINOR`, `_PATCH` and `<BUS>_MAP_LAYOUT_CRC32`
+(after the `--prefix`), and every Python module `MAP_VERSION` and `MAP_LAYOUT_CRC32`, for a receiver to
 compare with.
 
 The version is raised by people; the layout CRC changes by itself when the bits on the bus change,

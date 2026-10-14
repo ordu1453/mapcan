@@ -17,7 +17,7 @@ from mapcan.codegen.py import _cls, generate_py
 from mapcan.export.dbc import bus_database
 from mapcan.loader import load
 
-from .conftest import REFERENCE, ROOT
+from .conftest import REFERENCE, ROOT, run
 
 PATTERN = 0xA5C396E15A3C691E
 
@@ -207,7 +207,7 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
         g = CGen(cmap, bus)
         mod = py_modules[bus.name]
         for f in frames_with_layout(bus):
-            t = g.p(f.name)
+            t = g.p(g.frame_name(f))
             vals = sample(f)
             main.append("    {")
             main.append(f"        {t}_t m = {{0}}, u = {{0}};")
@@ -484,6 +484,75 @@ def test_classic_can_has_no_fd_flags(ref_map, tmp_path):
     mod = _import(generate_py(ref_map, tmp_path / "py")[0])
     frame = next(v for v in vars(mod).values() if isinstance(v, type) and hasattr(v, "BITRATE_SWITCH"))
     assert (frame.IS_FD, frame.BITRATE_SWITCH) == (False, False)
+
+
+GATEWAY_MAP = """
+mapcan: 1
+document: {{title: {title}, version: "{version}", language: en}}
+buses:
+{buses}
+"""
+GATEWAY_BUS = """
+  - name: {bus}
+    protocol: canopen
+    devices:
+      - name: gw
+        node_id: {node}
+        frames:
+          - name: status
+            canopen: pdo_tx1
+            length: 1
+            signals:
+              - {{name: s, encoding: raw, byte: 0, byte_length: 1}}
+          - name: {bus}_only
+            canopen: pdo_tx2
+            length: 1
+            signals:
+              - {{name: s, encoding: raw, byte: 0, byte_length: 1}}
+"""
+
+
+def _gateway_map(title, version, *buses):
+    text = GATEWAY_MAP.format(title=title, version=version, buses="".join(
+        GATEWAY_BUS.format(bus=b, node=0x10 + i) for i, b in enumerate(buses)))
+    res, report = run(text)
+    assert not [d for d in report.diagnostics if d.level == "error"], report.diagnostics
+    return res.map
+
+
+def test_names_shared_by_buses_are_qualified(tmp_path):
+    """A frame or device name on several buses gets the bus; a unique one keeps its name."""
+    h = {p.stem: p.read_text(encoding="utf-8")
+         for p in generate_c(_gateway_map("gw", "1.0", "body", "chassis"), tmp_path) if p.suffix == ".h"}
+    assert "#define BODY_STATUS_ID " in h["body"] and "int body_status_pack(" in h["body"]
+    assert "#define CHASSIS_STATUS_ID " in h["chassis"] and "#define CHASSIS_GW_NODE_ID 0x11u" in h["chassis"]
+    assert "#define BODY_ONLY_ID " in h["body"] and "int body_only_pack(" in h["body"]
+    assert "#define BODY_MAP_VERSION_MAJOR 1u" in h["body"]
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_headers_of_buses_and_maps_build_together(tmp_path):
+    """A gateway includes the headers of every bus, and of two maps (with MAPCAN_NO_DEPRECATED)."""
+    sources = generate_c(_gateway_map("gw", "1.0", "body", "chassis"), tmp_path)
+    sources += generate_c(_gateway_map("service", "2.3", "diag"), tmp_path)
+    headers = [p for p in sources if p.suffix == ".h"]
+    main = [f'#include "{p.name}"' for p in headers] + [
+        "int main(void) {",
+        "    uint8_t buf[8];",
+        "    body_status_t a = {1u};",
+        "    chassis_status_t b = {2u};",
+        "    if (body_status_pack(buf, sizeof buf, &a) != 1 || chassis_status_pack(buf, sizeof buf, &b) != 1) {",
+        "        return 1;",
+        "    }",
+        "    return (BODY_MAP_VERSION_MAJOR == 1u && DIAG_MAP_VERSION_MINOR == 3u && buf[0] == 2u) ? 0 : 2;",
+        "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    "-DMAPCAN_NO_DEPRECATED", str(tmp_path / "main.c"),
+                    *(str(p) for p in sources if p.suffix == ".c"), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    subprocess.run([str(exe)], check=True)
 
 
 INVALID_MAP = """

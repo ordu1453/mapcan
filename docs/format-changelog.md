@@ -13,6 +13,11 @@ needs at least the version of mapcan that introduced it; former names stay reada
   the quick fix in VS Code) removes it and moves such frames. The editors have no Direction field:
   the sender says who sends a frame. It will be removed from the format in version 2.
 - Documents name the section of the frames of a bus "Outside the map" (formerly "Broadcast").
+- Generated C: a frame or device whose name is also on another bus is named with its bus
+  (`<BUS>_<FRAME>_ID`, `<bus>_<frame>_pack()`, `<BUS>_<DEVICE>_NODE_ID`), so the headers of all buses
+  build in one firmware; unique names do not change. The map constants are `<BUS>_MAP_VERSION_*` and
+  `<BUS>_MAP_LAYOUT_CRC32`; `MAP_VERSION_*` and `MAP_LAYOUT_CRC32` remain as deprecated aliases, left
+  out when `MAPCAN_NO_DEPRECATED` is defined.
 
 ## 0.21
 

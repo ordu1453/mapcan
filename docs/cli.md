@@ -74,6 +74,14 @@ bms_status_t st;
 if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { ... }
 ```
 
+Identifiers are named after the frame (`<FRAME>_ID`, `<frame>_t`, `<frame>_pack()`) and the device
+(`<DEVICE>_NODE_ID`). Names are unique only within a bus, so a frame or device whose name is also on
+another bus of the map gets its bus in front (`BODY_STATUS_ID`, `body_status_pack()`): a gateway can
+include the headers of every bus. The constants of the map are named after the bus
+(`<BUS>_MAP_VERSION_MAJOR`, `<BUS>_MAP_LAYOUT_CRC32`), so the headers of two maps build together; the
+former `MAP_VERSION_*` and `MAP_LAYOUT_CRC32` stay as deprecated aliases unless `MAPCAN_NO_DEPRECATED`
+is defined. `--prefix` puts one more prefix in front of every name and file.
+
 Next to `<FRAME>_ID` and `<FRAME>_LENGTH`, the header tells the CAN driver how to send the frame:
 `<FRAME>_IS_EXTENDED` for a 29-bit ID, and on a CAN FD bus `<FRAME>_IS_FD` and `<FRAME>_BRS`
 (bit rate switch, `0` or `1`). The classes of the Python module carry the same as `IS_EXTENDED`,
