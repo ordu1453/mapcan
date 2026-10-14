@@ -21,8 +21,11 @@
   whole map with the nodes of the other file marked with it, and Go to Definition on a receiver leads to
   the device in the main file.
 * Nodes of an included file are edited in that file from either file's Map view: the form writes their
-  fields there, and **Add**, **Duplicate** and **Delete** change that file. A node added to a bus of the
-  main file goes to the main file, one added to a node of the included file to the included file.
+  fields there, and **Add**, **Duplicate**, **Rename** and **Delete** change that file. A node added to a
+  bus of the main file goes to the main file, one added to a node of the included file to the included
+  file. Rename Symbol (F2) and Find All References on a device cover every file of the map: renaming a
+  receiver in the main file renames the device described in an included file too, and the other way
+  round.
 * New fields from mapcan 0.21: a frame's **Receive timeout**, a bus's sample points and CAN FD data
   phase bit rate, and the `string` encoding of signals with **Charset** and **Terminator**.
 * The language server is started when the first map is opened, not for any YAML file, and only maps

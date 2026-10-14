@@ -171,7 +171,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     const item = new vscode.TreeItem(label, state);
     item.id = node.id;
     item.description = from !== undefined ? `${description} ↪`.trim() : description;
-    // A node of another file is added to, copied and deleted in that file; it is not renamed from here
+    // A node of another file is edited in that file
     item.contextValue = node.isLink ? "frameLink" : node.file ? `${kind}.included` : kind;
     // The node an included file adds names the file; its descendants come from the same file
     const fileName = node.file && !node.isLink && node.parent?.raw.file !== node.raw.file

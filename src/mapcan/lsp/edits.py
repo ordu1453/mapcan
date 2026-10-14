@@ -383,21 +383,22 @@ def _frame_paths(a: Analysis, bus_path: Path_) -> list[Path_]:
 
 
 def device_refs(a: Analysis, bus_path: Path_, name: str) -> tuple[Path_ | None, list[Path_]]:
-    """(declaration of the device, references to it in receivers and sender) on the bus."""
+    """(declaration of the device, references to it in receivers and sender) on the bus, in every file of the map
+    (the data together with the included files): :func:`value_range` of ``a`` finds those of its own text."""
+    bus = raw_at_path(a.data, bus_path)
     decl = None
-    for di, dev in enumerate(raw_at(a, bus_path + ("devices",)) or []):
+    for di, dev in enumerate((bus.get("devices") if isinstance(bus, dict) else None) or []):
         if isinstance(dev, dict) and dev.get("name") == name:
             decl = bus_path + ("devices", di, "name")
             break
     refs = []
-    for fp in _frame_paths(a, bus_path):
-        frame = raw_at(a, fp)
-        if not isinstance(frame, dict):
-            continue
-        for i, r in enumerate(frame.get("receivers") or []):
-            if r == name and fp + ("receivers", i) in a.nodes:
+    for fp, frame in _bus_frames_of(bus, list(bus_path)):
+        fp = tuple(fp)
+        rec = frame.get("receivers")
+        for i, r in enumerate(rec if isinstance(rec, list) else []):
+            if r == name:
                 refs.append(fp + ("receivers", i))
-        if frame.get("sender") == name and fp + ("sender",) in a.nodes:
+        if frame.get("sender") == name:
             refs.append(fp + ("sender",))
     return decl, refs
 
@@ -444,23 +445,52 @@ def definition_location(a: Analysis, pos: Pos) -> tuple[str | None, tuple[Pos, P
 
 
 def references(a: Analysis, pos: Pos, include_declaration: bool = True) -> list[tuple[Pos, Pos]]:
+    return [r for f, r in reference_locations(a, pos, include_declaration) if f is None]
+
+
+Location = tuple["str | None", tuple[Pos, Pos]]
+
+
+def reference_locations(a: Analysis, pos: Pos, include_declaration: bool = True) -> list[Location]:
+    """(file, range) of the name under the cursor and of the references to it; the file is None for this text,
+    else the other file of the map (a device of an included file and its receivers in the main file)."""
     path = name_at(a, pos)
     target = _device_target(a, path) if path else None
     if target is None:
-        return [value_range(a, path)] if path and include_declaration else []
+        return [(None, value_range(a, path))] if path and include_declaration else []
     decl, refs = device_refs(a, *target)
-    paths = ([decl] if decl and include_declaration else []) + refs
-    return [r for p in paths if (r := value_range(a, p))]
+    return _locations(a, ([decl] if decl and include_declaration else []) + refs)
+
+
+def _locations(a: Analysis, paths: list[Path_]) -> list[Location]:
+    out = []
+    for p in paths:
+        view = a.view_of(p)
+        rng = value_range(view, p) if view is not None else None
+        if rng:
+            out.append((a.included_file(p), rng))
+    return out
 
 
 def rename_edits(a: Analysis, path: Path_, new: str) -> list[Edit]:
+    """A rename in this text only (see :func:`rename_files`)."""
+    return rename_files(a, path, new).get(None, [])
+
+
+def rename_files(a: Analysis, path: Path_, new: str) -> dict[str | None, list[Edit]]:
+    """Edits of a rename in every file of the map: {None: this text, file: another file}. A device is renamed
+    with the references to it on its bus, wherever they are written."""
     text = yaml_scalar(new)
     target = _device_target(a, path)
     if target is None:
-        vr = value_range(a, path)
-        return [Edit(*vr, text)] if vr else []
-    decl, refs = device_refs(a, *target)
-    return [Edit(*vr, text) for p in ([decl] if decl else []) + refs if (vr := value_range(a, p))]
+        paths = [path]
+    else:
+        decl, refs = device_refs(a, *target)
+        paths = ([decl] if decl else []) + refs
+    out: dict[str | None, list[Edit]] = {}
+    for file, rng in _locations(a, paths):
+        out.setdefault(file, []).append(Edit(*rng, text))
+    return out
 
 
 # --------------------------------------------------------------------------- #

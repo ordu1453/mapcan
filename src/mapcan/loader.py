@@ -83,8 +83,13 @@ class SourceMap:
         return pos if pos else (None, None)
 
     def file_of(self, path: Path_) -> str | None:
-        """File the node is described in: the main one or an included one."""
-        return self.files.get(self._nearest(path), self.file)
+        """File the node is described in: the main one or an included one. A list that only an included file
+        has on a bus of the main file (its devices) has no position, the nodes in it do."""
+        for n in range(len(path), 0, -1):
+            found = self.files.get(tuple(path[:n]))
+            if found is not None:
+                return found
+        return self.file
 
     def is_included(self, path: Path_) -> bool:
         """The node is described in an included file (or inside such a node)."""

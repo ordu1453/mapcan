@@ -204,6 +204,33 @@ def test_lsp_form_edits_go_to_the_included_file(tmp_path):
     assert list(others) == [common] and "- name: battery" in others[common]
 
 
+def test_rename_and_references_span_the_files_of_the_map(tmp_path):
+    from mapcan.lsp.analysis import analyze, analyze_part
+    from mapcan.lsp.edits import reference_locations, rename_edits, rename_files
+
+    main = write(tmp_path)
+    common = str((tmp_path / "common.yaml").resolve())
+    text = main.read_text(encoding="utf-8").replace("length: 1\n", "length: 1\n            receivers: [bms]\n", 1)
+    main.write_text(text, encoding="utf-8")
+    read = lambda p: open(p, encoding="utf-8").read()   # noqa: E731
+    a = analyze(text, str(main), read)
+    line = next(i for i, ln in enumerate(a.lines) if "receivers: [bms]" in ln)
+    pos = (line, a.lines[line].index("bms") + 1)
+    # From the main file: the receiver here, the device in common.yaml
+    files = rename_files(a, ("buses", 0, "devices", 0, "frames", 0, "receivers", 0), "battery")
+    assert set(files) == {None, common}
+    assert [e.text for e in files[None]] == ["battery"] and files[common][0].start == (5, 14)
+    assert rename_edits(a, ("buses", 0, "devices", 0, "frames", 0, "receivers", 0), "x")[0].start[0] == line
+    assert [f for f, _r in reference_locations(a, pos)] == [common, None]
+    # From common.yaml opened on its own: the device here, the receiver in the main file
+    part_text = f"mapcan: 1\npart_of: {main.name}\n" + read(common)
+    (tmp_path / "common.yaml").write_text(part_text, encoding="utf-8")
+    b = analyze_part(part_text, common, read)
+    files = rename_files(b, ("buses", 0, "devices", 1, "name"), "battery")
+    assert files[None][0].start == (7, 14)
+    assert [(k, e.start) for k, v in files.items() if k for e in v] == [(str(main), (line, pos[1] - 1))]
+
+
 def test_tree_edits_of_included_nodes_go_to_their_file(tmp_path):
     from mapcan.lsp.analysis import analyze, analyze_part
     from mapcan.lsp.edits import add_node, delete_node, duplicate_node

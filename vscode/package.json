@@ -291,7 +291,7 @@
         },
         {
           "command": "mapcan.renameNode",
-          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)(\\.included)?$/",
           "group": "2_edit@1"
         },
         {

@@ -240,7 +240,8 @@ const tests = {
     fs.writeFileSync(file, original);
     git("commit", "-q", "-am", "Rename pressure");
     const doc = await vscode.workspace.openTextDocument(file);
-    await vscode.window.showTextDocument(doc);
+    // Not a preview tab: VS Code may replace that with the next editor opened
+    await vscode.window.showTextDocument(doc, { preview: false });
     await until("map in the tree", () => ctx.api.tree.mapUri?.toString() === doc.uri.toString());
 
     const history = ctx.api.history;
@@ -455,6 +456,30 @@ const tests = {
     await vscode.window.showTextDocument(ctx.doc);
     await until("the first map in the tree", () => ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString()
       && ctx.api.tree.getChildren().length === 1);
+  },
+
+  async "rename follows a device into the included file it is described in"(ctx) {
+    const extra = path.join(workspace, "pumps.yaml");
+    fs.writeFileSync(extra, "buses:\n  - name: can1\n    devices:\n      - name: pump\n");
+    const main = path.join(workspace, "with-pump.yaml");
+    fs.writeFileSync(main, "mapcan: 1\ninclude: [pumps.yaml]\ndocument: {title: T, language: en}\n"
+      + "buses:\n  - name: can1\n    protocol: can\n    frames:\n"
+      + "      - {name: cmd, id: 0x100, length: 1, receivers: [pump]}\n");
+    const doc = await vscode.workspace.openTextDocument(main);
+    await vscode.window.showTextDocument(doc);
+    await until("the server", () => ctx.api.client()?.isRunning());
+    const line = doc.lineAt(7).text;
+    const pos = new vscode.Position(7, line.indexOf("[pump]") + 2);
+    const edit = await until("the rename", async () => {
+      const e = await vscode.commands.executeCommand("vscode.executeDocumentRenameProvider", doc.uri, pos, "motor");
+      return e && e.entries().length === 2 ? e : undefined;
+    });
+    const byFile = Object.fromEntries(edit.entries().map(([uri, edits]) => [path.basename(uri.fsPath), edits]));
+    assert.deepEqual(byFile["with-pump.yaml"].map((e) => [e.range.start.line, e.newText]), [[7, "motor"]]);
+    assert.deepEqual(byFile["pumps.yaml"].map((e) => [e.range.start.line, e.newText]), [[3, "motor"]]);
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    await vscode.window.showTextDocument(ctx.doc);
+    await until("the first map in the tree", () => ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString());
   },
 
   async "other YAML files do not reach the server"(ctx) {

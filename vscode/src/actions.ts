@@ -51,11 +51,20 @@ async function runEdit(
   return tree.nodeAt(pos);
 }
 
-async function renameNode(tree: MapTree, node: MapNode): Promise<void> {
+type TextEdit = { range: [number, number, number, number]; text: string };
+
+interface SetResult {
+  edits?: TextEdit[];
+  others?: { uri: string; edit: TextEdit }[];
+  error?: string;
+}
+
+async function renameNode(tree: MapTree, node: MapNode, client: LanguageClient | undefined): Promise<void> {
   const uri = tree.mapUri;
   const pos = node.namePosition;
   if (!uri || !pos) return;
-  const doc = await vscode.workspace.openTextDocument(uri);
+  // The position of the name is in the node's own file
+  const doc = await vscode.workspace.openTextDocument(node.file ?? uri);
   const current = doc.getText(doc.getWordRangeAtPosition(pos, /[^\s,{}[\]#]+/));
   const name = await vscode.window.showInputBox({
     title: `Rename ${node.kind}`,
@@ -63,6 +72,25 @@ async function renameNode(tree: MapTree, node: MapNode): Promise<void> {
     validateInput: (v) => (v.trim() ? undefined : "Enter a name"),
   });
   if (!name || name === current) return;
+  if (node.file) {
+    // A node of another file of the map: written there as by the form, a device with the references to it
+    if (!client?.isRunning()) return;
+    const result = (await client.sendRequest(ExecuteCommandRequest.type, {
+      command: "mapcan.lsp.set",
+      arguments: [{ uri: uri.toString(), path: [...node.path, "name"], value: name.trim() }],
+    })) as SetResult | null;
+    if (result?.error) {
+      void vscode.window.showErrorMessage(`mapcan: ${result.error}`);
+      return;
+    }
+    const edit = new vscode.WorkspaceEdit();
+    for (const e of result?.edits ?? []) edit.replace(uri, new vscode.Range(...e.range), e.text);
+    for (const o of result?.others ?? []) {
+      edit.replace(vscode.Uri.parse(o.uri), new vscode.Range(...o.edit.range), o.edit.text);
+    }
+    await vscode.workspace.applyEdit(edit);
+    return;
+  }
   const edit = await vscode.commands.executeCommand<vscode.WorkspaceEdit>(
     "vscode.executeDocumentRenameProvider", uri, pos, name.trim());
   if (edit) await vscode.workspace.applyEdit(edit);
@@ -100,7 +128,6 @@ export function registerTreeActions(
       }
       await runEdit(client(), tree, { action: "delete", path: node.path });
     }),
-    // A node of another file is renamed in that file (Rename Symbol there)
-    on("mapcan.renameNode", (node) => (node.file ? undefined : renameNode(tree, node))),
+    on("mapcan.renameNode", (node) => renameNode(tree, node, client())),
   );
 }

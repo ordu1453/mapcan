@@ -32,6 +32,11 @@ def _range(a: A.Pos, b: A.Pos) -> T.Range:
     return T.Range(start=_pos(a), end=_pos(b))
 
 
+def _file_uri(file: str) -> str:
+    """URI of another file of the map (an included file, or the main file of an included one)."""
+    return Path(file).resolve().as_uri()
+
+
 def _text_edit(e: E.Edit) -> T.TextEdit:
     return T.TextEdit(range=_range(e.start, e.end), new_text=e.text)
 
@@ -87,8 +92,8 @@ class MapcanServer(LanguageServer):
         return a
 
     def editable(self, uri: str) -> A.Analysis | None:
-        """The analysis for an edit through the tree, the form or a rename: none yet for an included file opened
-        on its own (#49), only its text is edited there."""
+        """The analysis for an edit of the main file's own data (the revision history): none for an included
+        file."""
         a = self.analysis(uri)
         return a if a is not None and not a.own_file else None
 
@@ -288,7 +293,7 @@ def definition(ls: MapcanServer, params: T.DefinitionParams) -> T.Location | Non
     if not found:
         return None
     file, rng = found
-    return T.Location(uri=Path(file).resolve().as_uri() if file else uri, range=_range(*rng))
+    return T.Location(uri=_file_uri(file) if file else uri, range=_range(*rng))
 
 
 @server.feature(T.TEXT_DOCUMENT_REFERENCES)
@@ -297,14 +302,14 @@ def references(ls: MapcanServer, params: T.ReferenceParams) -> list[T.Location] 
     a = ls.analysis(uri)
     if a is None:
         return None
-    found = E.references(a, (params.position.line, params.position.character),
-                         params.context.include_declaration)
-    return [T.Location(uri=uri, range=_range(*r)) for r in found]
+    found = E.reference_locations(a, (params.position.line, params.position.character),
+                                  params.context.include_declaration)
+    return [T.Location(uri=_file_uri(f) if f else uri, range=_range(*r)) for f, r in found]
 
 
 @server.feature(T.TEXT_DOCUMENT_PREPARE_RENAME)
 def prepare_rename(ls: MapcanServer, params: T.PrepareRenameParams):
-    a = ls.editable(params.text_document.uri)
+    a = ls.analysis(params.text_document.uri)
     path = E.name_at(a, (params.position.line, params.position.character)) if a else None
     if path is None:
         return None
@@ -315,12 +320,14 @@ def prepare_rename(ls: MapcanServer, params: T.PrepareRenameParams):
 @server.feature(T.TEXT_DOCUMENT_RENAME)
 def rename(ls: MapcanServer, params: T.RenameParams) -> T.WorkspaceEdit | None:
     uri = params.text_document.uri
-    a = ls.editable(uri)
+    a = ls.analysis(uri)
     path = E.name_at(a, (params.position.line, params.position.character)) if a else None
     if path is None or not params.new_name.strip():
         return None
-    edits = E.rename_edits(a, path, params.new_name.strip())
-    return T.WorkspaceEdit(changes={uri: [_text_edit(e) for e in edits]})
+    # A device is renamed with its references in every file of the map: the main file and the included ones
+    files = E.rename_files(a, path, params.new_name.strip())
+    return T.WorkspaceEdit(changes={_file_uri(f) if f else uri: [_text_edit(e) for e in edits]
+                                    for f, edits in files.items()})
 
 
 @server.feature("mapcan/tree")
@@ -384,7 +391,7 @@ def edit_command(ls: MapcanServer, *args) -> dict:
     e = E.minimal_edit(view.text, change.text)
     out = {"edit": {"range": [*e.start, *e.end], "text": e.text}, "cursor": list(change.cursor)}
     if view is not a:
-        out["uri"] = Path(view.own_file or view.result.source.file).resolve().as_uri()
+        out["uri"] = _file_uri(view.own_file or view.result.source.file)
     return out
 
 
