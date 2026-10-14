@@ -48,9 +48,6 @@ def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, a
               github: str | None, today: _dt.date) -> str:
     lines = [
         schema_line(),
-        "# " + _("mapcan signal map (format v1)."),
-        "# " + _("Bytes and bits are numbered from 0; start_bit is the position of the least significant bit; physical "
-                 "= raw * factor + offset."),
         "",
         "mapcan: 1",
         "",

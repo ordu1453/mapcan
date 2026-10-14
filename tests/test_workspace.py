@@ -56,6 +56,8 @@ def test_templates_are_valid(template):
     text = new_map_text(template, "Тест", "Иван", "ivan")
     # Editors find the schema of a new map wherever it is saved
     assert text.startswith(schema_line() + "\n")
+    assert "# mapcan signal map (format v1)." not in text
+    assert "# Bytes and bits are numbered from 0;" not in text
     res = loads(text, "t.yaml")
     assert res.map is not None, [d.format() for d in res.report.diagnostics]
     h = res.map.document.history[0]
