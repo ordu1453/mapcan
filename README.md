@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <b>CAN signal maps as code.</b><br>
-  One YAML file → documentation, DBC, C firmware code and Python test helpers.
+  <b>A free, open-source CAN database editor.</b><br>
+  Draw signals on the bit layout, keep the map in git, and get DBC, PDF, Excel and C code from one file.
 </p>
 
 <p align="center">
@@ -19,37 +19,60 @@
 </p>
 
 <p align="center">
-  CANopen · SAE J1939 · CAN 2.0A/B · CAN FD
+  CAN 2.0A/B · CAN FD · SAE J1939 · CANopen · Windows, Linux, VS Code
 </p>
 
 <p align="center">
+  <a href="#already-have-a-dbc">Try it on your DBC</a> ·
+  <a href="#why-not-just-a-dbc-file">Why not just DBC</a> ·
   <a href="#installation">Installation</a> ·
-  <a href="#quick-start">Quick start</a> ·
   <a href="#outputs">Outputs</a> ·
-  <a href="#editors">Editors</a> ·
   <a href="#documentation">Documentation</a>
 </p>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/web-frame-dark.png">
-    <img src="docs/images/web-frame-light.png" alt="The mapcan editor: the map's tree, the bit layout of a frame and its properties" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/demo-dark.gif">
+    <img src="docs/images/demo-light.gif" alt="A signal drawn on free bits and named; moved over another signal, the overlap is marked at once; the move undone and the export menu opened" width="900">
   </picture>
 </p>
 
-**mapcan** describes the CAN signals of a device or a whole system in one YAML file. That file is the
-single source of truth: documents, firmware code and files for bus analyzers are generated from it,
-so they never drift apart, and its history is plain `git diff`.
+Your CAN interface is described three times: in a spreadsheet or a Word document for the team, in a DBC for
+the bus analyzer and in the firmware's headers. Sooner or later they disagree, and nobody knows which one is
+right. **mapcan** keeps the interface in one YAML file and generates the rest from it, so they cannot drift
+apart. The file is reviewed in pull requests like code, and every mistake (overlapping signals, clashing IDs,
+unknown receivers) is reported with its line before anything is built.
 
-* **Protocols.** CANopen (IDs from the function code and `node_id`), SAE J1939 (PGN, priority and
-  address), CAN 2.0A/B with explicit 11/29-bit IDs, CAN FD with up to 64 bytes.
-* **Signals.** Integers of any length and position, little- and big-endian; enumerations, flags and
-  bit fields; physical quantities with factor, offset, unit and range; float32/float64; byte arrays;
-  multiplexing; default and "not available" values.
-* **Frames.** Each frame is described once, at its sender, with its cycle, receivers and CANopen SDO
-  exchanges; what every device receives is derived from that.
-* **Validation.** Overlapping signals, clashing IDs, unknown receivers and dozens of other mistakes are
-  reported with file, line and column before anything is generated.
+## Already have a DBC?
+
+```sh
+pipx install "mapcan[desktop]"              # or the Windows installer below
+mapcan import dbc vehicle.dbc               # → vehicle.yaml
+mapcan validate vehicle.yaml                # what your DBC got wrong, with lines
+mapcan build vehicle.yaml -o build/         # PDF, Excel, HTML, DBC, C and Python at once
+mapcan app vehicle.yaml                     # edit it on the bit layout
+```
+
+You keep your tools: the DBC exported back works in CANalyzer, SavvyCAN, PCAN-View and Wireshark.
+
+## Why not just a DBC file?
+
+| | DBC | Spreadsheet / Word | mapcan |
+|---|:---:|:---:|:---:|
+| Readable `git diff`, review in pull requests | partly: editors reorder the file | no | ✅ comments and order are kept |
+| Overlaps, clashing IDs, unknown receivers caught | in some editors | no | ✅ as you type and in CI |
+| J1939 PGNs and addresses, CANopen node IDs and PDOs | attributes by convention | free text | ✅ part of the format |
+| A specification for people (PDF, Excel, HTML) | no | ✅ written by hand | ✅ generated |
+| C `pack`/`unpack` for firmware, Python for test benches | with third-party tools | no | ✅ |
+| Works in CANalyzer, SavvyCAN, Wireshark | ✅ | no | ✅ exports DBC |
+| One system split into several files | no | separate files, kept in sync by hand | ✅ includes |
+
+## Who it is for
+
+* **Firmware engineers:** generated C with IDs, enums, structs and `pack`/`unpack`, no dynamic memory.
+* **Test and validation:** a Python module with the same frames for test benches, and a DBC for the analyzer.
+* **Systems engineers and leads:** one reviewed source of truth, and a PDF or Excel specification for suppliers
+  and customers, also in Russian and to ESKD/GOST.
 
 ## Installation
 
@@ -114,7 +137,7 @@ mapcan build my-map.yaml -o build/          # every output at once
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/document-pages-dark.png">
-    <img src="docs/images/document-pages-light.png" alt="Pages of a generated PDF: the title page, a bus with its addressing table, frames with bit layouts" width="900">
+    <img src="docs/images/document-pages-light.png" alt="Pages of a generated PDF: a bus with its addressing table, frames with their bit layouts" width="900">
   </picture>
 </p>
 
@@ -130,8 +153,8 @@ comments and formatting, so a diff shows only what you changed. More in [docs/we
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/web-problems-dark.png">
-    <img src="docs/images/web-problems-light.png" alt="Two overlapping signals marked in the tree, on the bit layout and in the validation panel" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/web-frame-dark.png">
+    <img src="docs/images/web-frame-light.png" alt="The mapcan editor: the map's tree, the bit layout of a frame and its properties" width="900">
   </picture>
 </p>
 
@@ -142,8 +165,8 @@ language server completes keys from the [JSON Schema](docs/format.md).
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/vscode-map-dark.png">
-    <img src="docs/images/vscode-map-light.png" alt="VS Code: the Node panel of a frame with its bit layout next to the map's YAML" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/vscode-demo-dark.gif">
+    <img src="docs/images/vscode-demo-light.gif" alt="VS Code: a signal drawn on free bits of the layout appears in the YAML, gets a name and an encoding, is made longer by its edge, and dragged over another signal the overlap is marked at once" width="900">
   </picture>
 </p>
 
