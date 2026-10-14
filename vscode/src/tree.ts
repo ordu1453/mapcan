@@ -291,6 +291,9 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
   }
 
   async refresh(): Promise<void> {
+    // Refreshes overlap (switching editors fires several events, some for an editor active only for a moment):
+    // only the last one sets the tree, whichever answer of the server comes last
+    const generation = ++this.generation;
     const active = vscode.window.activeTextEditor?.document;
     // Another editor (Output, settings, a non-map file) keeps the last map until that map is closed.
     const doc = isMap(active)
@@ -304,6 +307,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     const nodes = await client.sendRequest<RawNode[] | null>("mapcan/tree", {
       textDocument: { uri: doc.uri.toString() },
     });
+    if (generation !== this.generation) return;
     this.setRoots(doc.uri, (nodes ?? []).map((n, i) => new MapNode(n, String(i), undefined)));
     this.scheduleReveal();
   }
@@ -337,6 +341,8 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     }
     this.decorationsChanged.fire(undefined);
   }
+
+  private generation = 0;
 
   private scheduleRefresh(): void {
     clearTimeout(this.refreshTimer);

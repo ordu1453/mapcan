@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.2
 
 * The extension installs mapcan itself: with no `mapcan` found, it offers **Install**, downloads
   [uv](https://docs.astral.sh/uv/) and lets it set up Python and `mapcan[lsp,pdf,xlsx]` from PyPI in
@@ -17,6 +17,8 @@
   tour with a mistake and its quick fix, **Show a Hover** shows the hover of a frame. New steps for
   **Export** and **History** with their pictures, and **Learn more** with links to the repository,
   PyPI and issues. The install step is done once a language server runs.
+* The Map view no longer switches to another map open beside when an older version of the map opens
+  from **History** (VS Code 1.141.2 and newer).
 
 ## 0.6.1
 
