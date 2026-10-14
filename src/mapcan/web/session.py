@@ -14,7 +14,7 @@ from ruamel.yaml.error import YAMLError
 from .. import bits as B
 from ..docmodel import PALETTE
 from ..i18n import _
-from ..loader import LoadResult, loads
+from ..loader import LoadResult, loads, map_of
 from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
 from ..upgrade import upgrade_tree
@@ -67,7 +67,9 @@ class EditorSession:
     """The edited map and the files it includes: one undo history, and saving writes every changed file."""
 
     def __init__(self, path: str | Path, readonly: bool = False):
-        self.path = Path(path).resolve()
+        # A file included by a map opens that map: the file's nodes are edited in it, in their file
+        self.opened = Path(path).resolve()
+        self.path = map_of(self.opened)
         self.readonly = readonly
         self.lock = threading.RLock()
         self.version = 0
@@ -367,6 +369,8 @@ class EditorSession:
                 "dirty": self.dirty,
                 # Included files with unsaved edits (paths relative to the map): Save writes them too
                 "dirty_files": [self._rel(p.path) for p in self.parts.values() if p.text != p.saved_text],
+                # The included file asked for, when its map was opened in its place
+                "opened_part": self._rel(self.opened) if self.opened != self.path else None,
                 "readonly": self.readonly,
                 "can_undo": bool(self.undo_stack),
                 "can_redo": bool(self.redo_stack),

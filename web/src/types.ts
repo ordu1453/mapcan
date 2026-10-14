@@ -73,6 +73,8 @@ export interface State {
   dirty: boolean;
   /** Included files with unsaved edits (relative to the map): Save writes them too. */
   dirty_files?: string[];
+  /** The included file asked for, when its map was opened in its place (relative to the map). */
+  opened_part?: string | null;
   readonly: boolean;
   can_undo: boolean;
   can_redo: boolean;

@@ -260,6 +260,24 @@ def test_tree_edits_of_included_nodes_go_to_their_file(tmp_path):
     assert add_node(part.view_of(()), (), "bus").text.startswith("mapcan: 1\ninclude: [common.yaml]\n")
 
 
+def test_web_editor_opens_the_map_of_an_included_file(tmp_path):
+    from mapcan.loader import map_of
+    from mapcan.web.session import EditorSession
+
+    main = write(tmp_path)
+    common = tmp_path / "common.yaml"
+    common.write_text(f"mapcan: 1\npart_of: {main.name}\n" + common.read_text(encoding="utf-8"), encoding="utf-8")
+    assert map_of(common) == main.resolve() and map_of(main) == main.resolve()
+    s = EditorSession(common)
+    st = s.state()
+    assert st["file"] == main.name and st["opened_part"] == "common.yaml"
+    assert EditorSession(main).state()["opened_part"] is None
+    # A file that names a map which does not include it opens on its own
+    stray = tmp_path / "stray.yaml"
+    stray.write_text(f"mapcan: 1\npart_of: {main.name}\nbuses: []\n", encoding="utf-8")
+    assert map_of(stray) == stray.resolve()
+
+
 def test_web_state_has_included_nodes(tmp_path):
     from mapcan.web.session import EditorSession
 

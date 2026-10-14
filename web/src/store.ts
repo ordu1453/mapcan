@@ -110,8 +110,13 @@ function accept(s: State): void {
   // gives way to the server's new text; one with unapplied input stays, as before.
   const y = store.yaml;
   if (y.draft !== null && y.draft === y.applied && s.version !== ownVersion) store.yaml = { draft: null, applied: null, diags: null };
+  const before = store.state;
   store.state = s;
   if (s.disk_changed) store.fileChangedBanner = true;
+  if (s.opened_part && (before?.path !== s.path || before?.opened_part !== s.opened_part)) {
+    toast(t("{file} is a part of the map {map}: the map is open, and the nodes of {file} are edited in that file",
+      { file: s.opened_part, map: s.file }), "info");
+  }
   // The selected node may have disappeared (deleted, undo): go up to an existing ancestor.
   if (s.data) {
     let p = store.selected;

@@ -17,7 +17,7 @@ from .. import model as M
 from ..bits import msb_position, occupied_bits
 from ..diagnostics import Diagnostic
 from ..i18n import _, normalize_language
-from ..loader import LoadResult, SourceMap, loads
+from ..loader import PART_OF_RE, LoadResult, SourceMap, loads
 from ..model import MapCan, enum_entries
 from ..validate import check
 
@@ -31,7 +31,6 @@ _KEY = re.compile(r"([A-Za-z_][\w]*)\s*:(?=\s|$)")
 
 
 _PART = re.compile(r"^part_of\s*:", re.MULTILINE)
-_PART_OF = re.compile(r"""^part_of\s*:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))""", re.MULTILINE)
 
 
 def is_mapcan(text: str) -> bool:
@@ -42,11 +41,11 @@ def is_mapcan(text: str) -> bool:
 
 def is_part(text: str) -> bool:
     """A file included by a map (``part_of: <map>``): analysed as a part of that map."""
-    return _PART_OF.search(text) is not None
+    return PART_OF_RE.search(text) is not None
 
 
 def part_of(text: str) -> str | None:
-    m = _PART_OF.search(text)
+    m = PART_OF_RE.search(text)
     return next((g for g in m.groups() if g), None) if m else None
 
 
@@ -302,7 +301,7 @@ def analyze_part(text: str, filename: str, read: Reader = read_disk) -> Analysis
 def _part_of_pos(lines: list[str]) -> tuple[int, int]:
     """1-based position of the value of ``part_of`` (the key is not a node of the map)."""
     for i, ln in enumerate(lines):
-        m = _PART_OF.match(ln)
+        m = PART_OF_RE.match(ln)
         if m:
             return i + 1, m.start(next(g for g in range(1, 4) if m.group(g))) + 1
     return 1, 1

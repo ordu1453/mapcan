@@ -303,6 +303,30 @@ def _make_yaml() -> YAML:
     return y
 
 
+PART_OF_RE = re.compile(r"""^part_of\s*:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))""", re.MULTILINE)
+
+
+def map_of(path: str | Path) -> Path:
+    """The map a file belongs to: for a file included by a map (``part_of``) that map, if it includes the file;
+    otherwise the file itself. An editor opens the map then, with the file's nodes editable in it."""
+    path = Path(path).resolve()
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return path
+    m = PART_OF_RE.search(text)
+    of = next((g for g in m.groups() if g), None) if m else None
+    if not of:
+        return path
+    main = (path.parent / of).resolve()
+    try:
+        main_text = main.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return path
+    included = loads(main_text, str(main)).source.includes
+    return main if any(Path(f).resolve() == path for _i, f in included) else path
+
+
 def loads(text: str, filename: str | None = None, base_dir: str | Path | None = None,
           read: Callable[[str], str | None] | None = None) -> LoadResult:
     """Load a map from its text. ``read``: gives the text of an included file by its resolved path instead of
