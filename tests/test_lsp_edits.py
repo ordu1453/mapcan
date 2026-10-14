@@ -171,7 +171,7 @@ def test_node_fields():
     a = A.analyze(MINIMAL, "m.yaml")
     f = E.node_fields(a, FRAME)
     assert (f["kind"], f["lang"], f["protocol"], f["owner"]) == ("frame", "en", "canopen", "pump")
-    assert f["frameDirection"] == "tx"   # not written: from the type pdo_tx1
+    assert "frameDirection" not in f   # the form has no direction: it follows from the sender
     assert f["values"] == {"name": "pump_state", "canopen": "pdo_tx1", "description": "Pump state", "length": 8,
                            "cycle_ms": 100}
     assert f["devices"] == [{"name": "pump", "label": "PMP"}]

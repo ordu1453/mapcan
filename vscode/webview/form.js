@@ -38,7 +38,7 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
   /** What the form's conditions know about the node (FormContext in web/src/form/spec.ts), from the server. */
   const ctx = () => /** @type {Ctx} */ ({
     values: node.values, protocol: node.protocol, fd: !!node.fd, busBrs: node.busBrs ?? null, owner: node.owner,
-    devices: node.devices, frameDirection: node.frameDirection, signalEncoding: node.signalEncoding,
+    devices: node.devices, signalEncoding: node.signalEncoding,
     bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector, frameTypes: node.frameTypes ?? [],
   });
 

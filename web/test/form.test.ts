@@ -7,7 +7,7 @@ import { applies, FORMS, formFields, isRequired, NOT_IN_FORM, optionsOf, type Fo
 
 const ctx = (extra: Partial<FormContext> = {}): FormContext => ({
   values: {}, protocol: "canopen", fd: false, busBrs: null, owner: "pump",
-  devices: [{ name: "pump", label: "pump" }], frameDirection: null, signalEncoding: null, bitLength: null,
+  devices: [{ name: "pump", label: "pump" }], signalEncoding: null, bitLength: null,
   hasSelector: false, ...extra,
 });
 
@@ -21,7 +21,7 @@ const field = (kind: FormKind, key: string) => formFields(kind).find((f) => f.ke
 
 group("frame", () => {
   it("CANopen RX frame on a bus with one device: no direction, sender or receivers", () => {
-    const keys = visible("frame", ctx({ values: { canopen: "pdo_rx1" }, frameDirection: "rx" }));
+    const keys = visible("frame", ctx({ values: { canopen: "pdo_rx1" } }));
     expect(keys).not.toContain("direction");
     expect(keys).not.toContain("sender");
     expect(keys).not.toContain("receivers");
@@ -29,16 +29,31 @@ group("frame", () => {
     expect(keys).toContain("length");
   });
 
-  it("RX frame without a type: direction and sender, no receivers", () => {
-    const keys = visible("frame", ctx({ devices: devices("pump", "master"), frameDirection: "rx" }));
-    expect(keys).toEqual(expect.arrayContaining(["direction", "sender", "extended"]));
-    expect(keys).not.toContain("receivers");
+  it("a frame of a device: no direction; another sender makes it received, without receivers", () => {
+    const own = ctx({ devices: devices("pump", "master") });
+    expect(visible("frame", own)).not.toContain("direction");
+    expect(visible("frame", own)).toEqual(expect.arrayContaining(["sender", "receivers"]));
+    expect(optionsOf(field("frame", "sender"), own)[0]).toEqual(["", "this device", undefined]);
+    const received = ctx({ values: { sender: "master" }, devices: devices("pump", "master") });
+    expect(visible("frame", received)).toEqual(expect.arrayContaining(["sender", "extended"]));
+    expect(visible("frame", received)).not.toContain("receivers");
   });
 
-  it("TX frame: receivers, no sender", () => {
+  it("a CANopen RX function without a sender is sent from outside the map", () => {
+    const c = ctx({ values: { canopen: "pdo_rx1" }, devices: devices("pump", "master") });
+    expect(optionsOf(field("frame", "sender"), c)[0]).toEqual(["", "outside the map", undefined]);
+    expect(visible("frame", c)).not.toContain("receivers");
+  });
+
+  it("a direction written in the map still counts", () => {
+    const c = ctx({ values: { direction: "rx" }, devices: devices("pump", "master") });
+    expect(optionsOf(field("frame", "sender"), c)[0]).toEqual(["", "outside the map", undefined]);
+    expect(visible("frame", c)).not.toContain("receivers");
+  });
+
+  it("TX frame: receivers", () => {
     const keys = visible("frame", ctx({ values: { canopen: "pdo_tx1" }, devices: devices("pump", "master") }));
     expect(keys).toContain("receivers");
-    expect(keys).not.toContain("sender");
   });
 
   it("frame of the bus: no direction, a sender and receivers", () => {
@@ -71,7 +86,7 @@ group("frame", () => {
       values: { sender: "master" },
       devices: [{ name: "pump", label: "Pump" }, { name: "master", label: "MCU" }, { name: "panel", label: "Panel" }],
     });
-    expect(optionsOf(field("frame", "sender"), c)).toEqual([["", "outside the map", undefined],
+    expect(optionsOf(field("frame", "sender"), c)).toEqual([["", "this device", undefined],
       ["master", "MCU", undefined], ["panel", "Panel", undefined]]);
     expect(optionsOf(field("frame", "receivers"), c)).toEqual([["panel", "Panel", undefined]]);
   });

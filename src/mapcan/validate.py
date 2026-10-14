@@ -12,7 +12,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 
 from . import bits as B
-from .canopen import CANOPEN_DLC, FUNCTION_CODES
+from .canopen import CANOPEN_DLC, FUNCTION_CODES, default_direction
 from .diagnostics import Report
 from .i18n import N_, _
 from .loader import LoadResult, SourceMap, load, loads
@@ -102,6 +102,7 @@ RULES = {
     "cycle-unexpected": ("error", N_("cycle_ms is set together with trigger")),
     "timeout-short": ("warning", N_("Receive timeout not longer than the period of a cyclic frame")),
     "direction-mismatch": ("warning", N_("Direction conflicts with the CANopen frame type")),
+    "direction-deprecated": ("warning", N_("direction is set: it follows from the CANopen function and the sender")),
     "frame-type-protocol": ("warning", N_("CANopen frame type on a non-CANopen bus")),
     "sdo-frame-type": ("warning", N_("sdo description on a frame that is not sdo_tx/sdo_rx")),
     "sdo-duplicate": ("error", N_("Duplicate SDO exchange (command, index, subindex)")),
@@ -303,6 +304,10 @@ def _check_bus(ctx: _Ctx, bus) -> None:
                 elif frame.device is not None and frame.direction == "rx":
                     ctx.emit("frame-id-missing", _("frame {name!r}: {why}", name=frame.name,
                                                    why=_("the sender has no address")), p + ("sender",))
+                elif frame.device is None:
+                    ctx.emit("frame-id-missing", _("frame {name!r}: {why}", name=frame.name,
+                                                   why=_("the source address of a frame from outside the map is "
+                                                         "unknown: give id")), p + ("pgn",))
                 else:
                     ctx.emit("frame-id-missing", _("frame {name!r}: {why}", name=frame.name,
                                                    why=_("the device has no address")), p)
@@ -462,6 +467,26 @@ def _rx_twin(a: Frame, b: Frame) -> tuple[Frame, Frame] | None:
     return None
 
 
+def _deprecated_direction(ctx, frame, bus, p) -> None:
+    """direction in the map: it follows from the CANopen function and the sender (resolve.derived_direction), and a
+    frame from outside the map goes to the frames of the bus. mapcan migrate does both."""
+    from .resolve import derived_direction
+
+    dev = frame.device
+    if dev is None:
+        msg = _("direction of frame {name!r} means nothing on a frame of the bus: remove it", name=frame.name)
+    elif frame.direction == derived_direction(frame.type, frame.sender, dev.name):
+        msg = _("direction of frame {name!r} follows from the CANopen function and the sender: remove it "
+                "(mapcan migrate does)", name=frame.name)
+    elif frame.direction == "rx" and frame.sender is None and default_direction(frame.type) is None:
+        msg = _("frame {name!r} comes from outside the map: describe it in the frames of bus {bus!r} with {device!r} "
+                "in receivers (mapcan migrate moves it)", name=frame.name, bus=bus.name, device=dev.name)
+    else:
+        msg = _("direction of frame {name!r} contradicts its CANopen function or sender: remove it, and set sender "
+                "to the device that sends the frame", name=frame.name)
+    ctx.emit("direction-deprecated", msg, p + ("direction",))
+
+
 def _check_frame(ctx: _Ctx, frame: Frame) -> None:
     p = frame._path
     bus = frame.bus
@@ -537,6 +562,8 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
         ctx.emit("direction-mismatch",
                  _("a {type} frame is usually {expected} for the device, but {actual} is set", type=frame.type,
                    expected=fc.direction.upper(), actual=frame.direction.upper()), p + ("direction",))
+    if frame._direction_written:
+        _deprecated_direction(ctx, frame, bus, p)
 
     if frame.cycle_ms is not None and frame.trigger is not None:
         ctx.emit("cycle-unexpected", _("cycle_ms is set on a frame with trigger: {trigger}", trigger=frame.trigger),

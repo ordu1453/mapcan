@@ -169,6 +169,20 @@ RU: dict[str, str] = {
     "Selector is itself multiplexed": "Селектор сам мультиплексирован",
     "cycle_ms is set together with trigger": "cycle_ms задан вместе с trigger",
     "Direction conflicts with the CANopen frame type": "Направление противоречит типу кадра CANopen",
+    "direction is set: it follows from the CANopen function and the sender":
+        "задано direction: оно следует из функции CANopen и отправителя",
+    "direction of frame {name!r} means nothing on a frame of the bus: remove it":
+        "direction кадра {name!r} ничего не значит у кадра шины: удалите его",
+    "direction of frame {name!r} follows from the CANopen function and the sender: remove it (mapcan migrate does)":
+        "direction кадра {name!r} следует из функции CANopen и отправителя: удалите его (это делает mapcan migrate)",
+    "frame {name!r} comes from outside the map: describe it in the frames of bus {bus!r} with {device!r} in receivers "
+    "(mapcan migrate moves it)":
+        "кадр {name!r} приходит извне карты: опишите его в кадрах шины {bus!r}, указав {device!r} в receivers "
+        "(mapcan migrate переносит его)",
+    "direction of frame {name!r} contradicts its CANopen function or sender: remove it, and set sender to the device "
+    "that sends the frame":
+        "direction кадра {name!r} противоречит его функции CANopen или отправителю: удалите его и укажите в sender "
+        "устройство, которое передаёт кадр",
     "CANopen frame type on a non-CANopen bus": "Тип кадра CANopen на шине не CANopen",
     "sdo description on a frame that is not sdo_tx/sdo_rx": "Описание sdo у кадра не типа sdo_tx/sdo_rx",
     "Duplicate SDO exchange (command, index, subindex)": "Повтор SDO-обмена (команда, индекс, субиндекс)",
@@ -339,6 +353,8 @@ RU: dict[str, str] = {
         "node_id {node_id:#04x} уже занят устройством {other!r}",
     "pgn (or id) is required": "нужен pgn (или id)",
     "the device has no address": "у устройства нет address",
+    "the source address of a frame from outside the map is unknown: give id":
+        "адрес источника кадра извне карты неизвестен: задайте id",
     "the source address of an RX frame is unknown: set sender to the sending device or give id":
         "адрес источника RX-кадра неизвестен: укажите в sender передающее устройство или задайте id",
     "the sender has no address": "у отправителя нет address",
@@ -375,8 +391,10 @@ RU: dict[str, str] = {
         "{key} = {value:g} вне представимого диапазона {lo:g}..{hi:g} {unit}",
     # ------------------------------------------------------------------ JSON Schema (подсказки в IDE)
     "mapcan — CAN signal map (format v1)": "mapcan — карта сигналов CAN (формат v1)",
-    "Broadcast frames without an owning device (NMT, SYNC, TIME).":
-        "Широковещательные кадры без устройства-владельца (NMT, SYNC, TIME).",
+    "Frames whose sender is outside the map, with the receiving devices in receivers; also CANopen broadcast frames "
+    "(NMT, SYNC, TIME).":
+        "Кадры, отправитель которых вне карты, с принимающими устройствами в receivers; а также широковещательные "
+        "кадры CANopen (NMT, SYNC, TIME).",
     "Bit numbering: lsb0 — bit 0 is the least significant bit of byte 0. The field states the convention explicitly "
     "and is shown in every document.":
         "Нумерация бит: lsb0 — бит 0 это младший бит байта 0. Поле фиксирует соглашение явно и выводится во всех "
@@ -727,16 +745,18 @@ RU: dict[str, str] = {
     "in documents, DBC and each device's \"Receives\" summary.":
         "Устройства этой шины, которые принимают кадр. Владелец RX-кадра — получатель и без этого списка. Попадают в "
         "документы, DBC и сводку «Принимает» у устройств.",
-    "Device on this bus that sends the frame when it is not the frame's owner: an RX frame (e.g. a node's RPDO sent "
-    "by the master) or a bus frame (NMT, SYNC). Empty — the sender is not in the map. A frame sent by one of your "
-    "devices is best described at the sender, with the receiving devices listed in \"Receivers\".":
-        "Устройство этой шины, которое передаёт кадр, если это не его владелец: RX-кадр (напр. PDO RX узла, который "
-        "шлёт мастер) или кадр шины (NMT, SYNC). Пусто — отправитель не описан в карте. Кадр, который передаёт своё "
-        "устройство, лучше описывать у отправителя, а принимающих указать в «Получатели».",
-    "tx — the owning device sends the frame, rx — it receives it. If omitted: from the CANopen frame type (PDO TX is "
-    "sent, etc.); a frame without a type whose sender is another device is rx, otherwise tx.":
-        "tx — кадр передаёт устройство-владелец, rx — принимает. Если не задано: по типу кадра CANopen (PDO TX — "
-        "передача и т. д.); кадр без типа с чужим отправителем — rx, иначе tx.",
+    "Device on this bus that sends the frame when it is not the frame's owner, which then receives it (e.g. a "
+    "node's RPDO sent by the master). Empty: a frame of a device is sent by the device (a CANopen RX function: from "
+    "outside the map), a frame of the bus from outside the map. A frame sent by one of your devices is best "
+    "described at the sender, with the receiving devices listed in \"Receivers\".":
+        "Устройство этой шины, которое передаёт кадр, если это не его владелец; владелец тогда его принимает "
+        "(напр. PDO RX узла, который шлёт мастер). Пусто: кадр устройства передаёт само устройство (функция приёма "
+        "CANopen — извне карты), кадр шины — извне карты. Кадр, который передаёт своё устройство, лучше описывать "
+        "у отправителя, а принимающих указать в «Получатели».",
+    "Deprecated: the direction follows from the CANopen function and the sender, remove it. A frame from outside the "
+    "map goes to the frames of the bus, with the receiving devices in receivers (mapcan migrate moves it).":
+        "Устарело: направление следует из функции CANopen и отправителя, удалите его. Кадр извне карты описывается "
+        "в кадрах шины, с принимающими устройствами в receivers (mapcan migrate переносит его).",
     "Cyclic transmission period in milliseconds.": "Период циклической передачи в миллисекундах.",
     "Device identifier: Latin letters, digits and _. Used in generated code, DBC, and frame senders and receivers. "
     "Required.":
@@ -837,6 +857,8 @@ RU: dict[str, str] = {
         "длина {length} недопустима для кадра CAN FD (0..8, 12, 16, 20, 24, 32, 48, 64)",
     "length {length} > 8 (for CAN FD set fd: true on the bus)":
         "длина {length} > 8 (для CAN FD задайте fd: true у шины)",
+    "Remove direction from the frames of this file (mapcan migrate)":
+        "Удалить direction из кадров этого файла (mapcan migrate)",
     "Rename the former fields of the whole map (mapcan migrate)":
         "Переименовать прежние поля во всей карте (mapcan migrate)",
     "How the raw value is read as a number. unsigned — no negative values (default). twos_complement — the usual "

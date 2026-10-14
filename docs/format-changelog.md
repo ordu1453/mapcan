@@ -4,6 +4,16 @@ Changes of the map format by mapcan version. All of them keep `mapcan: 1`: see
 [Versioning and compatibility](format.md#versioning-and-compatibility). A map that uses a field
 needs at least the version of mapcan that introduced it; former names stay readable.
 
+## Unreleased
+
+- The frame field `direction` is deprecated: the direction follows from the CANopen function and
+  `sender`, and a frame from outside the map is written in the frames of its bus with the
+  receiving devices in `receivers` (the bus's `frames` were for NMT, SYNC and TIME only). Maps with
+  `direction` still read the same, with the warning `direction-deprecated`; `mapcan migrate` (and
+  the quick fix in VS Code) removes it and moves such frames. The editors have no Direction field:
+  the sender says who sends a frame. It will be removed from the format in version 2.
+- Documents name the section of the frames of a bus "Outside the map" (formerly "Broadcast").
+
 ## 0.21
 
 - The frame field `dlc` is now `length` (data length in bytes). On CAN FD and with the J1939

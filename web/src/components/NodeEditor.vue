@@ -49,7 +49,6 @@ const formCtx = computed<FormContext>(() => {
     owner: frame?.device ?? null,
     devices: (bus?.devices ?? []).filter((d: any) => d?.name)
       .map((d: any) => ({ name: d.name, label: deviceLabel(d, lang.value) })),
-    frameDirection: frame?.direction ?? null,
     signalEncoding: s?.encoding ?? null,
     bitLength: s?.bit_length ?? null,
     hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),

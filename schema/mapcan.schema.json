@@ -141,7 +141,7 @@
           "title": "Description"
         },
         "frames": {
-          "description": "Broadcast frames without an owning device (NMT, SYNC, TIME).",
+          "description": "Frames whose sender is outside the map, with the receiving devices in receivers; also CANopen broadcast frames (NMT, SYNC, TIME).",
           "items": {
             "$ref": "#/$defs/Frame"
           },
@@ -636,7 +636,7 @@
             }
           ],
           "default": null,
-          "description": "Device on this bus that sends the frame when it is not the frame's owner: an RX frame (e.g. a node's RPDO sent by the master) or a bus frame (NMT, SYNC). Empty — the sender is not in the map. A frame sent by one of your devices is best described at the sender, with the receiving devices listed in \"Receivers\".",
+          "description": "Device on this bus that sends the frame when it is not the frame's owner, which then receives it (e.g. a node's RPDO sent by the master). Empty: a frame of a device is sent by the device (a CANopen RX function: from outside the map), a frame of the bus from outside the map. A frame sent by one of your devices is best described at the sender, with the receiving devices listed in \"Receivers\".",
           "title": "Sender"
         },
         "length": {
@@ -668,7 +668,8 @@
             }
           ],
           "default": null,
-          "description": "tx — the owning device sends the frame, rx — it receives it. If omitted: from the CANopen frame type (PDO TX is sent, etc.); a frame without a type whose sender is another device is rx, otherwise tx.",
+          "deprecated": true,
+          "description": "Deprecated: the direction follows from the CANopen function and the sender, remove it. A frame from outside the map goes to the frames of the bus, with the receiving devices in receivers (mapcan migrate moves it).",
           "title": "Direction"
         },
         "cycle_ms": {

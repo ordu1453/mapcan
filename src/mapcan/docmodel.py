@@ -30,7 +30,7 @@ LABELS = {
         "signal": "Сигнал", "description": "Описание", "encoding": "Кодирование",
         "values": "Значения", "type": "Тип", "period": "Передача", "direction": "Направление",
         "length": "Длина, байт", "dlc": "Длина, байт", "message_type": "Тип сообщения", "purpose": "Назначение",
-        "broadcast": "Широковещательные", "node": "Узел", "version": "Версия", "date": "Дата",
+        "broadcast": "Вне карты", "node": "Узел", "version": "Версия", "date": "Дата",
         "author": "Автор", "bus": "Шина", "bitrate": "Скорость", "data_phase": "данные", "connector": "Разъём",
         "interface": "Разъём", "protocol": "Протокол", "history": "История изменений", "summary": "Сводка",
         "bit_note": "Нумерация байт и бит начинается с 0. Бит 0 — младший бит байта 0; "
@@ -66,7 +66,7 @@ LABELS = {
         "signal": "Signal", "description": "Description", "encoding": "Encoding",
         "values": "Values", "type": "Type", "period": "Transmission", "direction": "Direction",
         "length": "Length, bytes", "dlc": "Length, bytes", "message_type": "Message type", "purpose": "Purpose",
-        "broadcast": "Broadcast", "node": "Node", "version": "Version", "date": "Date",
+        "broadcast": "Outside the map", "node": "Node", "version": "Version", "date": "Date",
         "author": "Author", "bus": "Bus", "bitrate": "Bitrate", "data_phase": "data", "connector": "Connector",
         "interface": "Connector", "protocol": "Protocol", "history": "Revision history", "summary": "Summary",
         "bit_note": "Bytes and bits are numbered from 0. Bit 0 is the LSB of byte 0; "

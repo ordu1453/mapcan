@@ -569,8 +569,9 @@ class Frame(_Base):
                        "without this list. Used in documents, DBC and each device's \"Receives\" summary."))
     sender: str | None = Field(
         None,
-        description=N_("Device on this bus that sends the frame when it is not the frame's owner: an RX frame (e.g. "
-                       "a node's RPDO sent by the master) or a bus frame (NMT, SYNC). Empty — the sender is not in "
+        description=N_("Device on this bus that sends the frame when it is not the frame's owner, which then "
+                       "receives it (e.g. a node's RPDO sent by the master). Empty: a frame of a device is sent by "
+                       "the device (a CANopen RX function: from outside the map), a frame of the bus from outside "
                        "the map. A frame sent by one of your devices is best described at the sender, with the "
                        "receiving devices listed in \"Receivers\"."))
     length: int | None = Field(
@@ -579,11 +580,14 @@ class Frame(_Base):
                        "Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length "
                        "is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol. Formerly "
                        "dlc: the DLC on the bus is the code of this length."))
+    # Deprecated: the direction follows from the CANopen function and sender (resolve.derived_direction). Still read
+    # in version 1 of the format (mapcan migrate removes it); resolve() sets it for every frame of a device.
     direction: Direction | None = Field(
         None,
-        description=N_("tx — the owning device sends the frame, rx — it receives it. If omitted: from the CANopen "
-                       "frame type (PDO TX is sent, etc.); a frame without a type whose sender is another device is "
-                       "rx, otherwise tx."))
+        description=N_("Deprecated: the direction follows from the CANopen function and the sender, remove it. A frame "
+                       "from outside the map goes to the frames of the bus, with the receiving devices in receivers "
+                       "(mapcan migrate moves it)."),
+        json_schema_extra={"deprecated": True})
     cycle_ms: int | None = Field(
         None, gt=0,
         description=N_("Cyclic transmission period in milliseconds."))
@@ -602,6 +606,7 @@ class Frame(_Base):
     _bus: Any = PrivateAttr(default=None)
     _synthetic: list | None = PrivateAttr(default=None)
     _length_missing: bool = PrivateAttr(default=False)
+    _direction_written: bool = PrivateAttr(default=False)   # direction is in the map (deprecated)
 
     @property
     def type(self) -> str:
@@ -719,7 +724,8 @@ class Bus(_Base):
     description: Text | None = Field(None, description=DESCRIPTION)
     frames: list[Frame] = Field(
         default_factory=list,
-        description=N_("Broadcast frames without an owning device (NMT, SYNC, TIME)."),
+        description=N_("Frames whose sender is outside the map, with the receiving devices in receivers; also "
+                       "CANopen broadcast frames (NMT, SYNC, TIME)."),
     )
     devices: list[Device] = Field(default_factory=list)
 

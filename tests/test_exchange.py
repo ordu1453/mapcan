@@ -198,7 +198,7 @@ def test_document_exchange_view():
     assert [(c["name"], c["peer"]) for c in node["receives"]] == [
         ("nmt", "MASTER 0x01"), ("master_status", "MASTER 0x01"), ("node_command", "MASTER 0x01")]
     assert [(c["name"], c["peer"]) for c in master["sends_other"]] == [
-        ("nmt", "Широковещательные"), ("node_command", "NODE 0x05")]
+        ("nmt", "Вне карты"), ("node_command", "NODE 0x05")]
     assert node["frames"][0]["sender"] == "MASTER 0x01"
     assert node["frames"][1]["sender"] == ""                # a TX frame's sender is obvious
     ex = bus["exchange"]

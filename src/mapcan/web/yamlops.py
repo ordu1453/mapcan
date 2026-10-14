@@ -345,10 +345,15 @@ def migrate_doc(doc) -> int:
 
 
 def migrate_text(text: str) -> str:
-    """The map's text with every deprecated key rewritten; the rest of the text stays as it was.
+    """The map's text with every deprecated key rewritten and the frames' deprecated direction removed
+    (migrate_directions); the rest of the text stays as it was."""
+    return migrate_directions_text(migrate_renames_text(text))
 
-    Keys are renamed in the text itself, so flow mappings keep their line breaks; if a change cannot be made
-    that way (or the result reads differently), the document is rewritten through ruamel instead."""
+
+def migrate_renames_text(text: str) -> str:
+    """The map's text with every deprecated key rewritten. Keys are renamed in the text itself, so flow mappings
+    keep their line breaks; if a change cannot be made that way (or the result reads differently), the document is
+    rewritten through ruamel instead."""
     y = make_yaml(text)
     doc = y.load(text)
     if doc is None:
@@ -366,6 +371,85 @@ def migrate_text(text: str) -> str:
     canon_old = dump(y, doc)
     migrate_doc(doc)
     return merge_text(text, canon_old, dump(y, doc))
+
+
+def migrate_directions_text(text: str) -> str:
+    """The map's text without the deprecated direction of frames (migrate_directions)."""
+    y = make_yaml(text)
+    doc = y.load(text)
+    if not isinstance(doc, dict):
+        return text
+    canon_old = dump(y, doc)
+    if not migrate_directions(doc):
+        return text
+    return merge_text(text, canon_old, dump(y, doc))
+
+
+def migrate_directions(doc) -> bool:
+    """The deprecated direction of frames out of a map document; True if something changed.
+
+    Where it follows from the CANopen function and the sender (resolve.derived_direction) it is removed, as on a
+    frame of the bus, where it means nothing. An RX frame of a device without a sender is a frame from outside the
+    map: it moves to the frames of its bus, with the device in its receivers, which reads the same. A direction
+    that contradicts the function or the sender is left for the author (the warning direction-deprecated)."""
+    from ..canopen import default_direction
+    from ..resolve import derived_direction
+
+    changed = False
+    for bus in doc.get("buses") or []:
+        if not isinstance(bus, dict):
+            continue
+        for frame in bus.get("frames") or []:
+            if isinstance(frame, dict) and "direction" in frame:
+                _drop_key(frame, "direction")
+                changed = True
+        for dev in bus.get("devices") or []:
+            frames = dev.get("frames") if isinstance(dev, dict) else None
+            if not isinstance(frames, list):
+                continue
+            owner = dev.get("name")
+            for i in reversed(range(len(frames))):
+                frame = frames[i]
+                if not isinstance(frame, dict) or "direction" not in frame:
+                    continue
+                direction, sender, kind = frame["direction"], frame.get("sender"), frame.get("canopen") or "raw"
+                if direction == derived_direction(kind, sender, owner):
+                    _drop_key(frame, "direction")
+                elif direction == "rx" and sender is None and default_direction(kind) is None and owner:
+                    _drop_key(frame, "direction")
+                    receivers = frame.get("receivers")
+                    if not isinstance(receivers, list):
+                        receivers = CommentedSeq()
+                        receivers.fa.set_flow_style()
+                        frame["receivers"] = receivers
+                    if owner not in receivers:
+                        receivers.append(owner)
+                    del frames[i]
+                    _frames_of_bus(bus).append(frame)
+                else:
+                    continue
+                changed = True
+    return changed
+
+
+def _frames_of_bus(bus: CommentedMap) -> CommentedSeq:
+    """The frames of a bus, the list put before its devices if it has none."""
+    frames = bus.get("frames")
+    if not isinstance(frames, list):
+        frames = CommentedSeq()
+        keys = list(bus.keys())
+        bus.insert(keys.index("devices") if "devices" in keys else len(keys), "frames", frames)
+    return frames
+
+
+def _drop_key(m: CommentedMap, key: str) -> None:
+    """Remove a key; the comment after it (and the comment lines below it) goes to the key before it."""
+    keys = list(m.keys())
+    before = keys[keys.index(key) - 1] if keys.index(key) > 0 else None
+    comment = m.ca.items.pop(key, None)
+    del m[key]
+    if comment is not None and before is not None and before not in m.ca.items:
+        m.ca.items[before] = comment
 
 
 _UNSUPPORTED: list = []

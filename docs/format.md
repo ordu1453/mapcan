@@ -114,7 +114,7 @@ lint:
 | `data_bitrate` | CAN FD: bit rate of the data phase, bit/s (`2000000`): the data field of frames with BRS is sent at it. Used in the `bus-load` estimate, shown in documents and as `<BUS>_DATA_BITRATE` in C. DBC keeps the nominal bit rate only |
 | `data_sample_point` | CAN FD: sample point of the data phase, percent (`75`) |
 | `brs` | CAN FD: bit rate switch (BRS) of the frames by default, `true` if omitted. Set `false` when the nodes or the wiring cannot handle the data phase bit rate |
-| `frames` | Broadcast frames with no owning device (`nmt`, `sync`, `time`) |
+| `frames` | Frames whose sender is outside the map, with the receiving devices in `receivers`; also the CANopen broadcast frames (`nmt`, `sync`, `time`) |
 | `devices` | Devices |
 
 ### Device (`devices[]`)
@@ -127,7 +127,7 @@ lint:
 | `node_id` | CANopen node address (1..127) |
 | `address` | J1939 source address (0..253) |
 | `description` | What the device is |
-| `frames` | The device's frames: those it transmits, plus RX frames whose ID depends on its address (see [Sender and receivers](#sender-and-receivers)) |
+| `frames` | The device's frames: those it transmits, plus the CANopen RX frames whose ID depends on its address (see [Sender and receivers](#sender-and-receivers)) |
 
 ### Frame (`frames[]`)
 
@@ -140,11 +140,11 @@ lint:
 | `id` | Explicit CAN ID (required on `can` buses; on CANopen and J1939 it overrides the computed ID) |
 | `pgn`, `priority`, `destination` | J1939: parameter group number, priority 0..7 (default 6), destination address for PDU1 (default 0xFF) |
 | `receivers` | Names of the bus devices that receive the frame |
-| `sender` | Name of the bus device that transmits the frame when it is not the owner: an RX frame (a node's PDO RX sent by the master) or a bus frame (NMT, SYNC). If omitted, the sender is outside the map |
+| `sender` | Name of the bus device that transmits the frame when it is not the owner: the device then receives the frame (a node's PDO RX sent by the master). If omitted, a frame of a device is sent by the device itself (a CANopen RX function: from outside the map), and a frame of the bus from outside the map |
 | `extended` | 29-bit ID |
 | `brs` | CAN FD: bit rate switch (BRS), the data field is sent at the data phase bit rate. If omitted, the bus `brs` applies. Written to DBC as the `CANFD_BRS` attribute |
 | `length` | Data length, bytes (formerly `dlc`: the DLC on the bus is the code of this length). Required, except for CANopen service frames, which take the CiA 301 length of their function when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8. On a J1939 bus up to 1785 bytes (see [Transport protocol](#transport-protocol)) |
-| `direction` | `tx` / `rx` relative to the owning device. Defaults from the CANopen function: `pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` → `tx`; `pdo_rx*`, `sdo_rx`, `nmt` → `rx`; a frame without a CANopen function whose `sender` is another device → `rx`; otherwise `tx` |
+| `direction` | Deprecated (`direction-deprecated`): the direction follows from the CANopen function and `sender`, see [Sender and receivers](#sender-and-receivers). Still read; `mapcan migrate` removes it |
 | `cycle_ms` | Cyclic transmission period, ms |
 | `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
 | `timeout_ms` | Receive timeout, ms: when the frame has not arrived for this long, the receivers treat its data as lost (usually a few periods, e.g. 3 × `cycle_ms`). Shown in documents next to the transmission, written to code as `<FRAME>_TIMEOUT_MS` |
@@ -433,15 +433,38 @@ index), and bytes 4–7 the value.
 
 ## Sender and receivers
 
-Every frame has exactly one sender. A frame transmitted by a device in the map is described
-**at the sender**, and the receiving devices are listed in `receivers`. Receivers do not need
-their own copies of the frame: mapcan derives what each device receives.
+Every frame has exactly one sender, and the map says who it is by where the frame is written:
 
-Describe an RX frame at a device in two cases only:
+* **A frame of a device** is sent by that device, and the receiving devices are listed in
+  `receivers`. Receivers do not need their own copies of the frame: mapcan derives what each
+  device receives.
+* **A frame of the bus** (the bus's `frames`) is sent from outside the map: a PC, a tester, a
+  third-party controller. List the devices of the map that receive it in `receivers`.
+* **A CANopen frame whose ID depends on the receiver's address** (`pdo_rx*`, `sdo_rx`:
+  `0x200 + node_id` of the node) is written at the receiving node, which its function makes it
+  receive. If the master is in the map, name it in `sender`; otherwise the frame comes from outside
+  the map. In general, a frame of a device whose `sender` is another device is received by the
+  device.
 
-* the sender is not in the map (a PC, a tester, a third-party controller); leave `sender` out;
-* the frame ID depends on the **receiver's** address: CANopen `pdo_rx*` and `sdo_rx`
-  (`0x200 + node_id` of the node). If the master is also in the map, name it in `sender`.
+The direction of a frame for its device (TX or RX, shown in documents and in the editors) follows
+from these rules: from the CANopen function (`pdo_tx*`, `sdo_tx`, `emcy`, `heartbeat` are sent,
+`pdo_rx*`, `sdo_rx`, `nmt` received), else from `sender`. The field `direction` that set it is
+deprecated: `mapcan migrate` removes it, and moves a frame that was an RX frame of a device without a
+sender to the frames of its bus, with the device in `receivers`.
+
+```yaml
+buses:
+  - name: can1
+    protocol: can
+    frames:
+      - name: tester_request    # sent by a diagnostic tester, which is not in the map
+        id: 0x7E0
+        length: 8
+        receivers: [ecu]
+    devices:
+      - name: ecu
+        frames: [...]
+```
 
 ```yaml
 devices:
@@ -466,9 +489,8 @@ devices:
 ```
 
 On a J1939 bus the computed ID of an RX frame takes its source address from `sender`, not from
-the owner: the owner is the receiver (and, for a PDU1 PGN, may be the `destination`). An RX frame
-without `sender` and without `id` has no known source address and is reported as
-`frame-id-missing`: name the sending device in `sender` (or move the frame to it) or give `id`.
+the owner: the owner is the receiver (and, for a PDU1 PGN, may be the `destination`). A frame from
+outside the map has no known source address: give its `id` (`frame-id-missing` otherwise).
 
 The owner of an RX frame is always one of its receivers, so it does not need to be listed in
 `receivers`. From `sender` and `receivers` across all frames on the bus, mapcan builds:
@@ -661,6 +683,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `dlc-missing` | error | Frame has no `length` (only CANopen service frames may omit it) |
 | `canopen-dlc` | warning | Length of a CANopen service frame does not match CiA 301 |
 | `frame-type-protocol` | warning | `canopen` set on a frame of a non-CANopen bus |
+| `direction-deprecated` | warning | `direction` is set: it follows from the CANopen function and `sender`; a frame from outside the map goes to the frames of its bus. `mapcan migrate` does both |
 | `direction-mismatch` | warning | Direction conflicts with the frame's CANopen function |
 
 ### SAE J1939

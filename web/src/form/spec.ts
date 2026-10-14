@@ -38,8 +38,6 @@ export interface FormContext {
   owner: string | null;
   /** Devices of the bus with their labels for people. */
   devices: { name: string; label: string }[];
-  /** Direction of the frame computed from the map (also when the field is not set). */
-  frameDirection: string | null;
   /** Encoding of the signal computed from the map. */
   signalEncoding: string | null;
   /** Length of the signal computed from the map, bits. */
@@ -127,18 +125,23 @@ const numeric = encodingIn("scaled", "raw", "float");
 /** An empty choice ("not set") is offered only while the field has no value. */
 const notSet = (c: FormContext, key: string): Option[] => (value(c, key) == null ? [["", N_("not set")]] : []);
 
-/** Direction of the frame: its own, else from the CANopen type, else as computed from the map. */
-export const frameDirection = (c: FormContext): string | null =>
-  (value(c, "direction") as string | undefined)
-  ?? (c.protocol === "canopen" ? TYPE_DIRECTION[frameType(c)] : undefined) ?? c.frameDirection;
-
-// Empty direction: the one computed from the CANopen type or from sender, shown in brackets
-const directions = (c: FormContext): Option[] => {
-  const base = t(c.protocol === "canopen" && TYPE_DIRECTION[frameType(c)] ? N_("by type") : N_("by default"));
-  const d = value(c, "direction") == null ? c.frameDirection : null;
-  return [["", d ? `${base} (${d.toUpperCase()})` : base], ["tx", N_("TX (sent by the device)")],
-    ["rx", N_("RX (received by the device)")]];
+/** Direction of a frame of a device, as the map reads it: from the CANopen function, else received (rx) when another
+ * device sends it, else sent (tx). A direction written in the map (deprecated) still counts. */
+export const frameDirection = (c: FormContext): string | null => {
+  const written = value(c, "direction") as string | undefined;
+  if (written) return written;
+  const byType = c.protocol === "canopen" ? TYPE_DIRECTION[frameType(c)] : undefined;
+  if (byType) return byType;
+  const sender = value(c, "sender") as string | undefined;
+  return sender && sender !== c.owner ? "rx" : "tx";
 };
+
+// Who sends the frame: with no sender, its device (a frame it transmits), or someone outside the map (a frame of
+// the bus, an RX function of CANopen); another device makes the frame one the device receives
+const senders = (c: FormContext): Option[] => [
+  ["", c.owner && !(value(c, "sender") == null && frameDirection(c) === "rx") ? N_("this device") : N_("outside the map")],
+  ...others(c),
+];
 
 // Sender and receivers are devices of the bus other than the frame's owner (it sends a TX frame and
 // receives an RX one); the frame's sender is not offered as a receiver
@@ -279,13 +282,8 @@ export const FORMS: Record<FormKind, Section[]> = {
         placeholder: (c) => (typeof value(c, "cycle_ms") === "number" ? String(3 * (value(c, "cycle_ms") as number)) : "") },
     ] },
     { title: N_("Routing"), fields: [
-      // Only a frame of a device has a direction; a CANopen type sets it
-      { key: "direction", label: N_("Direction"), type: "select", options: directions,
-        when: (c) => !!c.owner && !(c.protocol === "canopen" && TYPE_DIRECTION[frameType(c)]) },
-      // A sender is chosen for an RX frame and a frame of the bus (a TX frame is sent by its device)
-      { key: "sender", label: N_("Sender"), type: "select",
-        options: (c) => [["", N_("outside the map")], ...others(c)],
-        when: (c) => (!c.owner || frameDirection(c) === "rx") && others(c).length > 0 },
+      // The direction follows from the sender (and the CANopen function): there is no field for it
+      { key: "sender", label: N_("Sender"), type: "select", options: senders, when: (c) => others(c).length > 0 },
       // The receiver of an RX frame is its device
       { key: "receivers", label: N_("Receivers"), type: "devices", wide: true, options: receivers,
         when: (c) => !(c.owner && frameDirection(c) === "rx") && receivers(c).length > 0 },
@@ -389,7 +387,10 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
   revision: { changes: "list of changes (web: HistoryEditor.vue)" },
   bus: { frames: "child nodes of the tree", devices: "child nodes of the tree" },
   device: { frames: "child nodes of the tree" },
-  frame: { signals: "child nodes and the bit layout", sdo: "child nodes of the tree" },
+  frame: {
+    signals: "child nodes and the bit layout", sdo: "child nodes of the tree",
+    direction: "deprecated: it follows from the CANopen function and the sender",
+  },
   signal: { values: "value table", flags: "flags table" },
   flag: { values: "value table" },
   sdo: {

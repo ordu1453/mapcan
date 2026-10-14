@@ -234,9 +234,15 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
         return []
 
     if code == "deprecated-key":
-        from ..web.yamlops import migrate_text
-        new = migrate_text(a.text)
+        from ..web.yamlops import migrate_renames_text
+        new = migrate_renames_text(a.text)
         return [Action(_("Rename the former fields of the whole map (mapcan migrate)"),
+                       [minimal_edit(a.text, new)], preferred=True)] if new != a.text else []
+
+    if code == "direction-deprecated":
+        from ..web.yamlops import migrate_directions_text
+        new = migrate_directions_text(a.text)
+        return [Action(_("Remove direction from the frames of this file (mapcan migrate)"),
                        [minimal_edit(a.text, new)], preferred=True)] if new != a.text else []
 
     if code == "can-id-range" and path and path[-1] == "id":
@@ -957,8 +963,6 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
                for d in bus.get("devices") or [] if isinstance(d, dict) and isinstance(d.get("name"), str)]
     # Signal from the parsed map: its length in bits is computed from byte_length and encoding
     signal = _find(a.map, path) if a.map is not None and kind == "signal" else None
-    # Frame from the parsed map: its direction, if not written, is computed from the type and sender
-    frame = _find(a.map, path) if a.map is not None and kind == "frame" else None
     # Whether another signal of the frame is the multiplexer selector (then the signal can have mux)
     siblings = at(path[:-1]) if kind == "signal" else None
     has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not node for s in siblings or [])
@@ -969,7 +973,6 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             "owner": owner.get("name") if isinstance(owner, dict) else None,
             "signalEncoding": signal.encoding if isinstance(signal, M.Signal) else values.get("encoding"),
             "bitLength": signal.bit_length if isinstance(signal, M.Signal) else None,
-            "frameDirection": frame.direction if isinstance(frame, M.Frame) else None,
             "hasSelector": has_selector,
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
             "frameTypes": frame_types(a, path) if kind == "frame" and not file else [],

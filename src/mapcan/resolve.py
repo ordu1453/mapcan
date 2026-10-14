@@ -51,10 +51,9 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
             frame.length = min(CANOPEN_DLC[frame.type])
         else:
             frame.length, frame._length_missing = 8, True
+    frame._direction_written = frame.direction is not None
     if frame.direction is None and dev is not None:
-        # A frame without a CANopen type and with another sender is received by the device
-        foreign = frame.sender is not None and frame.sender != dev.name
-        frame.direction = default_direction(frame.type) or ("rx" if foreign else "tx")
+        frame.direction = derived_direction(frame.type, frame.sender, dev.name)
     frame._can_id, frame.extended = frame_id(bus, _source_device(frame, bus, dev), frame)
     for si, sig in enumerate(frame.signals):
         sig._path = path + ("signals", si)
@@ -65,6 +64,12 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
             ex._path = path + ("sdo", i)
         if not frame.signals:
             frame._synthetic = sdo_layout(frame)
+
+
+def derived_direction(frame_type: str, sender: str | None, owner: str) -> str:
+    """Direction of a frame of a device: from its CANopen function (PDO TX is sent, PDO RX received…); otherwise a
+    frame whose sender is another device is received (rx), and the device sends the rest (tx)."""
+    return default_direction(frame_type) or ("rx" if sender is not None and sender != owner else "tx")
 
 
 def _source_device(frame: Frame, bus, dev):
