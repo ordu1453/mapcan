@@ -7,6 +7,7 @@ const vscode = require("vscode");
 const workspace = process.env.MAPCAN_TEST_WORKSPACE;
 const shots = process.env.MAPCAN_SHOTS;
 const BMS_STATUS = ["buses", 0, "devices", 0, "frames", 0];
+const VCU_COMMAND = ["buses", 0, "devices", 1, "frames", 0];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -26,6 +27,64 @@ async function shot(name) {
   await sleep(1500);   // the webviews and the decorations settle
   fs.writeFileSync(path.join(shots, `${name}.ready`), "");
   await until(`the capture of ${name}`, () => fs.existsSync(path.join(shots, `${name}.done`)));
+}
+
+let frames = 0;
+
+/** A frame of the quick fix GIF, shown for `ms`: captured like a screenshot after a short settle. */
+async function frame(ms, settle = 250) {
+  await vscode.commands.executeCommand("notifications.clearAll");
+  await sleep(settle);
+  const name = `quickfix-${String(frames++).padStart(3, "0")}`;
+  fs.writeFileSync(path.join(shots, `${name}.ready`), String(ms));
+  await until(`the capture of ${name}`, () => fs.existsSync(path.join(shots, `${name}.done`)));
+}
+
+/**
+ * The quick fix GIF: a signal moved in the YAML onto another one, the mistake marked on the bit layout and in the
+ * editor at once, and the quick fix that moves it to free bits. Leaves the map as it was.
+ */
+async function quickFix(api, doc, editor) {
+  await api.form.open(BMS_STATUS);
+  await sleep(1500);    // the form takes the focus when it has rendered: the editor takes it back
+  await vscode.window.showTextDocument(doc);
+  const top = positionOf(doc, "- name: bms_status", 2);
+  editor.revealRange(new vscode.Range(top, top), vscode.TextEditorRevealType.AtTop);
+  const digit = positionOf(doc, "byte: 4\n                unit: A", 6);
+  editor.selection = new vscode.Selection(digit, digit);
+  await frame(1600, 1500);
+  editor.selection = new vscode.Selection(digit, digit.translate(0, 1));
+  await frame(500);
+  await editor.edit((e) => e.replace(new vscode.Range(digit, digit.translate(0, 1)), "2"));
+  await frame(200, 100);
+  await until("the problem", () => vscode.languages.getDiagnostics(doc.uri).some((d) => d.severity === 0));
+  await frame(2400, 1200);
+  const at = vscode.languages.getDiagnostics(doc.uri).find((d) => d.severity === 0).range.start;
+  editor.selection = new vscode.Selection(at, at);
+  await frame(500, 600);
+  await vscode.commands.executeCommand("editor.action.quickFix");
+  await frame(1600, 800);
+  await vscode.commands.executeCommand("acceptSelectedCodeAction");
+  await until("no problem", () => !vscode.languages.getDiagnostics(doc.uri).some((d) => d.severity === 0));
+  await frame(2600, 1200);
+  await vscode.commands.executeCommand("workbench.action.files.revert");
+}
+
+/**
+ * The demo GIF: screenshots.mjs drives the Node panel with the mouse through the DevTools protocol. The scene opens
+ * a frame with free bits in the panel and its YAML next to it, then "drive.ready" hands over until "drive.done".
+ */
+async function demo(api, doc, editor) {
+  await api.form.open(VCU_COMMAND);
+  await sleep(1500);    // the form takes the focus when it has rendered: the editor takes it back
+  await vscode.window.showTextDocument(doc);
+  const top = positionOf(doc, "- name: torque_request", 2);
+  editor.selection = new vscode.Selection(top, top);
+  editor.revealRange(new vscode.Range(top, top), vscode.TextEditorRevealType.AtTop);
+  await vscode.commands.executeCommand("notifications.clearAll");
+  await sleep(1500);
+  fs.writeFileSync(path.join(shots, "drive.ready"), "");
+  await until("the demo", () => fs.existsSync(path.join(shots, "drive.done")), 300000);
 }
 
 function positionOf(doc, text, offset = 0) {
@@ -79,6 +138,8 @@ exports.run = async function run() {
     editor.selection = new vscode.Selection(frameAt, frameAt);
     editor.revealRange(new vscode.Range(frameAt, frameAt), vscode.TextEditorRevealType.AtTop);
     await shot("map");
+    await quickFix(api, doc, editor);
+    await demo(api, doc, editor);
   } catch (err) {
     console.error(err);
   } finally {

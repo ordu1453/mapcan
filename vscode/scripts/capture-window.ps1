@@ -2,12 +2,14 @@
 # without bringing it to the front:
 #   capture-window.ps1 -ProcessId 1234 -Out shot.png
 #   capture-window.ps1 -ProcessId 1234 -Width 1600 -Height 1000
+#   capture-window.ps1 -ProcessId 1234 -Dpi          prints the DPI of the window's monitor (96 is 100%)
 # Used by screenshots.mjs. PrintWindow with PW_RENDERFULLCONTENT also draws Chromium (Electron) windows.
 param(
   [Parameter(Mandatory = $true)] [int] $ProcessId,
   [string] $Out = "",
   [int] $Width = 0,
-  [int] $Height = 0
+  [int] $Height = 0,
+  [switch] $Dpi
 )
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
@@ -27,6 +29,7 @@ public static class Win {
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int w, int hh, uint f);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr h);
   public struct RECT { public int Left, Top, Right, Bottom; }
   public static IntPtr Find(uint pid) {
     IntPtr found = IntPtr.Zero;
@@ -46,6 +49,7 @@ if ($Width -gt 0 -and $Height -gt 0) {
   [void][Win]::ShowWindow($hwnd, 9)          # SW_RESTORE: not maximized, so the size applies
   [void][Win]::SetWindowPos($hwnd, [IntPtr]::Zero, 40, 40, $Width, $Height, 0x0014)   # NOZORDER | NOACTIVATE
 }
+if ($Dpi) { [Win]::GetDpiForWindow($hwnd) }
 if ($Out) {
   $r = New-Object Win+RECT
   [void][Win]::GetClientRect($hwnd, [ref]$r)
