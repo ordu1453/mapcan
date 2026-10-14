@@ -89,8 +89,10 @@ CAN with explicit IDs or an empty map — or start from one of the examples on t
 Add devices, frames and signals in the tree, and draw signals with the mouse on the frame's bit
 layout. Errors show up as you type; <kbd>Ctrl</kbd>+<kbd>S</kbd> saves the file.
 
-Prefer a text editor? Write the YAML by hand with completion and hints from the JSON Schema in
-VS Code — see [docs/format.md](docs/format.md).
+Prefer a text editor? The [mapcan extension for VS Code](https://marketplace.visualstudio.com/items?itemName=ordu1453.mapcan)
+validates maps as you type and adds the Map view, a form with the bit layout, hovers and quick
+fixes ([vscode/README.md](vscode/README.md)); any editor with a YAML language server gets completion
+and hints from the JSON Schema — see [docs/format.md](docs/format.md).
 
 ## Installation
 
@@ -100,6 +102,7 @@ VS Code — see [docs/format.md](docs/format.md).
 | **Linux x64** | Download `mapcan-X.Y.Z-linux-x64.tar.gz`, extract it and run `mapcan/mapcan-app` (editor in the browser) or `mapcan/mapcan` (CLI). |
 | **Any OS with Python 3.12 or newer** | `uv tool install "mapcan[desktop]"` or `pipx install "mapcan[desktop]"` ([PyPI](https://pypi.org/project/mapcan/)) |
 | **Docker** | `ghcr.io/ordu1453/mapcan:<version>` — everything needed for CI |
+| **VS Code** | The [mapcan extension](https://marketplace.visualstudio.com/items?itemName=ordu1453.mapcan) (also on [Open VSX](https://open-vsx.org/extension/ordu1453/mapcan) for VSCodium, Cursor and others), with `uv tool install "mapcan[lsp]"` for its language server |
 
 The package is split into parts: `pip install mapcan` is the core (validation, DBC, EDS, Markdown,
 HTML, C and Python code: enough for CI and firmware builds). Extras add the rest: `web` (the editor
