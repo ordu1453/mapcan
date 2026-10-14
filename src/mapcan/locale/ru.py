@@ -574,10 +574,6 @@ RU: dict[str, str] = {
     "Electric vehicle": "Электромобиль",
     "CANopen drive": "CANopen-привод",
     "Tractor: a map in several files": "Трактор: карта из нескольких файлов",
-    "mapcan signal map (format v1).": "Карта сигналов mapcan (формат v1).",
-    "Bytes and bits are numbered from 0; start_bit is the position of the least significant bit; physical = raw * "
-    "factor + offset.":
-        "Байты и биты нумеруются с 0; start_bit — позиция младшего бита; physical = raw * factor + offset.",
     "Map created.": "Создана карта.",
     "Bus 1": "Шина 1",
     "Device": "Устройство",
