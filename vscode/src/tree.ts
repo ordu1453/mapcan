@@ -173,10 +173,6 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     item.description = from !== undefined ? `${description} ↪`.trim() : description;
     // A node of another file is edited in that file
     item.contextValue = node.isLink ? "frameLink" : node.file ? `${kind}.included` : kind;
-    // The node an included file adds names the file; its descendants come from the same file
-    const fileName = node.file && !node.isLink && node.parent?.raw.file !== node.raw.file
-      ? node.file.path.split("/").pop() : undefined;
-    if (fileName) item.description = `${item.description} · ${fileName}`.replace(/^ · /, "");
     // The identifier is not in the label (only titles are), so the tooltip shows it
     const lines = [`${KIND_TITLE[kind]} ${ident ?? label}`];
     if (kind === "frame") {
@@ -203,9 +199,9 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
       item.resourceUri = vscode.Uri.from({ scheme: DECORATION_SCHEME, path: `/${node.id}`, query: query.toString() });
     }
     if (change) lines.push(change === "added" ? "Added since the last commit" : "Modified since the last commit");
-    if (node.file && !node.isLink) {
-      lines.push(`From ${vscode.workspace.asRelativePath(node.file)}: its changes are written to that file`);
-    }
+    // The map is one tree whatever file it is split into: the file is only named here, and clicking the node
+    // opens it there
+    if (node.file && !node.isLink) lines.push(`In ${vscode.workspace.asRelativePath(node.file)}`);
     item.tooltip = lines.join("\n");
     item.command = { command: "mapcan.revealNode", title: "Reveal", arguments: [node.file ?? this.uri, node.selection] };
     return item;

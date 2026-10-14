@@ -9,7 +9,7 @@
 
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
-import { addOthers, Others, reportHidden, TextEdit } from "./files";
+import { addOthers, keepBackground, Others, TextEdit } from "./files";
 import { KIND_TITLE, Kind, MapNode, MapTree, revealInView } from "./tree";
 import { webviewHtml } from "./webview";
 
@@ -79,7 +79,6 @@ type Message =
   | { type: "select"; path: Path }
   | { type: "done" }
   | { type: "discard" }
-  | { type: "reveal" }
   | { type: "rendered"; path: Path | null; fields: string[]; layout: Drawn["layout"] };
 
 const samePath = (a: Path, b: Path) => a.length === b.length && a.every((x, i) => String(x) === String(b[i]));
@@ -212,9 +211,6 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
       case "discard":
         void this.queue.then(() => this.discard());
         break;
-      case "reveal":
-        void this.reveal();
-        break;
       case "rendered":
         this.rendered = { path: m.path, fields: m.fields, layout: m.layout };
         break;
@@ -239,7 +235,7 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
     for (const e of edits) edit.replace(uri, new vscode.Range(...e.range), e.text);
     const others = addOthers(edit, result?.others);
     if (!(await vscode.workspace.applyEdit(edit))) return;
-    void reportHidden(others);
+    keepBackground(others);
     // The editor follows the form: show the line just written, without taking the focus
     const editor = vscode.window.visibleTextEditors.find((ed) => ed.document.uri.toString() === uri.toString());
     if (editor && edits.length) {
@@ -268,7 +264,7 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
     if (result.edit) edit.replace(uri, new vscode.Range(...result.edit.range), result.edit.text);
     const others = addOthers(edit, result.others);
     if (!(await vscode.workspace.applyEdit(edit))) return;
-    void reportHidden(others);
+    keepBackground(others);
     if (select) {
       await this.tree.refresh();
       await this.select(select);

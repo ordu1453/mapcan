@@ -709,12 +709,6 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
       app.append(el("div", { class: "section" }, el("div", { class: "field label" }, "The node is no longer in the map.")));
       return;
     }
-    // A node of another file of the map: edited here, the changes go to that file
-    if (node.file) {
-      app.append(el("div", { class: "section readonly-note" },
-        el("div", { class: "field label" }, `From ${node.file.split(/[\\/]/).pop()}: changes go to that file.`),
-        el("button", { class: "secondary", onclick: () => vscode.postMessage({ type: "reveal" }) }, "Open in File")));
-    }
     layoutEl = el("div", { class: "section layout", hidden: true });
     app.append(layoutEl);
     for (const s of FORMS[node.kind] ?? []) {

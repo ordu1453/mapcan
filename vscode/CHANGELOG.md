@@ -9,6 +9,10 @@
   in the message about an older mapcan updates it where it was found, without a terminal.
 * Once a session of VS Code, when the server starts, the extension looks on PyPI for a newer mapcan
   than the one it installed and offers **Update** (**mapcan.server.checkForUpdates** turns it off).
+* Maps in several files are simpler to edit: the Map view is one tree with no file names in it (the
+  tooltip names the file), the Node panel no longer says which file a node is from, and a file the
+  extension changes while no tab shows it is saved together with the map instead of a message about
+  it.
 * **Get started with mapcan** is shorter and hands-on: **Show a Problem** opens a small map of the
   tour with a mistake and its quick fix, **Show a Hover** shows the hover of a frame. New steps for
   **Export** and **History** with their pictures, and **Learn more** with links to the repository,

@@ -482,10 +482,10 @@ const tests = {
     const own = ctx.api.tree.getTreeItem(roots[0]);
     const aux = ctx.api.tree.getTreeItem(roots[1]);
     assert.equal(own.contextValue, "bus");
-    assert.deepEqual([aux.label, aux.description, aux.contextValue], ["Aux bus", "extra.yaml", "bus.included"]);
-    assert.match(aux.tooltip, /changes are written to that file/);
+    // One tree: the file is named in the tooltip only
+    assert.deepEqual([aux.label, aux.description, aux.contextValue], ["Aux bus", "", "bus.included"]);
+    assert.match(aux.tooltip, /\nIn extra\.yaml$/);
     assert.match(aux.command.arguments[0].fsPath, /extra\.yaml$/);
-    // The device under it comes from the same file: the file is named once, at the bus
     const valve = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(roots[1])[0]);
     assert.deepEqual([valve.description, valve.contextValue], ["", "device.included"]);
     // A field written by the form goes to the included file
@@ -495,15 +495,21 @@ const tests = {
     assert.equal(result.others.length, 1);
     assert.match(result.others[0].uri, /extra\.yaml$/);
     assert.match(result.others[0].edit.text, /title: Valve/);
-    // Written there with no tab open on it: the change is reported, so it is not left unsaved unnoticed
+    // Written by the Node panel there with no tab open on it: saved when the map is saved
     const extraUri = vscode.Uri.parse(result.others[0].uri);
-    const written = new vscode.WorkspaceEdit();
-    written.replace(extraUri, new vscode.Range(...result.others[0].edit.range), result.others[0].edit.text);
-    assert.ok(await vscode.workspace.applyEdit(written));
+    await ctx.api.form.open(["buses", 1, "devices", 0]);
+    await until("the form", () => ctx.api.form.rendered?.path);
+    ctx.api.form.onMessage({ type: "set", key: "title", value: "Valve" });
+    const extraDoc = await until("the change in extra.yaml",
+      () => vscode.workspace.textDocuments.find((d) => d.uri.toString() === extraUri.toString() && d.isDirty));
+    assert.match(extraDoc.getText(), /title: Valve/);
     assert.deepEqual(ctx.api.hiddenChanges([extraUri]).map((d) => path.basename(d.uri.fsPath)), ["extra.yaml"]);
-    await vscode.window.showTextDocument(extraUri, { preview: false });
-    assert.deepEqual(ctx.api.hiddenChanges([extraUri]), []);
-    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    // The main file has no changes of its own: saving it still saves the other file
+    assert.equal(vscode.window.activeTextEditor.document.uri.toString(), vscode.Uri.file(main).toString());
+    await vscode.commands.executeCommand("workbench.action.files.save");
+    await until("extra.yaml saved", () => !extraDoc.isDirty);
+    assert.match(fs.readFileSync(extraUri.fsPath, "utf8"), /title: Valve/);
+    await ctx.api.form.close();
     // The tree adds and deletes nodes of the included file in that file
     const added = await vscode.commands.executeCommand("mapcan.lsp.edit",
       { uri: vscode.Uri.file(main).toString(), action: "add", path: ["buses", 1, "devices", 0], kind: "frame" });

@@ -11,7 +11,7 @@ import {
 import { registerTreeActions } from "./actions";
 import { ChangesPanel } from "./changes";
 import { ExportView } from "./export";
-import { hiddenChanges, inTabs } from "./files";
+import { hiddenChanges, inTabs, saveTogether } from "./files";
 import { NodeForm } from "./form";
 import { HistoryTree, registerHistory } from "./history";
 import { ChangeMarks } from "./marks";
@@ -325,6 +325,7 @@ export async function activate(
     }),
     vscode.commands.registerCommand("mapcan.showOutput", () => output?.show()),
     vscode.commands.registerCommand("mapcan.installServer", installServer),
+    saveTogether(),
     vscode.commands.registerCommand("mapcan.showServerVersion", showServerVersion),
     vscode.commands.registerCommand("mapcan.openRepository", () => vscode.env.openExternal(vscode.Uri.parse(REPO_URL))),
     vscode.commands.registerCommand("mapcan.reportIssue", reportIssue),
