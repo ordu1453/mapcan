@@ -2,14 +2,22 @@
 
 A signal map is a single YAML file, and every document and code artifact is generated from it.
 The format is defined by the JSON Schema in
-[`schema/mapcan.schema.json`](../schema/mapcan.schema.json). Add this line at the top of a map:
+[`schema/mapcan.schema.json`](../schema/mapcan.schema.json), published with each release at
+`https://ordu1453.github.io/mapcan/schema/v1.json` (a file included by a map:
+`https://ordu1453.github.io/mapcan/schema/part-v1.json`). An editor with a YAML language server
+(VS Code with the Red Hat *YAML* extension, JetBrains IDEs, Neovim, Zed, Helix) completes field
+names and underlines errors as you type when it knows the schema of a file:
 
-```yaml
-# yaml-language-server: $schema=./schema/mapcan.schema.json
-```
+- **The mapcan extension for VS Code** gives it to every map and included file by itself.
+- **A file named `*.mapcan.yaml`** gets it from [SchemaStore](https://www.schemastore.org), which
+  these editors read, with nothing in the file.
+- **Any file** gets it from this line at its top, which new maps and copies of the examples have:
 
-and VS Code with the Red Hat *YAML* extension will complete field names and underline errors as
-you type. `mapcan schema -o schema.json` writes the schema anywhere you need it.
+  ```yaml
+  # yaml-language-server: $schema=https://ordu1453.github.io/mapcan/schema/v1.json
+  ```
+
+`mapcan schema -o schema.json` writes the schema anywhere you need it, for an editor with no network.
 
 ## Conventions
 
@@ -506,7 +514,7 @@ buses:
 
 ```yaml
 # powertrain.yaml
-# yaml-language-server: $schema=./schema/mapcan-part.schema.json
+# yaml-language-server: $schema=https://ordu1453.github.io/mapcan/schema/part-v1.json
 mapcan: 1
 part_of: vehicle.yaml   # the map that includes this file
 value_tables: {...}
@@ -529,7 +537,7 @@ of its map: validate the map instead. In VS Code it is checked as a part of the 
 whole map, and Go to Definition leads to devices of the main file. Its nodes are edited as text for
 now; the forms show them read-only. Its schema is
 [`schema/mapcan-part.schema.json`](../schema/mapcan-part.schema.json)
-(`mapcan schema --part`).
+(`mapcan schema --part`), published at `https://ordu1453.github.io/mapcan/schema/part-v1.json`.
 
 Besides them an included file may contain only `buses` and `value_tables`. A bus that the main
 file (or an earlier included file) already describes can only get more `devices` and `frames`;

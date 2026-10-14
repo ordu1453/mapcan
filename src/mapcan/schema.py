@@ -7,8 +7,15 @@ from typing import Any
 from .i18n import _
 from .model import MapCan, MapPart
 
-SCHEMA_ID = "https://mapcan.local/schema/mapcan-v1.json"
-PART_SCHEMA_ID = "https://mapcan.local/schema/mapcan-part-v1.json"
+# Published on GitHub Pages by each release (.github/workflows/pages.yml): the schema of the released format, at
+# a URL that stays for the whole of version 1 of the format
+SCHEMA_ID = "https://ordu1453.github.io/mapcan/schema/v1.json"
+PART_SCHEMA_ID = "https://ordu1453.github.io/mapcan/schema/part-v1.json"
+
+
+def schema_line(part: bool = False) -> str:
+    """The first line of a map (or of a file it includes) that gives editors its schema."""
+    return f"# yaml-language-server: $schema={PART_SCHEMA_ID if part else SCHEMA_ID}"
 
 
 def json_schema(part: bool = False) -> dict[str, Any]:

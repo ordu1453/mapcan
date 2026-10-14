@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 from ..i18n import N_, _
+from ..schema import schema_line
 
 _PACKAGE_DIR = Path(__file__).resolve().parent.parent
 
@@ -48,19 +49,18 @@ def list_examples() -> list[dict[str, str]]:
 
 
 def example_text(name: str) -> str:
-    """Text of an example for a copy; the link to the schema is removed, a relative path would break in the copy."""
+    """Text of an example for a copy: its link to the schema, a relative path that would break in the copy, is the
+    published schema's."""
     path = _example_path(name)
     if path is None:
         raise ValueError(_("unknown example: {name}", name=name))
-    return _without_schema_line(path.read_text(encoding="utf-8"))
+    return _published_schema(path.read_text(encoding="utf-8"))
 
 
-def _without_schema_line(text: str) -> str:
+def _published_schema(text: str, part: bool = False) -> str:
     lines = text.splitlines(keepends=True)
     if lines and lines[0].startswith("# yaml-language-server:"):
-        lines = lines[1:]
-        if lines and lines[0].strip() == "#":
-            lines = lines[1:]
+        lines[0] = schema_line(part) + "\n"
     return "".join(lines)
 
 
@@ -80,7 +80,7 @@ def example_includes(name: str, map_file: str | None = None) -> dict[str, str]:
     for f in files or []:
         if not isinstance(f, str):
             continue
-        text = _without_schema_line((path.parent / f).read_text(encoding="utf-8"))
+        text = _published_schema((path.parent / f).read_text(encoding="utf-8"), part=True)
         if map_file:
             target = posixpath.relpath(map_file, posixpath.dirname(f) or ".")
             text = re.sub(r"(?m)^part_of\s*:.*$", lambda _m, t=target: f"part_of: {t}", text, count=1)

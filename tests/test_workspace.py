@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from mapcan import __version__
 from mapcan.loader import loads
+from mapcan.schema import schema_line
 from mapcan.userconfig import UserConfig, config_dir, normalize_github
 from mapcan.web.app import create_app
 from mapcan.web.newmap import TEMPLATES, new_map_text
@@ -52,7 +53,10 @@ def test_normalize_github(raw, user):
 
 @pytest.mark.parametrize("template", sorted(TEMPLATES))
 def test_templates_are_valid(template):
-    res = loads(new_map_text(template, "Тест", "Иван", "ivan"), "t.yaml")
+    text = new_map_text(template, "Тест", "Иван", "ivan")
+    # Editors find the schema of a new map wherever it is saved
+    assert text.startswith(schema_line() + "\n")
+    res = loads(text, "t.yaml")
     assert res.map is not None, [d.format() for d in res.report.diagnostics]
     h = res.map.document.history[0]
     assert (h.author, h.github) == ("Иван", "ivan")
@@ -90,8 +94,9 @@ def test_copy_example(empty, tmp_path):
     assert r.status_code == 200, r.text
     path = tmp_path / "copy.yaml"
     assert r.json()["meta"]["file"] == str(path.resolve())
+    # The example's link to the schema, a relative path, is the published schema's in the copy
     text = path.read_text(encoding="utf-8")
-    assert "$schema" not in text and text.startswith("# ")
+    assert text.startswith(schema_line() + "\n# ")
     assert not [d for d in r.json()["state"]["diagnostics"] if d["level"] == "error"]
 
     again = empty.post("/api/file/example", json={"name": "minimal", "path": "copy.yaml"})
@@ -110,7 +115,7 @@ def test_copy_example_with_included_files(empty, tmp_path):
     (tmp_path / "powertrain.yaml").unlink()
     r = empty.post("/api/file/example", json={"name": "tractor", "path": "farm.yaml"})
     assert r.status_code == 200, r.text
-    assert (tmp_path / "powertrain.yaml").is_file()
+    assert (tmp_path / "powertrain.yaml").read_text(encoding="utf-8").startswith(schema_line(part=True) + "\n")
     st = r.json()["state"]
     assert not st["diagnostics"]
     assert [b["name"] for b in st["included_buses"]] == ["cab", "powertrain"]

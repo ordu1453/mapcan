@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+* With the YAML extension installed, every map and every file a map includes gets the format's
+  schema (completion and hovers of keys) without a `# yaml-language-server: $schema=` line. The
+  schemas come with the extension and work offline.
+* The Map view no longer follows an editor that is active only for an instant while tabs switch, as
+  VS Code 1.141.2 does when an older version opens from **History**: the tree could show a map open
+  beside.
+
 ## 0.6.2
 
 * The extension installs mapcan itself: with no `mapcan` found, it offers **Install**, downloads

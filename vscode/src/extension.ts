@@ -16,6 +16,7 @@ import { NodeForm } from "./form";
 import { HistoryTree, registerHistory } from "./history";
 import { ChangeMarks } from "./marks";
 import { registerPreview } from "./preview";
+import { registerSchemas, schemaOf } from "./schema";
 import { registerStarters } from "./starters";
 import { registerTour } from "./tour";
 import { isMap, MapTree, revealNode } from "./tree";
@@ -292,7 +293,7 @@ export async function activate(
 ): Promise<{
   tree: MapTree; form: NodeForm; exportView: ExportView; history: HistoryTree; changes: ChangesPanel;
   client: () => LanguageClient | undefined; setIdleStop: (ms: number) => void;
-  hiddenChanges: typeof hiddenChanges; serverVersion: () => string | undefined; isOlder: typeof isOlder;
+  hiddenChanges: typeof hiddenChanges; serverVersion: () => string | undefined; isOlder: typeof isOlder; schemaOf: typeof schemaOf;
 }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
   extensionVersion = String(context.extension.packageJSON.version ?? "");
@@ -361,6 +362,7 @@ export async function activate(
   );
   registerTreeActions(context, tree, form, () => client);
   registerTour(context, tree);
+  registerSchemas(context);
   // The templates and the examples come from the server: it is started for them, and stops again later if
   // no map gets opened
   registerStarters(context, async () => {
@@ -374,7 +376,7 @@ export async function activate(
   registerHistory(context, history, currentMap, showChanges, () => client);
   await start();
   return { tree, form, exportView, history, changes, client: () => client, setIdleStop: (ms) => (idleStopMs = ms),
-    hiddenChanges, serverVersion, isOlder };
+    hiddenChanges, serverVersion, isOlder, schemaOf };
 }
 
 export function deactivate(): Promise<void> {

@@ -1479,5 +1479,5 @@
   "title": "mapcan — file included by a map (format v1)",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mapcan.local/schema/mapcan-part-v1.json"
+  "$id": "https://ordu1453.github.io/mapcan/schema/part-v1.json"
 }

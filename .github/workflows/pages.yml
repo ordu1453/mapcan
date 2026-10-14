@@ -1,0 +1,56 @@
+name: pages
+
+# The JSON Schemas of the format on GitHub Pages, at the URLs of their $id (src/mapcan/schema.py):
+#   https://ordu1453.github.io/mapcan/schema/v1.json        a map
+#   https://ordu1453.github.io/mapcan/schema/part-v1.json   a file included by a map
+# Published by each release (the tag vX.Y.Z), so the URLs give the schema of the released format; version 1
+# only grows, so one URL serves it all. A manual run publishes the schemas of the branch it runs on.
+# SchemaStore points at v1.json for files named *.mapcan.yaml.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Site
+        run: |
+          mkdir -p _site/schema
+          cp schema/mapcan.schema.json _site/schema/v1.json
+          cp schema/mapcan-part.schema.json _site/schema/part-v1.json
+          # The $id of each schema is its URL here
+          grep -q '"\$id": "https://ordu1453.github.io/mapcan/schema/v1.json"' _site/schema/v1.json
+          grep -q '"\$id": "https://ordu1453.github.io/mapcan/schema/part-v1.json"' _site/schema/part-v1.json
+          cat > _site/index.html <<'EOF'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>mapcan</title>
+          <meta http-equiv="refresh" content="0; url=https://github.com/ordu1453/mapcan">
+          <p>JSON Schemas of the <a href="https://github.com/ordu1453/mapcan">mapcan</a> format:
+          <a href="schema/v1.json">a map</a>, <a href="schema/part-v1.json">a file included by a map</a>.</p>
+          EOF
+      - uses: actions/upload-pages-artifact@v4
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

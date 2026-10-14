@@ -1882,5 +1882,5 @@
   "title": "mapcan — CAN signal map (format v1)",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mapcan.local/schema/mapcan-v1.json"
+  "$id": "https://ordu1453.github.io/mapcan/schema/v1.json"
 }

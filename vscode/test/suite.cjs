@@ -592,6 +592,20 @@ const tests = {
     assert.match(result.error, /errors/);
   },
 
+  async "maps and the files they include get the format's schema for the YAML extension"(ctx) {
+    assert.equal(ctx.api.schemaOf(ctx.doc.uri.toString()), "mapcan-schema://schema/v1.json");
+    const part = await vscode.workspace.openTextDocument({ language: "yaml", content: "mapcan: 1\npart_of: m.yaml\n" });
+    assert.equal(ctx.api.schemaOf(part.uri.toString()), "mapcan-schema://schema/part-v1.json");
+    const other = await vscode.workspace.openTextDocument({ language: "yaml", content: "services: {}\n" });
+    assert.equal(ctx.api.schemaOf(other.uri.toString()), undefined);
+    // The schemas come with the extension
+    const ext = vscode.extensions.getExtension("ordu1453.mapcan");
+    for (const f of ["mapcan.schema.json", "mapcan-part.schema.json"]) {
+      const schema = JSON.parse(fs.readFileSync(path.join(ext.extensionPath, "dist", "schema", f), "utf8"));
+      assert.match(schema.$id, /^https:\/\/ordu1453\.github\.io\/mapcan\/schema\/(part-)?v1\.json$/);
+    }
+  },
+
   async "the walkthrough's buttons and pictures exist, and the tour shows a problem on its own map"() {
     const ext = vscode.extensions.getExtension("ordu1453.mapcan");
     const [walkthrough] = ext.packageJSON.contributes.walkthroughs;

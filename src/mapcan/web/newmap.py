@@ -7,6 +7,7 @@ import json
 from collections.abc import Callable
 
 from ..i18n import N_, _, normalize_language
+from ..schema import schema_line
 
 TEMPLATES = {
     "canopen": N_("CANopen: a bus and one device"),
@@ -46,6 +47,7 @@ def _russian(msg: str, /, **kw) -> str:
 def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, author: str,
               github: str | None, today: _dt.date) -> str:
     lines = [
+        schema_line(),
         "# " + _("mapcan signal map (format v1)."),
         "# " + _("Bytes and bits are numbered from 0; start_bit is the position of the least significant bit; physical "
                  "= raw * factor + offset."),

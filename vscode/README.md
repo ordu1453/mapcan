@@ -91,12 +91,9 @@ when the first map is opened and never sees other files.
 * **Outline and breadcrumbs.** Buses, devices, frames, signals and flags.
 
 For completion of keys, install the
-[YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) and add
-the schema comment that `mapcan` maps already use:
-
-```yaml
-# yaml-language-server: $schema=https://…/mapcan.schema.json
-```
+[YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml): the
+extension gives it the format's schema for every map and every file a map includes, with no
+`# yaml-language-server: $schema=` line needed (one in a file still takes precedence).
 
 ## Requirements
 
