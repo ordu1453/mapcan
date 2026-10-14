@@ -665,6 +665,7 @@
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit && tsc -p webview",
     "package": "vsce package --no-dependencies",
+    "screenshots": "npm run build && node scripts/screenshots.mjs",
     "test": "npm run build && node test/runTest.mjs"
   },
   "dependencies": {

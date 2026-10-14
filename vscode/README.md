@@ -4,6 +4,8 @@ Language support for [mapcan](https://github.com/ordu1453/mapcan) CAN signal map
 file with a top-level `mapcan: 1` key. Other YAML files are left alone: the language server starts
 when the first map is opened and never sees other files.
 
+![The Node panel of a frame with its bit layout next to the map's YAML](https://raw.githubusercontent.com/ordu1453/mapcan/main/docs/images/vscode-map-dark.png)
+
 ## Features
 
 * **Map view.** The mapcan icon in the Activity Bar opens the buses, devices, frames, signals and
@@ -32,6 +34,9 @@ when the first map is opened and never sees other files.
   * Nodes added or modified since the last commit, unsaved edits included, are marked as Source
     Control marks files: green with **A**, yellow with **M**; nodes with changes inside are yellow.
     The comparison is the same as in the **Changes** tab. **mapcan.tree.showChanges** turns it off.
+
+  ![Two overlapping signals: the tree and the editor mark them, and the quick fix moves one to free bits](https://raw.githubusercontent.com/ordu1453/mapcan/main/docs/images/vscode-problems-dark.png)
+
 * **Quick fixes** (the light bulb, Ctrl+.):
   * decimal commas, a Cyrillic «х» in hex numbers and hex numbers in quotes;
   * a missing space after `-`;
@@ -70,9 +75,12 @@ when the first map is opened and never sees other files.
   * A field key shows what the field means.
   * A signal shows its bits, scaling, unit, range and value table.
   * A frame shows its CAN ID, length, cycle, sender and receivers, plus a byte-by-bit layout table.
+
+  ![The hover of a frame: CAN ID, length, cycle, sender, receivers and which signal owns each bit](https://raw.githubusercontent.com/ordu1453/mapcan/main/docs/images/vscode-hover-dark.png)
+
 * **Inlay hints.** Computed CAN IDs appear next to frames that have no explicit `id` (CANopen,
   J1939), and the occupied bits appear next to each signal.
-* **Completion.** Enumerated values such as `kind`, `byte_order`, `protocol` and `type`, and device
+* **Completion.** Enumerated values such as `kind`, `byte_order`, `protocol` and `canopen`, and device
   names for `sender` and `receivers`.
 * **Outline and breadcrumbs.** Buses, devices, frames, signals and flags.
 
@@ -140,6 +148,10 @@ Open the `vscode/` folder in VS Code and press F5. The Extension Development Hos
 `npm test` runs the integration tests in a separate VS Code that it downloads into `.vscode-test/`.
 To use an installed VS Code instead, set `VSCODE_PATH` to its executable; that VS Code must not be
 running.
+
+`npm run screenshots` (Windows) takes the screenshots of this README and of the main one again, in the
+light and the dark theme, into `docs/images/`: it opens `examples/vehicle-can.yaml` in a separate VS
+Code and sets up each scene (`scripts/screenshot-scenes.cjs`). The window may be covered meanwhile.
 
 ## License
 
