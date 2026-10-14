@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+* The extension installs mapcan itself: with no `mapcan` found, it offers **Install**, downloads
+  [uv](https://docs.astral.sh/uv/) and lets it set up Python and `mapcan[lsp,pdf,xlsx]` from PyPI in
+  the extension's global storage, one copy for every folder. No terminal, no Python installed
+  beforehand and no `PATH` changes. **mapcan: Install or Update mapcan** does the same, and **Update**
+  in the message about an older mapcan updates it where it was found, without a terminal.
+* Once a session of VS Code, when the server starts, the extension looks on PyPI for a newer mapcan
+  than the one it installed and offers **Update** (**mapcan.server.checkForUpdates** turns it off).
+* **Get started with mapcan** is shorter and hands-on: **Show a Problem** opens a small map of the
+  tour with a mistake and its quick fix, **Show a Hover** shows the hover of a frame. New steps for
+  **Export** and **History** with their pictures, and **Learn more** with links to the repository,
+  PyPI and issues. The install step is done once a language server runs.
+
 ## 0.6.1
 
 * With no map open, the Map view offers **Create Map** (from a template: CANopen, SAE J1939, CAN with

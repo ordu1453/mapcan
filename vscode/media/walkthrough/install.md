@@ -1,10 +1,10 @@
 # Install mapcan
 
-The extension runs the language server of the `mapcan` command-line tool. Install it once:
+One click on **Install mapcan** sets everything up: [uv](https://docs.astral.sh/uv/) downloads Python and
+installs mapcan from PyPI into the extension's own folder. Every folder you open uses that one copy.
 
-```sh
-uv tool install "mapcan[lsp]"
-```
+- Nothing to install first, nothing added to `PATH`
+- About 100 MB to download
+- A newer mapcan is offered when it comes out
 
-or `pipx install "mapcan[lsp]"`. In a project with its own Python environment (venv), install it there:
-the extension finds `mapcan` in the environment selected in the Python extension, then on `PATH`.
+Already have mapcan? A project's venv selected in the Python extension, or **mapcan.server.path**, comes first.

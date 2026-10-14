@@ -586,6 +586,35 @@ const tests = {
     assert.match(result.error, /errors/);
   },
 
+  async "the walkthrough's buttons and pictures exist, and the tour shows a problem on its own map"() {
+    const ext = vscode.extensions.getExtension("ordu1453.mapcan");
+    const [walkthrough] = ext.packageJSON.contributes.walkthroughs;
+    const commands = await vscode.commands.getCommands(true);
+    for (const step of walkthrough.steps) {
+      for (const [, command] of step.description.matchAll(/\(command:([\w.]+)\)/g)) {
+        assert.ok(commands.includes(command), `${step.id}: no command ${command}`);
+      }
+      const media = step.media.markdown ? [step.media.markdown] : Object.values(step.media.image);
+      for (const file of media) assert.ok(fs.existsSync(path.join(ext.extensionPath, file)), `${step.id}: no ${file}`);
+    }
+
+    await vscode.commands.executeCommand("mapcan.tour.showProblem");
+    const editor = vscode.window.activeTextEditor;
+    assert.match(editor.document.fileName, /tour[\\/]battery\.yaml$/);
+    const problem = vscode.languages.getDiagnostics(editor.document.uri).find((d) => d.severity === 0);
+    assert.equal(problem.code, "bit-overlap");
+    assert.ok(editor.selection.active.isEqual(problem.range.start));
+    // A second time, after an edit: the map is written again, mistake included
+    await editor.edit((e) => e.insert(new vscode.Position(0, 0), "# edited\n"));
+    await vscode.commands.executeCommand("mapcan.tour.showProblem");
+    assert.doesNotMatch(vscode.window.activeTextEditor.document.getText(), /# edited/);
+    assert.equal(vscode.window.activeTextEditor.document.isDirty, false);
+
+    await vscode.commands.executeCommand("mapcan.tour.showHover");
+    assert.match(vscode.window.activeTextEditor.document.lineAt(vscode.window.activeTextEditor.selection.active).text,
+      /- name: battery_status/);
+  },
+
   // Last: closes every editor.
   async "the server stops when no map is open and starts with the next one"(ctx) {
     ctx.api.setIdleStop(500);

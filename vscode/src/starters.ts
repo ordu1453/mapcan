@@ -5,7 +5,7 @@
 import { homedir } from "node:os";
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
-import { openInstallTerminal } from "./version";
+import { updateServer } from "./version";
 
 /** The first mapcan whose language server serves the templates and the examples. */
 const STARTERS_SERVER = "0.21.1";
@@ -30,8 +30,8 @@ async function request<T>(client: Client, command: string, args?: object): Promi
     const version = c.initializeResult?.serverInfo?.version ?? "an older version";
     const choice = await vscode.window.showErrorMessage(
       `mapcan: creating a map and opening an example need mapcan ${STARTERS_SERVER} or newer; the language server is ${version}.`,
-      "Update in Terminal");
-    if (choice === "Update in Terminal") openInstallTerminal();
+      "Update");
+    if (choice === "Update") updateServer();
     return undefined;
   }
 }

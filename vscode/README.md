@@ -12,7 +12,8 @@ when the first map is opened and never sees other files.
   template (CANopen, SAE J1939, CAN with explicit IDs, empty) saved where you choose — and links to
   open an example (an electric vehicle, a CANopen drive, a J1939 ECU, a map in several files) as a
   copy in a folder of yours, or a map you have. **Get started with mapcan** on the Welcome page
-  (Help → Welcome) is a short tour.
+  (Help → Welcome) is a short tour: installing mapcan, the Map view, a problem and its quick fix on
+  a map of its own, the hover of a frame, export and history.
 * **Map view.** The mapcan icon in the Activity Bar opens the buses, devices, frames, signals and
   flags of the active map, with computed CAN IDs and signal bits. Nodes are labelled with their
   names for people (`title`, a device as "abbreviation · full name"), as in the web editor; a node
@@ -99,16 +100,18 @@ the schema comment that `mapcan` maps already use:
 
 ## Requirements
 
-The extension runs the language server from the `mapcan` command-line tool:
+None: the extension installs what it needs. It runs the language server of the `mapcan` command-line
+tool, and when no `mapcan` is found it offers to install one (also **mapcan: Install or Update mapcan**). It
+downloads [uv](https://docs.astral.sh/uv/), which sets up Python and installs `mapcan[lsp,pdf,xlsx]` from
+PyPI into the extension's global storage: one copy per user that serves every folder, about 200 MB on the
+disk. Python does not have to be installed, and nothing is added to `PATH`. Once a session of VS Code,
+when the server starts, the extension looks on PyPI for a newer mapcan and offers to update this copy
+(**mapcan.server.checkForUpdates** turns it off).
 
-```sh
-uv tool install "mapcan[lsp]"     # or: pipx install "mapcan[lsp]"
-```
-
-With the Python extension installed, `mapcan` is looked for first in the Python environment selected
-there (a project's venv or conda environment), then on `PATH`. Otherwise set **mapcan.server.path** to
-the executable. The extension needs
-mapcan 0.21 or newer: with an older one it says so and offers to update it in a terminal.
+A `mapcan` of your own is used when there is one. The order is: **mapcan.server.path**; with the Python
+extension, the Python environment selected there (a project's venv or conda environment); the one the
+extension installed; `PATH`. The extension needs mapcan 0.21 or newer: with an older one it says so and
+offers to update it, in the environment it was found in.
 
 In [Restricted Mode](https://code.visualstudio.com/docs/editor/workspace-trust) (a folder you have not
 trusted) the extension works, but `mapcan.server.path`, `mapcan.server.args` and
@@ -120,8 +123,9 @@ the server restarts with its settings.
 
 | Setting | Default | Description |
 |---|---|---|
-| `mapcan.server.path` | `""` | Path to the `mapcan` executable; empty uses the selected Python environment, then `PATH` |
+| `mapcan.server.path` | `""` | Path to the `mapcan` executable; empty uses the selected Python environment, then the mapcan the extension installed, then `PATH` |
 | `mapcan.server.args` | `["lsp"]` | Arguments for the executable |
+| `mapcan.server.checkForUpdates` | `true` | Once a session, offer to update the mapcan the extension installed when PyPI has a newer one |
 | `mapcan.export.outputDir` | `"build"` | Export folder, relative to the map's folder; a folder chosen in the Export panel takes precedence for that map |
 | `mapcan.tree.showChanges` | `true` | Mark nodes of the Map view added or modified since the last commit |
 
@@ -158,6 +162,8 @@ running.
 `npm run screenshots` (Windows) takes the screenshots of this README and of the main one again, in the
 light and the dark theme, into `docs/images/`: it opens `examples/vehicle-can.yaml` in a separate VS
 Code and sets up each scene (`scripts/screenshot-scenes.cjs`). The window may be covered meanwhile.
+The pictures of the tour that the README has none of (Export, History) come from
+`scripts/walkthrough-scenes.cjs` the same way; its header says how.
 
 ## License
 

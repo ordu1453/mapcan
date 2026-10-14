@@ -96,23 +96,24 @@
       {
         "id": "mapcan.start",
         "title": "Get started with mapcan",
-        "description": "CAN signal maps as YAML: open an example, see its frames and catch mistakes as you type.",
+        "description": "CAN signal maps as code: check, edit and export them in VS Code.",
         "steps": [
           {
             "id": "install",
             "title": "Install mapcan",
-            "description": "The extension runs the language server of the mapcan tool: install it once with uv (uv tool install mapcan[lsp]) or pipx, as the page on the right shows.\n[Check the Version](command:mapcan.showServerVersion)",
+            "description": "The extension runs on the mapcan tool. One click installs it, Python included, for every folder.\n[Install mapcan](command:mapcan.installServer)",
             "media": {
               "markdown": "media/walkthrough/install.md"
             },
             "completionEvents": [
-              "onCommand:mapcan.showServerVersion"
+              "onContext:mapcan.serverRunning",
+              "onCommand:mapcan.installServer"
             ]
           },
           {
             "id": "example",
             "title": "Open an example",
-            "description": "A copy of an example map goes to a folder you choose: an electric vehicle on CAN and CAN FD, a CANopen drive, a J1939 ECU or a map in several files.\n[Open Example](command:mapcan.openExample)",
+            "description": "An electric vehicle, a CANopen drive, a J1939 ECU or a map in several files, copied to a folder you choose.\n[Open Example](command:mapcan.openExample)",
             "media": {
               "image": {
                 "light": "media/walkthrough/map-light.jpg",
@@ -128,7 +129,7 @@
           {
             "id": "mapview",
             "title": "Edit in the Map view",
-            "description": "The mapcan icon in the Activity Bar shows the buses, devices, frames and signals. The pencil opens a node in the Node panel: its fields and the frame's bit layout, where dragging over free bits adds a signal. Every change is written to the YAML.\n[Show the Map View](command:workbench.view.extension.mapcan)",
+            "description": "Buses, devices, frames and signals as a tree. The pencil opens a node's fields and the frame's bit layout; every change is written to the YAML.\n[Show the Map View](command:workbench.view.extension.mapcan)",
             "media": {
               "image": {
                 "light": "media/walkthrough/map-light.jpg",
@@ -144,7 +145,7 @@
           {
             "id": "problems",
             "title": "Catch mistakes as you type",
-            "description": "Overlapping signals, IDs that clash, unknown receivers: the map is checked on every change. Nodes with problems turn red in the tree, and the light bulb (Ctrl+.) offers a fix.",
+            "description": "Every change is checked. Ctrl+. fixes most problems in place.\n[Show a Problem](command:mapcan.tour.showProblem)",
             "media": {
               "image": {
                 "light": "media/walkthrough/problems-light.jpg",
@@ -152,12 +153,15 @@
                 "hc": "media/walkthrough/problems-dark.jpg"
               },
               "altText": "Two overlapping signals marked in the tree and the editor, with the quick fix that moves one to free bits"
-            }
+            },
+            "completionEvents": [
+              "onCommand:mapcan.tour.showProblem"
+            ]
           },
           {
             "id": "hover",
             "title": "See a frame at a glance",
-            "description": "Hover a frame for its CAN ID, length, cycle, sender and receivers and which signal owns each bit; the computed bits show next to each signal. **Export** writes DBC, C, Python, Excel, PDF and more from the map.\n[Open Export](command:mapcan.export)",
+            "description": "Hover a frame for its CAN ID, timing, receivers and bit layout.\n[Show a Hover](command:mapcan.tour.showHover)",
             "media": {
               "image": {
                 "light": "media/walkthrough/hover-light.jpg",
@@ -165,17 +169,63 @@
                 "hc": "media/walkthrough/hover-dark.jpg"
               },
               "altText": "The hover of a frame with its ID, timing, receivers and bit layout"
-            }
+            },
+            "completionEvents": [
+              "onCommand:mapcan.tour.showHover"
+            ]
+          },
+          {
+            "id": "export",
+            "title": "Export",
+            "description": "DBC, C and Python code, Excel, PDF, Markdown and HTML from one map.\n[Open Export](command:mapcan.export)",
+            "media": {
+              "image": {
+                "light": "media/walkthrough/export-light.jpg",
+                "dark": "media/walkthrough/export-dark.jpg",
+                "hc": "media/walkthrough/export-dark.jpg"
+              },
+              "altText": "The Export panel with the formats chosen and the files it wrote"
+            },
+            "completionEvents": [
+              "onCommand:mapcan.export"
+            ]
+          },
+          {
+            "id": "history",
+            "title": "Track versions",
+            "description": "What each commit changed in frames and signals. Compare any two versions; release one with a tag and a revision history entry.\n[Show History](command:mapcan.tour.showHistory)",
+            "media": {
+              "image": {
+                "light": "media/walkthrough/history-light.jpg",
+                "dark": "media/walkthrough/history-dark.jpg",
+                "hc": "media/walkthrough/history-dark.jpg"
+              },
+              "altText": "The History panel with the map's commits and the changes of one of them"
+            },
+            "completionEvents": [
+              "onCommand:mapcan.tour.showHistory"
+            ]
           },
           {
             "id": "create",
             "title": "Create your own map",
-            "description": "Start from a template: CANopen, SAE J1939, CAN with explicit IDs or an empty map.\n[Create Map](command:mapcan.newMap)",
+            "description": "Start from CANopen, SAE J1939, CAN with explicit IDs or an empty map.\n[Create Map](command:mapcan.newMap)",
             "media": {
               "markdown": "media/walkthrough/create.md"
             },
             "completionEvents": [
               "onCommand:mapcan.newMap"
+            ]
+          },
+          {
+            "id": "learn",
+            "title": "Learn more",
+            "description": "The format, the command line and the web editor are on GitHub.\n[Open on GitHub](https://github.com/ordu1453/mapcan)",
+            "media": {
+              "markdown": "media/walkthrough/learn.md"
+            },
+            "completionEvents": [
+              "onLink:https://github.com/ordu1453/mapcan"
             ]
           }
         ]
@@ -365,6 +415,18 @@
         {
           "command": "mapcan.history.compareWithSelected",
           "when": "false"
+        },
+        {
+          "command": "mapcan.tour.showProblem",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.tour.showHover",
+          "when": "false"
+        },
+        {
+          "command": "mapcan.tour.showHistory",
+          "when": "false"
         }
       ],
       "view/item/context": [
@@ -536,6 +598,26 @@
       {
         "command": "mapcan.restartServer",
         "title": "Restart Language Server",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.installServer",
+        "title": "Install or Update mapcan",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.tour.showProblem",
+        "title": "Show a Problem",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.tour.showHover",
+        "title": "Show a Hover",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.tour.showHistory",
+        "title": "Show History",
         "category": "mapcan"
       },
       {
@@ -718,7 +800,7 @@
         "mapcan.server.path": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Path to the `mapcan` executable that runs the language server. Empty means `mapcan` from the Python environment selected in the Python extension, if it has one, else from `PATH`. Requires `mapcan[lsp]` 0.21 or newer.",
+          "markdownDescription": "Path to the `mapcan` executable that runs the language server. Empty means `mapcan` from the Python environment selected in the Python extension, if it has one, else the one the extension installed (**mapcan: Install or Update mapcan**), else from `PATH`. Requires `mapcan[lsp]` 0.21 or newer.",
           "scope": "machine-overridable"
         },
         "mapcan.server.args": {
@@ -731,6 +813,12 @@
           ],
           "description": "Arguments passed to the mapcan executable.",
           "scope": "machine-overridable"
+        },
+        "mapcan.server.checkForUpdates": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Once a session of VS Code, look on PyPI for a newer mapcan than the one the extension installed, and offer to update it. A `mapcan` of your own is never checked.",
+          "scope": "application"
         },
         "mapcan.export.outputDir": {
           "type": "string",

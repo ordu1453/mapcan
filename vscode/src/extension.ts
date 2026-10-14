@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
-  DidOpenTextDocumentNotification, LanguageClient, LanguageClientOptions, Middleware, ServerOptions,
+  DidOpenTextDocumentNotification, LanguageClient, LanguageClientOptions, Middleware,
 } from "vscode-languageclient/node";
 import { registerTreeActions } from "./actions";
 import { ChangesPanel } from "./changes";
@@ -17,8 +17,10 @@ import { HistoryTree, registerHistory } from "./history";
 import { ChangeMarks } from "./marks";
 import { registerPreview } from "./preview";
 import { registerStarters } from "./starters";
+import { registerTour } from "./tour";
 import { isMap, MapTree, revealNode } from "./tree";
-import { checkServerVersion, isOlder, openInstallTerminal } from "./version";
+import { installMapcan, managedMapcan } from "./install";
+import { checkForUpdate, checkServerVersion, isOlder } from "./version";
 
 let client: LanguageClient | undefined;
 let output: vscode.LogOutputChannel | undefined;
@@ -33,21 +35,33 @@ let idleStopMs = 5 * 60_000;
 let extensionVersion = "";
 let idleTimer: NodeJS.Timeout | undefined;
 
-/** The command the server was last started with. */
+/** The command the server was last started with, and where it was found. */
 let serverCommand = "mapcan";
+let serverSource: ServerSource = "path";
+/** The Python of the environment selected in the Python extension, when its mapcan is the server. */
+let serverPython: string | undefined;
 let starting: Promise<void> | undefined;
+let storage: vscode.Uri | undefined;
+
+type ServerSource = "setting" | "python" | "managed" | "path";
 
 /** The language server's command: the setting, MAPCAN_SERVER (the Extension Development Host uses the
- * repository's .venv), mapcan in the Python environment selected in the Python extension, or mapcan on PATH. */
-async function serverOptions(): Promise<ServerOptions & { command: string }> {
+ * repository's .venv), mapcan in the Python environment selected in the Python extension, the mapcan the
+ * extension installed, or mapcan on PATH. */
+async function serverOptions(): Promise<{ command: string; args: string[]; source: ServerSource; python?: string }> {
   const config = vscode.workspace.getConfiguration("mapcan.server");
-  const command = config.get<string>("path") || process.env.MAPCAN_SERVER || (await pythonEnvMapcan()) || "mapcan";
   const args = config.get<string[]>("args") ?? ["lsp"];
-  return { command, args };
+  const setting = config.get<string>("path") || process.env.MAPCAN_SERVER;
+  if (setting) return { command: setting, args, source: "setting" };
+  const env = await pythonEnvMapcan();
+  if (env) return { command: env.mapcan, args, source: "python", python: env.python };
+  const managed = storage && managedMapcan(storage);
+  if (managed) return { command: managed, args, source: "managed" };
+  return { command: "mapcan", args, source: "path" };
 }
 
 /** mapcan installed in the Python environment selected in the Python extension, if that is installed. */
-async function pythonEnvMapcan(): Promise<string | undefined> {
+async function pythonEnvMapcan(): Promise<{ mapcan: string; python: string } | undefined> {
   const ext = vscode.extensions.getExtension<PythonApi>("ms-python.python");
   if (!ext) return undefined;
   try {
@@ -58,8 +72,9 @@ async function pythonEnvMapcan(): Promise<string | undefined> {
     if (!python) return undefined;
     const exe = process.platform === "win32" ? "mapcan.exe" : "mapcan";
     // A venv has mapcan next to python; a conda or system Python on Windows has it in Scripts
-    return [path.join(path.dirname(python), exe), path.join(path.dirname(python), "Scripts", exe)]
+    const mapcan = [path.join(path.dirname(python), exe), path.join(path.dirname(python), "Scripts", exe)]
       .find((p) => fs.existsSync(p));
+    return mapcan ? { mapcan, python } : undefined;
   } catch {
     return undefined;
   }
@@ -127,30 +142,38 @@ async function startNow(force: boolean): Promise<void> {
   };
   const options = await serverOptions();
   serverCommand = options.command;
-  client = new LanguageClient("mapcan", "mapcan", options, clientOptions);
+  serverSource = options.source;
+  serverPython = options.python;
+  client = new LanguageClient("mapcan", "mapcan", { command: options.command, args: options.args }, clientOptions);
   try {
     await client.start();
+    // The walkthrough's first step is done once a server runs: mapcan is installed
+    void vscode.commands.executeCommand("setContext", "mapcan.serverRunning", true);
     const version = serverVersion();
     output?.info(`mapcan language server ${version ?? "(no version)"}, extension ${extensionVersion}`);
     void checkServerVersion(version);
+    if (serverSource === "managed") void checkForUpdate(version);
   } catch (err) {
     failed = true;
+    client = undefined;
+    console.error(err);
+    // Nothing was found: mapcan is not installed. Otherwise the mapcan that was found does not start.
+    const missing = serverSource === "path";
     const choice = await vscode.window.showErrorMessage(
-      `mapcan: could not start the language server (${serverCommand}). ` +
-        'Install it with `uv tool install "mapcan[lsp]"` (or `pipx install "mapcan[lsp]"`) or set "mapcan.server.path".',
-      "Install in Terminal",
-      "Open Settings",
-      "Show Output",
+      missing
+        ? "mapcan: the extension needs the mapcan tool. Install it? It is downloaded once, with Python " +
+          "(about 100 MB), and serves every folder. A mapcan of your own can be chosen in \"mapcan.server.path\"."
+        : `mapcan: could not start the language server (${serverCommand}).`,
+      ...(missing ? ["Install", "Open Settings"] : ["Show Output", "Open Settings", "Install"]),
     );
-    if (choice === "Install in Terminal") {
-      openInstallTerminal();
+    if (choice === "Install") {
+      // Not awaited: the server's start waits for this start to end
+      void installServer();
     } else if (choice === "Open Settings") {
       void vscode.commands.executeCommand("workbench.action.openSettings", "mapcan.server");
     } else if (choice === "Show Output") {
       output?.show();
     }
-    client = undefined;
-    console.error(err);
   }
   await tree?.refresh();
 }
@@ -182,6 +205,39 @@ function reportIssue(): Thenable<boolean> {
   return vscode.env.openExternal(vscode.Uri.parse(`${REPO_URL}/issues/new?body=${encodeURIComponent(body)}`));
 }
 
+/**
+ * Installs mapcan into the extension's environment, or updates it, and restarts the server. A mapcan in the
+ * environment selected in the Python extension comes first, so that one is updated in its place.
+ */
+async function installServer(): Promise<void> {
+  if (!storage || !output) return;
+  await starting;
+  if (serverSource === "setting") {
+    const choice = await vscode.window.showInformationMessage(
+      `mapcan: the language server is the one set in "mapcan.server.path" (${serverCommand}): update that mapcan, ` +
+        "or clear the setting to let the extension install its own.",
+      "Open Settings");
+    if (choice) void vscode.commands.executeCommand("workbench.action.openSettings", "mapcan.server");
+    return;
+  }
+  const into = serverSource === "python" ? serverPython : undefined;
+  const running = client !== undefined;
+  // A running server keeps its files open: on Windows they could not be replaced
+  await stop();
+  try {
+    await installMapcan(storage, output, into);
+  } catch (err) {
+    void vscode.window.showErrorMessage(
+      `mapcan: could not install mapcan: ${err instanceof Error ? err.message : String(err)}`, "Show Output")
+      .then((choice) => choice && output?.show());
+    // An update failed: the mapcan that was running still works
+    if (!running) return;
+  }
+  failed = false;
+  await start(true);
+  scheduleIdleStop();
+}
+
 async function showServerVersion(): Promise<void> {
   const text = versions();
   output?.info(text);
@@ -207,6 +263,7 @@ async function stop(): Promise<void> {
   const c = client;
   client = undefined;
   synced.clear();
+  void vscode.commands.executeCommand("setContext", "mapcan.serverRunning", false);
   if (c?.isRunning()) {
     await c.stop();
   }
@@ -239,6 +296,7 @@ export async function activate(
 }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
   extensionVersion = String(context.extension.packageJSON.version ?? "");
+  storage = context.globalStorageUri;
   tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
   const view = vscode.window.createTreeView("mapcan.map", { treeDataProvider: tree, showCollapseAll: true });
   tree.attach(view);
@@ -266,6 +324,7 @@ export async function activate(
       await start(true);
     }),
     vscode.commands.registerCommand("mapcan.showOutput", () => output?.show()),
+    vscode.commands.registerCommand("mapcan.installServer", installServer),
     vscode.commands.registerCommand("mapcan.showServerVersion", showServerVersion),
     vscode.commands.registerCommand("mapcan.openRepository", () => vscode.env.openExternal(vscode.Uri.parse(REPO_URL))),
     vscode.commands.registerCommand("mapcan.reportIssue", reportIssue),
@@ -300,6 +359,7 @@ export async function activate(
     }),
   );
   registerTreeActions(context, tree, form, () => client);
+  registerTour(context, tree);
   // The templates and the examples come from the server: it is started for them, and stops again later if
   // no map gets opened
   registerStarters(context, async () => {
