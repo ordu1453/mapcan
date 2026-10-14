@@ -33,6 +33,21 @@
     "onLanguage:yaml"
   ],
   "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In Restricted Mode the language server is started and the export folder is taken from the user's settings only, not from the workspace's.",
+      "restrictedConfigurations": [
+        "mapcan.server.path",
+        "mapcan.server.args",
+        "mapcan.export.outputDir"
+      ]
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "The language server reads the maps and the files they include from the disk."
+    }
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -422,6 +437,11 @@
       {
         "command": "mapcan.showOutput",
         "title": "Show Language Server Output",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.showServerVersion",
+        "title": "Show Server Version",
         "category": "mapcan"
       },
       {

@@ -23,6 +23,13 @@ function positionOf(doc, text, offset = 1) {
 }
 
 const tests = {
+  async "Restricted Mode takes the command and the export folder from the user's settings"() {
+    const { untrustedWorkspaces } = vscode.extensions.getExtension("ordu1453.mapcan").packageJSON.capabilities;
+    assert.equal(untrustedWorkspaces.supported, "limited");
+    assert.deepEqual(untrustedWorkspaces.restrictedConfigurations,
+      ["mapcan.server.path", "mapcan.server.args", "mapcan.export.outputDir"]);
+  },
+
   async "activates and shows the map tree"(ctx) {
     const roots = await until("tree", () => {
       const r = ctx.api.tree.getChildren();
@@ -38,6 +45,14 @@ const tests = {
     assert.match(frame.iconPath.dark.path, /tree\/dark\/frame-tx\.svg$/);
     assert.ok(fs.existsSync(frame.iconPath.dark.fsPath));
     assert.equal(ctx.api.tree.mapUri.toString(), ctx.doc.uri.toString());
+  },
+
+  async "the server reports a version the extension works with"(ctx) {
+    const version = ctx.api.serverVersion();
+    assert.match(version ?? "", /^\d+\.\d+\.\d+/);
+    assert.equal(ctx.api.isOlder(version, "0.21.0"), false);
+    assert.deepEqual(["0.20.3", "0.21.0.dev1", "0.21.1", "1.0"].map((v) => ctx.api.isOlder(v, "0.21.0")),
+      [true, false, false, false]);
   },
 
   async "clicking a node selects its whole lines"(ctx) {

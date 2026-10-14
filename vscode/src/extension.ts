@@ -15,6 +15,7 @@ import { HistoryTree, registerHistory } from "./history";
 import { ChangeMarks } from "./marks";
 import { registerPreview } from "./preview";
 import { isMap, MapTree, revealNode } from "./tree";
+import { checkServerVersion, isOlder, openInstallTerminal } from "./version";
 
 let client: LanguageClient | undefined;
 let output: vscode.LogOutputChannel | undefined;
@@ -26,6 +27,7 @@ let failed = false;
 const synced = new Set<string>();
 /** How long the server keeps running with no map open. */
 let idleStopMs = 5 * 60_000;
+let extensionVersion = "";
 let idleTimer: NodeJS.Timeout | undefined;
 
 function serverOptions(): ServerOptions {
@@ -85,16 +87,22 @@ async function start(force = false): Promise<void> {
   client = new LanguageClient("mapcan", "mapcan", serverOptions(), clientOptions);
   try {
     await client.start();
+    const version = serverVersion();
+    output?.info(`mapcan language server ${version ?? "(no version)"}, extension ${extensionVersion}`);
+    void checkServerVersion(version);
   } catch (err) {
     failed = true;
     const { command } = serverOptions() as { command: string };
     const choice = await vscode.window.showErrorMessage(
       `mapcan: could not start the language server (${command}). ` +
         'Install it with `uv tool install "mapcan[lsp]"` (or `pipx install "mapcan[lsp]"`) or set "mapcan.server.path".',
+      "Install in Terminal",
       "Open Settings",
       "Show Output",
     );
-    if (choice === "Open Settings") {
+    if (choice === "Install in Terminal") {
+      openInstallTerminal();
+    } else if (choice === "Open Settings") {
       void vscode.commands.executeCommand("workbench.action.openSettings", "mapcan.server");
     } else if (choice === "Show Output") {
       output?.show();
@@ -110,6 +118,20 @@ async function start(force = false): Promise<void> {
 function mapInTab(): boolean {
   const open = inTabs();
   return vscode.workspace.textDocuments.some((d) => isMap(d) && open.has(d.uri.toString()));
+}
+
+/** The version the running language server reported. */
+function serverVersion(): string | undefined {
+  return client?.initializeResult?.serverInfo?.version;
+}
+
+async function showServerVersion(): Promise<void> {
+  const server = client ? `mapcan ${serverVersion() ?? "(no version)"}` : "not running";
+  const { command } = serverOptions() as { command: string };
+  const text = `mapcan extension ${extensionVersion}; language server: ${server} (${command})`;
+  output?.info(text);
+  const choice = await vscode.window.showInformationMessage(text, "Copy");
+  if (choice === "Copy") await vscode.env.clipboard.writeText(text);
 }
 
 /** The last map was closed: stop the server unless a map is opened again in time. */
@@ -157,9 +179,10 @@ export async function activate(
 ): Promise<{
   tree: MapTree; form: NodeForm; history: HistoryTree; changes: ChangesPanel;
   client: () => LanguageClient | undefined; setIdleStop: (ms: number) => void;
-  hiddenChanges: typeof hiddenChanges;
+  hiddenChanges: typeof hiddenChanges; serverVersion: () => string | undefined; isOlder: typeof isOlder;
 }> {
   output = vscode.window.createOutputChannel("mapcan", { log: true });
+  extensionVersion = String(context.extension.packageJSON.version ?? "");
   tree = new MapTree(vscode.Uri.joinPath(context.extensionUri, "media"), () => client);
   const view = vscode.window.createTreeView("mapcan.map", { treeDataProvider: tree, showCollapseAll: true });
   tree.attach(view);
@@ -187,6 +210,7 @@ export async function activate(
       await start(true);
     }),
     vscode.commands.registerCommand("mapcan.showOutput", () => output?.show()),
+    vscode.commands.registerCommand("mapcan.showServerVersion", showServerVersion),
     vscode.commands.registerCommand("mapcan.export", () => exportView.reveal()),
     vscode.commands.registerCommand("mapcan.closeForm", () => form?.close()),
     vscode.commands.registerCommand("mapcan.revealFormNode", () => form?.reveal()),
@@ -198,6 +222,14 @@ export async function activate(
         failed = false;
         await start();
       }
+    }),
+    // Restricted Mode reads the server settings from the user's settings only: once the folder is trusted,
+    // its own settings apply
+    vscode.workspace.onDidGrantWorkspaceTrust(async () => {
+      if (!client) return;
+      await stop();
+      failed = false;
+      await start();
     }),
     vscode.workspace.onDidOpenTextDocument((doc) => isMap(doc) && start()),
     // A new file becomes a map when `mapcan:` is typed into it.
@@ -214,7 +246,7 @@ export async function activate(
   registerHistory(context, history, currentMap, showChanges, () => client);
   await start();
   return { tree, form, history, changes, client: () => client, setIdleStop: (ms) => (idleStopMs = ms),
-    hiddenChanges };
+    hiddenChanges, serverVersion, isOlder };
 }
 
 export function deactivate(): Promise<void> {

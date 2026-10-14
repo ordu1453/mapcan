@@ -92,7 +92,14 @@ The extension runs the language server from the `mapcan` command-line tool:
 uv tool install "mapcan[lsp]"     # or: pipx install "mapcan[lsp]"
 ```
 
-If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable.
+If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable. The extension needs
+mapcan 0.21 or newer: with an older one it says so and offers to update it in a terminal.
+
+In [Restricted Mode](https://code.visualstudio.com/docs/editor/workspace-trust) (a folder you have not
+trusted) the extension works, but `mapcan.server.path`, `mapcan.server.args` and
+`mapcan.export.outputDir` are read from your user settings only: a folder's `.vscode/settings.json`
+cannot choose the command the extension runs or where an export writes. Once you trust the folder,
+the server restarts with its settings.
 
 ## Settings
 
@@ -112,6 +119,7 @@ If `mapcan` is not on `PATH`, set **mapcan.server.path** to the executable.
 * **mapcan: Release Version…**
 * **mapcan: Restart Language Server**
 * **mapcan: Show Language Server Output**
+* **mapcan: Show Server Version** (the versions of the extension and of `mapcan`, for bug reports)
 
 ## Development
 
