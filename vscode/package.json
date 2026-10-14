@@ -251,42 +251,42 @@
       "view/item/context": [
         {
           "command": "mapcan.addDevice",
-          "when": "view == mapcan.map && viewItem == bus",
+          "when": "view == mapcan.map && viewItem =~ /^bus(\\.included)?$/",
           "group": "inline@1"
         },
         {
           "command": "mapcan.addFrame",
-          "when": "view == mapcan.map && viewItem == device",
+          "when": "view == mapcan.map && viewItem =~ /^device(\\.included)?$/",
           "group": "inline@1"
         },
         {
           "command": "mapcan.addSignal",
-          "when": "view == mapcan.map && viewItem == frame",
+          "when": "view == mapcan.map && viewItem =~ /^frame(\\.included)?$/",
           "group": "inline@1"
         },
         {
           "command": "mapcan.editNode",
-          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)(\\.included)?$/",
           "group": "inline@2"
         },
         {
           "command": "mapcan.addDevice",
-          "when": "view == mapcan.map && viewItem == bus",
+          "when": "view == mapcan.map && viewItem =~ /^bus(\\.included)?$/",
           "group": "1_add@1"
         },
         {
           "command": "mapcan.addFrame",
-          "when": "view == mapcan.map && viewItem =~ /^(bus|device)$/",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device)(\\.included)?$/",
           "group": "1_add@2"
         },
         {
           "command": "mapcan.addSignal",
-          "when": "view == mapcan.map && viewItem == frame",
+          "when": "view == mapcan.map && viewItem =~ /^frame(\\.included)?$/",
           "group": "1_add@3"
         },
         {
           "command": "mapcan.editNode",
-          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)(\\.included)?$/",
           "group": "2_edit@0"
         },
         {
@@ -296,12 +296,12 @@
         },
         {
           "command": "mapcan.duplicateNode",
-          "when": "view == mapcan.map && viewItem =~ /^(device|frame|signal|flag|sdo)$/",
+          "when": "view == mapcan.map && viewItem =~ /^(device|frame|signal|flag|sdo)(\\.included)?$/",
           "group": "2_edit@2"
         },
         {
           "command": "mapcan.deleteNode",
-          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)$/",
+          "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)(\\.included)?$/",
           "group": "3_delete@1"
         },
         {

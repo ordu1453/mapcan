@@ -356,27 +356,36 @@ def export_command(ls: MapcanServer, *args) -> dict:
 
 @server.command("mapcan.lsp.edit")
 def edit_command(ls: MapcanServer, *args) -> dict:
-    """Argument: {uri, action: add|duplicate|delete, path, kind}. Response: {edit: {range, text}, cursor} or {}."""
+    """Argument: {uri, action: add|duplicate|delete, path, kind}. Response: {edit: {range, text}, cursor, uri} or {}.
+
+    The edit goes to the file the node is written in (for a new node, its owner's; a new bus goes to the main
+    file): ``uri`` is there when that is another file of the map than the document."""
     params = _arg(args)
     uri = params.get("uri", "")
-    a = ls.editable(uri) if uri else None
+    a = ls.analysis(uri) if uri else None
     path = tuple(params.get("path") or ())
     action = params.get("action")
     # An empty path: only a new bus (added to the map)
     if a is None or not (path or (action == "add" and params.get("kind") == "bus")):
         return {}
+    view = a.view_of(path)
+    if view is None:
+        return {}
     if action == "add":
-        change = E.add_node(a, path, params.get("kind", ""))
+        change = E.add_node(view, path, params.get("kind", ""))
     elif action == "duplicate":
-        change = E.duplicate_node(a, path)
+        change = E.duplicate_node(view, path)
     elif action == "delete":
-        change = E.delete_node(a, path)
+        change = E.delete_node(view, path)
     else:
         change = None
     if change is None:
         return {}
-    e = E.minimal_edit(a.text, change.text)
-    return {"edit": {"range": [*e.start, *e.end], "text": e.text}, "cursor": list(change.cursor)}
+    e = E.minimal_edit(view.text, change.text)
+    out = {"edit": {"range": [*e.start, *e.end], "text": e.text}, "cursor": list(change.cursor)}
+    if view is not a:
+        out["uri"] = Path(view.own_file or view.result.source.file).resolve().as_uri()
+    return out
 
 
 def _params(params) -> tuple[str, tuple]:

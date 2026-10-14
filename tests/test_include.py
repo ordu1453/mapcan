@@ -204,6 +204,35 @@ def test_lsp_form_edits_go_to_the_included_file(tmp_path):
     assert list(others) == [common] and "- name: battery" in others[common]
 
 
+def test_tree_edits_of_included_nodes_go_to_their_file(tmp_path):
+    from mapcan.lsp.analysis import analyze, analyze_part
+    from mapcan.lsp.edits import add_node, delete_node, duplicate_node
+
+    main = write(tmp_path)
+    common = str((tmp_path / "common.yaml").resolve())
+    a = analyze(main.read_text(encoding="utf-8"), str(main))
+    bms = ("buses", 0, "devices", 1)
+    # The tree's edits of a node are made in the text of its file (the server sends them there)
+    v = a.view_of(bms)
+    assert v is not a and v.text == (tmp_path / "common.yaml").read_text(encoding="utf-8")
+    added = add_node(v, bms, "frame")
+    assert "          - name: bms_frame\n            id: 0x" in added.text
+    assert added.text.count("- name:") == v.text.count("- name:") + 1
+    assert "- name: bms_copy" in duplicate_node(v, bms).text
+    # bms is the only device of can1 in common.yaml: the list stays a list there
+    gone = delete_node(v, bms).text
+    assert "bms" not in gone and "    devices: []\n  - name: can2" in gone
+    # A device added to a bus of the main file goes to the main file, one added to can2 to common.yaml
+    assert a.view_of(("buses", 0)) is a
+    assert a.view_of(("buses", 1)).own_file == common
+    assert "- name: device" in add_node(a.view_of(("buses", 1)), ("buses", 1), "device").text
+    # In the included file opened on its own, the main file's nodes and new buses go to the main file
+    part = analyze_part(f"part_of: {main.name}\n" + v.text, common, lambda p: open(p, encoding="utf-8").read())
+    assert part.view_of(()).own_file is None and part.view_of(("buses", 0, "devices", 0)) is part.view_of(())
+    assert part.view_of(bms) is part
+    assert add_node(part.view_of(()), (), "bus").text.startswith("mapcan: 1\ninclude: [common.yaml]\n")
+
+
 def test_web_state_has_included_nodes(tmp_path):
     from mapcan.web.session import EditorSession
 

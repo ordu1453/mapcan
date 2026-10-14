@@ -421,12 +421,12 @@ const tests = {
     const own = ctx.api.tree.getTreeItem(roots[0]);
     const aux = ctx.api.tree.getTreeItem(roots[1]);
     assert.equal(own.contextValue, "bus");
-    assert.deepEqual([aux.label, aux.description, aux.contextValue], ["Aux bus", "extra.yaml", "included"]);
-    assert.match(aux.tooltip, /writes its changes to that file/);
+    assert.deepEqual([aux.label, aux.description, aux.contextValue], ["Aux bus", "extra.yaml", "bus.included"]);
+    assert.match(aux.tooltip, /changes are written to that file/);
     assert.match(aux.command.arguments[0].fsPath, /extra\.yaml$/);
     // The device under it comes from the same file: the file is named once, at the bus
     const valve = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(roots[1])[0]);
-    assert.deepEqual([valve.description, valve.contextValue], ["", "included"]);
+    assert.deepEqual([valve.description, valve.contextValue], ["", "device.included"]);
     // A field written by the form goes to the included file
     const result = await vscode.commands.executeCommand("mapcan.lsp.set",
       { uri: vscode.Uri.file(main).toString(), path: ["buses", 1, "devices", 0, "title"], value: "Valve" });
@@ -434,6 +434,21 @@ const tests = {
     assert.equal(result.others.length, 1);
     assert.match(result.others[0].uri, /extra\.yaml$/);
     assert.match(result.others[0].edit.text, /title: Valve/);
+    // The tree adds and deletes nodes of the included file in that file
+    const added = await vscode.commands.executeCommand("mapcan.lsp.edit",
+      { uri: vscode.Uri.file(main).toString(), action: "add", path: ["buses", 1, "devices", 0], kind: "frame" });
+    assert.match(added.uri, /extra\.yaml$/);
+    assert.match(added.edit.text, /- name: valve_frame/);
+    // The only device of the bus: its list stays a list
+    const deleted = await vscode.commands.executeCommand("mapcan.lsp.edit",
+      { uri: vscode.Uri.file(main).toString(), action: "delete", path: ["buses", 1, "devices", 0] });
+    assert.match(deleted.uri, /extra\.yaml$/);
+    assert.match(deleted.edit.text, /devices: \[\]/);
+    // A device added to a bus of the main file goes to the main file
+    const device = await vscode.commands.executeCommand("mapcan.lsp.edit",
+      { uri: vscode.Uri.file(main).toString(), action: "add", path: ["buses", 0], kind: "device" });
+    assert.equal(device.uri, undefined);
+    assert.match(device.edit.text, /- name: device/);
     await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
     await vscode.window.showTextDocument(ctx.doc);
     await until("the first map in the tree", () => ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString()

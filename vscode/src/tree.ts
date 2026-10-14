@@ -82,7 +82,7 @@ export class MapNode {
     return this.raw.from !== undefined;
   }
 
-  /** The included file the node is described in; such a node is read-only in the map. */
+  /** The other file of the map the node is described in: its edits go to that file. */
   get file(): vscode.Uri | undefined {
     return this.raw.file ? vscode.Uri.file(this.raw.file) : undefined;
   }
@@ -171,7 +171,8 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     const item = new vscode.TreeItem(label, state);
     item.id = node.id;
     item.description = from !== undefined ? `${description} ↪`.trim() : description;
-    item.contextValue = node.isLink ? "frameLink" : node.file ? "included" : kind;
+    // A node of another file is added to, copied and deleted in that file; it is not renamed from here
+    item.contextValue = node.isLink ? "frameLink" : node.file ? `${kind}.included` : kind;
     // The node an included file adds names the file; its descendants come from the same file
     const fileName = node.file && !node.isLink && node.parent?.raw.file !== node.raw.file
       ? node.file.path.split("/").pop() : undefined;
@@ -203,7 +204,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     }
     if (change) lines.push(change === "added" ? "Added since the last commit" : "Modified since the last commit");
     if (node.file && !node.isLink) {
-      lines.push(`From ${vscode.workspace.asRelativePath(node.file)}: the form writes its changes to that file`);
+      lines.push(`From ${vscode.workspace.asRelativePath(node.file)}: its changes are written to that file`);
     }
     item.tooltip = lines.join("\n");
     item.command = { command: "mapcan.revealNode", title: "Reveal", arguments: [node.file ?? this.uri, node.selection] };

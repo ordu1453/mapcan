@@ -1,6 +1,7 @@
 // Map view commands: add, edit, duplicate, rename and delete nodes. The language server builds the
 // edit; it is applied to the document, so Undo works as for any other edit. A node added with "+"
-// opens in the node form, where its fields are filled in.
+// opens in the node form, where its fields are filled in. A node of another file of the map (an included
+// file, or the main file when an included one is open) is added, copied and deleted in that file.
 
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
@@ -10,6 +11,8 @@ import { Kind, MapNode, MapTree } from "./tree";
 interface EditResult {
   edit?: { range: [number, number, number, number]; text: string };
   cursor?: [number, number];
+  /** The other file of the map the edit and the cursor are in; none: the map in the tree. */
+  uri?: string;
 }
 
 /** Apply a tree edit; returns the node under the new cursor (the added or copied node). */
@@ -25,11 +28,18 @@ async function runEdit(
     arguments: [{ uri: uri.toString(), ...args }],
   })) as EditResult | null;
   if (!result?.edit) return undefined;
+  const target = result.uri ? vscode.Uri.parse(result.uri) : uri;
   const [sl, sc, el, ec] = result.edit.range;
   const edit = new vscode.WorkspaceEdit();
-  edit.replace(uri, new vscode.Range(sl, sc, el, ec), result.edit.text);
+  edit.replace(target, new vscode.Range(sl, sc, el, ec), result.edit.text);
   if (!(await vscode.workspace.applyEdit(edit))) return undefined;
-  const editor = await vscode.window.showTextDocument(uri, { preserveFocus: true, preview: false });
+  if (result.uri && args.action === "delete") {
+    // The tree stays on its map: nothing is to be shown in the other file
+    await tree.refresh();
+    return undefined;
+  }
+  // A new node in another file opens that file, and the tree shows the map from it
+  const editor = await vscode.window.showTextDocument(target, { preserveFocus: true, preview: false });
   if (!result.cursor) return undefined;
   // Select the new name, so it is visible in the editor (and can be typed over right away)
   const pos = new vscode.Position(result.cursor[0], result.cursor[1]);
@@ -90,6 +100,7 @@ export function registerTreeActions(
       }
       await runEdit(client(), tree, { action: "delete", path: node.path });
     }),
-    on("mapcan.renameNode", (node) => renameNode(tree, node)),
+    // A node of another file is renamed in that file (Rename Symbol there)
+    on("mapcan.renameNode", (node) => (node.file ? undefined : renameNode(tree, node))),
   );
 }

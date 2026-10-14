@@ -665,8 +665,10 @@ def _default_title(a: Analysis, ru: str, en: str, siblings) -> str:
 
 
 def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
-    """Add a bus (to the map), a device (to a bus), a frame (to a bus or a device) or a signal (to a frame)."""
-    if a.result.source.is_included(path):
+    """Add a bus (to the map), a device (to a bus), a frame (to a bus or a device) or a signal (to a frame).
+
+    ``a`` has the text of the owner's file (:meth:`Analysis.view_of`): the node is written there."""
+    if path and path not in a.nodes:
         return None
     if kind == "bus" and path == ():
         buses = raw_at(a, ("buses",)) or []
@@ -771,14 +773,28 @@ def delete_node(a: Analysis, path: Path_) -> TextChange | None:
         return TextChange(_join(a, lines), (sl, sc))
     del lines[sl:el + 1]
     cursor = (max(sl - 1, 0), 0)
-    if isinstance(siblings, list) and len(siblings) == 1:
+    # The items in this text: a list of a bus of the main file has more items in an included file
+    here = [i for i in range(len(siblings)) if path[:-1] + (i,) in a.nodes] if isinstance(siblings, list) else []
+    if len(here) == 1:
         # The last item of a block list: "key:" → "key: []", otherwise the value would become null
-        kr = key_range(a, path[:-1])
+        kr = key_range(a, path[:-1]) or _key_above(a, str(path[-2]), sl)
         if kr and kr[0][0] < sl:
             kline = kr[0][0]
             lines[kline] = lines[kline][:kr[1][1]] + ": []"
             cursor = (kline, kr[0][1])
     return TextChange(_join(a, lines), cursor)
+
+
+def _key_above(a: Analysis, key: str, line: int) -> tuple[Pos, Pos] | None:
+    """Position of the key ``key:`` of a block list whose first item is on ``line``: for a list that is not a node
+    of this text (its items in this file extend a bus of the main file)."""
+    for i in range(line - 1, -1, -1):
+        m = re.match(rf"^\s*(?:-\s+)?({re.escape(key)})\s*:\s*(?:#.*)?$", a.lines[i])
+        if m:
+            return (i, m.start(1)), (i, m.end(1))
+        if a.lines[i].strip() and not a.lines[i].lstrip().startswith("#"):
+            return None
+    return None
 
 
 # --------------------------------------------------------------------------- #

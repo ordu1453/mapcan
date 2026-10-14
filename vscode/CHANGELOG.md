@@ -18,15 +18,18 @@
   frame in which a device reports the map it was built from.
 * A file included by a map, which now starts with `mapcan: 1` and `part_of`, is checked as a part of
   that map: its problems show in it (also with unsaved changes in either file), the Map view shows the
-  whole map with the nodes of the other file read-only, and Go to Definition on a receiver leads to the
-  device in the main file. Its forms are read-only for now: edit it as text.
+  whole map with the nodes of the other file marked with it, and Go to Definition on a receiver leads to
+  the device in the main file.
+* Nodes of an included file are edited in that file from either file's Map view: the form writes their
+  fields there, and **Add**, **Duplicate** and **Delete** change that file. A node added to a bus of the
+  main file goes to the main file, one added to a node of the included file to the included file.
 * New fields from mapcan 0.21: a frame's **Receive timeout**, a bus's sample points and CAN FD data
   phase bit rate, and the `string` encoding of signals with **Charset** and **Terminator**.
 * The language server is started when the first map is opened, not for any YAML file, and only maps
   are sent to it. Other YAML files (CI configs, manifests) no longer start a `mapcan` process or show
   an error when `mapcan` is not installed. A new file is picked up once `mapcan:` is typed into it.
-* The language server stops when no map has been open for five minutes and starts again with the
-  next map.
+* The language server stops when no map has been open in an editor tab for five minutes and starts
+  again with the next map.
 * When the server cannot be started, the message suggests installing mapcan from PyPI with
   `uv tool install "mapcan[lsp]"` or `pipx install "mapcan[lsp]"`.
 
