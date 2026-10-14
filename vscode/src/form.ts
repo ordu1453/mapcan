@@ -65,6 +65,13 @@ interface OpsResult {
   error?: string;
 }
 
+/** What the webview drew, as it counted it: the fields and the rows of the bit layout and its legend. */
+interface Drawn {
+  path: Path | null;
+  fields: string[];
+  layout: { rows: number; legend: number } | null;
+}
+
 type Message =
   | { type: "ready" }
   | { type: "set"; key: string; value: unknown }
@@ -73,7 +80,7 @@ type Message =
   | { type: "done" }
   | { type: "discard" }
   | { type: "reveal" }
-  | { type: "rendered"; path: Path | null; fields: string[] };
+  | { type: "rendered"; path: Path | null; fields: string[]; layout: Drawn["layout"] };
 
 const samePath = (a: Path, b: Path) => a.length === b.length && a.every((x, i) => String(x) === String(b[i]));
 
@@ -132,7 +139,7 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
   }
 
   /** The node and fields the webview last drew: proof that its script loaded (checked by the integration tests). */
-  rendered: { path: Path | null; fields: string[] } | undefined;
+  rendered: Drawn | undefined;
 
   get openPath(): Path | undefined {
     return this.path;
@@ -209,7 +216,7 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
         void this.reveal();
         break;
       case "rendered":
-        this.rendered = { path: m.path, fields: m.fields };
+        this.rendered = { path: m.path, fields: m.fields, layout: m.layout };
         break;
     }
   }

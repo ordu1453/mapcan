@@ -820,8 +820,12 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
       fill();
       if (m.focus) focusFirst();
     }
-    // What was drawn, so the extension (and its tests) can tell that the script runs in the webview
-    if (rebuild) vscode.postMessage({ type: "rendered", path: node?.path ?? null, fields: [...rows.keys()] });
+    // What was drawn, counted in the page, so the extension (and its tests) can tell that the script runs
+    // in the webview and drew the fields and the bit layout (null when the node has none)
+    const layout = layoutEl && !layoutEl.hidden
+      ? { rows: layoutEl.querySelectorAll(".bg-byte").length, legend: layoutEl.querySelectorAll("li .swatch").length }
+      : null;
+    vscode.postMessage({ type: "rendered", path: node?.path ?? null, fields: [...rows.keys()], layout });
   });
 
   vscode.postMessage({ type: "ready" });

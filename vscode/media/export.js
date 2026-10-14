@@ -116,6 +116,8 @@
     const r = result();
     if (r) app.append(r);
     if (typing !== undefined) folder.focus();
+    // What was drawn, counted in the page, for the extension's tests
+    vscode.postMessage({ type: "rendered", formats: app.querySelectorAll('input[type="checkbox"]').length });
   }
 
   window.addEventListener("message", (event) => {

@@ -32,13 +32,16 @@ type Message =
   | { type: "export"; formats: string[]; outDir: string }
   | { type: "browse" }
   | { type: "open"; file: string }
-  | { type: "reveal"; file: string };
+  | { type: "reveal"; file: string }
+  | { type: "rendered"; formats: number };
 
 export class ExportView implements vscode.WebviewViewProvider, vscode.Disposable {
   static readonly viewId = "mapcan.export";
 
   private view: vscode.WebviewView | undefined;
   private busy = false;
+  /** What the webview drew last (the format checkboxes it counted): its script runs. */
+  rendered: { formats: number } | undefined;
   private last: { map: string; result: ExportResult; outDir: string } | undefined;
   private readonly subscriptions: vscode.Disposable[] = [];
 
@@ -88,6 +91,9 @@ export class ExportView implements vscode.WebviewViewProvider, vscode.Disposable
     switch (m.type) {
       case "ready":
         this.update();
+        break;
+      case "rendered":
+        this.rendered = { formats: m.formats };
         break;
       case "browse": {
         if (!uri) return;

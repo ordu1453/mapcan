@@ -446,6 +446,28 @@ const tests = {
     assert.ok(error.error);
   },
 
+  async "the webviews draw the bit layout and the export formats"(ctx) {
+    // Counted in the pages themselves: data that arrives but is not drawn fails here (#79)
+    await vscode.window.showTextDocument(ctx.doc);
+    const frame = ["buses", 0, "devices", 0, "frames", 0];
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    await ctx.api.form.open(frame);
+    const drawn = await until("the frame's layout drawn", () => {
+      const r = ctx.api.form.rendered;
+      return r && same(r.path, frame) && r.layout ? r : undefined;
+    });
+    assert.equal(drawn.layout.rows, 8);
+    assert.ok(drawn.layout.legend >= 1);
+    // A device has no layout
+    await ctx.api.form.open(frame.slice(0, 4));
+    await until("a device without layout", () => same(ctx.api.form.rendered?.path, frame.slice(0, 4))
+      && ctx.api.form.rendered.layout === null);
+    await ctx.api.form.close();
+    await vscode.commands.executeCommand("mapcan.export");
+    await until("the export formats drawn", () => ctx.api.exportView.rendered?.formats > 0);
+    await vscode.window.showTextDocument(ctx.doc);
+  },
+
   async "nodes of included files are shown and edited in their file"(ctx) {
     fs.writeFileSync(path.join(workspace, "extra.yaml"),
       "buses:\n  - name: aux\n    title: Aux bus\n    protocol: can\n    devices:\n      - name: valve\n");

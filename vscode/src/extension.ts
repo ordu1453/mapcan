@@ -233,7 +233,7 @@ async function openMap(): Promise<void> {
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<{
-  tree: MapTree; form: NodeForm; history: HistoryTree; changes: ChangesPanel;
+  tree: MapTree; form: NodeForm; exportView: ExportView; history: HistoryTree; changes: ChangesPanel;
   client: () => LanguageClient | undefined; setIdleStop: (ms: number) => void;
   hiddenChanges: typeof hiddenChanges; serverVersion: () => string | undefined; isOlder: typeof isOlder;
 }> {
@@ -312,7 +312,7 @@ export async function activate(
   const showChanges = registerPreview(context, () => client, currentMap, changes);
   registerHistory(context, history, currentMap, showChanges, () => client);
   await start();
-  return { tree, form, history, changes, client: () => client, setIdleStop: (ms) => (idleStopMs = ms),
+  return { tree, form, exportView, history, changes, client: () => client, setIdleStop: (ms) => (idleStopMs = ms),
     hiddenChanges, serverVersion, isOlder };
 }
 
