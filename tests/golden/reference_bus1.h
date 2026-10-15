@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 #ifndef MAPCAN_BITS_HELPERS
-#define MAPCAN_BITS_HELPERS 0xABE369DBu
+#define MAPCAN_BITS_HELPERS 0x4406D57Fu
 /* Нумерация бит lsb0: бит p — бит (p % 8) байта (p / 8); start — позиция LSB.
  * big-endian (Motorola): после старшего бита байта цепочка продолжается
  * с бита 0 предыдущего байта. */
@@ -21,18 +21,24 @@ static inline uint64_t mapcan_get_bits(const uint8_t *data, uint16_t start, uint
 {
     uint64_t value = 0u;
     uint8_t done = 0u;
-    int16_t pos = (int16_t)start;
+    uint16_t pos = start;
     while (done < length) {
-        uint8_t byte = (uint8_t)(pos / 8);
-        uint8_t shift = (uint8_t)(pos % 8);
+        uint16_t byte = (uint16_t)(pos / 8u);
+        uint8_t shift = (uint8_t)(pos % 8u);
         uint8_t n = (uint8_t)(8u - shift);
-        if (n > (uint8_t)(length - done)) {
-            n = (uint8_t)(length - done);
+        uint8_t left = (uint8_t)(length - done);
+        if (n > left) {
+            n = left;
         }
-        uint8_t chunk = (uint8_t)((data[byte] >> shift) & (uint8_t)((1u << n) - 1u));
-        value |= (uint64_t)chunk << done;
+        uint8_t mask = (uint8_t)((1u << n) - 1u);
+        uint8_t chunk = (uint8_t)((uint8_t)(data[byte] >> shift) & mask);
+        value |= ((uint64_t)chunk << done);
         done = (uint8_t)(done + n);
-        pos = big_endian ? (int16_t)((byte - 1) * 8) : (int16_t)((byte + 1) * 8);
+        if (big_endian) {
+            pos = (uint16_t)((byte - 1u) * 8u);
+        } else {
+            pos = (uint16_t)((byte + 1u) * 8u);
+        }
     }
     return value;
 }
@@ -40,99 +46,135 @@ static inline uint64_t mapcan_get_bits(const uint8_t *data, uint16_t start, uint
 static inline void mapcan_set_bits(uint8_t *data, uint64_t value, uint16_t start, uint8_t length, bool big_endian)
 {
     uint8_t done = 0u;
-    int16_t pos = (int16_t)start;
+    uint16_t pos = start;
     while (done < length) {
-        uint8_t byte = (uint8_t)(pos / 8);
-        uint8_t shift = (uint8_t)(pos % 8);
+        uint16_t byte = (uint16_t)(pos / 8u);
+        uint8_t shift = (uint8_t)(pos % 8u);
         uint8_t n = (uint8_t)(8u - shift);
-        if (n > (uint8_t)(length - done)) {
-            n = (uint8_t)(length - done);
+        uint8_t left = (uint8_t)(length - done);
+        if (n > left) {
+            n = left;
         }
         uint8_t mask = (uint8_t)(((1u << n) - 1u) << shift);
-        uint8_t chunk = (uint8_t)(((value >> done) << shift) & mask);
-        data[byte] = (uint8_t)((data[byte] & (uint8_t)~mask) | chunk);
+        uint8_t part = (uint8_t)(value >> done);
+        uint8_t chunk = (uint8_t)((uint8_t)(part << shift) & mask);
+        data[byte] = (uint8_t)((uint8_t)(data[byte] & (uint8_t)~mask) | chunk);
         done = (uint8_t)(done + n);
-        pos = big_endian ? (int16_t)((byte - 1) * 8) : (int16_t)((byte + 1) * 8);
+        if (big_endian) {
+            pos = (uint16_t)((byte - 1u) * 8u);
+        } else {
+            pos = (uint16_t)((byte + 1u) * 8u);
+        }
     }
-}
-
-/* Значение вне диапазона поля прижимается к границе, а не обрезается до младших бит. */
-static inline uint64_t mapcan_clamp_u(uint64_t value, uint64_t hi)
-{
-    return value > hi ? hi : value;
-}
-static inline int64_t mapcan_clamp_s(int64_t value, int64_t lo, int64_t hi)
-{
-    return value < lo ? lo : (value > hi ? hi : value);
 }
 
 static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
 {
-    uint64_t sign = (uint64_t)1u << (length - 1u);
-    return (int64_t)((value ^ sign) - sign);
+    uint8_t top = (uint8_t)(length - 1u);
+    uint64_t sign = (uint64_t)1u << top;
+    uint64_t x = (value ^ sign) - sign;
+    return (int64_t)x;
 }
 static inline int32_t mapcan_sign_extend32(uint32_t value, uint8_t length)
 {
-    uint32_t sign = (uint32_t)1u << (length - 1u);
-    return (int32_t)((value ^ sign) - sign);
+    uint8_t top = (uint8_t)(length - 1u);
+    uint32_t sign = (uint32_t)1u << top;
+    uint32_t x = (value ^ sign) - sign;
+    return (int32_t)x;
 }
 
 /* Обратный код (representation: ones_complement): отрицательное — инверсия модуля. */
 static inline int64_t mapcan_ones_decode(uint64_t value, uint8_t length)
 {
-    uint64_t sign = (uint64_t)1u << (length - 1u);
-    return (value & sign) ? -(int64_t)(~value & (sign - 1u)) : (int64_t)value;
+    uint8_t top = (uint8_t)(length - 1u);
+    uint64_t sign = (uint64_t)1u << top;
+    int64_t r = (int64_t)value;
+    if ((value & sign) != 0u) {
+        uint64_t magnitude = (~value) & (sign - 1u);
+        r = -(int64_t)magnitude;
+    }
+    return r;
 }
 static inline uint64_t mapcan_ones_encode(int64_t value)
 {
-    return value < 0 ? ~(uint64_t)(-value) : (uint64_t)value;
+    uint64_t r = (uint64_t)value;
+    if (value < 0) {
+        int64_t magnitude = -value;
+        r = ~(uint64_t)magnitude;
+    }
+    return r;
 }
 
 /* Прямой код (representation: sign_magnitude): старший бит — знак, остальные — модуль. */
 static inline int64_t mapcan_sm_decode(uint64_t value, uint8_t length)
 {
-    uint64_t sign = (uint64_t)1u << (length - 1u);
-    return (value & sign) ? -(int64_t)(value & (sign - 1u)) : (int64_t)value;
+    uint8_t top = (uint8_t)(length - 1u);
+    uint64_t sign = (uint64_t)1u << top;
+    int64_t r = (int64_t)value;
+    if ((value & sign) != 0u) {
+        uint64_t magnitude = value & (sign - 1u);
+        r = -(int64_t)magnitude;
+    }
+    return r;
 }
 static inline uint64_t mapcan_sm_encode(int64_t value, uint8_t length)
 {
-    return value < 0 ? (((uint64_t)1u << (length - 1u)) | (uint64_t)(-value)) : (uint64_t)value;
+    uint64_t r = (uint64_t)value;
+    if (value < 0) {
+        uint8_t top = (uint8_t)(length - 1u);
+        int64_t magnitude = -value;
+        r = ((uint64_t)1u << top) | (uint64_t)magnitude;
+    }
+    return r;
 }
 
 /* IEEE 754: float/double <-> сырые биты (через memcpy: корректно и в C, и в C++). */
 static inline uint32_t mapcan_f32_to_bits(float f)
 {
     uint32_t u;
-    memcpy(&u, &f, sizeof u);
+    (void)memcpy(&u, &f, sizeof u);
     return u;
 }
 static inline float mapcan_bits_to_f32(uint32_t u)
 {
     float f;
-    memcpy(&f, &u, sizeof f);
+    (void)memcpy(&f, &u, sizeof f);
     return f;
 }
 static inline uint64_t mapcan_f64_to_bits(double f)
 {
     uint64_t u;
-    memcpy(&u, &f, sizeof u);
+    (void)memcpy(&u, &f, sizeof u);
     return u;
 }
 static inline double mapcan_bits_to_f64(uint64_t u)
 {
     double f;
-    memcpy(&f, &u, sizeof f);
+    (void)memcpy(&f, &u, sizeof f);
     return f;
 }
 
 static inline float mapcan_round_f(float x)
 {
-    return (x >= 0.0f) ? (x + 0.5f) : (x - 0.5f);
+    return (x >= 0.0F) ? (x + 0.5F) : (x - 0.5F);
 }
 
 static inline double mapcan_round_d(double x)
 {
     return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
+}
+
+/* Целочисленное деление с округлением половины от нуля (--phys-type int). */
+static inline int64_t mapcan_div_round(int64_t n, int64_t d)
+{
+    int64_t half = d / 2;
+    int64_t r;
+    if ((n < 0) == (d < 0)) {
+        r = (n + half) / d;
+    } else {
+        r = (n - half) / d;
+    }
+    return r;
 }
 
 /* Таблицы устройства (mapcan gen c --device): расписание передачи (cycle_ms 0 — не
@@ -160,7 +202,7 @@ typedef struct {
     uint32_t mask;
     bool extended;
 } mapcan_filter_t;
-#elif MAPCAN_BITS_HELPERS != 0xABE369DBu
+#elif MAPCAN_BITS_HELPERS != 0x4406D57Fu
 #error "mapcan: заголовки сгенерированы разными версиями mapcan, перегенерируйте их вместе"
 #endif /* MAPCAN_BITS_HELPERS */
 
@@ -212,7 +254,7 @@ int sync_unpack(sync_t *msg, const uint8_t *data, size_t size);
 /* ms_after_midnight: единица измерения — мс */
 static inline double time_stamp_ms_after_midnight_to_phys(uint32_t raw)
 {
-    return (double)raw * TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR + TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET;
+    return ((double)raw * TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR) + TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET;
 }
 static inline uint32_t time_stamp_ms_after_midnight_from_phys(double phys)
 {
@@ -222,18 +264,18 @@ static inline uint32_t time_stamp_ms_after_midnight_from_phys(double phys)
     return (uint32_t)r;
 }
 
-#define TIME_STAMP_DAYS_SINCE_1984_FACTOR (1.0f)
-#define TIME_STAMP_DAYS_SINCE_1984_OFFSET (0.0f)
+#define TIME_STAMP_DAYS_SINCE_1984_FACTOR (1.0F)
+#define TIME_STAMP_DAYS_SINCE_1984_OFFSET (0.0F)
 /* days_since_1984: единица измерения — сут */
 static inline float time_stamp_days_since_1984_to_phys(uint16_t raw)
 {
-    return (float)raw * TIME_STAMP_DAYS_SINCE_1984_FACTOR + TIME_STAMP_DAYS_SINCE_1984_OFFSET;
+    return ((float)raw * TIME_STAMP_DAYS_SINCE_1984_FACTOR) + TIME_STAMP_DAYS_SINCE_1984_OFFSET;
 }
 static inline uint16_t time_stamp_days_since_1984_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - TIME_STAMP_DAYS_SINCE_1984_OFFSET) / TIME_STAMP_DAYS_SINCE_1984_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -310,35 +352,35 @@ typedef enum {
 
 static inline int imd_data_resistance_plus_in_range(uint16_t raw) { return raw <= 10000u; }
 
-#define IMD_DATA_RESISTANCE_PLUS_FACTOR (1.0f)
-#define IMD_DATA_RESISTANCE_PLUS_OFFSET (0.0f)
+#define IMD_DATA_RESISTANCE_PLUS_FACTOR (1.0F)
+#define IMD_DATA_RESISTANCE_PLUS_OFFSET (0.0F)
 /* resistance_plus: единица измерения — кОм */
 static inline float imd_data_resistance_plus_to_phys(uint16_t raw)
 {
-    return (float)raw * IMD_DATA_RESISTANCE_PLUS_FACTOR + IMD_DATA_RESISTANCE_PLUS_OFFSET;
+    return ((float)raw * IMD_DATA_RESISTANCE_PLUS_FACTOR) + IMD_DATA_RESISTANCE_PLUS_OFFSET;
 }
 static inline uint16_t imd_data_resistance_plus_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_DATA_RESISTANCE_PLUS_OFFSET) / IMD_DATA_RESISTANCE_PLUS_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
 static inline int imd_data_resistance_minus_in_range(uint16_t raw) { return raw <= 10000u; }
 
-#define IMD_DATA_RESISTANCE_MINUS_FACTOR (1.0f)
-#define IMD_DATA_RESISTANCE_MINUS_OFFSET (0.0f)
+#define IMD_DATA_RESISTANCE_MINUS_FACTOR (1.0F)
+#define IMD_DATA_RESISTANCE_MINUS_OFFSET (0.0F)
 /* resistance_minus: единица измерения — кОм */
 static inline float imd_data_resistance_minus_to_phys(uint16_t raw)
 {
-    return (float)raw * IMD_DATA_RESISTANCE_MINUS_FACTOR + IMD_DATA_RESISTANCE_MINUS_OFFSET;
+    return ((float)raw * IMD_DATA_RESISTANCE_MINUS_FACTOR) + IMD_DATA_RESISTANCE_MINUS_OFFSET;
 }
 static inline uint16_t imd_data_resistance_minus_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_DATA_RESISTANCE_MINUS_OFFSET) / IMD_DATA_RESISTANCE_MINUS_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -348,18 +390,18 @@ typedef enum {
     IMD_DATA_BUS_VOLTAGE_CALCULATED_CALCULATED = 1, /* значение напряжения рассчитано */
 } imd_data_bus_voltage_calculated_t;
 
-#define IMD_DATA_BUS_VOLTAGE_FACTOR (0.1f)
-#define IMD_DATA_BUS_VOLTAGE_OFFSET (0.0f)
+#define IMD_DATA_BUS_VOLTAGE_FACTOR (0.1F)
+#define IMD_DATA_BUS_VOLTAGE_OFFSET (0.0F)
 /* bus_voltage: единица измерения — В */
 static inline float imd_data_bus_voltage_to_phys(uint16_t raw)
 {
-    return (float)raw * IMD_DATA_BUS_VOLTAGE_FACTOR + IMD_DATA_BUS_VOLTAGE_OFFSET;
+    return ((float)raw * IMD_DATA_BUS_VOLTAGE_FACTOR) + IMD_DATA_BUS_VOLTAGE_OFFSET;
 }
 static inline uint16_t imd_data_bus_voltage_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_DATA_BUS_VOLTAGE_OFFSET) / IMD_DATA_BUS_VOLTAGE_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -433,33 +475,33 @@ typedef enum {
     IMD_SDO_REQUEST_SDO_SUBINDEX_SET_WARNING_RESISTANCE = 2, /* Установка WARNING_RESISTANCE */
 } imd_sdo_request_sdo_subindex_t;
 
-#define IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR (1.0f)
-#define IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET (0.0f)
+#define IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR (1.0F)
+#define IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET (0.0F)
 /* alarm_resistance: единица измерения — кОм */
 static inline float imd_sdo_request_alarm_resistance_to_phys(uint16_t raw)
 {
-    return (float)raw * IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR + IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET;
+    return ((float)raw * IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR) + IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET;
 }
 static inline uint16_t imd_sdo_request_alarm_resistance_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
-#define IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR (1.0f)
-#define IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET (0.0f)
+#define IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR (1.0F)
+#define IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET (0.0F)
 /* warning_resistance: единица измерения — кОм */
 static inline float imd_sdo_request_warning_resistance_to_phys(uint16_t raw)
 {
-    return (float)raw * IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR + IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET;
+    return ((float)raw * IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR) + IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET;
 }
 static inline uint16_t imd_sdo_request_warning_resistance_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -471,8 +513,8 @@ typedef struct {
     uint16_t warning_resistance; /* Порог предупредительного сопротивления изоляции [кОм] */
 } imd_sdo_request_t;
 
-static inline int imd_sdo_request_alarm_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_subindex == 1; }
-static inline int imd_sdo_request_warning_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_subindex == 2; }
+static inline int imd_sdo_request_alarm_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_subindex == 1u; }
+static inline int imd_sdo_request_warning_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_subindex == 2u; }
 
 /* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
 extern const imd_sdo_request_t IMD_SDO_REQUEST_INITIAL;
@@ -618,8 +660,8 @@ typedef struct {
     uint8_t temperature_data[7]; /* Данные парсинга температур */
 } cmu_parse_data_t;
 
-static inline int cmu_parse_data_voltage_data_is_active(const cmu_parse_data_t *msg) { return msg->parse_type == 0; }
-static inline int cmu_parse_data_temperature_data_is_active(const cmu_parse_data_t *msg) { return msg->parse_type == 1; }
+static inline int cmu_parse_data_voltage_data_is_active(const cmu_parse_data_t *msg) { return msg->parse_type == 0u; }
+static inline int cmu_parse_data_temperature_data_is_active(const cmu_parse_data_t *msg) { return msg->parse_type == 1u; }
 
 /* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
 extern const cmu_parse_data_t CMU_PARSE_DATA_INITIAL;
@@ -706,63 +748,63 @@ int pcu_state_unpack(pcu_state_t *msg, const uint8_t *data, size_t size);
 #define PCU_DATA_DLC PCU_DATA_LENGTH /* устарело: используйте PCU_DATA_LENGTH */
 #define PCU_DATA_CYCLE_MS 100u
 
-#define PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR (10.0f)
-#define PCU_DATA_DC_OUTPUT_VOLTAGE_OFFSET (0.0f)
+#define PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR (10.0F)
+#define PCU_DATA_DC_OUTPUT_VOLTAGE_OFFSET (0.0F)
 /* dc_output_voltage: единица измерения — В */
 static inline float pcu_data_dc_output_voltage_to_phys(uint16_t raw)
 {
-    return (float)raw * PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR + PCU_DATA_DC_OUTPUT_VOLTAGE_OFFSET;
+    return ((float)raw * PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR) + PCU_DATA_DC_OUTPUT_VOLTAGE_OFFSET;
 }
 static inline uint16_t pcu_data_dc_output_voltage_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_DATA_DC_OUTPUT_VOLTAGE_OFFSET) / PCU_DATA_DC_OUTPUT_VOLTAGE_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
-#define PCU_DATA_DC_INPUT_VOLTAGE_FACTOR (10.0f)
-#define PCU_DATA_DC_INPUT_VOLTAGE_OFFSET (0.0f)
+#define PCU_DATA_DC_INPUT_VOLTAGE_FACTOR (10.0F)
+#define PCU_DATA_DC_INPUT_VOLTAGE_OFFSET (0.0F)
 /* dc_input_voltage: единица измерения — В */
 static inline float pcu_data_dc_input_voltage_to_phys(uint16_t raw)
 {
-    return (float)raw * PCU_DATA_DC_INPUT_VOLTAGE_FACTOR + PCU_DATA_DC_INPUT_VOLTAGE_OFFSET;
+    return ((float)raw * PCU_DATA_DC_INPUT_VOLTAGE_FACTOR) + PCU_DATA_DC_INPUT_VOLTAGE_OFFSET;
 }
 static inline uint16_t pcu_data_dc_input_voltage_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_DATA_DC_INPUT_VOLTAGE_OFFSET) / PCU_DATA_DC_INPUT_VOLTAGE_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
-#define PCU_DATA_DC_OUTPUT_CURRENT_FACTOR (10.0f)
-#define PCU_DATA_DC_OUTPUT_CURRENT_OFFSET (0.0f)
+#define PCU_DATA_DC_OUTPUT_CURRENT_FACTOR (10.0F)
+#define PCU_DATA_DC_OUTPUT_CURRENT_OFFSET (0.0F)
 /* dc_output_current: единица измерения — А */
 static inline float pcu_data_dc_output_current_to_phys(uint16_t raw)
 {
-    return (float)raw * PCU_DATA_DC_OUTPUT_CURRENT_FACTOR + PCU_DATA_DC_OUTPUT_CURRENT_OFFSET;
+    return ((float)raw * PCU_DATA_DC_OUTPUT_CURRENT_FACTOR) + PCU_DATA_DC_OUTPUT_CURRENT_OFFSET;
 }
 static inline uint16_t pcu_data_dc_output_current_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_DATA_DC_OUTPUT_CURRENT_OFFSET) / PCU_DATA_DC_OUTPUT_CURRENT_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
-#define PCU_DATA_DC_INPUT_CURRENT_FACTOR (10.0f)
-#define PCU_DATA_DC_INPUT_CURRENT_OFFSET (0.0f)
+#define PCU_DATA_DC_INPUT_CURRENT_FACTOR (10.0F)
+#define PCU_DATA_DC_INPUT_CURRENT_OFFSET (0.0F)
 /* dc_input_current: единица измерения — А */
 static inline float pcu_data_dc_input_current_to_phys(uint16_t raw)
 {
-    return (float)raw * PCU_DATA_DC_INPUT_CURRENT_FACTOR + PCU_DATA_DC_INPUT_CURRENT_OFFSET;
+    return ((float)raw * PCU_DATA_DC_INPUT_CURRENT_FACTOR) + PCU_DATA_DC_INPUT_CURRENT_OFFSET;
 }
 static inline uint16_t pcu_data_dc_input_current_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_DATA_DC_INPUT_CURRENT_OFFSET) / PCU_DATA_DC_INPUT_CURRENT_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 65536.0f) { return 65535u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 65536.0F) { return 65535u; }
     return (uint16_t)r;
 }
 
@@ -799,18 +841,18 @@ typedef enum {
     PCU_COMMAND_REQUESTED_MODE_STATE_DIRECT_DISCHARGE = 6, /* батарея напрямую подключена к нагрузке */
 } pcu_command_requested_mode_t;
 
-#define PCU_COMMAND_TARGET_VOLTAGE_FACTOR (10.0f)
-#define PCU_COMMAND_TARGET_VOLTAGE_OFFSET (0.0f)
+#define PCU_COMMAND_TARGET_VOLTAGE_FACTOR (10.0F)
+#define PCU_COMMAND_TARGET_VOLTAGE_OFFSET (0.0F)
 /* target_voltage: единица измерения — В */
 static inline float pcu_command_target_voltage_to_phys(uint8_t raw)
 {
-    return (float)raw * PCU_COMMAND_TARGET_VOLTAGE_FACTOR + PCU_COMMAND_TARGET_VOLTAGE_OFFSET;
+    return ((float)raw * PCU_COMMAND_TARGET_VOLTAGE_FACTOR) + PCU_COMMAND_TARGET_VOLTAGE_OFFSET;
 }
 static inline uint8_t pcu_command_target_voltage_from_phys(float phys)
 {
     float r = mapcan_round_f((phys - PCU_COMMAND_TARGET_VOLTAGE_OFFSET) / PCU_COMMAND_TARGET_VOLTAGE_FACTOR);
-    if (r < 0.0f) { return 0u; }
-    if (r >= 256.0f) { return 255u; }
+    if (r < 0.0F) { return 0u; }
+    if (r >= 256.0F) { return 255u; }
     return (uint8_t)r;
 }
 

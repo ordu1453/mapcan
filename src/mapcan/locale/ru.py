@@ -75,8 +75,10 @@ RU: dict[str, str] = {
     "Only the given bus.": "Только указанная шина.",
     "Folder for .h/.c files.": "Каталог для .h/.c.",
     "Name prefix (e.g. ne_).": "Префикс имён (напр. ne_).",
-    "Type of physical values: float (double only for fields longer than 24 bits) or double.":
-        "Тип физических значений: float (double только для полей длиннее 24 бит) или double.",
+    "Type of physical values: float (double only for fields longer than 24 bits), double, or int (integers in "
+    "units of the factor's decimals, for MCUs without an FPU).":
+        "Тип физических значений: float (double только для полей длиннее 24 бит), double или int (целые в "
+        "единицах десятичных знаков множителя — для MCU без FPU).",
     "expected one of: {values}": "ожидается одно из: {values}",
     "Code of one device instead of the buses: its frames, TX schedule, RX filters and dispatch (repeatable).":
         "Код одного устройства вместо шин: его кадры, расписание передачи, фильтры приёма и разбор (можно "

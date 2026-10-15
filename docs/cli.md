@@ -99,7 +99,27 @@ Each signal is read and written with the shifts and masks of the bytes it touche
 map, in an unsigned type of its width: no loop over bits and no 64-bit arithmetic for a short field, which
 matters on Cortex-M0 and 8/16-bit MCUs. Physical values of scaled signals are `float` (`double` only where
 `float` cannot hold the raw values exactly, fields longer than 24 bits); `--phys-type double` makes them all
-`double`.
+`double`. On an MCU without an FPU, `--phys-type int` computes them in integers: the physical value is an
+integer in units of the decimals of the factor and offset (`0.125` and `-40` give thousandths:
+`<FRAME>_<SIGNAL>_PHYS_SCALE` is `1000`), `int32_t`, or `int64_t` where the values do not fit, rounded half
+away from zero and saturated as the floating-point conversion is. A signal whose factor is not a decimal
+fraction (`1/3`) keeps the floating-point conversion, with a comment in the header.
+
+#### MISRA C
+
+The generated code is checked in CI with cppcheck and its MISRA C:2012 addon, for the code of the buses
+and of the devices of every example map, and builds for Cortex-M within a code size budget. It deviates
+from these rules, by its nature:
+
+| Rule | Why |
+|---|---|
+| 2.3, 2.4, 2.5 (advisory) | The header of a bus declares the types, tags and macros of all its frames; a firmware uses some of them |
+| 8.7 (advisory) | `pack`, `unpack` and `init` are the interface of the generated code, called from other files |
+| 15.5 (advisory) | An early `return` on bad arguments, and in the saturation of `_from_phys()` |
+| 21.15 | `memcpy` between a `float` and an integer of its width is how the IEEE 754 bits are read and written |
+
+The headers of several buses in one firmware also share the helpers (rules 5.6, 5.7, 5.9 for the types
+and functions they define, each once per translation unit).
 
 A value that does not fit its field is never cut to its low bits. `<frame>_<signal>_from_phys()` in C
 and the `<signal>_phys` setter in Python round half away from zero and saturate to the field's raw

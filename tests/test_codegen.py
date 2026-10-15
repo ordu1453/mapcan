@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import shutil
 import struct
 import subprocess
 import sys
+from pathlib import Path
 
 import cantools
 import pytest
@@ -1131,3 +1133,136 @@ def test_python_device_module(tmp_path):
     r = CliRunner().invoke(app, ["gen", "py", m, "-o", str(tmp_path), "--devices"])
     assert r.exit_code == 0 and (tmp_path / "vcu_mapcan.py").exists()
     assert CliRunner().invoke(app, ["gen", "py", m, "-o", str(tmp_path), "--device", "nobody"]).exit_code != 0
+
+
+def _working_cppcheck() -> str | None:
+    """cppcheck if it finds a known error (an installation without its configuration finds nothing)."""
+    exe = shutil.which("cppcheck")
+    if exe is None:
+        return None
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        probe = Path(d) / "probe.c"
+        probe.write_text("int main(void) { int a[2] = {0, 0}; return a[3]; }\n", encoding="utf-8")
+        try:
+            r = subprocess.run([exe, "--quiet", "--template={id}", str(probe)], capture_output=True, text=True,
+                               timeout=60)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+    return exe if "arrayIndexOutOfBounds" in r.stderr else None
+
+
+CPPCHECK = _working_cppcheck()
+# MISRA C:2012 rules the generated code deviates from, with the reason (docs/cli.md, "MISRA C"):
+# 2.3, 2.4, 2.5 - a header of a whole bus declares types, tags and macros a firmware may not use;
+# 8.7 - pack/unpack/init are the interface of the generated code, called from other files;
+# 15.5 - an early return on bad arguments and in the saturation of from_phys (advisory);
+# 21.15 - memcpy between a float and an integer of its width is the reading of its IEEE 754 bits.
+MISRA_DEVIATIONS = {"2.3", "2.4", "2.5", "8.7", "15.5", "21.15"}
+
+
+@pytest.mark.skipif(CPPCHECK is None and not os.environ.get("MAPCAN_REQUIRE_CPPCHECK"), reason="нет cppcheck")
+@pytest.mark.parametrize("kind", ["bus", "device", "int"])
+def test_cppcheck_and_misra(cmap, kind, tmp_path):
+    """cppcheck finds nothing in the generated code, and MISRA C:2012 (its addon) nothing beyond the deviations."""
+    from mapcan.codegen.c import generate_c_devices
+
+    assert CPPCHECK is not None, "cppcheck not found (MAPCAN_REQUIRE_CPPCHECK is set)"
+
+    files = (generate_c_devices(cmap, tmp_path) if kind == "device"
+             else generate_c(cmap, tmp_path, phys_type="float" if kind == "bus" else "int"))
+    found = {}
+    for src in (p for p in files if p.suffix == ".c"):
+        r = subprocess.run([CPPCHECK, "--std=c99", "--enable=warning,style,performance,portability",
+                            "--addon=misra", f"--addon-python={sys.executable}", "--quiet", "--template={id}",
+                            "-I", str(tmp_path), str(src)], capture_output=True, text=True)
+        assert r.returncode == 0, (src.name, r.returncode, r.stderr[-500:])     # a crash is not a clean result
+        for rule in r.stderr.split():
+            if not (rule.startswith("misra-c2012-") and rule.removeprefix("misra-c2012-") in MISRA_DEVIATIONS):
+                found.setdefault(rule, src.name)
+    assert not found, found
+
+
+INT_MAP = """
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: f
+        id: 0x100
+        length: 8
+        signals:
+          - {name: temp, encoding: scaled, byte: 0, byte_length: 1, factor: 0.125, offset: -40, unit: C}
+          - {name: neg, encoding: scaled, byte: 1, byte_length: 1, factor: -2, representation: twos_complement,
+             unit: V}
+          - {name: third, encoding: scaled, byte: 2, byte_length: 1, factor: 0.3333333, offset: 0.1234567891234,
+             unit: A}
+          - {name: big, encoding: scaled, start_bit: 24, bit_length: 32, factor: 0.001, unit: V}
+"""
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_phys_type_int(tmp_path):
+    """--phys-type int: physical values as integers in units of the factor's decimals, rounded half away from
+    zero and saturated as the float conversion is; a factor that is not decimal keeps the float conversion."""
+    from fractions import Fraction
+
+    from mapcan.loader import loads
+
+    sources = [p for p in generate_c(loads(INT_MAP, "t.yaml").map, tmp_path, phys_type="int") if p.suffix == ".c"]
+    header = (tmp_path / "bus.h").read_text(encoding="utf-8")
+    assert "#define F_TEMP_PHYS_SCALE 1000" in header and "static inline int32_t f_temp_to_phys(uint8_t raw)" in header
+    assert "static inline int64_t f_big_to_phys(uint32_t raw)" in header            # beyond int32_t
+    assert "static inline float f_third_to_phys(uint8_t raw)" in header              # not a decimal: float
+
+    def to_phys(raw, factor, offset, scale):
+        return int(raw * Fraction(factor) * scale + Fraction(offset) * scale)
+
+    def from_phys(phys, factor, offset, scale, lo, hi):
+        q = (Fraction(phys) - Fraction(offset) * scale) / (Fraction(factor) * scale)
+        r = int(abs(q) + Fraction(1, 2)) * (1 if q >= 0 else -1)
+        return min(max(r, lo), hi)
+
+    cases = [("temp", "0.125", "-40", 1000, 0, 255, [0, 1, 200, 255], [-40000, -39937, 0, 1, 100000, -100000]),
+             ("neg", "-2", "0", 1, -128, 127, [-128, -1, 0, 127], [-3, -2, -1, 1, 3, 300, -300]),
+             ("big", "0.001", "0", 1000, 0, 2**32 - 1, [0, 2**32 - 1], [1, 2**40])]
+    main = ["#include <stdio.h>", "#include <inttypes.h>", '#include "bus.h"', "int main(void) {"]
+    expected = []
+    for name, factor, offset, scale, lo, hi, raws, physs in cases:
+        ctype = "int8_t" if name == "neg" else "uint32_t" if name == "big" else "uint8_t"
+        ptype = "int64_t" if name == "big" else "int32_t"
+        for raw in raws:
+            main.append(f'    printf("%" PRId64 "\\n", (int64_t)f_{name}_to_phys(({ctype})({raw}LL)));')
+            expected.append(str(to_phys(raw, factor, offset, scale)))
+        for phys in physs:
+            main.append(f'    printf("%" PRId64 "\\n", (int64_t)f_{name}_from_phys(({ptype})({phys}LL)));')
+            expected.append(str(from_phys(phys, factor, offset, scale, lo, hi)))
+    main += ["    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split() == expected
+
+
+ARM_SIZE = shutil.which("arm-none-eabi-size")
+# Code (with its constants) of the generated C for Cortex-M0 at -Os, bytes: about a fifth above what it is,
+# so a regression (a loop over bits again, 64-bit arithmetic) shows up and small changes do not
+CODE_SIZE_BUDGET = {("vehicle-can", "powertrain"): 1000, ("reference", "bus1"): 2300}
+
+
+@pytest.mark.skipif(ARM_GCC is None or ARM_SIZE is None, reason="нет arm-none-eabi-gcc")
+@pytest.mark.parametrize(("map_name", "bus"), list(CODE_SIZE_BUDGET), ids=lambda v: v)
+def test_code_size_cortex_m0(map_name, bus, tmp_path):
+    path = REFERENCE if map_name == "reference" else ROOT / "examples" / f"{map_name}.yaml"
+    generate_c(load(path).map, tmp_path, buses=[bus])
+    obj = tmp_path / f"{bus}.o"
+    subprocess.run([ARM_GCC, "-std=c99", "-mcpu=cortex-m0", "-mthumb", "-Os", "-ffreestanding", "-c",
+                    str(tmp_path / f"{bus}.c"), "-o", str(obj)], check=True, capture_output=True, text=True)
+    text = int(subprocess.run([ARM_SIZE, str(obj)], check=True, capture_output=True, text=True)
+               .stdout.splitlines()[-1].split()[0])
+    assert text <= CODE_SIZE_BUDGET[(map_name, bus)], text

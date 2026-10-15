@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import zlib
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 
 from .. import bits as B
@@ -26,18 +27,24 @@ static inline uint64_t mapcan_get_bits(const uint8_t *data, uint16_t start, uint
 {
     uint64_t value = 0u;
     uint8_t done = 0u;
-    int16_t pos = (int16_t)start;
+    uint16_t pos = start;
     while (done < length) {
-        uint8_t byte = (uint8_t)(pos / 8);
-        uint8_t shift = (uint8_t)(pos % 8);
+        uint16_t byte = (uint16_t)(pos / 8u);
+        uint8_t shift = (uint8_t)(pos % 8u);
         uint8_t n = (uint8_t)(8u - shift);
-        if (n > (uint8_t)(length - done)) {
-            n = (uint8_t)(length - done);
+        uint8_t left = (uint8_t)(length - done);
+        if (n > left) {
+            n = left;
         }
-        uint8_t chunk = (uint8_t)((data[byte] >> shift) & (uint8_t)((1u << n) - 1u));
-        value |= (uint64_t)chunk << done;
+        uint8_t mask = (uint8_t)((1u << n) - 1u);
+        uint8_t chunk = (uint8_t)((uint8_t)(data[byte] >> shift) & mask);
+        value |= ((uint64_t)chunk << done);
         done = (uint8_t)(done + n);
-        pos = big_endian ? (int16_t)((byte - 1) * 8) : (int16_t)((byte + 1) * 8);
+        if (big_endian) {
+            pos = (uint16_t)((byte - 1u) * 8u);
+        } else {
+            pos = (uint16_t)((byte + 1u) * 8u);
+        }
     }
     return value;
 }
@@ -45,99 +52,135 @@ static inline uint64_t mapcan_get_bits(const uint8_t *data, uint16_t start, uint
 static inline void mapcan_set_bits(uint8_t *data, uint64_t value, uint16_t start, uint8_t length, bool big_endian)
 {
     uint8_t done = 0u;
-    int16_t pos = (int16_t)start;
+    uint16_t pos = start;
     while (done < length) {
-        uint8_t byte = (uint8_t)(pos / 8);
-        uint8_t shift = (uint8_t)(pos % 8);
+        uint16_t byte = (uint16_t)(pos / 8u);
+        uint8_t shift = (uint8_t)(pos % 8u);
         uint8_t n = (uint8_t)(8u - shift);
-        if (n > (uint8_t)(length - done)) {
-            n = (uint8_t)(length - done);
+        uint8_t left = (uint8_t)(length - done);
+        if (n > left) {
+            n = left;
         }
         uint8_t mask = (uint8_t)(((1u << n) - 1u) << shift);
-        uint8_t chunk = (uint8_t)(((value >> done) << shift) & mask);
-        data[byte] = (uint8_t)((data[byte] & (uint8_t)~mask) | chunk);
+        uint8_t part = (uint8_t)(value >> done);
+        uint8_t chunk = (uint8_t)((uint8_t)(part << shift) & mask);
+        data[byte] = (uint8_t)((uint8_t)(data[byte] & (uint8_t)~mask) | chunk);
         done = (uint8_t)(done + n);
-        pos = big_endian ? (int16_t)((byte - 1) * 8) : (int16_t)((byte + 1) * 8);
+        if (big_endian) {
+            pos = (uint16_t)((byte - 1u) * 8u);
+        } else {
+            pos = (uint16_t)((byte + 1u) * 8u);
+        }
     }
-}
-
-@CLAMP_NOTE@
-static inline uint64_t mapcan_clamp_u(uint64_t value, uint64_t hi)
-{
-    return value > hi ? hi : value;
-}
-static inline int64_t mapcan_clamp_s(int64_t value, int64_t lo, int64_t hi)
-{
-    return value < lo ? lo : (value > hi ? hi : value);
 }
 
 static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
 {
-    uint64_t sign = (uint64_t)1u << (length - 1u);
-    return (int64_t)((value ^ sign) - sign);
+    uint8_t top = (uint8_t)(length - 1u);
+    uint64_t sign = (uint64_t)1u << top;
+    uint64_t x = (value ^ sign) - sign;
+    return (int64_t)x;
 }
 static inline int32_t mapcan_sign_extend32(uint32_t value, uint8_t length)
 {
-    uint32_t sign = (uint32_t)1u << (length - 1u);
-    return (int32_t)((value ^ sign) - sign);
+    uint8_t top = (uint8_t)(length - 1u);
+    uint32_t sign = (uint32_t)1u << top;
+    uint32_t x = (value ^ sign) - sign;
+    return (int32_t)x;
 }
 
 @ONES_NOTE@
 static inline int64_t mapcan_ones_decode(uint64_t value, uint8_t length)
 {
-    uint64_t sign = (uint64_t)1u << (length - 1u);
-    return (value & sign) ? -(int64_t)(~value & (sign - 1u)) : (int64_t)value;
+    uint8_t top = (uint8_t)(length - 1u);
+    uint64_t sign = (uint64_t)1u << top;
+    int64_t r = (int64_t)value;
+    if ((value & sign) != 0u) {
+        uint64_t magnitude = (~value) & (sign - 1u);
+        r = -(int64_t)magnitude;
+    }
+    return r;
 }
 static inline uint64_t mapcan_ones_encode(int64_t value)
 {
-    return value < 0 ? ~(uint64_t)(-value) : (uint64_t)value;
+    uint64_t r = (uint64_t)value;
+    if (value < 0) {
+        int64_t magnitude = -value;
+        r = ~(uint64_t)magnitude;
+    }
+    return r;
 }
 
 @SM_NOTE@
 static inline int64_t mapcan_sm_decode(uint64_t value, uint8_t length)
 {
-    uint64_t sign = (uint64_t)1u << (length - 1u);
-    return (value & sign) ? -(int64_t)(value & (sign - 1u)) : (int64_t)value;
+    uint8_t top = (uint8_t)(length - 1u);
+    uint64_t sign = (uint64_t)1u << top;
+    int64_t r = (int64_t)value;
+    if ((value & sign) != 0u) {
+        uint64_t magnitude = value & (sign - 1u);
+        r = -(int64_t)magnitude;
+    }
+    return r;
 }
 static inline uint64_t mapcan_sm_encode(int64_t value, uint8_t length)
 {
-    return value < 0 ? (((uint64_t)1u << (length - 1u)) | (uint64_t)(-value)) : (uint64_t)value;
+    uint64_t r = (uint64_t)value;
+    if (value < 0) {
+        uint8_t top = (uint8_t)(length - 1u);
+        int64_t magnitude = -value;
+        r = ((uint64_t)1u << top) | (uint64_t)magnitude;
+    }
+    return r;
 }
 
 @IEEE_NOTE@
 static inline uint32_t mapcan_f32_to_bits(float f)
 {
     uint32_t u;
-    memcpy(&u, &f, sizeof u);
+    (void)memcpy(&u, &f, sizeof u);
     return u;
 }
 static inline float mapcan_bits_to_f32(uint32_t u)
 {
     float f;
-    memcpy(&f, &u, sizeof f);
+    (void)memcpy(&f, &u, sizeof f);
     return f;
 }
 static inline uint64_t mapcan_f64_to_bits(double f)
 {
     uint64_t u;
-    memcpy(&u, &f, sizeof u);
+    (void)memcpy(&u, &f, sizeof u);
     return u;
 }
 static inline double mapcan_bits_to_f64(uint64_t u)
 {
     double f;
-    memcpy(&f, &u, sizeof f);
+    (void)memcpy(&f, &u, sizeof f);
     return f;
 }
 
 static inline float mapcan_round_f(float x)
 {
-    return (x >= 0.0f) ? (x + 0.5f) : (x - 0.5f);
+    return (x >= 0.0F) ? (x + 0.5F) : (x - 0.5F);
 }
 
 static inline double mapcan_round_d(double x)
 {
     return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
+}
+
+@DIV_NOTE@
+static inline int64_t mapcan_div_round(int64_t n, int64_t d)
+{
+    int64_t half = d / 2;
+    int64_t r;
+    if ((n < 0) == (d < 0)) {
+        r = (n + half) / d;
+    } else {
+        r = (n - half) / d;
+    }
+    return r;
 }
 
 @TABLES_NOTE@
@@ -185,6 +228,30 @@ def _c_signed(v: int) -> str:
     return f"({v}LL)" if v < 0 else f"{v}LL"
 
 
+def _merge_guards(lines: list[str]) -> list[str]:
+    """Signals of the same selector values one after another go into one if block, not one block each with the
+    same condition."""
+    out: list[str] = []
+    current = None              # the condition of the top-level block that was closed last
+    for line in lines:
+        top = line.startswith("    ") and not line.startswith("     ")
+        if top and line.startswith("    if (") and line.endswith(") {"):
+            if out and out[-1] == "    }" and current == line:
+                out.pop()
+                continue
+            current = line
+        elif top and line != "    }":
+            current = None
+        out.append(line)
+    return out
+
+
+def _mux_cond(sel: Signal, values: list[int]) -> str:
+    """The condition of multiplexed signals: the selector equal to one of the values."""
+    conds = [f"msg->{sel.name} == {v if sel.signed else _c_int(v)}" for v in values]
+    return conds[0] if len(conds) == 1 else " || ".join(f"({c})" for c in conds)
+
+
 def _c_bool(v) -> str:
     return "true" if v else "false"
 
@@ -193,15 +260,33 @@ def _c_comment(s: str) -> str:
     return s.replace("*/", "* /").replace("\n", " ")
 
 
-PHYS_TYPES = ("float", "double")
+PHYS_TYPES = ("float", "double", "int")
+
+
+def _fixed_point(s: Signal) -> tuple[int, int, int, str] | None:
+    """Integer conversion of a scaled signal: (decimals, factor and offset in units of 10^-decimals, the type of
+    the physical value), or None when the factor or offset is not a decimal fraction of up to 9 digits or the
+    values do not fit in int64_t."""
+    lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code if s.signed else None)
+    # The decimals as the map writes the numbers (the shortest form that reads back the same)
+    exact = [Decimal(repr(float(v))) for v in (s.factor, s.offset)]
+    k = max(max(0, -d.normalize().as_tuple().exponent) for d in exact)
+    if k > 9:
+        return None
+    factor, offset = (int(d.scaleb(k)) for d in exact)
+    ends = (lo * factor + offset, hi * factor + offset)
+    if factor == 0 or hi > (1 << 63) - 1 or any(abs(x) > (1 << 63) - 1 for x in ends):
+        return None
+    pt = "int32_t" if all(-(1 << 31) <= x <= (1 << 31) - 1 for x in ends) else "int64_t"
+    return k, factor, offset, pt
 
 
 class CGen:
     def __init__(self, cmap: MapCan, bus: Bus, prefix: str = "", lang: str | None = None,
                  phys_type: str = "float"):
         """``phys_type``: the type of physical values of scaled signals: float (double only where float cannot
-        hold the raw values exactly), or double for all of them (MCUs with a double-precision FPU, test
-        benches)."""
+        hold the raw values exactly), double for all of them (MCUs with a double-precision FPU, test benches),
+        or int: integers in units of 10^-k (MCUs without an FPU), float where the factor is not decimal."""
         if phys_type not in PHYS_TYPES:
             raise ValueError(phys_type)
         self.cmap, self.bus = cmap, bus
@@ -278,7 +363,7 @@ class CGen:
             'extern "C" {',
             "#endif",
             HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"])
-            .replace("@CLAMP_NOTE@", self.T["clamp_c"]).replace("@MISMATCH@", self.T["helpers_mismatch"])
+            .replace("@MISMATCH@", self.T["helpers_mismatch"]).replace("@DIV_NOTE@", self.T["div_note"])
             .replace("@REVISION@", HELPERS_REVISION).replace("@TABLES_NOTE@", self.T["tables_note"])
             .replace("@ONES_NOTE@", self.T["ones_c"]).replace("@SM_NOTE@", self.T["sm_c"]),
         ]
@@ -360,7 +445,7 @@ class CGen:
             out += self.default_defines(F, s)
             if physical(s) and s.encoding == "float":
                 T = self.ctype(s)
-                sfx = "" if T == "double" else "f"
+                sfx = "" if T == "double" else "F"
                 fn = self.p(F, S)
                 out += [
                     f"#define {self.P(F, S, 'FACTOR')} ({num(s.factor)}{sfx})",
@@ -368,7 +453,7 @@ class CGen:
                 ]
                 if self.unpacks(f):
                     out += [f"static inline {T} {fn}_to_phys({T} raw)", "{",
-                            f"    return raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};", "}"]
+                            f"    return (raw * {self.P(F, S, 'FACTOR')}) + {self.P(F, S, 'OFFSET')};", "}"]
                 if self.packs(f):
                     out += [f"static inline {T} {fn}_from_phys({T} phys)", "{",
                             f"    return (phys - {self.P(F, S, 'OFFSET')}) / {self.P(F, S, 'FACTOR')};", "}"]
@@ -376,13 +461,19 @@ class CGen:
             elif physical(s) and not is_byte_array(s):
                 T = self.ctype(s)
                 lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code)
+                fixed = _fixed_point(s) if self.phys_type == "int" else None
+                if fixed is not None:
+                    out += self._int_conversions(f, F, s, fixed)
+                    continue
+                if self.phys_type == "int":
+                    out.append(f"/* {S}: {self.T['not_fixed']} */")
                 # float represents integers exactly only up to 2^24: long fields are computed in double.
                 # The upper bound is compared with hi + 1 (a power of two, exact in any type),
                 # otherwise hi would round up and fall outside the field's width.
                 if s.bit_length > 24 or self.phys_type == "double":
                     FT, sfx, rnd = "double", "", "mapcan_round_d"
                 else:
-                    FT, sfx, rnd = "float", "f", "mapcan_round_f"
+                    FT, sfx, rnd = "float", "F", "mapcan_round_f"
                 fn = self.p(F, S)
                 out += [
                     f"#define {self.P(F, S, 'FACTOR')} ({num(s.factor)}{sfx})",
@@ -392,7 +483,7 @@ class CGen:
                     out.append(f"/* {S}: {self.T['unit']} — {_c_comment(translate_unit(s.unit, self.lang))} */")
                 if self.unpacks(f):
                     out += [f"static inline {FT} {fn}_to_phys({T} raw)", "{",
-                            f"    return ({FT})raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};", "}"]
+                            f"    return (({FT})raw * {self.P(F, S, 'FACTOR')}) + {self.P(F, S, 'OFFSET')};", "}"]
                 if self.packs(f):
                     out += [
                         f"static inline {T} {fn}_from_phys({FT} phys)",
@@ -422,7 +513,7 @@ class CGen:
         sel = selector_of(f)
         for s in f.layout:
             if s.mux is not None and sel is not None:
-                cond = " || ".join(f"msg->{sel.name} == {v}" for v in s.mux_values)
+                cond = _mux_cond(sel, s.mux_values)
                 out.append(f"static inline int {self.p(F, s.name)}_is_active(const {self.p(F)}_t *msg) "
                            f"{{ return {cond}; }}")
         if sel is not None and any(s.mux is not None for s in f.layout):
@@ -440,6 +531,32 @@ class CGen:
         out.append("")
         return out
 
+    def _int_conversions(self, f: Frame, F: str, s: Signal, fixed: tuple[int, int, int, str]) -> list[str]:
+        """to_phys/from_phys in integers: the physical value in units of 10^-k (--phys-type int)."""
+        k, factor, offset, PT = fixed
+        T, S, fn = self.ctype(s), s.name, self.p(F, s.name)
+        lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code if s.signed else None)
+        unit = f" {_c_comment(translate_unit(s.unit, self.lang))}" if s.unit else ""
+        FS, OS = self.P(F, S, "FACTOR_SCALED"), self.P(F, S, "OFFSET_SCALED")
+        out = [f"/* {S}: {self.T['fixed_note'].format(scale=10 ** k, unit=unit)} */",
+               f"#define {self.P(F, S, 'PHYS_SCALE')} {10 ** k}",
+               f"#define {FS} {_c_signed(factor)}",
+               f"#define {OS} {_c_signed(offset)}"]
+        if self.unpacks(f):
+            value = f"((int64_t)raw * {FS}) + {OS}"
+            out += [f"static inline {PT} {fn}_to_phys({T} raw)", "{",
+                    f"    return {f'(int32_t)({value})' if PT == 'int32_t' else value};", "}"]
+        if self.packs(f):
+            out += [f"static inline {T} {fn}_from_phys({PT} phys)", "{",
+                    f"    int64_t r = mapcan_div_round((int64_t)phys - {OS}, {FS});"]
+            # A bound at the limit of int64_t is left out (always false)
+            if lo > -(1 << 63):
+                out.append(f"    if (r < {_c_signed(lo)}) {{ return {_c_bound(lo)}; }}")
+            if hi < (1 << 63) - 1:
+                out.append(f"    if (r > {_c_signed(hi)}) {{ return {_c_bound(hi)}; }}")
+            out += [f"    return ({T})r;", "}"]
+        return out + [""]
+
     def default_defines(self, F: str, s: Signal) -> list[str]:
         """#define for the initial value, "no data" and SPN (J1939)."""
         out = []
@@ -448,7 +565,7 @@ class CGen:
         init = s.initial_raw
         if init is not None and not is_byte_array(s):
             if s.encoding == "float":
-                sfx = "" if s.bit_length == 64 else "f"
+                sfx = "" if s.bit_length == 64 else "F"
                 out.append(f"#define {self.P(F, s.name, 'INITIAL')} ({num(init)}{sfx})")
             else:
                 out.append(f"#define {self.P(F, s.name, 'INITIAL_RAW')} {_c_int(init)}")
@@ -470,17 +587,19 @@ class CGen:
                 # A bound at the limit of the C type is always true: it is left out (no -Wtype-limits warning)
                 bounds = ((f"raw >= {lit(lo)}", lo > tmin), (f"raw <= {lit(hi)}", hi < tmax))
                 parts = [f"raw == {lit(lo)}"] if lo == hi else [x for x, need in bounds if need] or ["1"]
-                conds.append(parts[0] if len(parts) == 1 else f"({' && '.join(parts)})")
+                conds.append(parts[0] if len(parts) == 1 else " && ".join(f"({x})" for x in parts))
+            cond = conds[0] if len(conds) == 1 else " || ".join(f"({c})" for c in conds)
             out.append(f"static inline int {self.p(F, s.name)}_is_{meaning}({self.ctype(s)} raw) "
-                       f"{{ return {' || '.join(conds)}; }}")
+                       f"{{ return {cond}; }}")
         # The raw values of the map's min..max: <frame>_<signal>_in_range(raw)
         limits = raw_limits(s)
         if limits is not None:
             lo, hi = limits
             parts = [x for x, need in ((f"raw >= {lit(lo)}", lo > tmin), (f"raw <= {lit(hi)}", hi < tmax))
                      if need] or ["1"]
+            cond = parts[0] if len(parts) == 1 else " && ".join(f"({x})" for x in parts)
             out.append(f"static inline int {self.p(F, s.name)}_in_range({self.ctype(s)} raw) "
-                       f"{{ return {' && '.join(parts)}; }}")
+                       f"{{ return {cond}; }}")
         if out:
             out.append("")
         return out
@@ -501,9 +620,7 @@ class CGen:
     def _guard(self, s: Signal, sel: Signal | None, body: list[str]) -> list[str]:
         if s.mux is None or sel is None:
             return body
-        cond = " || ".join(f"msg->{sel.name} == {v}" for v in s.mux_values)
-        if body[0] == "    {" and body[-1] == "    }":
-            body = [b.removeprefix("    ") for b in body[1:-1]]      # the if's own block takes the place of it
+        cond = _mux_cond(sel, s.mux_values)
         return [f"    if ({cond}) {{"] + ["    " + b for b in body] + ["    }"]
 
     def initial_const(self, f: Frame) -> list[str]:
@@ -517,7 +634,7 @@ class CGen:
                 fill = (f"(char)0x{s.terminator_byte or 0:02X}" if s.encoding == "string" else "0u")
                 items.append("{" + ", ".join([fill] * n) + "}")
             elif init is None:
-                items.append("0.0" if self.ctype(s) == "double" else "0.0f" if s.encoding == "float" else "0")
+                items.append("0.0" if self.ctype(s) == "double" else "0.0F" if s.encoding == "float" else "0")
             else:
                 macro = self.P(F, s.name, "INITIAL" if s.encoding == "float" else "INITIAL_RAW")
                 items.append(f"({self.ctype(s)}){macro}")
@@ -539,7 +656,7 @@ class CGen:
                 out += [f"    for (size_t i = 0u; i < {s.bit_length // 8}u; i++) {{",
                         f"        msg->{s.name}[i] = {fill};", "    }"]
             elif init is None:
-                zero = "0.0" if self.ctype(s) == "double" else "0.0f" if s.encoding == "float" else "0"
+                zero = "0.0" if self.ctype(s) == "double" else "0.0F" if s.encoding == "float" else "0"
                 out.append(f"    msg->{s.name} = {zero};")
             else:
                 macro = self.P(F, s.name, "INITIAL" if s.encoding == "float" else "INITIAL_RAW")
@@ -645,7 +762,7 @@ class CGen:
         pack = [
             f"int {name}_pack(uint8_t *data, size_t size, const {name}_t *msg)",
             "{",
-            f"    if (data == NULL || msg == NULL || size < {f.length}u) {{",
+            f"    if ((data == NULL) || (msg == NULL) || (size < {f.length}u)) {{",
             "        return -1;",
             "    }",
             f"    for (size_t i = 0u; i < {f.length}u; i++) {{",
@@ -655,7 +772,7 @@ class CGen:
         unpack = [
             f"int {name}_unpack({name}_t *msg, const uint8_t *data, size_t size)",
             "{",
-            f"    if (data == NULL || msg == NULL || size < {f.length}u) {{",
+            f"    if ((data == NULL) || (msg == NULL) || (size < {f.length}u)) {{",
             "        return -1;",
             "    }",
         ]
@@ -682,6 +799,7 @@ class CGen:
             unpack += self._guard(s, sel, [f"    msg->{s.name} = {self._unpack_value(s)};"])
         pack += [f"    return {f.length};", "}", ""]
         unpack += ["    return 0;", "}", ""]
+        pack, unpack = _merge_guards(pack), _merge_guards(unpack)
         return init + (pack if self.packs(f) else []) + (unpack if self.unpacks(f) else [])
 
 
@@ -815,11 +933,12 @@ class DeviceGen(CGen):
         # Timeout supervision: the time since the last reception (unsigned: the millisecond counter may wrap)
         out += [f"bool {self.p(D, 'rx_timed_out')}(const {rx_t} *rx, {self.p(D, 'rx_frame')}_t frame, "
                 "uint32_t now_ms)", "{",
-                f"    if (rx == NULL || (size_t)frame >= {self.P(D, 'RX_COUNT')} || "
-                f"{self.p(D, 'rx_frames')}[frame].timeout_ms == 0u) {{",
+                f"    if ((rx == NULL) || ((size_t)frame >= {self.P(D, 'RX_COUNT')}) || "
+                f"({self.p(D, 'rx_frames')}[frame].timeout_ms == 0u)) {{",
                 "        return false;", "    }",
-                "    return !rx->received[frame]",
-                f"        || (uint32_t)(now_ms - rx->received_ms[frame]) > {self.p(D, 'rx_frames')}[frame].timeout_ms;",
+                "    return (!rx->received[frame])",
+                "        || ((uint32_t)(now_ms - rx->received_ms[frame]) > "
+                f"{self.p(D, 'rx_frames')}[frame].timeout_ms);",
                 "}", ""]
         return out
 

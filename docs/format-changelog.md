@@ -53,6 +53,12 @@ needs at least the version of mapcan that introduced it; former names stay reada
 - Generated code: `<frame>_<signal>_in_range(raw)` for signals with `min`/`max` (C and Python),
   `<FRAME>_ON_EVENT` for frames sent on an event, and in C the constant `<FRAME>_INITIAL` and
   `<frame>_<signal>_is_active(&msg)` for multiplexed signals.
+- Generated C: `--phys-type int` computes physical values in integers (units of the factor's decimals)
+  for MCUs without an FPU. The code is checked with cppcheck and MISRA C:2012 in CI (the deviations
+  are listed in docs/cli.md), and its Cortex-M code size within a budget; comparisons in expressions are
+  in parentheses, the selector is compared with literals of its signedness, and the helpers of the
+  signed representations work in explicit steps. The bit helpers index bytes with `uint16_t`: a
+  transport-protocol PGN longer than 256 bytes was read at wrong offsets.
 - Generated C per device: `mapcan gen c --device <name>` (or `--devices`) writes the frames a device
   sends and receives, its TX schedule, the frames it receives with acceptance filters, and
   `<device>_rx_dispatch()`, which unpacks a received frame into the device's RX state and notes when

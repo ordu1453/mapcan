@@ -80,6 +80,28 @@ jobs:
           ! uv run --no-sync mapcan export pdf examples/j1939.yaml -o build/x.pdf 2> err.txt
           grep -F 'mapcan[pdf]' err.txt
 
+  # The generated C code as firmware sees it: static analysis (cppcheck, and MISRA C:2012 through its addon,
+  # for the code of the buses and of the devices of every example map; only the deviations listed in the test
+  # are allowed), a build for Cortex-M and its code size within a budget.
+  firmware:
+    if: ${{ !inputs.skip-linux }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - name: Install cppcheck and the Arm toolchain
+        run: |
+          uv pip install cppcheck==1.5.3 && uv run --no-sync cppcheck --version
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi
+          arm-none-eabi-gcc --version
+      - name: cppcheck, MISRA C, Cortex-M build and code size
+        env:
+          MAPCAN_REQUIRE_CPPCHECK: "1"     # a missing cppcheck fails the job instead of skipping the test
+        run: uv run --no-sync pytest tests/test_codegen.py -k "cppcheck_and_misra or cortex" -p no:cacheprovider
+
   # A trial build of the Docker image (without publishing): otherwise a broken Dockerfile shows up only
   # in release.yml after the tag.
   docker:

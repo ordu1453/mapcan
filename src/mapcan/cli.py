@@ -482,7 +482,8 @@ def gen_c_cmd(
     prefix: str = typer.Option("", "--prefix", help=_("Name prefix (e.g. ne_).")),
     bus: list[str] = typer.Option([], "--bus", help=_("Only the given buses.")),
     phys_type: str = typer.Option("float", "--phys-type", help=_(
-        "Type of physical values: float (double only for fields longer than 24 bits) or double.")),
+        "Type of physical values: float (double only for fields longer than 24 bits), double, or int (integers "
+        "in units of the factor's decimals, for MCUs without an FPU).")),
     device: list[str] = typer.Option([], "--device", help=_(
         "Code of one device instead of the buses: its frames, TX schedule, RX filters and dispatch "
         "(repeatable).")),
