@@ -344,9 +344,12 @@ class CGen:
                 out.append(f"    {self.ctype(s)} {s.name};{' /* ' + d + unit + ' */' if d or unit else ''}")
         out.append(f"}} {self.p(F)}_t;")
         out.append("")
+        out.append(f"/* {self.T['init']} */")
+        out.append(f"void {self.p(F)}_init({self.p(F)}_t *msg);")
         out.append(f"/* {self.T['pack']} */")
         out.append(f"int {self.p(F)}_pack(uint8_t *data, size_t size, const {self.p(F)}_t *msg);")
-        out.append(f"/* {self.T['unpack']} */")
+        muxed = selector_of(f) is not None and any(s.mux is not None for s in f.layout)
+        out.append(f"/* {self.T['unpack_mux' if muxed else 'unpack']} */")
         out.append(f"int {self.p(F)}_unpack({self.p(F)}_t *msg, const uint8_t *data, size_t size);")
         out.append("")
         return out
@@ -401,12 +404,35 @@ class CGen:
         cond = " || ".join(f"msg->{sel.name} == {v}" for v in s.mux_values)
         return [f"    if ({cond}) {{"] + ["    " + b for b in body] + ["    }"]
 
+    def init_impl(self, f: Frame) -> list[str]:
+        """<frame>_init(): every signal at the initial value of the map, 0 without one."""
+        F = self.frame_name(f)
+        name = self.p(F)
+        out = [f"void {name}_init({name}_t *msg)", "{", "    if (msg == NULL) {", "        return;", "    }"]
+        if not f.layout:
+            out.append("    msg->reserved_ = 0u;")
+        for s in f.layout:
+            init = s.initial_raw
+            if is_byte_array(s):
+                # A string is filled with its terminator (0x00 without one): the empty text
+                fill = (f"(char)0x{s.terminator_byte or 0:02X}" if s.encoding == "string" else "0u")
+                out += [f"    for (size_t i = 0u; i < {s.bit_length // 8}u; i++) {{",
+                        f"        msg->{s.name}[i] = {fill};", "    }"]
+            elif init is None:
+                zero = "0.0" if self.ctype(s) == "double" else "0.0f" if s.encoding == "float" else "0"
+                out.append(f"    msg->{s.name} = {zero};")
+            else:
+                macro = self.P(F, s.name, "INITIAL" if s.encoding == "float" else "INITIAL_RAW")
+                out.append(f"    msg->{s.name} = ({self.ctype(s)}){macro};")
+        return out + ["}", ""]
+
     def frame_impl(self, f: Frame) -> list[str]:
         name = self.p(self.frame_name(f))
         sel = selector_of(f)
         be = lambda s: "true" if s.byte_order == "big_endian" else "false"  # noqa: E731
+        init = self.init_impl(f)
         if f.length == 0:
-            return [
+            return init + [
                 f"int {name}_pack(uint8_t *data, size_t size, const {name}_t *msg)",
                 "{", "    (void)data;", "    (void)size;", "    return (msg == NULL) ? -1 : 0;", "}", "",
                 f"int {name}_unpack({name}_t *msg, const uint8_t *data, size_t size)",
@@ -430,6 +456,9 @@ class CGen:
             "        return -1;",
             "    }",
         ]
+        if sel is not None and any(s.mux is not None for s in f.layout):
+            # Signals of another selector value do not keep what the previous frame had
+            unpack.append(f"    {name}_init(msg);")
         # The selector is unpacked first: the other signals depend on it.
         order = sorted(f.layout, key=lambda s: not s.multiplexer)
         if not f.layout:
@@ -480,7 +509,7 @@ class CGen:
             unpack += self._guard(s, sel, [f"    msg->{s.name} = ({T}){get};"])
         pack += [f"    return {f.length};", "}", ""]
         unpack += ["    return 0;", "}", ""]
-        return pack + unpack
+        return init + pack + unpack
 
 
 def generate_c(cmap: MapCan, out_dir: str | Path, prefix: str = "", buses: list[str] | None = None) -> list[Path]:

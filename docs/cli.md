@@ -64,7 +64,8 @@ and Cortex-M. For [examples/vehicle-can.yaml](../examples/vehicle-can.yaml):
 ```c
 #include "powertrain.h"
 
-vcu_command_t cmd = {0};
+vcu_command_t cmd;
+vcu_command_init(&cmd);                                              /* initial values of the map */
 cmd.contactor_request = VCU_COMMAND_CONTACTOR_REQUEST_CLOSE;
 cmd.torque_request = vcu_command_torque_request_from_phys(120.5f);   /* N·m → raw */
 uint8_t buf[8];
@@ -73,6 +74,11 @@ int len = vcu_command_pack(buf, sizeof buf, &cmd);                   /* → VCU_
 bms_status_t st;
 if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { ... }
 ```
+
+`<frame>_init()` sets every signal to its `initial` value from the map (0 without one, a string to
+its terminator), as the defaults of the Python classes do. `<frame>_unpack()` of a multiplexed frame
+gives the signals of another selector value their initial values too, so none keeps what an earlier
+frame had.
 
 Identifiers are named after the frame (`<FRAME>_ID`, `<frame>_t`, `<frame>_pack()`) and the device
 (`<DEVICE>_NODE_ID`). Names are unique only within a bus, so a frame or device whose name is also on

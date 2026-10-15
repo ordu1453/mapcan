@@ -743,3 +743,67 @@ def test_python_enum_fields(tmp_path):
     assert back.gear == 7 and type(back.gear) is int
     assert back.pack() == bytes([1, 7])
     assert mod.F(mode=mod.FMode.OFF, gear=mod.FGear.SECOND).pack() == bytes([0, 2])
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_c_init_matches_python(cmap, py_modules, tmp_path):
+    """<frame>_init() + pack() in C gives the bytes of Frame().pack() in Python."""
+    sources = [p for p in generate_c(cmap, tmp_path) if p.suffix == ".c"]
+    main = ["#include <stdio.h>"] + [f'#include "{p.stem}.h"' for p in sources] + [
+            "int main(void) {", "    uint8_t buf[64];", "    int rc;"]
+    expected = []
+    for bus in cmap.buses:
+        g = CGen(cmap, bus)
+        for f in frames_with_layout(bus):
+            t = g.p(g.frame_name(f))
+            main += ["    {", f"        {t}_t m;", f"        {t}_init(&m);",
+                     f"        rc = {t}_pack(buf, sizeof buf, &m);", f'        printf("{f.name}");',
+                     '        for (int i = 0; i < rc; i++) printf(" %02X", buf[i]);', '        printf("\\n");', "    }"]
+            data = getattr(py_modules[bus.name], _cls(f.name))().pack()
+            expected.append(f.name + "".join(f" {b:02X}" for b in data))
+    main += ["    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.splitlines()
+    assert [line.strip() for line in out] == expected
+
+
+MUX_MAP = """
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: f
+        id: 0x100
+        length: 3
+        signals:
+          - {name: sel, encoding: raw, byte: 0, byte_length: 1, multiplexer: true}
+          - {name: a, encoding: raw, byte: 1, byte_length: 1, mux: 0, initial: 9}
+          - {name: b, encoding: raw, byte: 1, byte_length: 1, mux: 1}
+          - {name: tag, encoding: string, byte: 2, byte_length: 1, mux: 1, terminator: "*"}
+"""
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_c_unpack_leaves_no_stale_multiplexed_signals(tmp_path):
+    from mapcan.loader import loads
+
+    sources = [p for p in generate_c(loads(MUX_MAP, "t.yaml").map, tmp_path) if p.suffix == ".c"]
+    show = '    printf("%d %d %d %c\\n", u.sel, u.a, u.b, u.tag[0]);'
+    main = ["#include <stdio.h>", '#include "bus.h"', "int main(void) {", "    f_t u;",
+            "    const uint8_t sel0[3] = {0u, 5u, 0u};", "    const uint8_t sel1[3] = {1u, 6u, 0x41u};",
+            "    f_init(&u);", show,
+            "    f_unpack(&u, sel1, sizeof sel1);", "    f_unpack(&u, sel0, sizeof sel0);", show,
+            "    f_unpack(&u, sel1, sizeof sel1);", show, "    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.splitlines()
+    assert out == ["0 9 0 *", "0 5 0 *", "1 9 6 A"]
