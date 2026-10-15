@@ -73,7 +73,8 @@ interface Drawn {
 
 type Message =
   | { type: "ready" }
-  | { type: "set"; key: string; value: unknown }
+  /** `path`: the node the form showed when the value was typed (the form may be on another one by now). */
+  | { type: "set"; path?: Path; key: string; value: unknown }
   | { type: "ops"; ops: object[]; select?: Path }
   | { type: "select"; path: Path }
   | { type: "done" }
@@ -192,12 +193,14 @@ export class NodeForm implements vscode.WebviewViewProvider, vscode.Disposable {
       case "ready":
         void this.refresh(true);
         break;
-      case "set":
-        if (this.path) {
-          const path = [...this.path, ...m.key.split(".")];
+      case "set": {
+        const node = m.path ?? this.path;
+        if (node) {
+          const path = [...node, ...m.key.split(".")];
           this.queue = this.queue.then(() => this.set(path, m.value)).catch((err) => console.error(err));
         }
         break;
+      }
       case "ops":
         this.queue = this.queue.then(() => this.applyOps(m.ops, m.select)).catch((err) => console.error(err));
         break;

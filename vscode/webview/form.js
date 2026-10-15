@@ -63,7 +63,8 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
 
   function send(/** @type {string} */ key, /** @type {any} */ value) {
     node.values[key] = value;
-    vscode.postMessage({ type: "set", key, value });
+    // The node the value belongs to: the extension may have moved the form to another node meanwhile
+    vscode.postMessage({ type: "set", path: node.path, key, value });
     updateVisibility();
   }
 
@@ -71,6 +72,8 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
   function commit(/** @type {any} */ r) {
     clearTimeout(r.timer);
     r.timer = undefined;
+    // A field of a node no longer shown (its input loses the focus as it is removed) writes nothing
+    if (r.detached) return;
     let value;
     try {
       value = parse(r.def, r.input.value);
@@ -804,6 +807,12 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     if (m.type !== "node") return;
     const path = m.node ? JSON.stringify(m.node.path) : "";
     const rebuild = !m.node || !node || m.node.kind !== shownKind || path !== shownPath || m.created !== created;
+    if (rebuild && node) {
+      // Typing not sent yet goes to the node it was typed for; then the old fields are let go, so that the focused
+      // one, removed with the rest, does not write its text into the node shown next
+      for (const r of rows.values()) if (r.timer !== undefined) commit(r);
+      for (const r of rows.values()) r.detached = true;
+    }
     node = m.node;
     created = m.created;
     if (rebuild) {
