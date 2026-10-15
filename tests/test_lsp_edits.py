@@ -299,6 +299,14 @@ def test_add_signal_to_flow_list_and_empty_frame():
     assert "empty-frame" not in [d.code for d in A.analyze(out, "m.yaml").diagnostics]
 
 
+def test_add_signal_in_the_last_free_bits_by_bytes():
+    """#117: a new signal within one byte is written by bytes, as the other editors write it."""
+    a = A.analyze(MINIMAL, "m.yaml")
+    out = _change(MINIMAL, E.add_node(a, FRAME, "signal"))
+    assert ("              - name: signal\n                encoding: raw\n"
+            "                byte: 7\n                bit: 4\n                bit_length: 4\n") in out
+
+
 def test_duplicate_and_delete():
     a = A.analyze(MINIMAL, "m.yaml")
     out = _change(MINIMAL, E.duplicate_node(a, DEV))

@@ -838,10 +838,10 @@ def _add_signal(a: Analysis, path: Path_) -> TextChange | None:
     start, length, grown = place
     signals = raw_at(a, path + ("signals",)) or []
     fields = [("name", _unique("signal", _names(signals))), ("encoding", "raw")]
-    if length == 8 and start % 8 == 0:
-        fields += [("byte", str(start // 8)), ("byte_length", "1")]
-    else:
-        fields += [("start_bit", str(start)), ("bit_length", str(length))]
+    # The position in the notation the other editors write (#117)
+    from ..web.yamlops import layout_keys
+
+    fields +=[(k, str(v)) for k, v in layout_keys(start, length, False, "raw").items()]
     change = append_item(a, path, "signals", fields)
     if change is None or grown is None:
         return change
