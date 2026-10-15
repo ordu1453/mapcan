@@ -23,6 +23,10 @@
   bit layout changed it (#117): `byte` + `byte_length` for whole bytes from a byte boundary,
   `byte` + `bit` + `bit_length` within one byte, `start_bit` + `bit_length` otherwise. A signal
   dragged across a byte boundary switches the notation in place.
+* The Node form of a frame has no **Sender** field: who sends a frame follows from where it is
+  written (its device, or outside the map for a frame of the bus). The master that sends a
+  CANopen RX function written at its node stays `sender` in the YAML, with completion, Go to
+  Definition and rename as before.
 
 ## 0.6.4
 

@@ -138,15 +138,8 @@ export const frameDirection = (c: FormContext): string | null => {
   return sender && sender !== c.owner ? "rx" : "tx";
 };
 
-// Who sends the frame: with no sender, its device (a frame it transmits), or someone outside the map (a frame of
-// the bus, an RX function of CANopen); another device makes the frame one the device receives
-const senders = (c: FormContext): Option[] => [
-  ["", c.owner && !(value(c, "sender") == null && frameDirection(c) === "rx") ? N_("this device") : N_("outside the map")],
-  ...others(c),
-];
-
-// Sender and receivers are devices of the bus other than the frame's owner (it sends a TX frame and
-// receives an RX one); the frame's sender is not offered as a receiver
+// Receivers are devices of the bus other than the frame's owner (it sends a TX frame and receives an RX one); the
+// frame's sender (written in the YAML) is not offered as a receiver
 const others = (c: FormContext): Option[] => c.devices.filter((d) => d.name !== c.owner).map((d) => [d.name, d.label]);
 const receivers = (c: FormContext): Option[] => others(c).filter(([d]) => d !== value(c, "sender"));
 
@@ -289,8 +282,9 @@ export const FORMS: Record<FormKind, Section[]> = {
         placeholder: (c) => (typeof value(c, "cycle_ms") === "number" ? String(3 * (value(c, "cycle_ms") as number)) : "") },
     ] },
     { title: N_("Routing"), fields: [
-      // The direction follows from the sender (and the CANopen function): there is no field for it
-      { key: "sender", label: N_("Sender"), type: "select", options: senders, when: (c) => others(c).length > 0 },
+      // Who sends a frame follows from where it is written (its device, or outside the map for a frame of the bus),
+      // so there is no field for the sender or the direction. The sender of a CANopen RX function written at its
+      // receiving node (the master) stays a YAML key: the editors rename it with the device.
       // The receiver of an RX frame is its device
       { key: "receivers", label: N_("Receivers"), type: "devices", wide: true, options: receivers,
         when: (c) => !(c.owner && frameDirection(c) === "rx") && receivers(c).length > 0 },
@@ -397,6 +391,7 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
   frame: {
     signals: "child nodes and the bit layout", sdo: "child nodes of the tree",
     direction: "deprecated: it follows from the CANopen function and the sender",
+    sender: "follows from where the frame is written; the master of a CANopen RX function is written in the YAML",
   },
   signal: { values: "value table", flags: "flags table" },
   flag: { values: "value table" },
