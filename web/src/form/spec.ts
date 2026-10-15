@@ -241,10 +241,11 @@ export const FORMS: Record<FormKind, Section[]> = {
     ] },
     NOTES,
   ],
+  // A frame and a signal are named by their identifier: it comes first, and the optional title defaults to it
   frame: [
     { fields: [
-      { key: "title", label: N_("Title"), type: "loc", placeholder: N_("same as the identifier") },
       NAME,
+      { key: "title", label: N_("Title"), type: "loc", placeholder: N_("same as the identifier") },
     ] },
     { title: N_("Identification"), fields: [
       // Outside CANopen the type is not used (explicit ID or one from the PGN); a type written in the YAML is shown
@@ -298,8 +299,8 @@ export const FORMS: Record<FormKind, Section[]> = {
   ],
   signal: [
     { fields: [
-      { key: "title", label: N_("Title"), type: "loc", placeholder: N_("same as the identifier") },
       NAME,
+      { key: "title", label: N_("Title"), type: "loc", placeholder: N_("same as the identifier") },
       { key: "encoding", label: N_("Encoding"), type: "select", options: (c) => [...notSet(c, "encoding"), ...ENCODINGS] },
     ] },
     { title: N_("Position"), fields: [

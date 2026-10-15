@@ -17,6 +17,8 @@
   frames have no period, how many are counted) and why there is none (no bitrate, no
   `data_bitrate` for frames with bit rate switching). A bus none of whose frames has a period
   shows no load instead of `≥0%`.
+* The Node form of a frame or a signal starts with its identifier, then the optional title that
+  defaults to it; a node just added has its identifier selected, ready to be typed over.
 
 ## 0.6.4
 
