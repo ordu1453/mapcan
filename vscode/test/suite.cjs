@@ -412,8 +412,10 @@ const tests = {
     assert.equal(doc.isDirty, false);
     assert.equal(git("status", "--porcelain", "--", "pump.yaml"), "");
     assert.match(git("log", "-1", "--format=%s"), /RUNNING/);
-    assert.match(doc.getText(), new RegExp(`\\n  version: ${tag.slice(1).replace(/\./g, "\\.")}\\n`));
-    assert.match(doc.getText(), /\n  history:\n    - version: .*\n      date: .*\n      author: Test\n      changes:\n        - .*RUNNING/);
+    // The version of the tag is that of the new history entry (the document's version comes from it)
+    assert.doesNotMatch(doc.getText(), /\n  version: /);
+    assert.match(doc.getText(), new RegExp(`\\n  history:\\n    - version: ${tag.slice(1).replace(/\./g, "\\.")}\\n`
+      + "      date: .*\\n      author: Test\\n      changes:\\n        - .*RUNNING"));
     await until("tagged commit", () => history.commits[0]?.tags.includes(tag));
     assert.match(history.getTreeItem(history.commits[0]).description, new RegExp(`^${tag} · `));
     await until("no marks after the release", () => change("mode") === null);
