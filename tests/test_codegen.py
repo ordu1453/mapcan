@@ -947,3 +947,102 @@ def test_phys_type_double(tmp_path):
     assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split() == ["-8", "-3.5"]
     r = CliRunner().invoke(app, ["gen", "c", str(tmp_path / "m.yaml"), "-o", str(tmp_path), "--phys-type", "half"])
     assert r.exit_code != 0
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_device_code(cmap, py_modules, tmp_path):
+    """mapcan gen c --devices: each device packs the frames it sends as the Python module does, and its dispatch
+    unpacks the frames it receives (bytes from the Python module) into its RX state; one program per device."""
+    from mapcan.codegen.c import DeviceGen, generate_c_devices
+
+    files = generate_c_devices(cmap, tmp_path)
+    assert files
+    checked = 0
+    for bus in cmap.buses:
+        mod = py_modules[bus.name]
+        for dev in bus.devices:
+            g = DeviceGen(cmap, bus, dev.name)
+            if not g.tx and not g.rx:
+                continue
+            header = (tmp_path / f"{g.base}.h").read_text(encoding="utf-8")
+            main = ["#include <stdio.h>", "#include <inttypes.h>", f'#include "{g.base}.h"', "int main(void) {",
+                    "    uint8_t buf[64];", "    int rc;"]
+            expected = []
+            for f in g.tx:
+                t = g.p(g.frame_name(f))
+                assert f"int {t}_pack(" in header
+                vals = sample(f)
+                main += ["    {", f"        {t}_t m;", f"        {t}_init(&m);"]
+                main += [f"        m.{s.name} = ({g.ctype(s)}){_c_lit(s, vals[s.name])};" for s in present(f, vals)
+                         if not is_byte_array(s)]
+                main += [f"        rc = {t}_pack(buf, sizeof buf, &m);", f'        printf("{f.name}");',
+                         '        for (int i = 0; i < rc; i++) printf(" %02X", buf[i]);', '        printf("\\n");',
+                         "    }"]
+                data = getattr(mod, _cls(f.name))(**{s.name: vals[s.name] for s in present(f, vals)
+                                                     if not is_byte_array(s)}).pack()
+                expected.append(f.name + "".join(f" {b:02X}" for b in data))
+            if g.rx:
+                rx = g.p(g.D, "rx")
+                main += [f"    static {rx}_t rx;", f"    {g.p(g.D, 'rx_init')}(&rx);"]
+                for i, f in enumerate(g.rx):
+                    t = g.p(g.frame_name(f))
+                    assert f"int {t}_pack(" not in header or f in g.tx
+                    vals = sample(f)
+                    data = getattr(mod, _cls(f.name))(**{s.name: vals[s.name] for s in present(f, vals)
+                                                         if not is_byte_array(s)}).pack()
+                    lit = ", ".join(f"0x{b:02X}u" for b in data) or "0u"
+                    main += ["    {", f"        static const uint8_t d[] = {{{lit}}};",
+                             f"        rc = {g.p(g.D, 'rx_dispatch')}(&rx, 0x{f.can_id:X}u, "
+                             f"{'true' if f.extended else 'false'}, d, {len(data)}u);",
+                             f'        printf("{f.name} %d\\n", rc);']
+                    expected.append(f"{f.name} {i}")
+                    for s in present(f, vals):
+                        if is_byte_array(s) or s.encoding == "float":
+                            continue
+                        main.append(f'        printf("{f.name}.{s.name} %" PRId64 "\\n", '
+                                    f"(int64_t)rx.{g.frame_name(f)}.{s.name});")
+                        expected.append(f"{f.name}.{s.name} {vals[s.name]}")
+                    main.append("    }")
+                main.append(f'    printf("unknown %d\\n", {g.p(g.D, "rx_dispatch")}(&rx, 0x7FFu, true, buf, 8u));')
+                expected.append("unknown -1")
+            main += ["    return 0;", "}"]
+            src = tmp_path / f"main_{g.base}.c"
+            src.write_text("\n".join(main), encoding="utf-8")
+            exe = tmp_path / f"{g.base}.exe"
+            subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic", str(src),
+                            str(tmp_path / f"{g.base}.c"), "-I", str(tmp_path), "-o", str(exe)],
+                           check=True, capture_output=True, text=True)
+            out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.splitlines()
+            assert [line.strip() for line in out] == expected, g.base
+            checked += 1
+    assert checked >= 1
+
+
+def test_device_tables():
+    """The TX schedule, the received frames and the acceptance filters of a device."""
+    from mapcan.codegen.c import DeviceGen
+
+    cmap = load(ROOT / "examples" / "vehicle-can.yaml").map
+    g = DeviceGen(cmap, cmap.buses[0], "bms")
+    h, c = g.header(), g.source()
+    assert [f.name for f in g.tx] == ["bms_status", "bms_cells"] and [f.name for f in g.rx] == ["vcu_command"]
+    assert "#define BMS_RX_FILTER_STD_ID 0x200u\n#define BMS_RX_FILTER_STD_MASK 0x7FFu" in h
+    assert "{BMS_STATUS_ID, BMS_STATUS_LENGTH, false, false, 100u, false, 0u}," in c
+    # A frame the device does not send or receive is left out; a received one has no pack()
+    assert "vcu_status" not in h and "int vcu_command_pack(" not in h and "int vcu_command_unpack(" in h
+    # Common bits of several IDs: one filter that lets them all through
+    pairs = DeviceGen._filter([type("F", (), {"can_id": i})() for i in (0x100, 0x101, 0x110)], 0x7FF)
+    assert pairs == (0x100, 0x7EE)
+
+
+def test_gen_c_device_cli(tmp_path):
+    from typer.testing import CliRunner
+
+    from mapcan.cli import app
+
+    m = str(ROOT / "examples" / "vehicle-can.yaml")
+    r = CliRunner().invoke(app, ["gen", "c", m, "-o", str(tmp_path), "--device", "bms"])
+    assert r.exit_code == 0, r.output
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["bms.c", "bms.h"]
+    r = CliRunner().invoke(app, ["gen", "c", m, "-o", str(tmp_path), "--device", "nobody"])
+    assert r.exit_code != 0 and "nobody" in r.output

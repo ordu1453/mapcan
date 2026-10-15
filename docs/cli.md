@@ -105,6 +105,31 @@ A signal with named values has an `IntEnum` in the Python module (`BmsCellsCellG
 frame's field holds its members: `unpack()` gives `BmsCellsCellGroup.CELLS_4_6`, not `1`. A raw
 value without a name stays a plain `int`.
 
+### Code of one device
+
+Firmware is written per device: `mapcan gen c map.yaml --device bms` (repeatable, or `--devices` for all of
+them) writes `bms.h` and `bms.c` instead of the bus files, with only the frames the device sends (they get
+`pack()` and `_from_phys()`) and receives (`unpack()` and `_to_phys()`), and the tables the map already knows:
+
+* `bms_tx_schedule[]`: ID, length, period (`cycle_ms`, 0 when not cyclic), sent on an event, minimum interval;
+* `bms_rx_frames[]`: ID, length, expected period and receive timeout of each frame it receives;
+* `bms_rx_filters[]`: an exact ID/mask filter per received frame, and `BMS_RX_FILTER_STD_ID`/`_MASK`
+  (`_EXT_` for 29-bit IDs): one pair that lets all of them through, for a controller with few filters;
+* `bms_rx_dispatch()`: unpacks a received frame into the device's RX state and tells which one it was.
+
+```c
+static bms_rx_t rx;
+bms_rx_init(&rx);
+/* in the CAN receive handler */
+switch (bms_rx_dispatch(&rx, frame.id, frame.extended, frame.data, frame.len)) {
+case BMS_RX_VCU_COMMAND: on_command(&rx.vcu_command); break;
+default: break;                                      /* -1: not a frame of this device */
+}
+```
+
+A device on several buses (a gateway) gets a pair of files per bus, named with the bus. The device
+files replace the bus files of that bus in a firmware: include one or the other.
+
 Next to `<FRAME>_ID` and `<FRAME>_LENGTH`, the header tells the CAN driver how to send the frame:
 `<FRAME>_IS_EXTENDED` for a 29-bit ID, and on a CAN FD bus `<FRAME>_IS_FD` and `<FRAME>_BRS`
 (bit rate switch, `0` or `1`). The classes of the Python module carry the same as `IS_EXTENDED`,

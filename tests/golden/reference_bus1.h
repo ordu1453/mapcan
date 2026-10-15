@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 #ifndef MAPCAN_BITS_HELPERS
-#define MAPCAN_BITS_HELPERS 0x1F3F7019u
+#define MAPCAN_BITS_HELPERS 0xABE369DBu
 /* Нумерация бит lsb0: бит p — бит (p % 8) байта (p / 8); start — позиция LSB.
  * big-endian (Motorola): после старшего бита байта цепочка продолжается
  * с бита 0 предыдущего байта. */
@@ -134,7 +134,33 @@ static inline double mapcan_round_d(double x)
 {
     return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
 }
-#elif MAPCAN_BITS_HELPERS != 0x1F3F7019u
+
+/* Таблицы устройства (mapcan gen c --device): расписание передачи (cycle_ms 0 — не
+ * циклически, inhibit_us 0 — без минимального интервала), принимаемые кадры (timeout_ms 0 —
+ * без тайм-аута) и фильтры приёма (ID/маска). */
+typedef struct {
+    uint32_t id;
+    uint16_t length;
+    bool extended;
+    bool fd;
+    uint32_t cycle_ms;
+    bool on_event;
+    uint32_t inhibit_us;
+} mapcan_tx_entry_t;
+typedef struct {
+    uint32_t id;
+    uint16_t length;
+    bool extended;
+    bool fd;
+    uint32_t cycle_ms;
+    uint32_t timeout_ms;
+} mapcan_rx_entry_t;
+typedef struct {
+    uint32_t id;
+    uint32_t mask;
+    bool extended;
+} mapcan_filter_t;
+#elif MAPCAN_BITS_HELPERS != 0xABE369DBu
 #error "mapcan: заголовки сгенерированы разными версиями mapcan, перегенерируйте их вместе"
 #endif /* MAPCAN_BITS_HELPERS */
 

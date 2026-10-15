@@ -78,6 +78,11 @@ RU: dict[str, str] = {
     "Type of physical values: float (double only for fields longer than 24 bits) or double.":
         "Тип физических значений: float (double только для полей длиннее 24 бит) или double.",
     "expected one of: {values}": "ожидается одно из: {values}",
+    "Code of one device instead of the buses: its frames, TX schedule, RX filters and dispatch (repeatable).":
+        "Код одного устройства вместо шин: его кадры, расписание передачи, фильтры приёма и разбор (можно "
+        "повторять).",
+    "Code of every device instead of the buses.": "Код каждого устройства вместо шин.",
+    "no frames are sent or received by: {names}": "нет кадров, которые передаёт или принимает: {names}",
     "Only the given buses.": "Только указанные шины.",
     "Folder for the modules.": "Каталог для модулей.",
     "Output folder.": "Каталог результатов.",

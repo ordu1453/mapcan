@@ -483,14 +483,24 @@ def gen_c_cmd(
     bus: list[str] = typer.Option([], "--bus", help=_("Only the given buses.")),
     phys_type: str = typer.Option("float", "--phys-type", help=_(
         "Type of physical values: float (double only for fields longer than 24 bits) or double.")),
+    device: list[str] = typer.Option([], "--device", help=_(
+        "Code of one device instead of the buses: its frames, TX schedule, RX filters and dispatch "
+        "(repeatable).")),
+    devices: bool = typer.Option(False, "--devices", help=_("Code of every device instead of the buses.")),
     force: bool = ForceOpt,
 ) -> None:
-    from .codegen.c import PHYS_TYPES, generate_c
+    from .codegen.c import PHYS_TYPES, generate_c, generate_c_devices
 
     if phys_type not in PHYS_TYPES:
         raise typer.BadParameter(_("expected one of: {values}", values=", ".join(PHYS_TYPES)),
                                  param_hint="--phys-type")
     res = _load_checked(path, force)
+    if device or devices:
+        try:
+            _done(generate_c_devices(res.map, out, device or None, prefix, bus or None, phys_type))
+        except ValueError as e:
+            raise typer.BadParameter(str(e), param_hint="--device") from e
+        return
     _done(generate_c(res.map, out, prefix, bus or None, phys_type))
 
 

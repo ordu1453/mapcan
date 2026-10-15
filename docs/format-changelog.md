@@ -49,6 +49,9 @@ needs at least the version of mapcan that introduced it; former names stay reada
   in an unsigned type of its width, instead of a loop over bits in 64-bit arithmetic (about 40 %
   less code on Cortex-M). `mapcan gen c --phys-type double` makes the physical values of all scaled
   signals `double` (by default `float`, `double` only for fields longer than 24 bits).
+- Generated C per device: `mapcan gen c --device <name>` (or `--devices`) writes the frames a device
+  sends and receives, its TX schedule, the frames it receives with acceptance filters, and
+  `<device>_rx_dispatch()`, which unpacks a received frame into the device's RX state.
 
 ## 0.21
 

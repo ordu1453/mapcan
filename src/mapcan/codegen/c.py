@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from .. import bits as B
+from ..i18n import _
 from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, Signal, enum_entries, text
 from ..units import translate_unit
@@ -138,6 +139,30 @@ static inline double mapcan_round_d(double x)
 {
     return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
 }
+
+@TABLES_NOTE@
+typedef struct {
+    uint32_t id;
+    uint16_t length;
+    bool extended;
+    bool fd;
+    uint32_t cycle_ms;
+    bool on_event;
+    uint32_t inhibit_us;
+} mapcan_tx_entry_t;
+typedef struct {
+    uint32_t id;
+    uint16_t length;
+    bool extended;
+    bool fd;
+    uint32_t cycle_ms;
+    uint32_t timeout_ms;
+} mapcan_rx_entry_t;
+typedef struct {
+    uint32_t id;
+    uint32_t mask;
+    bool extended;
+} mapcan_filter_t;
 #elif MAPCAN_BITS_HELPERS != @REVISION@
 @MISMATCH@
 #endif /* MAPCAN_BITS_HELPERS */
@@ -158,6 +183,10 @@ def _c_bound(v: int) -> str:
 def _c_signed(v: int) -> str:
     """A signed int64_t literal; INT64_MIN is never needed (a clamp at the type's limit is left out)."""
     return f"({v}LL)" if v < 0 else f"{v}LL"
+
+
+def _c_bool(v) -> str:
+    return "true" if v else "false"
 
 
 def _c_comment(s: str) -> str:
@@ -205,6 +234,24 @@ class CGen:
     def p(self, *parts: str) -> str:
         return "_".join(x for x in (self.prefix.rstrip("_"), *parts) if x).lower()
 
+    def frames(self) -> list[Frame]:
+        """The frames of the generated code."""
+        return frames_with_layout(self.bus)
+
+    def packs(self, f: Frame) -> bool:
+        """The frame gets pack() and from_phys() (it is sent)."""
+        return True
+
+    def unpacks(self, f: Frame) -> bool:
+        """The frame gets unpack() and to_phys() (it is received)."""
+        return True
+
+    def extra_decls(self) -> list[str]:
+        return []
+
+    def extra_impl(self) -> list[str]:
+        return []
+
     @staticmethod
     def ctype(s: Signal) -> str:
         if s.encoding == "float":
@@ -232,7 +279,7 @@ class CGen:
             "#endif",
             HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"])
             .replace("@CLAMP_NOTE@", self.T["clamp_c"]).replace("@MISMATCH@", self.T["helpers_mismatch"])
-            .replace("@REVISION@", HELPERS_REVISION)
+            .replace("@REVISION@", HELPERS_REVISION).replace("@TABLES_NOTE@", self.T["tables_note"])
             .replace("@ONES_NOTE@", self.T["ones_c"]).replace("@SM_NOTE@", self.T["sm_c"]),
         ]
         # The map this code was built from, named after the bus: headers of two maps build together
@@ -256,8 +303,9 @@ class CGen:
             if dev.node_id is not None:
                 out.append(f"#define {self.P(self.device_name(dev.name), 'NODE_ID')} 0x{dev.node_id:02X}u")
         out.append("")
-        for f in frames_with_layout(self.bus):
+        for f in self.frames():
             out += self.frame_decls(f)
+        out += self.extra_decls()
         out += ["#ifdef __cplusplus", "}", "#endif", "", f"#endif /* {guard} */", ""]
         return "\n".join(out)
 
@@ -314,16 +362,14 @@ class CGen:
                 out += [
                     f"#define {self.P(F, S, 'FACTOR')} ({num(s.factor)}{sfx})",
                     f"#define {self.P(F, S, 'OFFSET')} ({num(s.offset)}{sfx})",
-                    f"static inline {T} {fn}_to_phys({T} raw)",
-                    "{",
-                    f"    return raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};",
-                    "}",
-                    f"static inline {T} {fn}_from_phys({T} phys)",
-                    "{",
-                    f"    return (phys - {self.P(F, S, 'OFFSET')}) / {self.P(F, S, 'FACTOR')};",
-                    "}",
-                    "",
                 ]
+                if self.unpacks(f):
+                    out += [f"static inline {T} {fn}_to_phys({T} raw)", "{",
+                            f"    return raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};", "}"]
+                if self.packs(f):
+                    out += [f"static inline {T} {fn}_from_phys({T} phys)", "{",
+                            f"    return (phys - {self.P(F, S, 'OFFSET')}) / {self.P(F, S, 'FACTOR')};", "}"]
+                out.append("")
             elif physical(s) and not is_byte_array(s):
                 T = self.ctype(s)
                 lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code)
@@ -341,20 +387,20 @@ class CGen:
                 ]
                 if s.unit:
                     out.append(f"/* {S}: {self.T['unit']} — {_c_comment(translate_unit(s.unit, self.lang))} */")
-                out += [
-                    f"static inline {FT} {fn}_to_phys({T} raw)",
-                    "{",
-                    f"    return ({FT})raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};",
-                    "}",
-                    f"static inline {T} {fn}_from_phys({FT} phys)",
-                    "{",
-                    f"    {FT} r = {rnd}((phys - {self.P(F, S, 'OFFSET')}) / {self.P(F, S, 'FACTOR')});",
-                    f"    if (r < {float(lo)!r}{sfx}) {{ return {_c_bound(lo)}; }}",
-                    f"    if (r >= {float(hi + 1)!r}{sfx}) {{ return {_c_bound(hi)}; }}",
-                    f"    return ({T})r;",
-                    "}",
-                    "",
-                ]
+                if self.unpacks(f):
+                    out += [f"static inline {FT} {fn}_to_phys({T} raw)", "{",
+                            f"    return ({FT})raw * {self.P(F, S, 'FACTOR')} + {self.P(F, S, 'OFFSET')};", "}"]
+                if self.packs(f):
+                    out += [
+                        f"static inline {T} {fn}_from_phys({FT} phys)",
+                        "{",
+                        f"    {FT} r = {rnd}((phys - {self.P(F, S, 'OFFSET')}) / {self.P(F, S, 'FACTOR')});",
+                        f"    if (r < {float(lo)!r}{sfx}) {{ return {_c_bound(lo)}; }}",
+                        f"    if (r >= {float(hi + 1)!r}{sfx}) {{ return {_c_bound(hi)}; }}",
+                        f"    return ({T})r;",
+                        "}",
+                    ]
+                out.append("")
 
         out.append("typedef struct {")
         if not f.layout:
@@ -372,11 +418,13 @@ class CGen:
         out.append("")
         out.append(f"/* {self.T['init']} */")
         out.append(f"void {self.p(F)}_init({self.p(F)}_t *msg);")
-        out.append(f"/* {self.T['pack']} */")
-        out.append(f"int {self.p(F)}_pack(uint8_t *data, size_t size, const {self.p(F)}_t *msg);")
-        muxed = selector_of(f) is not None and any(s.mux is not None for s in f.layout)
-        out.append(f"/* {self.T['unpack_mux' if muxed else 'unpack']} */")
-        out.append(f"int {self.p(F)}_unpack({self.p(F)}_t *msg, const uint8_t *data, size_t size);")
+        if self.packs(f):
+            out.append(f"/* {self.T['pack']} */")
+            out.append(f"int {self.p(F)}_pack(uint8_t *data, size_t size, const {self.p(F)}_t *msg);")
+        if self.unpacks(f):
+            muxed = selector_of(f) is not None and any(s.mux is not None for s in f.layout)
+            out.append(f"/* {self.T['unpack_mux' if muxed else 'unpack']} */")
+            out.append(f"int {self.p(F)}_unpack({self.p(F)}_t *msg, const uint8_t *data, size_t size);")
         out.append("")
         return out
 
@@ -420,8 +468,9 @@ class CGen:
             f'#include "{self.base}.h"',
             "",
         ]
-        for f in frames_with_layout(self.bus):
+        for f in self.frames():
             out += self.frame_impl(f)
+        out += self.extra_impl()
         return "\n".join(out)
 
     def _guard(self, s: Signal, sel: Signal | None, body: list[str]) -> list[str]:
@@ -542,13 +591,14 @@ class CGen:
         sel = selector_of(f)
         init = self.init_impl(f)
         if f.length == 0:
-            return init + [
+            return init + ([
                 f"int {name}_pack(uint8_t *data, size_t size, const {name}_t *msg)",
                 "{", "    (void)data;", "    (void)size;", "    return (msg == NULL) ? -1 : 0;", "}", "",
+            ] if self.packs(f) else []) + ([
                 f"int {name}_unpack({name}_t *msg, const uint8_t *data, size_t size)",
                 "{", "    (void)data;", "    (void)size;", "    if (msg == NULL) {", "        return -1;", "    }",
                 "    msg->reserved_ = 0u;", "    return 0;", "}", "",
-            ]
+            ] if self.unpacks(f) else [])
         pack = [
             f"int {name}_pack(uint8_t *data, size_t size, const {name}_t *msg)",
             "{",
@@ -589,7 +639,165 @@ class CGen:
             unpack += self._guard(s, sel, [f"    msg->{s.name} = {self._unpack_value(s)};"])
         pack += [f"    return {f.length};", "}", ""]
         unpack += ["    return 0;", "}", ""]
-        return init + pack + unpack
+        return init + (pack if self.packs(f) else []) + (unpack if self.unpacks(f) else [])
+
+
+class DeviceGen(CGen):
+    """The code of one device: the frames it sends (pack) and receives (unpack), its TX schedule, the list of
+    the frames it receives with acceptance filters, and a dispatch of a received frame to its unpack."""
+
+    def __init__(self, cmap: MapCan, bus: Bus, device: str, prefix: str = "", lang: str | None = None,
+                 phys_type: str = "float"):
+        super().__init__(cmap, bus, prefix, lang, phys_type)
+        self.device = device
+        self.D = self.device_name(device)
+        self.base = (prefix + self.D).lower()
+        frames = frames_with_layout(bus)
+        self.tx = [f for f in frames if f.sender_name == device]
+        self.rx = [f for f in frames if device in f.receiver_names and f.sender_name != device]
+
+    def frames(self) -> list[Frame]:
+        return [f for f in frames_with_layout(self.bus) if f in self.tx or f in self.rx]
+
+    def packs(self, f: Frame) -> bool:
+        return f in self.tx
+
+    def unpacks(self, f: Frame) -> bool:
+        return f in self.rx
+
+    @staticmethod
+    def _filter(frames: list[Frame], full: int) -> tuple[int, int]:
+        """One ID/mask pair that lets all these IDs through: the bits they have in common."""
+        first = frames[0].can_id
+        differ = 0
+        for f in frames[1:]:
+            differ |= f.can_id ^ first
+        mask = full & ~differ
+        return first & mask, mask
+
+    def extra_decls(self) -> list[str]:
+        D = self.D
+        out = ["/* " + "=" * 72 + " */", f"/* {self.T['device_note'].format(device=D)} */"]
+        out.append(f"#define {self.P(D, 'TX_COUNT')} {len(self.tx)}u")
+        if self.tx:
+            out.append("typedef enum {")
+            out += [f"    {self.P(D, 'TX', self.frame_name(f))} = {i}," for i, f in enumerate(self.tx)]
+            out.append(f"}} {self.p(D, 'tx_frame')}_t;")
+            out.append(f"/* {self.T['tx_schedule']} */")
+            out.append(f"extern const mapcan_tx_entry_t {self.p(D, 'tx_schedule')}[{self.P(D, 'TX_COUNT')}];")
+        out.append(f"#define {self.P(D, 'RX_COUNT')} {len(self.rx)}u")
+        if self.rx:
+            out.append("typedef enum {")
+            out += [f"    {self.P(D, 'RX', self.frame_name(f))} = {i}," for i, f in enumerate(self.rx)]
+            out.append(f"}} {self.p(D, 'rx_frame')}_t;")
+            out.append(f"/* {self.T['rx_frames']} */")
+            out.append(f"extern const mapcan_rx_entry_t {self.p(D, 'rx_frames')}[{self.P(D, 'RX_COUNT')}];")
+            out.append(f"/* {self.T['rx_filters']} */")
+            out.append(f"extern const mapcan_filter_t {self.p(D, 'rx_filters')}[{self.P(D, 'RX_COUNT')}];")
+            for ext, full, kind in ((False, 0x7FF, "STD"), (True, 0x1FFFFFFF, "EXT")):
+                group = [f for f in self.rx if bool(f.extended) == ext]
+                if group:
+                    fid, mask = self._filter(group, full)
+                    out.append(f"#define {self.P(D, 'RX_FILTER', kind, 'ID')} 0x{fid:X}u")
+                    out.append(f"#define {self.P(D, 'RX_FILTER', kind, 'MASK')} 0x{mask:X}u")
+            out.append(f"/* {self.T['rx_state']} */")
+            out.append("typedef struct {")
+            out += [f"    {self.p(self.frame_name(f))}_t {self.frame_name(f)};" for f in self.rx]
+            out.append(f"}} {self.p(D, 'rx')}_t;")
+            out.append(f"void {self.p(D, 'rx_init')}({self.p(D, 'rx')}_t *rx);")
+            out.append(f"/* {self.T['rx_dispatch'].format(prefix=self.P(D, 'RX'))} */")
+            out.append(f"int {self.p(D, 'rx_dispatch')}({self.p(D, 'rx')}_t *rx, uint32_t id, bool extended, "
+                       "const uint8_t *data, size_t size);")
+        out.append("")
+        return out
+
+    def extra_impl(self) -> list[str]:
+        D, out = self.D, []
+        if self.tx:
+            out.append(f"const mapcan_tx_entry_t {self.p(D, 'tx_schedule')}[{self.P(D, 'TX_COUNT')}] = {{")
+            for f in self.tx:
+                F = self.frame_name(f)
+                inhibit = round(f.inhibit_ms * 1000) if f.inhibit_ms is not None else 0
+                out.append(f"    {{{self.P(F, 'ID')}, {self.P(F, 'LENGTH')}, {_c_bool(f.extended)}, "
+                           f"{_c_bool(f.bus.fd)}, {f.cycle_ms or 0}u, {_c_bool(f.trigger == 'event')}, "
+                           f"{inhibit}u}},")
+            out += ["};", ""]
+        if not self.rx:
+            return out
+        out.append(f"const mapcan_rx_entry_t {self.p(D, 'rx_frames')}[{self.P(D, 'RX_COUNT')}] = {{")
+        for f in self.rx:
+            F = self.frame_name(f)
+            out.append(f"    {{{self.P(F, 'ID')}, {self.P(F, 'LENGTH')}, {_c_bool(f.extended)}, {_c_bool(f.bus.fd)}, "
+                       f"{f.cycle_ms or 0}u, {f.timeout_ms or 0}u}},")
+        out += ["};", ""]
+        out.append(f"const mapcan_filter_t {self.p(D, 'rx_filters')}[{self.P(D, 'RX_COUNT')}] = {{")
+        for f in self.rx:
+            out.append(f"    {{{self.P(self.frame_name(f), 'ID')}, 0x{0x1FFFFFFF if f.extended else 0x7FF:X}u, "
+                       f"{_c_bool(f.extended)}}},")
+        out += ["};", ""]
+        rx_t = f"{self.p(D, 'rx')}_t"
+        out += [f"void {self.p(D, 'rx_init')}({rx_t} *rx)", "{", "    if (rx == NULL) {", "        return;", "    }"]
+        out += [f"    {self.p(self.frame_name(f))}_init(&rx->{self.frame_name(f)});" for f in self.rx]
+        out += ["}", ""]
+        out += [f"int {self.p(D, 'rx_dispatch')}({rx_t} *rx, uint32_t id, bool extended, const uint8_t *data, "
+                "size_t size)", "{", "    if (rx == NULL) {", "        return -1;", "    }"]
+        for ext in (False, True):
+            group, seen = [], set()
+            for f in self.rx:
+                if bool(f.extended) == ext and f.can_id not in seen:       # a duplicate ID: the first frame
+                    seen.add(f.can_id)
+                    group.append(f)
+            if not group:
+                continue
+            out += [f"    if ({'' if ext else '!'}extended) {{", "        switch (id) {"]
+            for f in group:
+                F = self.frame_name(f)
+                out += [f"        case {self.P(F, 'ID')}:",
+                        f"            return ({self.p(F)}_unpack(&rx->{F}, data, size) == 0) "
+                        f"? (int){self.P(D, 'RX', F)} : -1;"]
+            out += ["        default:", "            break;", "        }", "    }"]
+        out += ["    return -1;", "}", ""]
+        return out
+
+
+def device_names(cmap: MapCan, buses: list[str] | None = None) -> list[str]:
+    """Devices of the map (of the given buses) that send or receive a frame, in the map's order."""
+    out: list[str] = []
+    for bus in cmap.buses:
+        if buses and bus.name not in buses:
+            continue
+        frames = frames_with_layout(bus)
+        for d in bus.devices:
+            if d.name not in out and any(f.sender_name == d.name or d.name in f.receiver_names for f in frames):
+                out.append(d.name)
+    return out
+
+
+def generate_c_devices(cmap: MapCan, out_dir: str | Path, devices: list[str] | None = None, prefix: str = "",
+                       buses: list[str] | None = None, phys_type: str = "float") -> list[Path]:
+    """<device>.h / <device>.c for each device (all of them without ``devices``); a device on several buses
+    gets a pair per bus, named with the bus (<bus>_<device>)."""
+    names = device_names(cmap, buses)
+    unknown = [d for d in devices or [] if d not in names]
+    if unknown:
+        raise ValueError(_("no frames are sent or received by: {names}", names=", ".join(unknown)))
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    written = []
+    for bus in cmap.buses:
+        if buses and bus.name not in buses:
+            continue
+        for d in bus.devices:
+            if d.name not in (devices or names):
+                continue
+            g = DeviceGen(cmap, bus, d.name, prefix, phys_type=phys_type)
+            if not g.tx and not g.rx:
+                continue
+            h, c = out / f"{g.base}.h", out / f"{g.base}.c"
+            h.write_text(g.header(), encoding="utf-8")
+            c.write_text(g.source(), encoding="utf-8")
+            written += [h, c]
+    return written
 
 
 def generate_c(cmap: MapCan, out_dir: str | Path, prefix: str = "", buses: list[str] | None = None,
