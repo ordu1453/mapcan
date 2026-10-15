@@ -45,7 +45,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - id: v
         name: Tag matches package version
         run: |
@@ -74,12 +74,12 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
       - run: uv build
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-python
           path: dist/*
@@ -95,7 +95,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
@@ -133,7 +133,7 @@ jobs:
       - name: Portable zip
         shell: powershell
         run: Compress-Archive -Path dist\mapcan\* -DestinationPath "dist\mapcan-$env:VERSION-windows-x64.zip"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-windows
           path: |
@@ -147,7 +147,7 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
@@ -168,7 +168,7 @@ jobs:
           test -s smoke/vehicle-can.pdf && test -s smoke/vehicle-can.xlsx
       - name: Archive
         run: tar -czf "dist/mapcan-$VERSION-linux-x64.tar.gz" -C dist mapcan
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-linux
           path: dist/mapcan-*-linux-x64.tar.gz
@@ -182,7 +182,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -214,10 +214,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: dist-*
           path: assets
@@ -259,7 +259,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dist-python
           path: dist
@@ -275,7 +275,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dist-python
           path: dist
@@ -295,7 +295,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dist-linux
           path: assets
