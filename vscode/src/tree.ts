@@ -176,13 +176,20 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
       : kind === "bus" || kind === "device"
         ? vscode.TreeItemCollapsibleState.Expanded
         : vscode.TreeItemCollapsibleState.Collapsed;
-    const item = new vscode.TreeItem(label, state);
+    // The address of a device (CANopen node ID, J1939 SA) goes before its title: VS Code cuts a long label from
+    // the end and the description with it, and the address is what the bus is read by (#130)
+    const address = kind === "device" ? description : "";
+    const item = new vscode.TreeItem(address ? `${address} · ${label}` : label, state);
     item.id = node.id;
-    item.description = from !== undefined ? `${description} ↪`.trim() : description;
+    item.description = address ? "" : from !== undefined ? `${description} ↪`.trim() : description;
     // A node of another file is edited in that file
     item.contextValue = node.isLink ? "frameLink" : node.file ? `${kind}.included` : kind;
     // The identifier is not in the label (only titles are), so the tooltip shows it
     const lines = [`${KIND_TITLE[kind]} ${ident ?? label}`];
+    if (kind === "device") {
+      if (ident !== undefined && label !== ident) lines.push(label);
+      if (address) lines.push(address.startsWith("SA ") ? `Source address ${address.slice(3)}` : `Node ID ${address}`);
+    }
     if (kind === "frame") {
       item.iconPath = this.icon(dir === "tx" ? "frame-tx" : dir === "rx" ? "frame-rx" : "frame-broadcast");
       lines.push(from !== undefined

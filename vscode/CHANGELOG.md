@@ -7,6 +7,8 @@
   changes of the open files. It used to stop with "the map has errors".
 * The **CANopen function** of a frame in an included file offers every function in the form, with
   the ones whose ID is taken on the bus disabled, not only its current value.
+* The Map view puts a device's node ID (or J1939 source address) before its title, so a long title
+  no longer hides it; the tooltip shows the full title and the address.
 
 ## 0.6.3
 

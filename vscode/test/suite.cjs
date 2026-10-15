@@ -39,7 +39,10 @@ const tests = {
     // Titles, as in the web editor; the identifier is in the tooltip
     assert.deepEqual([bus.label, bus.description, bus.tooltip], ["Demo bus", "", "Bus demo"]);
     const device = ctx.api.tree.getChildren(roots[0])[0];
-    assert.equal(ctx.api.tree.getTreeItem(device).label, "PMP · Pump");
+    // The node ID before the title: a long title does not hide it (#130)
+    const dev = ctx.api.tree.getTreeItem(device);
+    assert.deepEqual([dev.label, dev.description, dev.tooltip],
+      ["0x21 · PMP · Pump", "", "Device pump\nPMP · Pump\nNode ID 0x21"]);
     const frame = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(device)[0]);
     assert.deepEqual([frame.label, frame.description, frame.tooltip], ["pump_state", "0x1A1", "Frame pump_state\nTX"]);
     assert.match(frame.iconPath.dark.path, /tree\/dark\/frame-tx\.svg$/);
