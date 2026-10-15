@@ -55,7 +55,9 @@ needs at least the version of mapcan that introduced it; former names stay reada
   `<frame>_<signal>_is_active(&msg)` for multiplexed signals.
 - Generated C per device: `mapcan gen c --device <name>` (or `--devices`) writes the frames a device
   sends and receives, its TX schedule, the frames it receives with acceptance filters, and
-  `<device>_rx_dispatch()`, which unpacks a received frame into the device's RX state.
+  `<device>_rx_dispatch()`, which unpacks a received frame into the device's RX state and notes when
+  it came, with `<device>_rx_timed_out()` for the timeout supervision. `mapcan gen py --device` writes
+  the frames of one device as a Python module for test benches.
 
 ## 0.21
 

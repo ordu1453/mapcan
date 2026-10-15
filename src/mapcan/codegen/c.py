@@ -746,11 +746,16 @@ class DeviceGen(CGen):
             out.append(f"/* {self.T['rx_state']} */")
             out.append("typedef struct {")
             out += [f"    {self.p(self.frame_name(f))}_t {self.frame_name(f)};" for f in self.rx]
+            out.append(f"    bool received[{self.P(D, 'RX_COUNT')}];")
+            out.append(f"    uint32_t received_ms[{self.P(D, 'RX_COUNT')}];")
             out.append(f"}} {self.p(D, 'rx')}_t;")
             out.append(f"void {self.p(D, 'rx_init')}({self.p(D, 'rx')}_t *rx);")
             out.append(f"/* {self.T['rx_dispatch'].format(prefix=self.P(D, 'RX'))} */")
-            out.append(f"int {self.p(D, 'rx_dispatch')}({self.p(D, 'rx')}_t *rx, uint32_t id, bool extended, "
-                       "const uint8_t *data, size_t size);")
+            out.append(f"int {self.p(D, 'rx_dispatch')}({self.p(D, 'rx')}_t *rx, uint32_t now_ms, uint32_t id, "
+                       "bool extended, const uint8_t *data, size_t size);")
+            out.append(f"/* {self.T['rx_timed_out']} */")
+            out.append(f"bool {self.p(D, 'rx_timed_out')}(const {self.p(D, 'rx')}_t *rx, {self.p(D, 'rx_frame')}_t "
+                       "frame, uint32_t now_ms);")
         out.append("")
         return out
 
@@ -770,8 +775,10 @@ class DeviceGen(CGen):
         out.append(f"const mapcan_rx_entry_t {self.p(D, 'rx_frames')}[{self.P(D, 'RX_COUNT')}] = {{")
         for f in self.rx:
             F = self.frame_name(f)
+            # The receive timeout of the map, or three periods of a cyclic frame without one
+            timeout = f.timeout_ms or (3 * f.cycle_ms if f.cycle_ms else 0)
             out.append(f"    {{{self.P(F, 'ID')}, {self.P(F, 'LENGTH')}, {_c_bool(f.extended)}, {_c_bool(f.bus.fd)}, "
-                       f"{f.cycle_ms or 0}u, {f.timeout_ms or 0}u}},")
+                       f"{f.cycle_ms or 0}u, {timeout}u}},")
         out += ["};", ""]
         out.append(f"const mapcan_filter_t {self.p(D, 'rx_filters')}[{self.P(D, 'RX_COUNT')}] = {{")
         for f in self.rx:
@@ -781,9 +788,10 @@ class DeviceGen(CGen):
         rx_t = f"{self.p(D, 'rx')}_t"
         out += [f"void {self.p(D, 'rx_init')}({rx_t} *rx)", "{", "    if (rx == NULL) {", "        return;", "    }"]
         out += [f"    {self.p(self.frame_name(f))}_init(&rx->{self.frame_name(f)});" for f in self.rx]
-        out += ["}", ""]
-        out += [f"int {self.p(D, 'rx_dispatch')}({rx_t} *rx, uint32_t id, bool extended, const uint8_t *data, "
-                "size_t size)", "{", "    if (rx == NULL) {", "        return -1;", "    }"]
+        out += [f"    for (size_t i = 0u; i < {self.P(D, 'RX_COUNT')}; i++) {{", "        rx->received[i] = false;",
+                "        rx->received_ms[i] = 0u;", "    }", "}", ""]
+        out += [f"int {self.p(D, 'rx_dispatch')}({rx_t} *rx, uint32_t now_ms, uint32_t id, bool extended, "
+                "const uint8_t *data, size_t size)", "{", "    if (rx == NULL) {", "        return -1;", "    }"]
         for ext in (False, True):
             group, seen = [], set()
             for f in self.rx:
@@ -794,12 +802,25 @@ class DeviceGen(CGen):
                 continue
             out += [f"    if ({'' if ext else '!'}extended) {{", "        switch (id) {"]
             for f in group:
-                F = self.frame_name(f)
+                F, idx = self.frame_name(f), self.P(D, "RX", self.frame_name(f))
                 out += [f"        case {self.P(F, 'ID')}:",
-                        f"            return ({self.p(F)}_unpack(&rx->{F}, data, size) == 0) "
-                        f"? (int){self.P(D, 'RX', F)} : -1;"]
+                        f"            if ({self.p(F)}_unpack(&rx->{F}, data, size) != 0) {{",
+                        "                return -1;",
+                        "            }",
+                        f"            rx->received[{idx}] = true;",
+                        f"            rx->received_ms[{idx}] = now_ms;",
+                        f"            return (int){idx};"]
             out += ["        default:", "            break;", "        }", "    }"]
         out += ["    return -1;", "}", ""]
+        # Timeout supervision: the time since the last reception (unsigned: the millisecond counter may wrap)
+        out += [f"bool {self.p(D, 'rx_timed_out')}(const {rx_t} *rx, {self.p(D, 'rx_frame')}_t frame, "
+                "uint32_t now_ms)", "{",
+                f"    if (rx == NULL || (size_t)frame >= {self.P(D, 'RX_COUNT')} || "
+                f"{self.p(D, 'rx_frames')}[frame].timeout_ms == 0u) {{",
+                "        return false;", "    }",
+                "    return !rx->received[frame]",
+                f"        || (uint32_t)(now_ms - rx->received_ms[frame]) > {self.p(D, 'rx_frames')}[frame].timeout_ms;",
+                "}", ""]
         return out
 
 

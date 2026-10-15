@@ -117,20 +117,27 @@ them) writes `bms.h` and `bms.c` instead of the bus files, with only the frames 
 `pack()` and `_from_phys()`) and receives (`unpack()` and `_to_phys()`), and the tables the map already knows:
 
 * `bms_tx_schedule[]`: ID, length, period (`cycle_ms`, 0 when not cyclic), sent on an event, minimum interval;
-* `bms_rx_frames[]`: ID, length, expected period and receive timeout of each frame it receives;
+* `bms_rx_frames[]`: ID, length, expected period and receive timeout of each frame it receives (the
+  map's `timeout_ms`, or three periods of a cyclic frame without one);
 * `bms_rx_filters[]`: an exact ID/mask filter per received frame, and `BMS_RX_FILTER_STD_ID`/`_MASK`
   (`_EXT_` for 29-bit IDs): one pair that lets all of them through, for a controller with few filters;
-* `bms_rx_dispatch()`: unpacks a received frame into the device's RX state and tells which one it was.
+* `bms_rx_dispatch()`: unpacks a received frame into the device's RX state, notes when it came and tells
+  which one it was; `bms_rx_timed_out()` tells whether a frame has not come for longer than its timeout.
 
 ```c
 static bms_rx_t rx;
 bms_rx_init(&rx);
-/* in the CAN receive handler */
-switch (bms_rx_dispatch(&rx, frame.id, frame.extended, frame.data, frame.len)) {
+/* in the CAN receive handler; now_ms from any millisecond counter (it may wrap) */
+switch (bms_rx_dispatch(&rx, now_ms, frame.id, frame.extended, frame.data, frame.len)) {
 case BMS_RX_VCU_COMMAND: on_command(&rx.vcu_command); break;
 default: break;                                      /* -1: not a frame of this device */
 }
+/* in the main loop */
+if (bms_rx_timed_out(&rx, BMS_RX_VCU_COMMAND, now_ms)) { enter_safe_state(); }
 ```
+
+`mapcan gen py --device bms` writes the same selection as a Python module for a test bench that stands
+in for the device: its frames, `TX_FRAMES`, `RX_FRAMES`, and `DECODERS` of the frames it receives.
 
 A device on several buses (a gateway) gets a pair of files per bus, named with the bus. The device
 files replace the bus files of that bus in a firmware: include one or the other.

@@ -136,8 +136,8 @@ static inline double mapcan_round_d(double x)
 }
 
 /* Таблицы устройства (mapcan gen c --device): расписание передачи (cycle_ms 0 — не
- * циклически, inhibit_us 0 — без минимального интервала), принимаемые кадры (timeout_ms 0 —
- * без тайм-аута) и фильтры приёма (ID/маска). */
+ * циклически, inhibit_us 0 — без минимального интервала), принимаемые кадры (timeout_ms —
+ * из карты или три периода; 0 — без тайм-аута) и фильтры приёма (ID/маска). */
 typedef struct {
     uint32_t id;
     uint16_t length;

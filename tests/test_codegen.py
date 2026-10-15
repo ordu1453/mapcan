@@ -991,11 +991,16 @@ def test_device_code(cmap, py_modules, tmp_path):
                     data = getattr(mod, _cls(f.name))(**{s.name: vals[s.name] for s in present(f, vals)
                                                          if not is_byte_array(s)}).pack()
                     lit = ", ".join(f"0x{b:02X}u" for b in data) or "0u"
+                    # Received at 1000 ms: timed out after its timeout (of the map, or three periods), not before
+                    timeout = f.timeout_ms or (3 * f.cycle_ms if f.cycle_ms else 0)
+                    out_fn, idx = g.p(g.D, "rx_timed_out"), g.P(g.D, "RX", g.frame_name(f))
                     main += ["    {", f"        static const uint8_t d[] = {{{lit}}};",
-                             f"        rc = {g.p(g.D, 'rx_dispatch')}(&rx, 0x{f.can_id:X}u, "
+                             f'        printf("{f.name} %d", {out_fn}(&rx, {idx}, 0u));',
+                             f"        rc = {g.p(g.D, 'rx_dispatch')}(&rx, 1000u, 0x{f.can_id:X}u, "
                              f"{'true' if f.extended else 'false'}, d, {len(data)}u);",
-                             f'        printf("{f.name} %d\\n", rc);']
-                    expected.append(f"{f.name} {i}")
+                             f'        printf(" %d %d %d\\n", rc, {out_fn}(&rx, {idx}, {1000 + timeout}u), '
+                             f"{out_fn}(&rx, {idx}, {1001 + timeout}u));"]
+                    expected.append(f"{f.name} {int(bool(timeout))} {i} 0 {int(bool(timeout))}")
                     for s in present(f, vals):
                         if is_byte_array(s) or s.encoding == "float":
                             continue
@@ -1003,7 +1008,7 @@ def test_device_code(cmap, py_modules, tmp_path):
                                     f"(int64_t)rx.{g.frame_name(f)}.{s.name});")
                         expected.append(f"{f.name}.{s.name} {vals[s.name]}")
                     main.append("    }")
-                main.append(f'    printf("unknown %d\\n", {g.p(g.D, "rx_dispatch")}(&rx, 0x7FFu, true, buf, 8u));')
+                main.append(f'    printf("unknown %d\\n", {g.p(g.D, "rx_dispatch")}(&rx, 0u, 0x7FFu, true, buf, 8u));')
                 expected.append("unknown -1")
             main += ["    return 0;", "}"]
             src = tmp_path / f"main_{g.base}.c"
@@ -1107,3 +1112,22 @@ def test_in_range_initial_and_active_c(tmp_path):
                    check=True, capture_output=True, text=True)
     out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
     assert out == ["01100110", "20", "20", "0", "0", "0", "1"]
+
+
+def test_python_device_module(tmp_path):
+    """A module of one device for a test bench: its frames, TX_FRAMES, RX_FRAMES, DECODERS of the received ones."""
+    from typer.testing import CliRunner
+
+    from mapcan.cli import app
+
+    m = str(ROOT / "examples" / "vehicle-can.yaml")
+    r = CliRunner().invoke(app, ["gen", "py", m, "-o", str(tmp_path), "--device", "bms"])
+    assert r.exit_code == 0, r.output
+    mod = _import(tmp_path / "bms_mapcan.py")
+    assert mod.TX_FRAMES == [mod.BmsStatus, mod.BmsCells] and mod.RX_FRAMES == [mod.VcuCommand]
+    assert set(mod.DECODERS.values()) == {mod.VcuCommand} and not hasattr(mod, "VcuStatus")
+    assert mod.decode(mod.VcuCommand.ID, mod.VcuCommand().pack()) == mod.VcuCommand()
+    assert mod.decode(mod.BmsStatus.ID, mod.BmsStatus().pack()) is None       # sent by the device, not received
+    r = CliRunner().invoke(app, ["gen", "py", m, "-o", str(tmp_path), "--devices"])
+    assert r.exit_code == 0 and (tmp_path / "vcu_mapcan.py").exists()
+    assert CliRunner().invoke(app, ["gen", "py", m, "-o", str(tmp_path), "--device", "nobody"]).exit_code != 0

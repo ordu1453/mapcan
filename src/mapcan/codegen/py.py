@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..bits import raw_range
+from ..i18n import _
 from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, enum_entries, text
 from ..units import translate_unit
@@ -108,6 +109,17 @@ class PyGen:
         self.cmap, self.bus, self.lang = cmap, bus, lang or cmap.lang
         self.T = code_text(self.lang)
 
+    def frames(self) -> list[Frame]:
+        """The frames of the module."""
+        return frames_with_layout(self.bus)
+
+    def decoded(self) -> list[Frame]:
+        """The frames of DECODERS."""
+        return self.frames()
+
+    def extra(self) -> list[str]:
+        return []
+
     def t(self, v) -> str:
         return text(v, self.lang, self.cmap.lang).replace("\n", " ")
 
@@ -134,11 +146,11 @@ class PyGen:
         if d.version_parts is not None:
             out.append(f"MAP_VERSION = {d.version_parts}")
         out.append(f"MAP_LAYOUT_CRC32 = 0x{layout_crc32(self.cmap):08X}")
-        frames = frames_with_layout(self.bus)
-        for f in frames:
+        for f in self.frames():
             out += self.frame(f)
+        out += self.extra()
         out.append("DECODERS = {")
-        for f in frames:
+        for f in self.decoded():
             out.append(f"    (0x{f.can_id:03X}, {bool(f.extended)}): {_cls(f.name)},")
         out.append("}")
         out.append("")
@@ -313,6 +325,57 @@ class PyGen:
         signed = repr(s.signed_code) if s.signed and s.signed_code in _SIGNED_ENCODERS else s.signed
         value = f"_get(data, {s.start_bit}, {s.bit_length}, {be}, {signed})"
         return [f"        msg.{s.name} = {f'_enum({enum}, {value})' if enum else value}"]
+
+
+class DevicePyGen(PyGen):
+    """The module of one device, for a test bench that stands in for it: the frames it sends and receives,
+    TX_FRAMES and RX_FRAMES, and DECODERS of the frames it receives."""
+
+    def __init__(self, cmap: MapCan, bus: Bus, device: str, lang: str | None = None):
+        super().__init__(cmap, bus, lang)
+        self.device = device
+        frames = frames_with_layout(bus)
+        self.tx = [f for f in frames if f.sender_name == device]
+        self.rx = [f for f in frames if device in f.receiver_names and f.sender_name != device]
+
+    def frames(self) -> list[Frame]:
+        return [f for f in frames_with_layout(self.bus) if f in self.tx or f in self.rx]
+
+    def decoded(self) -> list[Frame]:
+        return self.rx
+
+    def extra(self) -> list[str]:
+        return ["", f"# {self.T['py_device'].format(device=self.device)}",
+                "TX_FRAMES = [" + ", ".join(_cls(f.name) for f in self.tx) + "]",
+                "RX_FRAMES = [" + ", ".join(_cls(f.name) for f in self.rx) + "]", ""]
+
+
+def generate_py_devices(cmap: MapCan, out_dir: str | Path, devices: list[str] | None = None,
+                        buses: list[str] | None = None) -> list[Path]:
+    """<device>_mapcan.py for each device (all of them without ``devices``); a device on several buses gets a
+    module per bus, named with the bus."""
+    from .c import CGen, device_names
+
+    names = device_names(cmap, buses)
+    unknown = [d for d in devices or [] if d not in names]
+    if unknown:
+        raise ValueError(_("no frames are sent or received by: {names}", names=", ".join(unknown)))
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    written = []
+    for bus in cmap.buses:
+        if buses and bus.name not in buses:
+            continue
+        for d in bus.devices:
+            if d.name not in (devices or names):
+                continue
+            g = DevicePyGen(cmap, bus, d.name)
+            if not g.tx and not g.rx:
+                continue
+            p = out / f"{CGen(cmap, bus).device_name(d.name).lower()}_mapcan.py"
+            p.write_text(g.module(), encoding="utf-8")
+            written.append(p)
+    return written
 
 
 def generate_py(cmap: MapCan, out_dir: str | Path, buses: list[str] | None = None) -> list[Path]:

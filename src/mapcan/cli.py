@@ -509,11 +509,20 @@ def gen_py_cmd(
     path: Path = MapArg,
     out: Path = typer.Option(Path("."), "-o", "--output", help=_("Folder for the modules.")),
     bus: list[str] = typer.Option([], "--bus", help=_("Only the given buses.")),
+    device: list[str] = typer.Option([], "--device", help=_(
+        "Module of one device instead of the buses, for a test bench standing in for it (repeatable).")),
+    devices: bool = typer.Option(False, "--devices", help=_("Module of every device instead of the buses.")),
     force: bool = ForceOpt,
 ) -> None:
-    from .codegen.py import generate_py
+    from .codegen.py import generate_py, generate_py_devices
 
     res = _load_checked(path, force)
+    if device or devices:
+        try:
+            _done(generate_py_devices(res.map, out, device or None, bus or None))
+        except ValueError as e:
+            raise typer.BadParameter(str(e), param_hint="--device") from e
+        return
     _done(generate_py(res.map, out, bus or None))
 
 
