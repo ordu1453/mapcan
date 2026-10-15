@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+* The **CANopen function** of a frame in an included file offers every function in the form, with
+  the ones whose ID is taken on the bus disabled, not only its current value.
+
 ## 0.6.3
 
 * Needs mapcan 0.22.0 or newer, which the extension offers to install or update.

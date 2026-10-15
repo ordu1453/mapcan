@@ -973,8 +973,8 @@ def format_value(key: str, value) -> str:
 def frame_types(a: Analysis, path: Path_) -> list[dict]:
     """CANopen frame types for the form: {type, label, taken}. A frame of the bus (without a device's node_id)
     gets only the types whose ID does not depend on the node; ``taken`` names another frame of the bus with that CAN
-    ID."""
-    owner = raw_at(a, path[:4]) if len(path) >= 6 and path[2] == "devices" else None
+    ID. The owner is read from the data together with the included files: the device can be in another file."""
+    owner = raw_at_path(a.data, path[:4]) if len(path) >= 6 and path[2] == "devices" else None
     node_id = owner.get("node_id") if isinstance(owner, dict) else None
     used: dict[int, str] = {}
     if a.map is not None:
@@ -1053,7 +1053,7 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             # With a revision history the document's version and date come from its latest entry
             "hasHistory": kind == "document" and bool(raw.get("history")),
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
-            "frameTypes": frame_types(a, path) if kind == "frame" and not file else [],
+            "frameTypes": frame_types(a, path) if kind == "frame" else [],
             # Units reference (ru, en) for the suggestions of the Unit field; any other text is allowed too
             "units": [list(u) for u in UNITS] if kind == "signal" else [],
             **_layout_fields(a, path, kind, raw, lang)}

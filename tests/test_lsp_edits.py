@@ -411,3 +411,44 @@ def test_duplicate_pdo_type_quick_fix():
     assert "            canopen: pdo_tx2\n            length: 8\n" in fixed(text, "duplicate-can-id")
     titles = [t for c, t, _ in fixes(text) if c == "duplicate-can-id"]
     assert titles and all("pdo_tx" in t for t in titles)
+
+
+INCLUDING_MAIN = """mapcan: 1
+document: {title: Example, language: en}
+include: [devices/node.yaml]
+buses:
+  - name: can1
+    title: CAN 1
+    protocol: canopen
+    bitrate: 500000
+    devices: []
+"""
+INCLUDED_NODE = """mapcan: 1
+part_of: ../main.yaml
+buses:
+  - name: can1
+    devices:
+      - name: node
+        title: Node
+        node_id: 0x10
+        frames:
+          - name: state
+            canopen: pdo_tx1
+            signals: []
+"""
+
+
+def test_frame_types_of_a_frame_in_an_included_file(tmp_path):
+    """#133: the form offers all the CANopen functions to a frame of a device of an included file."""
+    (tmp_path / "devices").mkdir()
+    (tmp_path / "main.yaml").write_text(INCLUDING_MAIN, encoding="utf-8")
+    (tmp_path / "devices" / "node.yaml").write_text(INCLUDED_NODE, encoding="utf-8")
+    a = A.analyze(INCLUDING_MAIN, str(tmp_path / "main.yaml"))
+    fields = E.node_fields(a, FRAME)
+    assert fields["file"] and fields["values"]["canopen"] == "pdo_tx1"
+    types = {t["type"]: t["taken"] for t in fields["frameTypes"]}
+    assert {"nmt", "emcy", "pdo_tx1", "pdo_rx4", "sdo_tx", "heartbeat"} <= set(types)
+    assert types["pdo_tx1"] is None
+    # The same in the included file opened on its own
+    part = A.analyze_part(INCLUDED_NODE, str(tmp_path / "devices" / "node.yaml"))
+    assert {t["type"] for t in E.node_fields(part, FRAME)["frameTypes"]} == set(types)
