@@ -148,8 +148,11 @@ def test_hover_signal_and_frame(minimal):
     assert "phys = raw × 0.01 + 0" in sig and "unit: bar" in sig
     frame = A.hover(minimal, at("name: pump_state", 8))
     assert frame.startswith("**pump_state** · `0x1A1` · length 8")
+    assert "| 5 | `speed` | bits 47…48 (BE) | 16 bit |" in frame
     assert "| 7 | · | · | · | · | 6 | 6 | 6 | 6 |" in frame
-    assert "5. `speed` — bits 47…48 (BE)" in frame
+    # the signals before the bit map, and bytes with the same owners in one row
+    assert frame.index("`speed`") < frame.index("| Byte |")
+    assert "| 2–3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 |" in frame
 
 
 def test_hover_enum_values(minimal):

@@ -10,6 +10,9 @@
   the `include` lines by hand.
 * Deleting a device in the Map view also deletes the included file it leaves empty (only the bus
   by name, no devices, frames or value tables) and its line of `include`, in one edit.
+* The hover of a frame lists its signals first, with their position and size, and then the bit
+  map, where bytes with the same signals share a row: the list no longer falls below the edge of
+  the hover, and a CAN FD frame of 64 bytes stays short.
 
 ## 0.6.4
 

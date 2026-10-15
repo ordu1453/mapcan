@@ -765,7 +765,12 @@ def frame_markdown(frame: M.Frame) -> str:
 
 
 def frame_layout(frame: M.Frame) -> str:
-    """Bit map of a frame as a markdown table: rows are bytes, columns are bits 7…0."""
+    """The signals of a frame and its bit map as markdown tables.
+
+    The list of signals comes first: a hover shows the top of a long text, and the numbers in the map mean nothing
+    without it. Rows of the map are bytes, columns are bits 7…0; consecutive bytes with the same owners are one row,
+    so a frame of 64 bytes stays short.
+    """
     sigs = frame.layout
     if not sigs or frame.length == 0:
         return ""
@@ -773,13 +778,21 @@ def frame_layout(frame: M.Frame) -> str:
     for i, s in enumerate(sigs, 1):
         for b in occupied_bits(s.start_bit or 0, s.bit_length or 1, s.byte_order == "big_endian"):
             cells.setdefault(b, []).append(i)
+    legend = ["| # | " + _("Signal") + " | " + _("Position") + " | " + _("Size") + " |", "|---:|---|---|---:|"]
+    legend += [f"| {i} | `{s.name}` | {signal_bits(s)} | {s.bit_length or 1} " + _("bit") + " |"
+               for i, s in enumerate(sigs, 1)]
     rows = ["| " + _("Byte") + " | " + " | ".join(str(b) for b in range(7, -1, -1)) + " |",
             "|---:|" + ":-:|" * 8]
-    for byte in range(frame.length):
-        row = [",".join(map(str, cells.get(byte * 8 + bit, []))) or "·" for bit in range(7, -1, -1)]
-        rows.append(f"| {byte} | " + " | ".join(row) + " |")
-    legend = "\n".join(f"{i}. `{s.name}` — {signal_bits(s)}" for i, s in enumerate(sigs, 1))
-    return "\n".join(rows) + "\n\n" + legend
+    owners = [tuple(",".join(map(str, cells.get(byte * 8 + bit, []))) or "·" for bit in range(7, -1, -1))
+              for byte in range(frame.length)]
+    first = 0
+    for byte in range(1, frame.length + 1):
+        if byte < frame.length and owners[byte] == owners[first]:
+            continue
+        label = str(first) if byte - 1 == first else f"{first}–{byte - 1}"
+        rows.append(f"| {label} | " + " | ".join(owners[first]) + " |")
+        first = byte
+    return "\n".join(legend) + "\n\n" + "\n".join(rows)
 
 
 # --------------------------------------------------------------------------- #

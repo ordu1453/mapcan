@@ -678,6 +678,10 @@ RU: dict[str, str] = {
     "Bit": "Бит",
     "Flag": "Флаг",
     "Byte": "Байт",
+    "Signal": "Сигнал",
+    "Position": "Положение",
+    "Size": "Размер",
+    "bit": "бит",
     "Export canceled: the map has errors ({errors}). Fix them and try again.":
         "Экспорт отменён: в карте есть ошибки ({errors}). Исправьте их и повторите.",
     "Save the map to a file before exporting.": "Сохраните карту в файл перед экспортом.",
