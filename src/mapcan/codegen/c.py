@@ -75,6 +75,11 @@ static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
     uint64_t sign = (uint64_t)1u << (length - 1u);
     return (int64_t)((value ^ sign) - sign);
 }
+static inline int32_t mapcan_sign_extend32(uint32_t value, uint8_t length)
+{
+    uint32_t sign = (uint32_t)1u << (length - 1u);
+    return (int32_t)((value ^ sign) - sign);
+}
 
 @ONES_NOTE@
 static inline int64_t mapcan_ones_decode(uint64_t value, uint8_t length)
@@ -159,9 +164,19 @@ def _c_comment(s: str) -> str:
     return s.replace("*/", "* /").replace("\n", " ")
 
 
+PHYS_TYPES = ("float", "double")
+
+
 class CGen:
-    def __init__(self, cmap: MapCan, bus: Bus, prefix: str = "", lang: str | None = None):
+    def __init__(self, cmap: MapCan, bus: Bus, prefix: str = "", lang: str | None = None,
+                 phys_type: str = "float"):
+        """``phys_type``: the type of physical values of scaled signals: float (double only where float cannot
+        hold the raw values exactly), or double for all of them (MCUs with a double-precision FPU, test
+        benches)."""
+        if phys_type not in PHYS_TYPES:
+            raise ValueError(phys_type)
         self.cmap, self.bus = cmap, bus
+        self.phys_type = phys_type
         self.lang = lang or cmap.lang
         self.T = code_text(self.lang)
         self.prefix = prefix
@@ -315,7 +330,7 @@ class CGen:
                 # float represents integers exactly only up to 2^24: long fields are computed in double.
                 # The upper bound is compared with hi + 1 (a power of two, exact in any type),
                 # otherwise hi would round up and fall outside the field's width.
-                if s.bit_length > 24:
+                if s.bit_length > 24 or self.phys_type == "double":
                     FT, sfx, rnd = "double", "", "mapcan_round_d"
                 else:
                     FT, sfx, rnd = "float", "f", "mapcan_round_f"
@@ -413,6 +428,8 @@ class CGen:
         if s.mux is None or sel is None:
             return body
         cond = " || ".join(f"msg->{sel.name} == {v}" for v in s.mux_values)
+        if body[0] == "    {" and body[-1] == "    }":
+            body = [b.removeprefix("    ") for b in body[1:-1]]      # the if's own block takes the place of it
         return [f"    if ({cond}) {{"] + ["    " + b for b in body] + ["    }"]
 
     def init_impl(self, f: Frame) -> list[str]:
@@ -437,10 +454,92 @@ class CGen:
                 out.append(f"    msg->{s.name} = ({self.ctype(s)}){macro};")
         return out + ["}", ""]
 
+    # The bits of a signal are read and written with the shifts and masks of the bytes it touches, worked out
+    # here from its layout (as mapcan_get_bits / mapcan_set_bits walk it at run time), in an unsigned type of
+    # the field's width: no loop and no 64-bit arithmetic for a short field.
+
+    @staticmethod
+    def _chunks(s: Signal) -> list[tuple[int, int, int, int]]:
+        """(byte, shift in it, bits, offset in the value) of each byte the signal touches, LSB first."""
+        out, done, pos = [], 0, s.start_bit
+        while done < s.bit_length:
+            byte, shift = divmod(pos, 8)
+            n = min(8 - shift, s.bit_length - done)
+            out.append((byte, shift, n, done))
+            done += n
+            pos = (byte - 1) * 8 if s.byte_order == "big_endian" else (byte + 1) * 8
+        return out
+
+    @staticmethod
+    def _raw_type(s: Signal) -> str:
+        return f"uint{storage_bits(s)}_t"
+
+    def _read_raw(self, s: Signal) -> str:
+        """The raw bits of the signal from ``data`` as its unsigned type."""
+        W = self._raw_type(s)
+        terms = []
+        for byte, shift, n, done in self._chunks(s):
+            x = f"data[{byte}]"
+            if shift:
+                x = f"({x} >> {shift}u)"
+            if n < 8 - shift:
+                x = f"({x} & 0x{(1 << n) - 1:X}u)"
+            terms.append(f"(({W}){x} << {done}u)" if done else f"({W}){x}")
+        return terms[0] if len(terms) == 1 else f"({W})({' | '.join(terms)})"
+
+    def _unpack_value(self, s: Signal) -> str:
+        raw, n = self._read_raw(s), s.bit_length
+        if s.encoding == "float":
+            return f"mapcan_bits_to_f{64 if n == 64 else 32}({raw})"
+        code = s.signed_code if s.signed else None
+        T = self.ctype(s)
+        if code == "ones_complement":
+            return f"({T})mapcan_ones_decode((uint64_t){raw}, {n}u)"
+        if code == "sign_magnitude":
+            return f"({T})mapcan_sm_decode((uint64_t){raw}, {n}u)"
+        if s.signed:
+            ext = "mapcan_sign_extend32" if storage_bits(s) <= 32 else "mapcan_sign_extend"
+            return f"({T}){ext}({raw}, {n}u)"
+        return raw
+
+    def _pack_bits(self, s: Signal) -> list[str]:
+        """Statements writing the signal into ``data``: its raw value saturated to the field (a value outside
+        it is not cut to its low bits), then each byte it touches."""
+        W, v = self._raw_type(s), f"msg->{s.name}"
+        bits = storage_bits(s)
+        if s.encoding == "float":
+            value = f"mapcan_f{64 if s.bit_length == 64 else 32}_to_bits({v})"
+        else:
+            code = s.signed_code if s.signed else None
+            lo, hi = B.raw_range(s.bit_length, s.signed, code)
+            if not s.signed:
+                value = f"({W})(({v} > {_c_int(hi)}) ? {_c_int(hi)} : {v})" if hi < (1 << bits) - 1 else v
+            else:
+                # A bound at the limit of the C type is left out (always false: -Wtype-limits)
+                if hi < (1 << (bits - 1)) - 1:
+                    v = f"(({v} > {_c_signed(hi)}) ? {_c_signed(hi)} : {v})"
+                if lo > -(1 << (bits - 1)):
+                    v = f"((msg->{s.name} < {_c_signed(lo)}) ? {_c_signed(lo)} : {v})"
+                value =(f"({W})mapcan_ones_encode((int64_t){v})" if code == "ones_complement"
+                         else f"({W})mapcan_sm_encode((int64_t){v}, {s.bit_length}u)" if code == "sign_magnitude"
+                         else f"({W}){v}")
+        out = ["    {", f"        const {W} v = {value};"]
+        for byte, shift, n, done in self._chunks(s):
+            part = f"(v >> {done}u)" if done else "v"
+            if shift:
+                part = f"({part} << {shift}u)"
+            if shift + n < 8:
+                part = f"({part} & 0x{((1 << n) - 1) << shift:02X}u)"
+            if n == 8:
+                out.append(f"        data[{byte}] = (uint8_t){part};")
+            else:
+                keep = ~(((1 << n) - 1) << shift) & 0xFF
+                out.append(f"        data[{byte}] = (uint8_t)((data[{byte}] & 0x{keep:02X}u) | (uint8_t){part});")
+        return out + ["    }"]
+
     def frame_impl(self, f: Frame) -> list[str]:
         name = self.p(self.frame_name(f))
         sel = selector_of(f)
-        be = lambda s: "true" if s.byte_order == "big_endian" else "false"  # noqa: E731
         init = self.init_impl(f)
         if f.length == 0:
             return init + [
@@ -486,51 +585,22 @@ class CGen:
                     f"        msg->{s.name}[i] = ({'char' if s.encoding == 'string' else 'uint8_t'})data[{b0}u + i];",
                     "    }"])
                 continue
-            T = self.ctype(s)
-            get = f"mapcan_get_bits(data, {s.start_bit}u, {s.bit_length}u, {be(s)})"
-            if s.encoding == "float":
-                w = 64 if s.bit_length == 64 else 32
-                pack += self._guard(s, sel, [
-                    f"    mapcan_set_bits(data, (uint64_t)mapcan_f{w}_to_bits(msg->{s.name}), "
-                    f"{s.start_bit}u, {s.bit_length}u, {be(s)});"])
-                unpack += self._guard(s, sel, [f"    msg->{s.name} = mapcan_bits_to_f{w}((uint{w}_t){get});"])
-                continue
-            code = s.signed_code if s.signed else None
-            # A value outside the field is saturated, not cut to its low bits
-            lo, hi = B.raw_range(s.bit_length, s.signed, code)
-            bits = storage_bits(s)
-            if not s.signed:
-                value = (f"mapcan_clamp_u((uint64_t)msg->{s.name}, {_c_int(hi)})" if hi < (1 << bits) - 1
-                         else f"(uint64_t)msg->{s.name}")
-            elif (lo, hi) != (-(1 << (bits - 1)), (1 << (bits - 1)) - 1):
-                value = f"mapcan_clamp_s((int64_t)msg->{s.name}, {_c_signed(lo)}, {_c_signed(hi)})"
-            else:
-                value = f"(int64_t)msg->{s.name}"
-            raw = (f"mapcan_ones_encode({value})" if code == "ones_complement"
-                   else f"mapcan_sm_encode({value}, {s.bit_length}u)" if code == "sign_magnitude"
-                   else value if not s.signed else f"(uint64_t){value}")
-            pack += self._guard(s, sel, [
-                f"    mapcan_set_bits(data, {raw}, {s.start_bit}u, {s.bit_length}u, {be(s)});"])
-            if code == "ones_complement":
-                get = f"mapcan_ones_decode({get}, {s.bit_length}u)"
-            elif code == "sign_magnitude":
-                get = f"mapcan_sm_decode({get}, {s.bit_length}u)"
-            elif s.signed:
-                get = f"mapcan_sign_extend({get}, {s.bit_length}u)"
-            unpack += self._guard(s, sel, [f"    msg->{s.name} = ({T}){get};"])
+            pack += self._guard(s, sel, self._pack_bits(s))
+            unpack += self._guard(s, sel, [f"    msg->{s.name} = {self._unpack_value(s)};"])
         pack += [f"    return {f.length};", "}", ""]
         unpack += ["    return 0;", "}", ""]
         return init + pack + unpack
 
 
-def generate_c(cmap: MapCan, out_dir: str | Path, prefix: str = "", buses: list[str] | None = None) -> list[Path]:
+def generate_c(cmap: MapCan, out_dir: str | Path, prefix: str = "", buses: list[str] | None = None,
+               phys_type: str = "float") -> list[Path]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     written = []
     for bus in cmap.buses:
         if buses and bus.name not in buses:
             continue
-        g = CGen(cmap, bus, prefix)
+        g = CGen(cmap, bus, prefix, phys_type=phys_type)
         h, c = out / f"{g.base}.h", out / f"{g.base}.c"
         h.write_text(g.header(), encoding="utf-8")
         c.write_text(g.source(), encoding="utf-8")

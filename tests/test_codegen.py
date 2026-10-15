@@ -11,11 +11,13 @@ import sys
 import cantools
 import pytest
 
+from mapcan import bits as B
 from mapcan.codegen.c import CGen, generate_c
 from mapcan.codegen.common import frames_with_layout, is_byte_array, selector_of
 from mapcan.codegen.py import _cls, generate_py
 from mapcan.export.dbc import bus_database
 from mapcan.loader import load
+from mapcan.model import Signal
 
 from .conftest import REFERENCE, ROOT, run
 
@@ -850,3 +852,98 @@ def test_inhibit_time_in_code(tmp_path):
     header = next(p for p in generate_c(cmap, tmp_path / "c") if p.suffix == ".h").read_text(encoding="utf-8")
     assert "#define F_INHIBIT_US 500u\n" in header
     assert _import(generate_py(cmap, tmp_path / "py")[0]).F_INHIBIT_MS == 0.5
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_random_layouts_c_matches_python(tmp_path):
+    """The unrolled bit access of the C code against the Python module: random positions, lengths, byte orders and
+    representations, packed and unpacked (one signal per frame, so any layout fits)."""
+    import random
+
+    from mapcan.loader import loads
+
+    rnd = random.Random(87)
+    kinds = ["raw", "raw", "twos_complement", "ones_complement", "sign_magnitude", "float"]
+    frames, values = [], {}
+    while len(frames) < 150:
+        kind = rnd.choice(kinds)
+        length = rnd.choice([32, 64]) if kind == "float" else rnd.randint(1 if kind == "raw" else 2, 64)
+        order = rnd.choice(["little_endian", "big_endian"])
+        start = rnd.randint(0, 16 * 8 - 1)
+        sig = Signal(name="s", encoding="float" if kind == "float" else "raw", start_bit=start, bit_length=length,
+                     byte_order=order, representation="unsigned" if kind in ("raw", "float") else kind)
+        if any(not 0 <= b < 16 for b, *_ in CGen._chunks(sig)):
+            continue
+        name = f"f{len(frames)}"
+        rep = f", representation: {kind}" if kind not in ("raw", "float") else ""
+        frames.append(f"      - {{name: {name}, id: {0x100 + len(frames)}, length: 16, signals: [{{name: s, "
+                      f"encoding: {'float' if kind == 'float' else 'raw'}, start_bit: {start}, bit_length: {length}, "
+                      f"byte_order: {order}{rep}}}]}}")
+        if kind == "float":
+            values[name] = rnd.uniform(-1e6, 1e6) if length == 64 else struct.unpack("<f", struct.pack(
+                "<f", rnd.uniform(-1e3, 1e3)))[0]
+        else:
+            lo, hi = B.raw_range(length, kind != "raw", None if kind == "raw" else kind)
+            values[name] = rnd.choice([lo, hi, 0, rnd.randint(lo, hi)])
+    text = ("mapcan: 1\ndocument: {title: T, language: en}\nbuses:\n  - name: bus\n    protocol: can\n"
+            "    fd: true\n    frames:\n" + "\n".join(frames) + "\n")
+    res = loads(text, "t.yaml")
+    assert res.map is not None, res.report.sorted()[:3]
+    cmap = res.map
+    mod = _import(generate_py(cmap, tmp_path)[0])
+    sources = [p for p in generate_c(cmap, tmp_path) if p.suffix == ".c"]
+    g = CGen(cmap, cmap.buses[0])
+    main = ["#include <stdio.h>", "#include <inttypes.h>", '#include "bus.h"', "int main(void) {",
+            "    uint8_t buf[16];"]
+    expected = []
+    for f in frames_with_layout(cmap.buses[0]):
+        s = f.layout[0]
+        v = values[f.name]
+        main += ["    {", f"        {f.name}_t m, u;", f"        m.s = ({g.ctype(s)}){_c_lit(s, v)};",
+                 f"        {f.name}_pack(buf, sizeof buf, &m);",
+                 '        for (int i = 0; i < 16; i++) printf("%02X", buf[i]);',
+                 f"        {f.name}_unpack(&u, buf, sizeof buf);"]
+        if s.encoding == "float":
+            w = 64 if s.bit_length == 64 else 32
+            main.append(f'        printf(" %" PRIu64 "\\n", (uint64_t)mapcan_f{w}_to_bits(u.s));')
+            fmt, ufmt = ("<d", "<Q") if w == 64 else ("<f", "<I")
+            shown = struct.unpack(ufmt, struct.pack(fmt, v))[0]
+        else:
+            main.append('        printf(" %" PRId64 "\\n", (int64_t)u.s);')
+            shown = v
+        main.append("    }")
+        data = getattr(mod, _cls(f.name))(s=v).pack()
+        assert getattr(mod, _cls(f.name)).unpack(data).s == v, f.name
+        expected.append(f"{data.hex().upper()} {shown}")
+    main += ["    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic", "-O2",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.splitlines()
+    assert [line.strip() for line in out] == expected
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_phys_type_double(tmp_path):
+    from typer.testing import CliRunner
+
+    from mapcan.cli import app
+
+    (tmp_path / "m.yaml").write_text(BOUNDS_MAP, encoding="utf-8")
+    r = CliRunner().invoke(app, ["gen", "c", str(tmp_path / "m.yaml"), "-o", str(tmp_path), "--phys-type", "double"])
+    assert r.exit_code == 0, r.output
+    header = (tmp_path / "bus.h").read_text(encoding="utf-8")
+    assert "static inline double f4_s8_to_phys(int8_t raw)" in header
+    assert "static inline int8_t f4_s8_from_phys(double phys)" in header
+    (tmp_path / "main.c").write_text('#include <stdio.h>\n#include "bus.h"\nint main(void) {\n'
+                                     '    printf("%d %.17g\\n", f4_s8_from_phys(-3.75), f4_s8_to_phys(-7));\n'
+                                     "    return 0;\n}\n", encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), str(tmp_path / "bus.c"), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split() == ["-8", "-3.5"]
+    r = CliRunner().invoke(app, ["gen", "c", str(tmp_path / "m.yaml"), "-o", str(tmp_path), "--phys-type", "half"])
+    assert r.exit_code != 0

@@ -481,12 +481,17 @@ def gen_c_cmd(
     out: Path = typer.Option(Path("."), "-o", "--output", help=_("Folder for .h/.c files.")),
     prefix: str = typer.Option("", "--prefix", help=_("Name prefix (e.g. ne_).")),
     bus: list[str] = typer.Option([], "--bus", help=_("Only the given buses.")),
+    phys_type: str = typer.Option("float", "--phys-type", help=_(
+        "Type of physical values: float (double only for fields longer than 24 bits) or double.")),
     force: bool = ForceOpt,
 ) -> None:
-    from .codegen.c import generate_c
+    from .codegen.c import PHYS_TYPES, generate_c
 
+    if phys_type not in PHYS_TYPES:
+        raise typer.BadParameter(_("expected one of: {values}", values=", ".join(PHYS_TYPES)),
+                                 param_hint="--phys-type")
     res = _load_checked(path, force)
-    _done(generate_c(res.map, out, prefix, bus or None))
+    _done(generate_c(res.map, out, prefix, bus or None, phys_type))
 
 
 @gen_app.command("py", help=_("Python module with the same structures (for tests and test benches)."))

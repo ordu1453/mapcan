@@ -90,6 +90,12 @@ include the headers of every bus. The constants of the map are named after the b
 former `MAP_VERSION_*` and `MAP_LAYOUT_CRC32` stay as deprecated aliases unless `MAPCAN_NO_DEPRECATED`
 is defined. `--prefix` puts one more prefix in front of every name and file.
 
+Each signal is read and written with the shifts and masks of the bytes it touches, worked out from the
+map, in an unsigned type of its width: no loop over bits and no 64-bit arithmetic for a short field, which
+matters on Cortex-M0 and 8/16-bit MCUs. Physical values of scaled signals are `float` (`double` only where
+`float` cannot hold the raw values exactly, fields longer than 24 bits); `--phys-type double` makes them all
+`double`.
+
 A value that does not fit its field is never cut to its low bits. `<frame>_<signal>_from_phys()` in C
 and the `<signal>_phys` setter in Python round half away from zero and saturate to the field's raw
 range, so the same physical value gives the same bytes in both. A raw value outside the field is

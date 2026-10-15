@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 #ifndef MAPCAN_BITS_HELPERS
-#define MAPCAN_BITS_HELPERS 0x14AD5BBAu
+#define MAPCAN_BITS_HELPERS 0x1F3F7019u
 /* Нумерация бит lsb0: бит p — бит (p % 8) байта (p / 8); start — позиция LSB.
  * big-endian (Motorola): после старшего бита байта цепочка продолжается
  * с бита 0 предыдущего байта. */
@@ -70,6 +70,11 @@ static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
 {
     uint64_t sign = (uint64_t)1u << (length - 1u);
     return (int64_t)((value ^ sign) - sign);
+}
+static inline int32_t mapcan_sign_extend32(uint32_t value, uint8_t length)
+{
+    uint32_t sign = (uint32_t)1u << (length - 1u);
+    return (int32_t)((value ^ sign) - sign);
 }
 
 /* Обратный код (representation: ones_complement): отрицательное — инверсия модуля. */
@@ -129,7 +134,7 @@ static inline double mapcan_round_d(double x)
 {
     return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
 }
-#elif MAPCAN_BITS_HELPERS != 0x14AD5BBAu
+#elif MAPCAN_BITS_HELPERS != 0x1F3F7019u
 #error "mapcan: заголовки сгенерированы разными версиями mapcan, перегенерируйте их вместе"
 #endif /* MAPCAN_BITS_HELPERS */
 

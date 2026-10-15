@@ -75,6 +75,9 @@ RU: dict[str, str] = {
     "Only the given bus.": "Только указанная шина.",
     "Folder for .h/.c files.": "Каталог для .h/.c.",
     "Name prefix (e.g. ne_).": "Префикс имён (напр. ne_).",
+    "Type of physical values: float (double only for fields longer than 24 bits) or double.":
+        "Тип физических значений: float (double только для полей длиннее 24 бит) или double.",
+    "expected one of: {values}": "ожидается одно из: {values}",
     "Only the given buses.": "Только указанные шины.",
     "Folder for the modules.": "Каталог для модулей.",
     "Output folder.": "Каталог результатов.",
