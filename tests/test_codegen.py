@@ -256,6 +256,39 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
     subprocess.run(cmd, check=True, capture_output=True, text=True)
     out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split("\n")
     assert [line.strip() for line in out if line.strip()] == expected
+    if GXX is None:
+        return
+    # The same code built as C++17 gives the same bytes and values ({0} of the test's structs is valid C++ too)
+    exe = tmp_path / "t_cpp.exe"
+    subprocess.run([GXX, "-x", "c++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    "-Wno-missing-field-initializers",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split("\n")
+    assert [line.strip() for line in out if line.strip()] == expected
+
+
+GXX = shutil.which("g++") or shutil.which("c++")
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_headers_with_different_helpers_do_not_build_together(tmp_path):
+    """Headers whose bit helpers differ (other mapcan versions) stop the build instead of sharing the first ones."""
+    from mapcan.codegen.c import HELPERS_REVISION
+
+    generate_c(_gateway_map("gw", "1.0", "body", "chassis"), tmp_path)
+    generate_c(_gateway_map("service", "2.3", "diag"), tmp_path)
+    diag = tmp_path / "diag.h"
+    diag.write_text(diag.read_text(encoding="utf-8").replace(HELPERS_REVISION, "0x00000001u"), encoding="utf-8")
+    (tmp_path / "main.c").write_text('#include "body.h"\n#include "diag.h"\nint main(void) { return 0; }\n',
+                                     encoding="utf-8")
+    r = subprocess.run([GCC, "-std=c99", "-fsyntax-only", str(tmp_path / "main.c"), "-I", str(tmp_path)],
+                       capture_output=True, text=True)
+    assert r.returncode != 0 and "different mapcan versions" in r.stderr
+    # The same revision: one copy of the helpers, no error
+    diag.write_text(diag.read_text(encoding="utf-8").replace("0x00000001u", HELPERS_REVISION), encoding="utf-8")
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Werror", "-DMAPCAN_NO_DEPRECATED", "-fsyntax-only",
+                    str(tmp_path / "main.c"), "-I", str(tmp_path)], check=True, capture_output=True, text=True)
 
 
 ARM_GCC = shutil.which("arm-none-eabi-gcc")

@@ -6,13 +6,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #ifndef MAPCAN_BITS_HELPERS
-#define MAPCAN_BITS_HELPERS
+#define MAPCAN_BITS_HELPERS 0x14AD5BBAu
 /* Нумерация бит lsb0: бит p — бит (p % 8) байта (p / 8); start — позиция LSB.
  * big-endian (Motorola): после старшего бита байта цепочка продолжается
  * с бита 0 предыдущего байта. */
@@ -93,30 +94,30 @@ static inline uint64_t mapcan_sm_encode(int64_t value, uint8_t length)
     return value < 0 ? (((uint64_t)1u << (length - 1u)) | (uint64_t)(-value)) : (uint64_t)value;
 }
 
-/* IEEE 754: float/double <-> сырые биты (через union, без memcpy и libc). */
+/* IEEE 754: float/double <-> сырые биты (через memcpy: корректно и в C, и в C++). */
 static inline uint32_t mapcan_f32_to_bits(float f)
 {
-    union { float f; uint32_t u; } c;
-    c.f = f;
-    return c.u;
+    uint32_t u;
+    memcpy(&u, &f, sizeof u);
+    return u;
 }
 static inline float mapcan_bits_to_f32(uint32_t u)
 {
-    union { float f; uint32_t u; } c;
-    c.u = u;
-    return c.f;
+    float f;
+    memcpy(&f, &u, sizeof f);
+    return f;
 }
 static inline uint64_t mapcan_f64_to_bits(double f)
 {
-    union { double f; uint64_t u; } c;
-    c.f = f;
-    return c.u;
+    uint64_t u;
+    memcpy(&u, &f, sizeof u);
+    return u;
 }
 static inline double mapcan_bits_to_f64(uint64_t u)
 {
-    union { double f; uint64_t u; } c;
-    c.u = u;
-    return c.f;
+    double f;
+    memcpy(&f, &u, sizeof f);
+    return f;
 }
 
 static inline float mapcan_round_f(float x)
@@ -128,6 +129,8 @@ static inline double mapcan_round_d(double x)
 {
     return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
 }
+#elif MAPCAN_BITS_HELPERS != 0x14AD5BBAu
+#error "mapcan: заголовки сгенерированы разными версиями mapcan, перегенерируйте их вместе"
 #endif /* MAPCAN_BITS_HELPERS */
 
 #define BUS1_MAP_VERSION_MAJOR 1u

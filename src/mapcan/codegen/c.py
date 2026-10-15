@@ -1,11 +1,13 @@
 """C code generation: frame IDs, value enums, flag masks, structs and pack/unpack.
 
 The code uses no dynamic memory and no standard library beyond
-<stdint.h>, <stdbool.h>, <stddef.h>; it fits bare metal, FreeRTOS, Zephyr.
+<stdint.h>, <stdbool.h>, <stddef.h> and memcpy from <string.h>; it fits bare metal, FreeRTOS, Zephyr,
+and compiles as C99 and as C++.
 """
 
 from __future__ import annotations
 
+import zlib
 from collections import Counter
 from pathlib import Path
 
@@ -17,7 +19,7 @@ from .common import code_text, frames_with_layout, is_byte_array, num, physical,
 
 HELPERS = r"""
 #ifndef MAPCAN_BITS_HELPERS
-#define MAPCAN_BITS_HELPERS
+#define MAPCAN_BITS_HELPERS @REVISION@
 @BITS_NOTE@
 static inline uint64_t mapcan_get_bits(const uint8_t *data, uint16_t start, uint8_t length, bool big_endian)
 {
@@ -99,27 +101,27 @@ static inline uint64_t mapcan_sm_encode(int64_t value, uint8_t length)
 @IEEE_NOTE@
 static inline uint32_t mapcan_f32_to_bits(float f)
 {
-    union { float f; uint32_t u; } c;
-    c.f = f;
-    return c.u;
+    uint32_t u;
+    memcpy(&u, &f, sizeof u);
+    return u;
 }
 static inline float mapcan_bits_to_f32(uint32_t u)
 {
-    union { float f; uint32_t u; } c;
-    c.u = u;
-    return c.f;
+    float f;
+    memcpy(&f, &u, sizeof f);
+    return f;
 }
 static inline uint64_t mapcan_f64_to_bits(double f)
 {
-    union { double f; uint64_t u; } c;
-    c.f = f;
-    return c.u;
+    uint64_t u;
+    memcpy(&u, &f, sizeof u);
+    return u;
 }
 static inline double mapcan_bits_to_f64(uint64_t u)
 {
-    union { double f; uint64_t u; } c;
-    c.u = u;
-    return c.f;
+    double f;
+    memcpy(&f, &u, sizeof f);
+    return f;
 }
 
 static inline float mapcan_round_f(float x)
@@ -131,8 +133,12 @@ static inline double mapcan_round_d(double x)
 {
     return (x >= 0.0) ? (x + 0.5) : (x - 0.5);
 }
+#elif MAPCAN_BITS_HELPERS != @REVISION@
+@MISMATCH@
 #endif /* MAPCAN_BITS_HELPERS */
 """
+# The helpers' revision: headers of different mapcan versions with different helpers do not build together
+HELPERS_REVISION = f"0x{zlib.crc32(HELPERS.encode()):08X}u"
 
 
 def _c_int(v: int) -> str:
@@ -204,12 +210,14 @@ class CGen:
             "#include <stdbool.h>",
             "#include <stddef.h>",
             "#include <stdint.h>",
+            "#include <string.h>",
             "",
             "#ifdef __cplusplus",
             'extern "C" {',
             "#endif",
             HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"])
-            .replace("@CLAMP_NOTE@", self.T["clamp_c"])
+            .replace("@CLAMP_NOTE@", self.T["clamp_c"]).replace("@MISMATCH@", self.T["helpers_mismatch"])
+            .replace("@REVISION@", HELPERS_REVISION)
             .replace("@ONES_NOTE@", self.T["ones_c"]).replace("@SM_NOTE@", self.T["sm_c"]),
         ]
         # The map this code was built from, named after the bus: headers of two maps build together
