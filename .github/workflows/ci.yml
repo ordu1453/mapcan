@@ -123,10 +123,12 @@ jobs:
           git clone --depth 1 --branch "$ZEPHYR_VERSION" https://github.com/zephyrproject-rtos/zephyr ../zephyrproject/zephyr
           pip install west -r ../zephyrproject/zephyr/scripts/requirements-base.txt .
           west init -l ../zephyrproject/zephyr
+      # west's commands (build) are those of the workspace: it runs there, with the paths of this repository
       - name: Build examples/zephyr for native_sim
+        working-directory: ../zephyrproject
         run: |
-          west build -b native_sim/native/64 examples/zephyr -d build/zephyr-app \
-            -- -DZEPHYR_EXTRA_MODULES="$GITHUB_WORKSPACE"
+          west build -b native_sim/native/64 "$GITHUB_WORKSPACE/examples/zephyr" \
+            -d "$GITHUB_WORKSPACE/build/zephyr-app" -- -DZEPHYR_EXTRA_MODULES="$GITHUB_WORKSPACE"
       - name: Run it
         run: |
           build/zephyr-app/zephyr/zephyr.exe --stop_at=2 | tee zephyr.txt
