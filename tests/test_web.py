@@ -61,6 +61,21 @@ def test_state(client):
     assert sdo["sender"] is None and sdo["receivers"] == ["imd"]
 
 
+def test_state_has_bus_loads(client):
+    """#131: the estimated load of each bus for the tree, recomputed when a period changes."""
+    from mapcan.loader import load
+    from mapcan.validate import bus_load_text
+
+    st = client.get("/api/state").json()
+    expected = [bus_load_text(b) for b in load(REFERENCE).map.buses]
+    assert st["resolved"]["buses"] == [{"path": ["buses", i], "load": t} for i, t in enumerate(expected)]
+    assert all(st["resolved"]["buses"][i]["load"] for i in range(len(expected)))
+    frames = st["data"]["buses"][0]["devices"][0]["frames"]
+    fi = next(i for i, f in enumerate(frames) if f.get("cycle_ms"))
+    st = ops(client, {"op": "set", "path": ["buses", 0, "devices", 0, "frames", fi, "cycle_ms"], "value": 1})
+    assert st["resolved"]["buses"][0]["load"] != expected[0]
+
+
 def test_set_preserves_everything_else(client, mapfile):
     before = mapfile.read_text(encoding="utf-8")
     st = ops(client, {"op": "set", "path": SIG + ["factor"], "value": 0.01})

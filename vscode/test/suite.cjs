@@ -541,6 +541,48 @@ const tests = {
       && ctx.api.tree.getChildren().length === 1);
   },
 
+  async "an included file open on its own: its device's address, its frame's functions, Export of its map"(ctx) {
+    const dir = path.join(workspace, "split");
+    fs.mkdirSync(path.join(dir, "devices"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "main.yaml"), "mapcan: 1\ndocument: {title: Example, language: en}\n"
+      + "include: [devices/node.yaml]\nbuses:\n  - name: can1\n    title: CAN 1\n    protocol: canopen\n"
+      + "    bitrate: 500000\n    devices: []\n");
+    const node = path.join(dir, "devices", "node.yaml");
+    fs.writeFileSync(node, "mapcan: 1\npart_of: ../main.yaml\nbuses:\n  - name: can1\n    devices:\n"
+      + "      - name: node\n        title: A rather long device title that does not fit in the side bar\n"
+      + "        node_id: 0x10\n        frames:\n          - name: state\n            canopen: pdo_tx1\n"
+      + "            length: 8\n            signals: []\n");
+    const doc = await vscode.workspace.openTextDocument(node);
+    await vscode.window.showTextDocument(doc);
+    const [bus] = await until("the map of the included file in the tree", () => {
+      const r = ctx.api.tree.mapUri?.toString() === doc.uri.toString() && ctx.api.tree.getChildren();
+      return r && r.length === 1 && ctx.api.tree.getChildren(r[0]).length ? r : undefined;
+    });
+    // The bus load by the bus (#131); the node ID before a long title, which cuts it no more (#130)
+    assert.equal(ctx.api.tree.getTreeItem(bus).description, "≥0%");
+    const device = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(bus)[0]);
+    assert.equal(device.label, "0x10 · A rather long device title that does not fit in the side bar");
+    assert.equal(device.description, "");
+    assert.match(device.tooltip, /^Device node\nA rather long device title.*\nNode ID 0x10\n/);
+    // The form offers every CANopen function to the frame of the included file (#133)
+    const fields = await ctx.api.client().sendRequest("mapcan/node",
+      { textDocument: { uri: doc.uri.toString() }, path: ["buses", 0, "devices", 0, "frames", 0] });
+    assert.match(fields.file, /node\.yaml$/);
+    const types = fields.frameTypes.map((t) => t.type);
+    for (const t of ["", "nmt", "emcy", "pdo_tx1", "pdo_rx4", "sdo_tx", "heartbeat"]) assert.ok(types.includes(t), t);
+    // Export in the included file exports its map, named after it, next to it (#135)
+    await ctx.api.exportView.onMessage({ type: "export", formats: ["md"], outDir: "build" });
+    const result = ctx.api.exportView.last.result;
+    assert.equal(result.error, undefined);
+    // Compared relative to the folder: the server and the extension may spell the drive letter differently
+    assert.equal(path.relative(dir, result.map), "main.yaml");
+    assert.deepEqual(result.files.map((f) => path.relative(dir, f)), [path.join("build", "main.md")]);
+    assert.match(fs.readFileSync(path.join(dir, "build", "main.md"), "utf8"), /A rather long device title/);
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    await vscode.window.showTextDocument(ctx.doc);
+    await until("the first map in the tree", () => ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString());
+  },
+
   async "rename follows a device into the included file it is described in"(ctx) {
     const extra = path.join(workspace, "pumps.yaml");
     fs.writeFileSync(extra, "buses:\n  - name: can1\n    devices:\n      - name: pump\n");
