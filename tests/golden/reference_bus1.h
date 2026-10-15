@@ -55,6 +55,16 @@ static inline void mapcan_set_bits(uint8_t *data, uint64_t value, uint16_t start
     }
 }
 
+/* Значение вне диапазона поля прижимается к границе, а не обрезается до младших бит. */
+static inline uint64_t mapcan_clamp_u(uint64_t value, uint64_t hi)
+{
+    return value > hi ? hi : value;
+}
+static inline int64_t mapcan_clamp_s(int64_t value, int64_t lo, int64_t hi)
+{
+    return value < lo ? lo : (value > hi ? hi : value);
+}
+
 static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
 {
     uint64_t sign = (uint64_t)1u << (length - 1u);
@@ -147,7 +157,7 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } sync_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int sync_pack(uint8_t *data, size_t size, const sync_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int sync_unpack(sync_t *msg, const uint8_t *data, size_t size);
@@ -193,7 +203,7 @@ typedef struct {
     uint16_t days_since_1984; /* Дни с 1 января 1984 г. [сут] */
 } time_stamp_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int time_stamp_pack(uint8_t *data, size_t size, const time_stamp_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int time_stamp_unpack(time_stamp_t *msg, const uint8_t *data, size_t size);
@@ -235,7 +245,7 @@ typedef struct {
     uint8_t imd_state; /* Состояние работы */
 } imd_state_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_state_pack(uint8_t *data, size_t size, const imd_state_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_state_unpack(imd_state_t *msg, const uint8_t *data, size_t size);
@@ -312,7 +322,7 @@ typedef struct {
     uint16_t bus_voltage; /* Напряжение шины питания [В] */
 } imd_data_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_data_pack(uint8_t *data, size_t size, const imd_data_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_data_unpack(imd_data_t *msg, const uint8_t *data, size_t size);
@@ -341,7 +351,7 @@ typedef struct {
     uint8_t force_selftest; /* Команда принудительной самодиагностики */
 } imd_command_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_command_pack(uint8_t *data, size_t size, const imd_command_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_command_unpack(imd_command_t *msg, const uint8_t *data, size_t size);
@@ -406,7 +416,7 @@ typedef struct {
     uint16_t warning_resistance; /* Порог предупредительного сопротивления изоляции [кОм] */
 } imd_sdo_request_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_sdo_request_pack(uint8_t *data, size_t size, const imd_sdo_request_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_sdo_request_unpack(imd_sdo_request_t *msg, const uint8_t *data, size_t size);
@@ -439,7 +449,7 @@ typedef struct {
     uint8_t sdo_subindex; /* Субиндекс объекта */
 } imd_sdo_response_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_sdo_response_pack(uint8_t *data, size_t size, const imd_sdo_response_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int imd_sdo_response_unpack(imd_sdo_response_t *msg, const uint8_t *data, size_t size);
@@ -479,7 +489,7 @@ typedef struct {
     uint8_t systems_status; /* Код состояния систем */
 } cmu_state_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_state_pack(uint8_t *data, size_t size, const cmu_state_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cmu_state_unpack(cmu_state_t *msg, const uint8_t *data, size_t size);
@@ -513,7 +523,7 @@ typedef struct {
     uint8_t event_object; /* Объект события — номер модуля или датчика */
 } cmu_event_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_event_pack(uint8_t *data, size_t size, const cmu_event_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cmu_event_unpack(cmu_event_t *msg, const uint8_t *data, size_t size);
@@ -537,7 +547,7 @@ typedef struct {
     uint8_t temperature_data[7]; /* Данные парсинга температур */
 } cmu_parse_data_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_parse_data_pack(uint8_t *data, size_t size, const cmu_parse_data_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cmu_parse_data_unpack(cmu_parse_data_t *msg, const uint8_t *data, size_t size);
@@ -561,7 +571,7 @@ typedef struct {
     uint8_t frame_request; /* Номер повторно запрашиваемого кадра */
 } cmu_request_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_request_pack(uint8_t *data, size_t size, const cmu_request_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cmu_request_unpack(cmu_request_t *msg, const uint8_t *data, size_t size);
@@ -600,7 +610,7 @@ typedef struct {
     uint8_t error_code; /* Код ошибки преобразователя */
 } pcu_state_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_state_pack(uint8_t *data, size_t size, const pcu_state_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int pcu_state_unpack(pcu_state_t *msg, const uint8_t *data, size_t size);
@@ -679,7 +689,7 @@ typedef struct {
     uint16_t dc_input_current; /* Входной ток [А] */
 } pcu_data_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_data_pack(uint8_t *data, size_t size, const pcu_data_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int pcu_data_unpack(pcu_data_t *msg, const uint8_t *data, size_t size);
@@ -722,7 +732,7 @@ typedef struct {
     uint8_t target_voltage; /* Целевое значение напряжения [В] */
 } pcu_command_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_command_pack(uint8_t *data, size_t size, const pcu_command_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int pcu_command_unpack(pcu_command_t *msg, const uint8_t *data, size_t size);
@@ -737,7 +747,7 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } bypass_command_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int bypass_command_pack(uint8_t *data, size_t size, const bypass_command_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int bypass_command_unpack(bypass_command_t *msg, const uint8_t *data, size_t size);
@@ -752,7 +762,7 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } bypass_state_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int bypass_state_pack(uint8_t *data, size_t size, const bypass_state_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int bypass_state_unpack(bypass_state_t *msg, const uint8_t *data, size_t size);
@@ -767,7 +777,7 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } cooling_command_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cooling_command_pack(uint8_t *data, size_t size, const cooling_command_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cooling_command_unpack(cooling_command_t *msg, const uint8_t *data, size_t size);
@@ -782,7 +792,7 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } cooling_state_t;
 
-/* Упаковать: возвращает длину кадра или -1, если буфер короче кадра. */
+/* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cooling_state_pack(uint8_t *data, size_t size, const cooling_state_t *msg);
 /* Распаковать: возвращает 0 или -1, если данных меньше длины кадра. */
 int cooling_state_unpack(cooling_state_t *msg, const uint8_t *data, size_t size);

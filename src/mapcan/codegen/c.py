@@ -58,6 +58,16 @@ static inline void mapcan_set_bits(uint8_t *data, uint64_t value, uint16_t start
     }
 }
 
+@CLAMP_NOTE@
+static inline uint64_t mapcan_clamp_u(uint64_t value, uint64_t hi)
+{
+    return value > hi ? hi : value;
+}
+static inline int64_t mapcan_clamp_s(int64_t value, int64_t lo, int64_t hi)
+{
+    return value < lo ? lo : (value > hi ? hi : value);
+}
+
 static inline int64_t mapcan_sign_extend(uint64_t value, uint8_t length)
 {
     uint64_t sign = (uint64_t)1u << (length - 1u);
@@ -134,6 +144,11 @@ def _c_bound(v: int) -> str:
     return f"({v + 1} - 1)" if v == -(1 << 63) else _c_int(v)
 
 
+def _c_signed(v: int) -> str:
+    """A signed int64_t literal; INT64_MIN is never needed (a clamp at the type's limit is left out)."""
+    return f"({v}LL)" if v < 0 else f"{v}LL"
+
+
 def _c_comment(s: str) -> str:
     return s.replace("*/", "* /").replace("\n", " ")
 
@@ -194,6 +209,7 @@ class CGen:
             'extern "C" {',
             "#endif",
             HELPERS.replace("@BITS_NOTE@", self.T["bits_note"]).replace("@IEEE_NOTE@", self.T["ieee_note"])
+            .replace("@CLAMP_NOTE@", self.T["clamp_c"])
             .replace("@ONES_NOTE@", self.T["ones_c"]).replace("@SM_NOTE@", self.T["sm_c"]),
         ]
         # The map this code was built from, named after the bus: headers of two maps build together
@@ -440,9 +456,19 @@ class CGen:
                 unpack += self._guard(s, sel, [f"    msg->{s.name} = mapcan_bits_to_f{w}((uint{w}_t){get});"])
                 continue
             code = s.signed_code if s.signed else None
-            raw = (f"mapcan_ones_encode((int64_t)msg->{s.name})" if code == "ones_complement"
-                   else f"mapcan_sm_encode((int64_t)msg->{s.name}, {s.bit_length}u)" if code == "sign_magnitude"
-                   else f"(uint64_t)msg->{s.name}")
+            # A value outside the field is saturated, not cut to its low bits
+            lo, hi = B.raw_range(s.bit_length, s.signed, code)
+            bits = storage_bits(s)
+            if not s.signed:
+                value = (f"mapcan_clamp_u((uint64_t)msg->{s.name}, {_c_int(hi)})" if hi < (1 << bits) - 1
+                         else f"(uint64_t)msg->{s.name}")
+            elif (lo, hi) != (-(1 << (bits - 1)), (1 << (bits - 1)) - 1):
+                value = f"mapcan_clamp_s((int64_t)msg->{s.name}, {_c_signed(lo)}, {_c_signed(hi)})"
+            else:
+                value = f"(int64_t)msg->{s.name}"
+            raw = (f"mapcan_ones_encode({value})" if code == "ones_complement"
+                   else f"mapcan_sm_encode({value}, {s.bit_length}u)" if code == "sign_magnitude"
+                   else value if not s.signed else f"(uint64_t){value}")
             pack += self._guard(s, sel, [
                 f"    mapcan_set_bits(data, {raw}, {s.start_bit}u, {s.bit_length}u, {be(s)});"])
             if code == "ones_complement":

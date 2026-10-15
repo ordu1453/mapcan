@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..bits import raw_range
 from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, enum_entries, text
 from ..units import translate_unit
@@ -58,6 +59,17 @@ def _sm(value, length):
     return value if value >= 0 else (1 << (length - 1)) | -value
 
 
+def _round(x):
+    """@ROUND@"""
+    return int(x + 0.5) if x >= 0 else -int(0.5 - x)
+
+
+def _check(name, value, lo, hi):
+    if not lo <= value <= hi:
+        raise ValueError(f"@RANGE@")
+    return value
+
+
 def _set(buf, value, start, length, big_endian):
     value &= (1 << length) - 1
     done, pos = 0, start
@@ -105,7 +117,8 @@ class PyGen:
             "from dataclasses import dataclass, field",
             "from enum import IntEnum",
             RUNTIME.replace("@F2B@", self.T["f2b"]).replace("@B2F@", self.T["b2f"])
-            .replace("@ONES_NOTE@", self.T["ones_py"]).replace("@SM_NOTE@", self.T["sm_py"]),
+            .replace("@ONES_NOTE@", self.T["ones_py"]).replace("@SM_NOTE@", self.T["sm_py"])
+            .replace("@ROUND@", self.T["round_py"]).replace("@RANGE@", self.T["out_of_range"]),
         ]
         # The map this module was built from
         out.append("")
@@ -188,7 +201,7 @@ class PyGen:
         # pack
         out += ["", "    def pack(self) -> bytes:", f"        buf = bytearray({f.length})"]
         for s in f.layout:
-            body = self._pack_stmt(s)
+            body = self._pack_stmt(f, s)
             out += self._guard(s, sel, body, "self")
         out.append("        return bytes(buf)")
 
@@ -206,6 +219,7 @@ class PyGen:
         for s in f.layout:
             if physical(s) and not is_byte_array(s):
                 unit = ", " + translate_unit(s.unit, self.lang) if s.unit else ""
+                lo, hi = raw_range(s.bit_length, s.signed, s.signed_code if s.signed else None)
                 out += [
                     "",
                     "    @property",
@@ -217,7 +231,8 @@ class PyGen:
                     f"    @{s.name}_phys.setter",
                     f"    def {s.name}_phys(self, value: float) -> None:",
                     (f"        self.{s.name} = (value - {num(s.offset)}) / {num(s.factor)}" if s.encoding == "float"
-                     else f"        self.{s.name} = round((value - {num(s.offset)}) / {num(s.factor)})"),
+                     else f"        self.{s.name} = min(max(_round((value - {num(s.offset)}) / {num(s.factor)}), "
+                          f"{lo}), {hi})"),
                 ]
         out.append("")
         return out
@@ -230,7 +245,7 @@ class PyGen:
         return [f"        if {obj}.{sel.name} in ({vals},):"] + ["    " + b for b in body]
 
     @staticmethod
-    def _pack_stmt(s) -> list[str]:
+    def _pack_stmt(f: Frame, s) -> list[str]:
         if is_byte_array(s) and s.encoding == "string":
             # The text in its charset, cut to the field; the rest is the terminator (or 0x00)
             n, b0, pad = s.bit_length // 8, s.start_bit // 8, s.terminator_byte or 0
@@ -240,7 +255,12 @@ class PyGen:
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        buf[{b0}:{b0 + n}] = bytes(self.{s.name})[:{n}].ljust({n}, b'\\0')"]
         be = s.byte_order == "big_endian"
-        value = f"_f2b(self.{s.name}, {s.bit_length})" if s.encoding == "float" else f"self.{s.name}"
+        if s.encoding == "float":
+            value = f"_f2b(self.{s.name}, {s.bit_length})"
+        else:
+            # A value outside the field is an error, not cut to its low bits
+            lo, hi = raw_range(s.bit_length, s.signed, s.signed_code if s.signed else None)
+            value = f"_check({f.name + '.' + s.name!r}, self.{s.name}, {lo}, {hi})"
         enc = _SIGNED_ENCODERS.get(s.signed_code) if s.signed else None
         if enc:
             value = f"{enc}({value}, {s.bit_length})"

@@ -647,3 +647,65 @@ def test_strings_c(tmp_path):
                    check=True, capture_output=True, text=True)
     out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
     assert out == ["AB***xyz", "AB***", "xyz"]
+
+
+RANGE_MAP = """
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: f
+        id: 0x100
+        length: 4
+        signals:
+          - {name: u5, encoding: scaled, start_bit: 0, bit_length: 5, factor: 0.5}
+          - {name: s6, encoding: scaled, start_bit: 8, bit_length: 6, representation: twos_complement}
+          - {name: o8, encoding: raw, byte: 2, byte_length: 1, representation: ones_complement}
+          - {name: u8, encoding: raw, byte: 3, byte_length: 1}
+"""
+# Physical value → raw, the same in C and Python: rounded half away from zero, saturated to the field
+RANGE_PHYS = [("u5", 1000.0, 31), ("u5", -3.0, 0), ("u5", 0.25, 1), ("u5", 1.25, 3),
+              ("s6", 100.0, 31), ("s6", -100.0, -32), ("s6", -2.5, -3)]
+# Raw values outside the field: C saturates them in pack()
+RANGE_RAW = {"u5": 40, "s6": -40, "o8": -128, "u8": 200}
+RANGE_SATURATED = {"u5": 31, "s6": -32, "o8": -127, "u8": 200}
+
+
+def test_out_of_range_python(tmp_path):
+    from mapcan.loader import loads
+
+    mod = _import(generate_py(loads(RANGE_MAP, "t.yaml").map, tmp_path)[0])
+    m = mod.F()
+    for name, phys, raw in RANGE_PHYS:
+        setattr(m, f"{name}_phys", phys)
+        assert getattr(m, name) == raw, (name, phys)
+    for name, raw in RANGE_RAW.items():
+        if raw != RANGE_SATURATED[name]:
+            with pytest.raises(ValueError, match=rf"f\.{name}: value {raw} "):
+                mod.F(**{name: raw}).pack()
+    assert mod.F(**RANGE_SATURATED).pack() == bytes([31, 0x20, 0x80, 200])
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_out_of_range_c_matches_python(tmp_path):
+    from mapcan.loader import loads
+
+    cmap = loads(RANGE_MAP, "t.yaml").map
+    mod = _import(generate_py(cmap, tmp_path)[0])
+    sources = [p for p in generate_c(cmap, tmp_path) if p.suffix == ".c"]
+    main = ["#include <stdio.h>", "#include <inttypes.h>", '#include "bus.h"', "int main(void) {",
+            "    uint8_t buf[4];", "    f_t m;"]
+    main += [f'    printf("%" PRId64 "\\n", (int64_t)f_{name}_from_phys({phys}f));' for name, phys, _ in RANGE_PHYS]
+    main += [f"    m.{k} = ({'uint8_t' if k.startswith('u') else 'int8_t'})({v});" for k, v in RANGE_RAW.items()]
+    main += ["    f_pack(buf, sizeof buf, &m);", '    for (int i = 0; i < 4; i++) printf("%02X ", buf[i]);',
+             "    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
+    assert [int(x) for x in out[:len(RANGE_PHYS)]] == [raw for _, _, raw in RANGE_PHYS]
+    assert bytes.fromhex("".join(out[len(RANGE_PHYS):])) == mod.F(**RANGE_SATURATED).pack()

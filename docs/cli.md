@@ -82,6 +82,11 @@ include the headers of every bus. The constants of the map are named after the b
 former `MAP_VERSION_*` and `MAP_LAYOUT_CRC32` stay as deprecated aliases unless `MAPCAN_NO_DEPRECATED`
 is defined. `--prefix` puts one more prefix in front of every name and file.
 
+A value that does not fit its field is never cut to its low bits. `<frame>_<signal>_from_phys()` in C
+and the `<signal>_phys` setter in Python round half away from zero and saturate to the field's raw
+range, so the same physical value gives the same bytes in both. A raw value outside the field is
+saturated by `<frame>_pack()` in C, and makes `pack()` in Python raise `ValueError`.
+
 Next to `<FRAME>_ID` and `<FRAME>_LENGTH`, the header tells the CAN driver how to send the frame:
 `<FRAME>_IS_EXTENDED` for a 29-bit ID, and on a CAN FD bus `<FRAME>_IS_FD` and `<FRAME>_BRS`
 (bit rate switch, `0` or `1`). The classes of the Python module carry the same as `IS_EXTENDED`,
