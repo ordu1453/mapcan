@@ -2,7 +2,7 @@
   "name": "mapcan",
   "displayName": "mapcan",
   "description": "CAN signal maps as code: validation, a Map view with forms and frame bit layouts, hovers, rename, export and history for mapcan YAML files.",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "publisher": "ordu1453",
   "private": true,
   "preview": true,

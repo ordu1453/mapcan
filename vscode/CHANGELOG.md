@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.6.4
 
+* Needs mapcan 0.23.0 or newer, which the extension offers to install or update.
 * **Export** in a file included by a map exports the map it is a part of, as when the map is the
   active editor: files named after the map, in the output folder next to it, with the unsaved
   changes of the open files. It used to stop with "the map has errors".
