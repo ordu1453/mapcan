@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* **Export** in a file included by a map exports the map it is a part of, as when the map is the
+  active editor: files named after the map, in the output folder next to it, with the unsaved
+  changes of the open files. It used to stop with "the map has errors".
 * The **CANopen function** of a frame in an included file offers every function in the form, with
   the ones whose ID is taken on the bus disabled, not only its current value.
 

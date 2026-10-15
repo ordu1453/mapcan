@@ -4,7 +4,7 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
-import { MapTree } from "./tree";
+import { isPart, MapTree } from "./tree";
 import { webviewHtml } from "./webview";
 
 export const FORMATS: { id: string; label: string; detail: string }[] = [
@@ -25,6 +25,22 @@ interface ExportResult {
   files?: string[];
   warnings?: string[];
   error?: string;
+  /** The map file exported (for a file included by a map, that map). */
+  map?: string;
+}
+
+const PART_OF = /^part_of\s*:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))/m;
+
+/**
+ * The map exported for a document: for a file included by a map (`part_of`) that map, as the server
+ * exports it; the panel names it, keeps its output folder and puts the files next to it.
+ */
+export function exportedMap(uri: vscode.Uri): vscode.Uri {
+  const doc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
+  if (uri.scheme !== "file" || !doc || !isPart(doc)) return uri;
+  const m = PART_OF.exec(doc.getText());
+  const of = m ? m[1] ?? m[2] ?? m[3] : undefined;
+  return of ? vscode.Uri.file(path.resolve(path.dirname(uri.fsPath), of)) : uri;
 }
 
 type Message =
@@ -71,7 +87,7 @@ export class ExportView implements vscode.WebviewViewProvider, vscode.Disposable
   }
 
   private update(): void {
-    const uri = this.tree.mapUri;
+    const uri = this.tree.mapUri && exportedMap(this.tree.mapUri);
     void this.view?.webview.postMessage({
       type: "state",
       map: uri ? path.basename(uri.fsPath) : null,
@@ -87,7 +103,8 @@ export class ExportView implements vscode.WebviewViewProvider, vscode.Disposable
   }
 
   private async onMessage(m: Message): Promise<void> {
-    const uri = this.tree.mapUri;
+    const active = this.tree.mapUri;
+    const uri = active && exportedMap(active);
     switch (m.type) {
       case "ready":
         this.update();
@@ -110,10 +127,10 @@ export class ExportView implements vscode.WebviewViewProvider, vscode.Disposable
         break;
       }
       case "export":
-        if (uri) {
+        if (active && uri) {
           await this.setOutDir(uri, m.outDir.trim());
           await this.context.globalState.update(LAST_FORMATS, m.formats);
-          await this.run(uri, m.formats);
+          await this.run(active, uri, m.formats);
         }
         break;
       case "open":
@@ -133,14 +150,15 @@ export class ExportView implements vscode.WebviewViewProvider, vscode.Disposable
     await this.context.workspaceState.update(OUT_DIRS, dirs);
   }
 
-  private async run(uri: vscode.Uri, formats: string[]): Promise<void> {
+  /** Export the text of `active` (the server takes the map it is a part of) into the folder of `map`. */
+  private async run(active: vscode.Uri, map: vscode.Uri, formats: string[]): Promise<void> {
     const client = this.client();
     if (!client?.isRunning()) {
       void vscode.window.showErrorMessage("mapcan: the language server is not running.");
       return;
     }
     if (formats.length === 0) return;
-    const outDir = path.resolve(path.dirname(uri.fsPath), this.outDir(uri));
+    const outDir = path.resolve(path.dirname(map.fsPath), this.outDir(map));
     this.busy = true;
     this.update();
     try {
@@ -148,10 +166,10 @@ export class ExportView implements vscode.WebviewViewProvider, vscode.Disposable
         { location: { viewId: ExportView.viewId } },
         () => client.sendRequest(ExecuteCommandRequest.type, {
           command: "mapcan.lsp.export",
-          arguments: [{ uri: uri.toString(), formats, outDir }],
+          arguments: [{ uri: active.toString(), formats, outDir }],
         }) as Promise<ExportResult>,
       );
-      this.last = { map: uri.toString(), result: result ?? {}, outDir };
+      this.last = { map: map.toString(), result: result ?? {}, outDir };
     } finally {
       this.busy = false;
       this.update();

@@ -359,7 +359,8 @@ async def map_tree(ls: MapcanServer, params) -> list[dict]:
 @server.command("mapcan.lsp.export")
 @server.thread()
 def export_command(ls: MapcanServer, *args) -> dict:
-    """Argument: {uri, formats: [...], outDir}. Response: {files: [...], warnings: [...]} or {error}."""
+    """Argument: {uri, formats: [...], outDir}. Response: {files: [...], warnings: [...], map} or {error}.
+    For a file included by a map (``part_of``) the map is exported; ``outDir`` is relative to the map's folder."""
     from .exports import ExportError, export
 
     params = _arg(args)
@@ -368,14 +369,15 @@ def export_command(ls: MapcanServer, *args) -> dict:
     if not path or not uri.startswith("file:"):
         return {"error": _("Save the map to a file before exporting.")}
     try:
-        files, warnings = export(ls.workspace.get_text_document(uri).source, path,
-                                 list(params.get("formats") or []), params.get("outDir") or "build")
+        files, warnings, map_file = export(ls.workspace.get_text_document(uri).source, path,
+                                           list(params.get("formats") or []), params.get("outDir") or "build",
+                                           ls.read)
     except ExportError as e:
         return {"error": str(e)}
     except Exception as e:   # noqa: BLE001 — the export error is shown to the user, the server keeps working
         ls.window_log_message(T.LogMessageParams(type=T.MessageType.Error, message=repr(e)))
         return {"error": _("Export failed: {error}", error=e)}
-    return {"files": [str(f) for f in files], "warnings": warnings}
+    return {"files": [str(f) for f in files], "warnings": warnings, "map": str(map_file)}
 
 
 @server.command("mapcan.lsp.starters")

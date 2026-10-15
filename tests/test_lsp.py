@@ -200,11 +200,29 @@ def test_export_unsaved_text(tmp_path):
     from mapcan.lsp.exports import export
 
     text = MINIMAL.replace("title: Example map", "title: Edited in the editor")
-    files, warnings = export(text, str(tmp_path / "pump.yaml"), ["md", "dbc", "c"], tmp_path / "build")
+    files, warnings, map_file = export(text, str(tmp_path / "pump.yaml"), ["md", "dbc", "c"], "build")
     names = sorted(f.relative_to(tmp_path / "build").as_posix() for f in files)
     assert names == ["c/demo.c", "c/demo.h", "dbc/demo.dbc", "pump.md"]
     assert "Edited in the editor" in (tmp_path / "build" / "pump.md").read_text(encoding="utf-8")
-    assert warnings == []
+    assert warnings == [] and map_file == tmp_path / "pump.yaml"
+
+
+def test_export_from_an_included_file(tmp_path):
+    """#135: Export in an included file exports the map it is a part of, next to that map."""
+    from mapcan.lsp.exports import export
+
+    main = ("mapcan: 1\ndocument: {title: Example, language: en}\ninclude: [devices/node.yaml]\nbuses:\n"
+            "  - name: can1\n    title: CAN 1\n    protocol: canopen\n    bitrate: 500000\n    devices: []\n")
+    node = ("mapcan: 1\npart_of: ../main.yaml\nbuses:\n  - name: can1\n    devices:\n      - name: node\n"
+            "        title: Node\n        node_id: 0x10\n        frames: []\n")
+    (tmp_path / "devices").mkdir()
+    (tmp_path / "main.yaml").write_text(main, encoding="utf-8")
+    (tmp_path / "devices" / "node.yaml").write_text(node, encoding="utf-8")
+    edited = node.replace("title: Node", "title: Unsaved node")
+    files, _warnings, map_file = export(edited, str(tmp_path / "devices" / "node.yaml"), ["md"], "build")
+    assert map_file == (tmp_path / "main.yaml").resolve()
+    assert files == [(tmp_path / "build" / "main.md").resolve()]
+    assert "Unsaved node" in files[0].read_text(encoding="utf-8")       # the editor's text of the included file
 
 
 def test_export_refuses_invalid_map(tmp_path):
