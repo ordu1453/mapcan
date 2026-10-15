@@ -1145,9 +1145,12 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         recorded = bool(history) and history[0].version == version
         ops: list[dict] = [] if recorded else [
             {"op": "insert", "path": ["document", "history"], "index": 0, "value": entry}]
+        # The document's version and date come from the entry: the ones written in the document are removed
+        document = s.doc.get("document") if isinstance(s.doc, dict) else None
+        ops += [{"op": "remove", "path": ["document", k]} for k in ("version", "date")
+                if isinstance(document, dict) and k in document]
         async with lock:
-            s.apply([*ops, {"op": "set", "path": ["document", "version"], "value": version},
-                     {"op": "set", "path": ["document", "date"], "value": today}])
+            s.apply(ops)
             s.save()
             await changed()
         cwd = s.path.parent

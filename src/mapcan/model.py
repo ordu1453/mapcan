@@ -151,11 +151,15 @@ class Print(_Base):
 class Document(_Base):
     title: Text
     subtitle: Text | None = None
-    version: str = Field(
-        "0.1",
-        description=N_("Map version: MAJOR.MINOR or MAJOR.MINOR.PATCH, numbers only (1.4.0). A device can send it "
-                       "in a frame (signal source map_version.*)."))
-    date: _dt.date | None = None
+    # With a history both come from its latest entry and need not be written (resolved in _from_history)
+    version: str | None = Field(
+        None,
+        description=N_("Map version: MAJOR.MINOR or MAJOR.MINOR.PATCH, numbers only (1.4.0). With a revision history "
+                       "it is the version of its latest entry and is not written. A device can send it in a frame "
+                       "(signal source map_version.*)."))
+    date: _dt.date | None = Field(
+        None, description=N_("Release date. With a revision history it is the date of its latest entry and is not "
+                             "written."))
     author: str | None = None
     organization: str | None = None
     language: str = Field(pattern=r"^[a-z]{2}$",
@@ -170,6 +174,20 @@ class Document(_Base):
         description=N_("Print details of the title page and the title block (logo, designation, signatures…), "
                        "read by the PDF templates."))
     history: list[HistoryEntry] = Field(default_factory=list)
+
+    # version and date are in the map, not taken from the history
+    _version_written: bool = PrivateAttr(default=False)
+    _date_written: bool = PrivateAttr(default=False)
+
+    @model_validator(mode="after")
+    def _from_history(self) -> Document:
+        self._version_written, self._date_written = self.version is not None, self.date is not None
+        latest = self.history[0] if self.history else None
+        if self.version is None:
+            self.version = latest.version if latest else "0.1"
+        if self.date is None and latest is not None:
+            self.date = latest.date
+        return self
 
     @property
     def version_parts(self) -> tuple[int, int, int] | None:

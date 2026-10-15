@@ -194,19 +194,32 @@ function bumpVersion(v: string): string {
   return m ? `${m[1]}.${m[2]}.${Number(m[3]) + 1}` : v || "0.1.0";
 }
 
+/** The document's version: written in it, else that of the latest revision history entry. */
+export function documentVersion(doc: Data | undefined): string {
+  return doc?.version ?? (doc?.history ?? [])[0]?.version ?? "0.1";
+}
+
+/** With a history the document's version and date come from its latest entry: ops removing the written ones. */
+export function removeDocumentVersion(doc: Data | undefined) {
+  return (["version", "date"] as const).filter((k) => doc?.[k] != null)
+    .map((k) => ({ op: "remove" as const, path: ["document", k] }));
+}
+
 /** A new history entry goes first (the history goes from new versions to old ones). */
 export async function addRevision(): Promise<boolean> {
   const doc = data()?.document ?? {};
   const latest = (doc.history ?? [])[0]?.version;
+  // A version written in the document ahead of the history is the one of the new entry
   const entry: Record<string, unknown> = {
-    version: latest && latest === doc.version ? bumpVersion(latest) : doc.version ?? "0.1.0",
+    version: doc.version != null && doc.version !== latest ? doc.version : latest ? bumpVersion(latest) : "0.1.0",
     date: new Date().toISOString().slice(0, 10),
   };
   const user = store.meta?.user;
   if (user?.name) entry.author = user.name;
   if (user?.github) entry.github = user.github;
   entry.changes = [];
-  const ok = await actions.apply([{ op: "insert", path: HISTORY_PATH, index: 0, value: entry }]);
+  const ok = await actions.apply([{ op: "insert", path: HISTORY_PATH, index: 0, value: entry },
+    ...removeDocumentVersion(doc)]);
   if (ok) actions.select([...HISTORY_PATH, 0]);
   return ok;
 }

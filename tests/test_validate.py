@@ -672,6 +672,36 @@ def test_history_version():
     assert "history-version" not in codes(text.replace("'{}'", "'1.1'"))
 
 
+def test_version_and_date_from_history():
+    """With a history the document's version and date are those of its latest entry; written the same, a warning."""
+    history = ("  history:\n    - {version: '1.2', date: 2026-01-02, changes: [x]}\n"
+               "    - {version: '1.1', changes: [y]}\n")
+    title = "  title: Тест\n"
+    text = one_bus(OK_SIGNAL).replace(title, title + history)
+    res, rep = run(text)
+    assert (res.map.document.version, str(res.map.document.date)) == ("1.2", "2026-01-02")
+    assert not {"history-version", "version-redundant", "version-format"} & rep.codes()
+    rep = run(text.replace(title, title + "  version: '1.2'\n  date: 2026-01-02\n"))[1]
+    assert [d.path for d in rep.diagnostics if d.code == "version-redundant"] == ["document.version", "document.date"]
+    rep = run(text.replace(title, title + "  date: 2026-01-01\n"))[1]
+    assert [d.code for d in rep.diagnostics if d.path == "document.date"] == ["history-version"]
+    # Without a history the document's own fields, as before
+    assert run(one_bus(OK_SIGNAL))[0].map.document.version == "0.1"
+
+
+def test_migrate_removes_version_repeated_from_history():
+    from mapcan.web.yamlops import migrate_text
+
+    title = "  title: Тест\n"
+    text = one_bus(OK_SIGNAL).replace(title, title + "  version: '1.2'\n  date: 2026-01-02\n"
+                                      "  history:\n    - version: '1.2'\n      date: 2026-01-02\n")
+    new = migrate_text(text)
+    assert new.count("version: '1.2'") == 1 and new.count("2026-01-02") == 1
+    assert "version-redundant" not in codes(new)
+    # A different version is the author's to resolve
+    assert "  version: '1.3'" in migrate_text(text.replace("  version: '1.2'\n  date", "  version: '1.3'\n  date"))
+
+
 def test_info_rules():
     _, rep = run(one_bus("""
         - name: f

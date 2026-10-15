@@ -347,7 +347,7 @@ def migrate_doc(doc) -> int:
 def migrate_text(text: str) -> str:
     """The map's text with every deprecated key rewritten and the frames' deprecated direction removed
     (migrate_directions); the rest of the text stays as it was."""
-    return migrate_directions_text(migrate_renames_text(text))
+    return migrate_version_text(migrate_directions_text(migrate_renames_text(text)))
 
 
 def migrate_renames_text(text: str) -> str:
@@ -371,6 +371,35 @@ def migrate_renames_text(text: str) -> str:
     canon_old = dump(y, doc)
     migrate_doc(doc)
     return merge_text(text, canon_old, dump(y, doc))
+
+
+def migrate_version_text(text: str) -> str:
+    """The map's text without the document's version and date that repeat the revision history
+    (migrate_version)."""
+    y = make_yaml(text)
+    doc = y.load(text)
+    if not isinstance(doc, dict):
+        return text
+    canon_old = dump(y, doc)
+    if not migrate_version(doc):
+        return text
+    return merge_text(text, canon_old, dump(y, doc))
+
+
+def migrate_version(doc) -> bool:
+    """document.version and document.date out of a map document where they are those of the latest revision
+    history entry (they follow from it); True if something changed. A different value is left for the author
+    (the warning history-version)."""
+    document = doc.get("document")
+    history = document.get("history") if isinstance(document, dict) else None
+    if not isinstance(history, list) or not history or not isinstance(history[0], dict):
+        return False
+    changed = False
+    for key in ("version", "date"):
+        if key in document and history[0].get(key) is not None and str(document[key]) == str(history[0][key]):
+            del document[key]
+            changed = True
+    return changed
 
 
 def migrate_directions_text(text: str) -> str:

@@ -128,6 +128,7 @@ RULES = {
     "no-receivers": ("info", N_("Frame has no receivers on the bus")),
     "duplicate-short": ("warning", N_("Duplicate device short label on the bus")),
     "history-version": ("warning", N_("Document version differs from the latest revision history entry")),
+    "version-redundant": ("warning", N_("Document version or date repeats the latest revision history entry")),
     "version-format": ("warning", N_("Map version is not MAJOR.MINOR or MAJOR.MINOR.PATCH")),
     "source-value": ("error", N_("A signal's source value cannot be sent: the map version is not numeric, the "
                                  "value does not fit, or initial is set too")),
@@ -170,12 +171,22 @@ def validate_map(cmap: MapCan, src: SourceMap, disable: Iterable[str] = ()) -> R
         elif not logo.is_file():
             ctx.emit("logo-missing", _("logo file not found: {path}", path=logo), ("document", "print", "logo"))
 
-    hist = cmap.document.history
-    if hist and hist[0].version != cmap.document.version:
-        ctx.emit("history-version", _("document version is {version!r}, but the latest revision history entry is "
-                                      "{latest!r}",
-                                      version=cmap.document.version, latest=hist[0].version),
-                 ("document", "version"))
+    doc, hist = cmap.document, cmap.document.history
+    if hist and doc._version_written:
+        if hist[0].version != doc.version:
+            ctx.emit("history-version", _("document version is {version!r}, but the latest revision history entry "
+                                          "is {latest!r}", version=doc.version, latest=hist[0].version),
+                     ("document", "version"))
+        else:
+            ctx.emit("version-redundant", _("the version is that of the latest revision history entry: remove "
+                                            "document.version"), ("document", "version"))
+    if hist and doc._date_written and hist[0].date is not None:
+        if hist[0].date != doc.date:
+            ctx.emit("history-version", _("document date is {date}, but the latest revision history entry is of "
+                                          "{latest}", date=doc.date, latest=hist[0].date), ("document", "date"))
+        else:
+            ctx.emit("version-redundant", _("the date is that of the latest revision history entry: remove "
+                                            "document.date"), ("document", "date"))
     if cmap.document.version_parts is None:
         ctx.emit("version-format", _("map version {version!r} is not MAJOR.MINOR or MAJOR.MINOR.PATCH (e.g. 1.4.0)",
                                      version=cmap.document.version), ("document", "version"))

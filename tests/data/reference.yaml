@@ -14,8 +14,6 @@ mapcan: 1
 document:
   title: Эталонная карта CANopen
   subtitle: Протокол обмена демонстрационной системы питания
-  version: 1.0.0
-  date: 2026-10-05
   language: ru
   bit_numbering: lsb0
   history:

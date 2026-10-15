@@ -48,6 +48,8 @@ export interface FormContext {
   frameTypes?: { type: string; label: string; taken: string | null }[];
   /** Frames of the device as in the YAML, when the host has them (a node address is required if an ID needs it). */
   frames?: { id?: unknown; canopen?: unknown }[];
+  /** The document has a revision history (its version and date come from the latest entry). */
+  hasHistory?: boolean;
 }
 
 export interface FieldDef {
@@ -185,8 +187,10 @@ export const FORMS: Record<FormKind, Section[]> = {
     { fields: [
       { key: "title", label: N_("Title"), type: "loc", wide: true, required: true },
       { key: "subtitle", label: N_("Subtitle"), type: "loc", wide: true },
-      { key: "version", label: N_("Version"), type: "text", half: true, placeholder: "0.1.0" },
-      { key: "date", label: N_("Date"), type: "date", half: true },
+      // With a revision history the version and date are those of its latest entry
+      { key: "version", label: N_("Version"), type: "text", half: true, placeholder: "0.1.0",
+        when: (c) => !c.hasHistory },
+      { key: "date", label: N_("Date"), type: "date", half: true, when: (c) => !c.hasHistory },
       { key: "author", label: N_("Document author"), type: "text" },
       { key: "language", label: N_("Document language"), type: "select",
         options: () => [["ru", N_("Russian")], ["en", N_("English")]] },

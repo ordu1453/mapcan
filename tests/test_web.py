@@ -468,7 +468,8 @@ def test_git_release(client, mapfile):
     st = client.get("/api/state").json()
     assert not st["dirty"]
     doc = st["data"]["document"]
-    assert doc["version"] == "1.0.1" and doc["history"][0]["version"] == "1.0.1"
+    # The document's version and date come from the entry: they are not written in the document
+    assert "version" not in doc and "date" not in doc and doc["history"][0]["version"] == "1.0.1"
     assert doc["history"][0]["changes"] == d["changes"]
     # The same version cannot be released twice
     assert client.post("/api/git/release", json={"version": "1.0.1"}).json()["code"] == "git-tag-exists"

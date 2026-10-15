@@ -146,6 +146,7 @@ def test_release_draft():
                  "changes": ["0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01"]}
     # First release without history: the current version if it has no tag, otherwise the next one without a tag
     start = BASE.index("  history:\n")
-    plain = _map(BASE[:start] + BASE[BASE.index("\n\n", start) + 1:])
+    plain = _map((BASE[:start] + BASE[BASE.index("\n\n", start) + 1:]).replace("document:\n",
+                                                                                "document:\n  version: 1.0.0\n", 1))
     assert release_draft(plain, None, lambda v: False)["version"] == "1.0.0"
     assert release_draft(plain, None, lambda v: v in ("1.0.0", "1.0.1"))["version"] == "1.0.2"

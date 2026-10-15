@@ -343,6 +343,8 @@ def test_add_history_entry():
     out = _change(MINIMAL, change)
     b = A.analyze(out, "r.yaml")
     assert b.map.document.version == "0.2.0" and str(b.map.document.date) == "2026-10-07"
+    # ...and the version written in the document is removed
+    assert not b.map.document._version_written and "version: 0.1.0" not in out
     first = b.map.document.history[0]
     assert (first.version, first.author, first.github) == ("0.2.0", "Jane Smith", None)
     assert first.changes == changes

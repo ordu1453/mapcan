@@ -87,7 +87,9 @@ The profile records who made which changes:
 
 * **New map** fills in `document.author` and creates the first revision history entry in your
   name.
-* **Git → Compare versions… → Add to history** signs the entry with your name and GitHub account:
+* **Git → Compare versions… → Add to history** signs the entry with your name and GitHub account
+  (the document's version and date are those of the latest entry, so they are not written in
+  `document`):
 
   ```yaml
   history:

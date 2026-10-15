@@ -253,6 +253,12 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
         edits = delete_key(a, path) if path and path[-1] == "destination" else []
         return [Action(_("Remove destination"), edits)] if edits else []
 
+    if code == "version-redundant":
+        from ..web.yamlops import migrate_version_text
+        new = migrate_version_text(a.text)
+        return [Action(_("Remove the document's version and date repeated from the revision history "
+                         "(mapcan migrate)"), [minimal_edit(a.text, new)], preferred=True)] if new != a.text else []
+
     if code == "history-version":
         hv = value_range(a, ("document", "history", 0, "version"))
         if hv and ("document", "version") in a.nodes:
@@ -611,8 +617,8 @@ def apply_edits(text: str, edits: list[Edit]) -> str:
 
 def add_history(a: Analysis, entry: dict, changes: list[str]) -> TextChange | None:
     """Write the first entry of ``document.history`` (``entry`` fields: version, date, author, github and
-    the changes, one per line); the document's version and date come from it. The cursor goes to the new entry's
-    version."""
+    the changes, one per line); the document's version and date come from it, so the ones written in the
+    document are removed. The cursor goes to the new entry's version."""
     from .analysis import analyze
 
     items = raw_at(a, HISTORY)
@@ -634,9 +640,9 @@ def add_history(a: Analysis, entry: dict, changes: list[str]) -> TextChange | No
         new += [pad + "changes:"] + [pad + "  - " + yaml_text(c) for c in changes]
     text = _join(a, _splice(lines, at, new))
     for key in ("version", "date"):
-        if entry.get(key):
-            b = analyze(text, a.result.source.file)
-            text = apply_edits(text, set_value(b, ("document", key), _entry_value(key, str(entry[key]))))
+        b = analyze(text, a.result.source.file)
+        if ("document", key) in b.nodes:
+            text = apply_edits(text, delete_key(b, ("document", key)))
     b = analyze(text, a.result.source.file)
     n = b.nodes.get(HISTORY + (0, "version"))
     return TextChange(text, n.start if n else (at, dash + 2))
@@ -1044,6 +1050,8 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
             "signalEncoding": signal.encoding if isinstance(signal, M.Signal) else values.get("encoding"),
             "bitLength": signal.bit_length if isinstance(signal, M.Signal) else None,
             "hasSelector": has_selector,
+            # With a revision history the document's version and date come from its latest entry
+            "hasHistory": kind == "document" and bool(raw.get("history")),
             "devices": [{"name": n, "label": str(lbl)} for n, lbl in devices], "values": values,
             "frameTypes": frame_types(a, path) if kind == "frame" and not file else [],
             # Units reference (ru, en) for the suggestions of the Unit field; any other text is allowed too

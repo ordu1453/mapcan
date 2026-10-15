@@ -52,13 +52,13 @@ buses: [...]              # one or more buses
 |---|---|---|
 | `title` | text | Document title (required) |
 | `subtitle` | text | Subtitle |
-| `version` | string | Map version: `MAJOR.MINOR` or `MAJOR.MINOR.PATCH`, numbers only (default `0.1`). Another form is the warning `version-format`; a device can send the version in a frame (see [Map version in a frame](#map-version-in-a-frame)). Write `"2.0"` in quotes: YAML reads a bare `2.0` as a number |
-| `date` | date `YYYY-MM-DD` | Release date |
+| `version` | string | Map version: `MAJOR.MINOR` or `MAJOR.MINOR.PATCH`, numbers only (default `0.1`). With a `history` it is the version of its latest entry and is not written. Another form is the warning `version-format`; a device can send the version in a frame (see [Map version in a frame](#map-version-in-a-frame)). Write `"2.0"` in quotes: YAML reads a bare `2.0` as a number |
+| `date` | date `YYYY-MM-DD` | Release date. With a `history` it is the date of its latest entry and is not written |
 | `author`, `organization` | string | |
 | `language` | ISO 639-1 code | Default document language (required): `ru`, `en`, `de`…; `--lang` overrides it at export. Document labels (table headings and so on) exist in Russian and English; other languages get the English ones, and units their international symbols |
 | `bit_numbering` | `lsb0` | Explicit statement of the bit numbering |
 | `print` | object | Print details of the title page and the title block, read by the PDF templates (below). Formerly written directly in `document` |
-| `history` | list | `{version, date, author, github, changes: [text, ...]}`; `github` is the author's GitHub user name |
+| `history` | list | `{version, date, author, github, changes: [text, ...]}`, the latest entry first; `github` is the author's GitHub user name. The latest entry gives the document's version and date |
 
 `document.print`: details that templates print, not part of the network:
 
@@ -777,7 +777,8 @@ turned off with `--disable CODE` or `lint.disable`.
 |---|---|---|
 | `logo-missing` | warning | Logo file not found |
 | `logo-format` | error | Unsupported logo format |
-| `history-version` | warning | Document version differs from the latest revision history entry |
+| `history-version` | warning | Document version (or date) written in `document` differs from the latest revision history entry |
+| `version-redundant` | warning | `document.version` or `document.date` repeats the latest revision history entry: remove it (`mapcan migrate`, quick fix in VS Code) |
 | `version-format` | warning | Map version is not `MAJOR.MINOR` or `MAJOR.MINOR.PATCH` |
 | `missing-description` | info | Signal has no description |
 | `missing-title` | info | Bus or device has no full name (`title`) |

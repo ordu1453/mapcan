@@ -40,6 +40,7 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     values: node.values, protocol: node.protocol, fd: !!node.fd, busBrs: node.busBrs ?? null, owner: node.owner,
     devices: node.devices, signalEncoding: node.signalEncoding,
     bitLength: node.bitLength ?? null, hasSelector: !!node.hasSelector, frameTypes: node.frameTypes ?? [],
+    hasHistory: !!node.hasHistory,
   });
 
   function el(/** @type {string} */ tag, /** @type {Record<string, any>} */ props = {}, ...children) {

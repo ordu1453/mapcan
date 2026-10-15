@@ -53,8 +53,6 @@ def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, a
         "",
         "document:",
         f"  title: {_q(title or _('New map'))}",
-        "  version: 0.1.0",
-        f"  date: {today.isoformat()}",
     ]
     if author:
         lines.append(f"  author: {_q(author)}")

@@ -6,6 +6,12 @@ needs at least the version of mapcan that introduced it; former names stay reada
 
 ## Unreleased
 
+- With a `history`, the document's version and date are those of its latest entry:
+  `document.version` and `document.date` are no longer written there. Written anyway and equal to
+  the entry, they are the warning `version-redundant`, and `mapcan migrate` (or the quick fix in
+  VS Code) removes them; written and different, `history-version` as before. A map without a
+  history keeps them. New maps, Add to history and Release version write the entry only (and
+  remove the document's own copies); documents and generated code read the version as before.
 - New frame field `inhibit_ms`: the minimum time between two transmissions (CANopen inhibit time,
   DBC `GenMsgDelayTime`). It goes to DBC (whole milliseconds, rounded up) and back, to the TPDO's
   inhibit time in EDS, to generated code as `<FRAME>_INHIBIT_US` (C) and `<FRAME>_INHIBIT_MS`

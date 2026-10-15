@@ -3,6 +3,7 @@
 import { computed, onMounted, ref } from "vue";
 import { api } from "../api";
 import { actions, store, toast } from "../store";
+import { documentVersion, removeDocumentVersion } from "../edit";
 import type { DiffResult, GitRevs } from "../types";
 import Modal from "./Modal.vue";
 import { t } from "../i18n";
@@ -38,7 +39,7 @@ function bump(v: string): string {
 function accept(r: DiffResult) {
   result.value = r;
   error.value = "";
-  const cur = store.state?.data?.document?.version ?? "";
+  const cur = documentVersion(store.state?.data?.document);
   version.value = r.old_version === cur ? bump(cur) : cur;
   changes.value = r.lines.join("\n");
 }
@@ -104,8 +105,7 @@ async function addToHistory() {
   entry.changes = lines;
   const ok = await actions.apply([
     { op: "insert", path: ["document", "history"], index: 0, value: entry },
-    { op: "set", path: ["document", "version"], value: version.value.trim() },
-    { op: "set", path: ["document", "date"], value: date.value },
+    ...removeDocumentVersion(store.state?.data?.document),
   ]);
   if (ok) {
     toast(t("Entry added to the revision history"), "info");

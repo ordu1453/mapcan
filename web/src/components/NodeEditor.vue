@@ -53,6 +53,7 @@ const formCtx = computed<FormContext>(() => {
     bitLength: s?.bit_length ?? null,
     hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
     frames: kind.value === "device" ? node.value?.frames ?? [] : undefined,
+    hasHistory: kind.value === "document" && (node.value?.history ?? []).length > 0,
   };
 });
 // Sections of the form with the fields that apply. A field with a value, an error or a warning is shown even if it

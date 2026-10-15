@@ -168,6 +168,22 @@ RU: dict[str, str] = {
     "mux value is not in the selector's value table": "Значения mux нет в таблице значений селектора",
     "Selector is itself multiplexed": "Селектор сам мультиплексирован",
     "cycle_ms is set together with trigger: on_request": "cycle_ms задан вместе с trigger: on_request",
+    "Document version or date repeats the latest revision history entry":
+        "Версия или дата документа повторяют последнюю запись истории изменений",
+    "the version is that of the latest revision history entry: remove document.version":
+        "версия совпадает с последней записью истории изменений: уберите document.version",
+    "the date is that of the latest revision history entry: remove document.date":
+        "дата совпадает с последней записью истории изменений: уберите document.date",
+    "document date is {date}, but the latest revision history entry is of {latest}":
+        "дата документа {date}, а последняя запись истории изменений — от {latest}",
+    "Map version: MAJOR.MINOR or MAJOR.MINOR.PATCH, numbers only (1.4.0). With a revision history it is the "
+    "version of its latest entry and is not written. A device can send it in a frame (signal source map_version.*).":
+        "Версия карты: MAJOR.MINOR или MAJOR.MINOR.PATCH, только числа (1.4.0). При истории изменений — версия её "
+        "последней записи, её не пишут. Устройство может передавать её в кадре (источник сигнала map_version.*).",
+    "Release date. With a revision history it is the date of its latest entry and is not written.":
+        "Дата выпуска. При истории изменений — дата её последней записи, её не пишут.",
+    "Remove the document's version and date repeated from the revision history (mapcan migrate)":
+        "Убрать версию и дату документа, повторяющие историю изменений (mapcan migrate)",
     "Minimum interval between transmissions longer than the period":
         "Минимальный интервал между передачами больше периода",
     "Minimum interval between transmissions on a frame sent only cyclically":
@@ -724,10 +740,6 @@ RU: dict[str, str] = {
         "Сигнал всегда несёт значение из карты: map_version.major, .minor или .patch (document.version) или "
         "layout_crc32 (отпечаток раскладки кадров). Значение попадает в код как начальное значение сигнала, так что "
         "устройство передаёт карту, по которой оно собрано.",
-    "Map version: MAJOR.MINOR or MAJOR.MINOR.PATCH, numbers only (1.4.0). A device can send it in a frame (signal "
-    "source map_version.*).":
-        "Версия карты: MAJOR.MINOR или MAJOR.MINOR.PATCH, только числа (1.4.0). Устройство может передавать её в "
-        "кадре (source сигнала map_version.*).",
     "SDO command byte (CCS/SCS), e.g. 0x2B — write 2 bytes, 0x23 — write 4 bytes, 0x40 — read.":
         "Байт команды SDO (CCS/SCS), напр. 0x2B — запись 2 байт, 0x23 — запись 4 байт, 0x40 — чтение.",
     "CANopen object dictionary index, 0x0000..0xFFFF.": "Индекс объекта словаря CANopen, 0x0000..0xFFFF.",
