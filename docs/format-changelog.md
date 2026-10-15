@@ -4,7 +4,7 @@ Changes of the map format by mapcan version. All of them keep `mapcan: 1`: see
 [Versioning and compatibility](format.md#versioning-and-compatibility). A map that uses a field
 needs at least the version of mapcan that introduced it; former names stay readable.
 
-## Unreleased
+## 0.23
 
 - With a `history`, the document's version and date are those of its latest entry:
   `document.version` and `document.date` are no longer written there. Written anyway and equal to
