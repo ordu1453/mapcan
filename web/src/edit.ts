@@ -1,6 +1,6 @@
 // Structural edits: add / delete / duplicate a node.
 
-import { actions, includedPath, lang, resolvedFrames, store, toast, viewData } from "./store";
+import { actions, askText, includedPath, lang, resolvedFrames, store, toast, viewData } from "./store";
 import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, txt, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
 import { t } from "./i18n";
@@ -53,7 +53,8 @@ export function addBus(): Promise<boolean> {
     .then(askTitle);
 }
 
-export function addDevice(busPath: Path): Promise<boolean> {
+/** Fields of a new device of the bus: a free name, title and node ID or J1939 address. */
+function newDevice(busPath: Path): Record<string, unknown> {
   const bus = getAt(data(), busPath);
   const devices: Data[] = bus.devices ?? [];
   const value: Record<string, unknown> = {
@@ -71,7 +72,28 @@ export function addDevice(busPath: Path): Promise<boolean> {
     value.node_id = id;
   }
   value.frames = [];
-  return insertAndSelect([...busPath, "devices"], value).then(askTitle);
+  return value;
+}
+
+export function addDevice(busPath: Path): Promise<boolean> {
+  return insertAndSelect([...busPath, "devices"], newDevice(busPath)).then(askTitle);
+}
+
+/**
+ * A new device in a file of its own (default devices/<name>.yaml), added to `include` of the map: a map edited by
+ * several people keeps one file per device.
+ */
+export async function addDeviceInFile(busPath: Path): Promise<boolean> {
+  const device = newDevice(busPath);
+  const file = await askText(t("Device in a new file"),
+    t("The file, relative to the map. The map includes it, and Save writes both."), `devices/${device.name}.yaml`,
+    t("Add"));
+  if (!file?.trim()) return false;
+  // The included file's devices come after the map's own ones: the new device is the last of the bus
+  const index = (busOf(busPath).devices ?? []).length;
+  const ok = await actions.addDeviceFile(busPath, device, file.trim());
+  if (ok) actions.select([...busPath, "devices", index]);
+  return askTitle(ok);
 }
 
 /** A new frame is not selected: the bus/device stays selected, and the frame appears in the Frames list. */

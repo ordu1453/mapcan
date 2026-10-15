@@ -541,6 +541,48 @@ const tests = {
       && ctx.api.tree.getChildren().length === 1);
   },
 
+  async "a device added in a new file: the file is made and the map includes it (#136)"(ctx) {
+    const dir = path.join(workspace, "own-files");
+    fs.mkdirSync(dir, { recursive: true });
+    const main = path.join(dir, "main.yaml");
+    fs.writeFileSync(main, "mapcan: 1\n\ndocument: {title: T, language: en}\n\n"
+      + "buses:\n  - name: can1\n    title: Main bus\n    protocol: canopen\n    devices:\n"
+      + "      - {name: node_a, title: Device 1, node_id: 0x01}\n");
+    const doc = await vscode.workspace.openTextDocument(main);
+    await vscode.window.showTextDocument(doc);
+    const bus = () => ctx.api.tree.getChildren()[0];
+    await until("the map in the tree", () => ctx.api.tree.mapUri?.toString() === doc.uri.toString() && bus());
+    const { showInputBox } = vscode.window;
+    let offered;
+    vscode.window.showInputBox = async (options) => {
+      offered = options.value;
+      return "devices/node_b.yaml";
+    };
+    try {
+      await vscode.commands.executeCommand("mapcan.addDeviceFile", bus());
+    } finally {
+      Object.assign(vscode.window, { showInputBox });
+    }
+    assert.equal(offered, "devices/device.yaml");
+    const file = path.join(dir, "devices", "node_b.yaml");
+    assert.match(fs.readFileSync(file, "utf8"), /^part_of: \.\.\/main\.yaml\n\nbuses:\n {2}- name: can1\n {4}devices:\n {6}- name: node_b\n {8}title: Device 2\n {8}node_id: 0x02\n/m);
+    assert.match(doc.getText(), /\n\ninclude: \[devices\/node_b\.yaml\]\n\nbuses:\n/);
+    // The new file is open with the device's name selected, and the device is in the tree and the form
+    const editor = vscode.window.activeTextEditor;
+    assert.equal(editor.document.uri.toString(), vscode.Uri.file(file).toString());
+    assert.equal(editor.document.getText(editor.selection), "node_b");
+    const added = await until("the device in the tree", () => bus().children.find((d) => d.raw.ident === "node_b"));
+    assert.deepEqual(ctx.api.form.openPath, added.path);
+    await ctx.api.form.close();
+    // Clean up: the map without the line of include, the file deleted
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    await vscode.window.showTextDocument(doc);
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    fs.rmSync(dir, { recursive: true, force: true });
+    await vscode.window.showTextDocument(ctx.doc);
+    await until("the first map in the tree", () => ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString());
+  },
+
   async "an included file open on its own: its device's address, its frame's functions, Export of its map"(ctx) {
     const dir = path.join(workspace, "split");
     fs.mkdirSync(path.join(dir, "devices"), { recursive: true });

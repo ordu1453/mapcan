@@ -64,6 +64,8 @@ interface Ask {
   title: string;
   message: string;
   buttons: AskButton[];
+  /** A text the user edits (askText); the dialog shows a field for it. */
+  input?: string;
 }
 
 let askResolve: ((v: string | null) => void) | null = null;
@@ -85,6 +87,17 @@ export function answerAsk(value: string | null): void {
 }
 
 const cancel = (): AskButton => ({ label: t("Cancel"), value: "cancel" });
+
+/** Ask for a text, starting from `value`; the entered text, or null for Cancel, Esc and the close button. */
+export async function askText(title: string, message: string, value: string, ok: string): Promise<string | null> {
+  const ask: Ask = { title, message, buttons: [cancel(), { label: ok, value: "ok", kind: "primary" }], input: value };
+  answerAsk(null);
+  store.ask = ask;
+  const answer = await new Promise<string | null>((resolve) => {
+    askResolve = resolve;
+  });
+  return answer === "ok" ? ask.input ?? "" : null;
+}
 
 /** "Overwrite" / "Cancel": whether to overwrite. */
 async function askOverwrite(message: string): Promise<boolean> {
@@ -245,6 +258,14 @@ export const actions = {
       return Promise.resolve(false);
     }
     return run(() => api.ops(ops));
+  },
+  /** A new device of a bus in a file of its own, which the map includes (one undo step; Save writes both). */
+  addDeviceFile: (bus: Path, device: Record<string, unknown>, file: string) => {
+    if (store.state?.readonly) {
+      toast(t("Read-only mode"));
+      return Promise.resolve(false);
+    }
+    return run(() => api.deviceFile(bus, device, file));
   },
   /**
    * Apply the text of the YAML tab. `live`: while typing, the steps merge into one undo step and the draft

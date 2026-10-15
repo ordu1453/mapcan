@@ -20,6 +20,7 @@ from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
 from ..upgrade import upgrade_tree
 from ..validate import bus_load_text, check
+from .devicefile import device_file_target, device_file_text, include_ops, named_after_file
 from .yamlops import OpError, apply_ops, device_rename_ops, dump, make_yaml, merge_text, plain
 
 HISTORY_LIMIT = 200
@@ -44,16 +45,41 @@ def _write(path: Path, data: str) -> None:
 
 
 class _Part:
-    """A file included by the map, edited together with it (#49)."""
+    """A file included by the map, edited together with it (#49). A file made by the editor (a device in a file
+    of its own, #136) is not on the disk until saved; its ``text`` is None while it does not exist (undone)."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, created: bool = False):
         self.path = path
+        if created:
+            self.newline = "\n"
+            self.text: str | None = None
+            self.saved_text: str | None = None
+            self.disk_hash: str | None = None
+            return
         raw = path.read_bytes().decode("utf-8")
         self.newline = "\r\n" if "\r\n" in raw else "\n"
         self.text = self.saved_text = raw.replace("\r\n", "\n")
         self.disk_hash = _hash(self.text)
 
+    @property
+    def created(self) -> bool:
+        """Made by the editor and not saved yet."""
+        return self.disk_hash is None
+
+    @property
+    def dirty(self) -> bool:
+        return self.text is not None and self.text != self.saved_text
+
+    def write(self) -> None:
+        if self.created:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        _write(self.path, self.text.replace("\n", self.newline))
+        self.saved_text = self.text
+        self.disk_hash = _hash(self.text)
+
     def disk_changed(self) -> bool:
+        if self.created:
+            return self.path.exists()        # made by another program meanwhile
         try:
             return _hash(self.path.read_bytes().decode("utf-8").replace("\r\n", "\n")) != self.disk_hash
         except (OSError, UnicodeDecodeError):
@@ -126,7 +152,7 @@ class EditorSession:
 
     @property
     def dirty(self) -> bool:
-        return self.text != self.saved_text or any(p.text != p.saved_text for p in self.parts.values())
+        return self.text != self.saved_text or any(p.dirty for p in self.parts.values())
 
     def part_paths(self) -> list[Path]:
         """The files included by the map (those the current text includes)."""
@@ -152,10 +178,8 @@ class EditorSession:
             if self.disk_changed() and not force:
                 raise ConflictError(_("the file was changed on disk by another program"))
             for part in self.parts.values():
-                if part.text != part.saved_text:
-                    _write(part.path, part.text.replace("\n", part.newline))
-                    part.saved_text = part.text
-                    part.disk_hash = _hash(part.text)
+                if part.dirty:
+                    part.write()
             _write(self.path, self.text.replace("\n", self.newline))
             self.disk_hash = _hash(self.text)
             self.saved_text = self.text
@@ -172,10 +196,8 @@ class EditorSession:
             target.write_bytes(self.text.replace("\n", self.newline).encode("utf-8"))
             # The included files stay where they are: their unsaved edits are written there
             for part in self.parts.values():
-                if part.text != part.saved_text:
-                    _write(part.path, part.text.replace("\n", part.newline))
-                    part.saved_text = part.text
-                    part.disk_hash = _hash(part.text)
+                if part.dirty:
+                    part.write()
             self.path = target
             self.disk_hash = _hash(self.text)
             self.saved_text = self.text
@@ -221,9 +243,11 @@ class EditorSession:
 
     def _restore(self, snap: Snapshot) -> None:
         text, parts = snap
-        for k, t in parts.items():
-            if k in self.parts:
-                self.parts[k].text = t
+        for k, part in self.parts.items():
+            if k in parts:
+                part.text = parts[k]
+            elif part.created:
+                part.text = None         # a file made after this state: it is not there again
         self._set_text(text)
 
     def _commit(self, new_text: str, new_parts: dict[str, str] | None = None) -> bool:
@@ -289,6 +313,40 @@ class EditorSession:
                     raise
                 new_text = merge_text(self.text, canon_old, canon_new)
             return self._commit(new_text, new_parts)
+
+    def add_device_file(self, bus_path: list, device: dict[str, Any], file: str) -> None:
+        """A new device of the bus at ``bus_path`` in a file of its own (#136): the file is made with the device
+        and added to ``include`` of the map, as one undo step; Save writes both."""
+        with self.lock:
+            self._check_writable()
+            if self.doc is None:
+                raise OpError(_("the YAML has a syntax error; fix the text in the YAML tab"))
+            data = self._result.merged if self._result.merged is not None else self._result.raw
+            buses = data.get("buses") if isinstance(data, dict) else None
+            bus = (buses[int(bus_path[1])] if len(bus_path) == 2 and bus_path[0] == "buses"
+                   and isinstance(buses, list) and 0 <= int(bus_path[1]) < len(buses) else None)
+            if not isinstance(bus, dict) or not isinstance(bus.get("name"), str):
+                raise OpError(_("path not found: {path}", path=bus_path))
+            try:
+                target, line = device_file_target(self.path, file)
+                ops = include_ops(plain(self.doc).get("include"), line)
+            except ValueError as e:
+                raise OpError(str(e)) from e
+            taken = [d.get("name") for d in bus.get("devices") or [] if isinstance(d, dict)]
+            device = named_after_file(device, target, taken)
+            key = str(target)
+            if key in self.parts and self.parts[key].text is not None:
+                raise OpError(_("file already exists: {path}", path=target))
+            canon_old = dump(self.yaml, self.doc)
+            try:
+                apply_ops(self.doc, ops)
+                canon_new = dump(self.yaml, self.doc)
+            except Exception:
+                self.doc = self.yaml.load(self.text)     # roll back
+                raise
+            self.parts.setdefault(key, _Part(target, created=True))
+            self._commit(merge_text(self.text, canon_old, canon_new),
+                         {key: device_file_text(self.path, target, bus["name"], device)})
 
     def _carry_renames(self, base: str, text: str) -> str:
         """A device renamed in the text is carried over to sender/receivers of the frames, as when edited in the
@@ -386,7 +444,7 @@ class EditorSession:
                 "version": self.version,
                 "dirty": self.dirty,
                 # Included files with unsaved edits (paths relative to the map): Save writes them too
-                "dirty_files": [self._rel(p.path) for p in self.parts.values() if p.text != p.saved_text],
+                "dirty_files": [self._rel(p.path) for p in self.parts.values() if p.dirty],
                 # The included file asked for, when its map was opened in its place
                 "opened_part": self._rel(self.opened) if self.opened != self.path else None,
                 "readonly": self.readonly,

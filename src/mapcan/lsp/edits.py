@@ -718,22 +718,59 @@ def add_node(a: Analysis, path: Path_, kind: str) -> TextChange | None:
                                             ("title", yaml_text(_default_title(a, "Шина", "Bus", buses))),
                                             ("protocol", "can")])
     if kind == "device" and len(path) == 2:
-        devices = raw_at(a, path + ("devices",)) or []
-        fields = [("name", _unique("device", _names(devices))),
-                  ("title", yaml_text(_default_title(a, "Устройство", "Device", devices)))]
-        protocol = (raw_at(a, path) or {}).get("protocol", "canopen")
-        if protocol == "canopen" and (nid := _free_number([d.get("node_id") for d in devices
-                                                          if isinstance(d, dict)], 1, 127)):
-            fields.append(("node_id", f"0x{nid:02X}"))
-        elif protocol == "j1939" and (sa := _free_number([d.get("address") for d in devices
-                                                         if isinstance(d, dict)], 0, 253)) is not None:
-            fields.append(("address", f"0x{sa:02X}"))
+        device = new_device(a, raw_at(a, path) or {}, raw_at(a, path + ("devices",)) or [])
+        fields = [(k, f"0x{v:02X}" if k in ("node_id", "address") else yaml_text(v)) for k, v in device.items()]
         return append_item(a, path, "devices", fields)
     if kind == "frame" and path and path[0] == "buses" and len(path) in (2, 4):
         return append_item(a, path, "frames", _new_frame(a, path))
     if kind == "signal" and len(path) >= 2 and path[-2] == "frames":
         return _add_signal(a, path)
     return None
+
+
+def new_device(a: Analysis, bus: dict, devices: list) -> dict:
+    """Fields of a new device of a bus with these devices: a free name, title and CANopen node ID or J1939
+    address."""
+    out = {"name": _unique("device", _names(devices)),
+           "title": _default_title(a, "Устройство", "Device", devices)}
+    protocol = bus.get("protocol", "canopen")
+    if protocol == "canopen" and (nid := _free_number([d.get("node_id") for d in devices
+                                                      if isinstance(d, dict)], 1, 127)):
+        out["node_id"] = nid
+    elif protocol == "j1939" and (sa := _free_number([d.get("address") for d in devices
+                                                     if isinstance(d, dict)], 0, 253)) is not None:
+        out["address"] = sa
+    return out
+
+
+def device_file(a: Analysis, bus_path: Path_, file: str | None) -> dict:
+    """A new device of a bus in a file of its own (#136). Without ``file``: {file} with the default name of the
+    file. With it: {device, target, text, ops}: the device, the new file and its text, and the operations that
+    add it to ``include`` of the map (paths of the map). ValueError: why it cannot be made."""
+    from ..web.devicefile import (
+        default_device_file,
+        device_file_target,
+        device_file_text,
+        include_ops,
+        named_after_file,
+    )
+
+    data = a.data if isinstance(a.data, dict) else {}
+    bus = raw_at_path(data, bus_path)
+    if len(bus_path) != 2 or not isinstance(bus, dict) or not isinstance(bus.get("name"), str):
+        raise ValueError(_("path not found: {path}", path=list(bus_path)))
+    main = a.result.source.file
+    if not main or not Path(main).is_file():
+        raise ValueError(_("Save the map to a file first."))
+    devices = [d for d in bus.get("devices") or [] if isinstance(d, dict)]
+    device = new_device(a, bus, devices)
+    if file is None:
+        return {"file": default_device_file(device["name"])}
+    target, line = device_file_target(Path(main), file)
+    device = named_after_file(device, target, _names(devices))
+    raw = a.result.raw if isinstance(a.result.raw, dict) else {}
+    return {"device": device, "target": target, "ops": include_ops(raw.get("include"), line),
+            "text": device_file_text(Path(main), target, bus["name"], {**device, "frames": []})}
 
 
 class EditRefused(ValueError):

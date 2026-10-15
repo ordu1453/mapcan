@@ -21,6 +21,18 @@ def test_noop_roundtrip_is_identical(path):
     assert _edit(text, []) == text
 
 
+@pytest.mark.parametrize("document", ["document:\n  title: T\n", "document: {title: T}\n"])
+def test_new_top_level_key_is_separated_as_the_others(document):
+    """#136: include added to a map whose keys are separated by empty lines, after a block or a "{…}" mapping."""
+    text = f"mapcan: 1\n\n{document}\nbuses: []\n"
+    out = _edit(text, [{"op": "set", "path": ["include"], "value": ["devices/a.yaml"]}])
+    assert out == f"mapcan: 1\n\n{document}\ninclude: [devices/a.yaml]\n\nbuses: []\n"
+    # Keys not separated stay so
+    text = f"mapcan: 1\n{document}buses: []\n"
+    assert _edit(text, [{"op": "set", "path": ["include"], "value": ["a.yaml"]}]) == (
+        f"mapcan: 1\n{document}include: [a.yaml]\nbuses: []\n")
+
+
 def test_multiline_flow_map_survives_unrelated_edit():
     text = (ROOT / "examples" / "minimal.yaml").read_text(encoding="utf-8")
     out = _edit(text, [{"op": "set", "path": ["document", "version"], "value": "0.2.0"}])

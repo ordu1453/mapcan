@@ -1,4 +1,4 @@
-import type { Diagnostic, DiffResult, FsList, GitRevs, GitStatus, Meta, ReleaseDraft, Op, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
+import type { Diagnostic, DiffResult, FsList, GitRevs, GitStatus, Meta, ReleaseDraft, Op, Path, PdfTemplate, SessionResult, State, UpdateInfo, UserProfile } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code = "") {
@@ -44,6 +44,8 @@ export const api = {
   close: (force = false) => call<SessionResult>("POST", "/api/file/close", { force }),
   state: () => call<State>("GET", "/api/state"),
   ops: (ops: Op[]) => call<State>("POST", "/api/ops", { ops }),
+  deviceFile: (bus: Path, device: Record<string, unknown>, file: string) =>
+    call<State>("POST", "/api/device_file", { bus, device, file }),
   text: (text: string, live = false) => call<State>("POST", "/api/text", { text, live }),
   check: (text: string) => call<{ diagnostics: Diagnostic[] }>("POST", "/api/check", { text }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

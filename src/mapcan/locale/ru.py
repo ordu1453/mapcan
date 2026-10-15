@@ -602,6 +602,12 @@ RU: dict[str, str] = {
     "could not save settings: {error}": "не удалось сохранить настройки: {error}",
     "file not found: {path}": "файл не найден: {path}",
     "file already exists: {path}": "файл уже существует: {path}",
+    "Enter the name of the file": "Введите имя файла",
+    "the name of an included file must end with .yaml or .yml":
+        "имя включаемого файла должно оканчиваться на .yaml или .yml",
+    "the path of an included file is relative to the map": "путь включаемого файла указывается относительно карты",
+    "include of the map is not a list": "include карты — не список",
+    "Save the map to a file first.": "Сначала сохраните карту в файл.",
     "{fmt} export error: {error}": "ошибка экспорта {fmt}: {error}",
     "the file is not UTF-8 encoded": "файл не в UTF-8",
     "could not read {name}: {error}": "не удалось прочитать {name}: {error}",

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
-import { addBus, addDevice, addFrame, addSdo, addSignal, canRename, duplicateNode, receiveFrame, removeNode, removeSelected,
+import { addBus, addDevice, addDeviceInFile, addFrame, addSdo, addSignal, canRename, duplicateNode, receiveFrame, removeNode, removeSelected,
   renameNode, stopReceiving } from "../edit";
 import { describe, fieldHelp, UI_HELP } from "../form/help";
 import { parseInteger, ParseError } from "../form/input";
@@ -596,6 +596,8 @@ function onLayout(p: Path, start: number, length: number) {
         {{ t("Devices") }} <span class="muted">{{ devices.length }}</span>
         <span v-if="!readonly" class="card-actions">
           <button class="small" @click="addDevice(path)">+ {{ t("Device") }}</button>
+          <button class="small" :title="t('A device in a file of its own, which the map includes')"
+                  @click="addDeviceInFile(path)">+ {{ t("Device in a new file") }}</button>
         </span>
       </h3>
       <table v-if="devices.length" class="list">

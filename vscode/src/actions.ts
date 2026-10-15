@@ -1,7 +1,8 @@
 // Map view commands: add, edit, duplicate, rename and delete nodes. The language server builds the
 // edit; it is applied to the document, so Undo works as for any other edit. A node added with "+"
 // opens in the node form, where its fields are filled in. A node of another file of the map (an included
-// file, or the main file when an included one is open) is added, copied and deleted in that file.
+// file, or the main file when an included one is open) is added, copied and deleted in that file. A device
+// can also be added in a file of its own, which the map includes.
 
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
@@ -97,6 +98,65 @@ async function renameNode(tree: MapTree, node: MapNode, client: LanguageClient |
   if (edit) await vscode.workspace.applyEdit(edit);
 }
 
+interface DeviceFileResult {
+  /** The default name of the file, relative to the map (the first request, without a file). */
+  file?: string;
+  create?: { uri: string; text: string };
+  /** The device's name in the new file. */
+  cursor?: [number, number];
+  edits?: TextEdit[];
+  others?: Others;
+  error?: string;
+}
+
+/**
+ * A new device of a bus in a file of its own (#136): the file is created with the device and added to `include` of
+ * the map, in one edit undone together. The file opens, and the device in the node form.
+ */
+async function addDeviceFile(client: LanguageClient | undefined, tree: MapTree, form: NodeForm, bus: MapNode):
+  Promise<void> {
+  const uri = tree.mapUri;
+  if (!uri || !client?.isRunning()) return;
+  const request = (file?: string) => client.sendRequest(ExecuteCommandRequest.type, {
+    command: "mapcan.lsp.deviceFile",
+    arguments: [{ uri: uri.toString(), path: bus.path, file }],
+  }) as Promise<DeviceFileResult | null>;
+  const first = await request();
+  if (first?.error || !first?.file) {
+    if (first?.error) void vscode.window.showErrorMessage(`mapcan: ${first.error}`);
+    return;
+  }
+  const name = first.file.lastIndexOf("/") + 1;
+  const file = await vscode.window.showInputBox({
+    title: "Add device in a new file",
+    prompt: "The file, relative to the map; the map includes it",
+    value: first.file,
+    valueSelection: [name, first.file.length - ".yaml".length],
+    validateInput: (v) => (v.trim() ? undefined : "Enter a file name"),
+  });
+  if (!file) return;
+  const result = await request(file.trim());
+  if (result?.error || !result?.create) {
+    if (result?.error) void vscode.window.showErrorMessage(`mapcan: ${result.error}`);
+    return;
+  }
+  // The included file's devices come after the map's own ones: the new device is the last of the bus
+  const path = [...bus.path, "devices", bus.children.filter((n) => n.kind === "device" && !n.isLink).length];
+  const created = vscode.Uri.parse(result.create.uri);
+  const edit = new vscode.WorkspaceEdit();
+  edit.createFile(created, { contents: new TextEncoder().encode(result.create.text) });
+  for (const e of result.edits ?? []) edit.replace(uri, new vscode.Range(...e.range), e.text);
+  const others = addOthers(edit, result.others);
+  if (!(await vscode.workspace.applyEdit(edit))) return;
+  keepBackground([uri, ...others]);
+  const editor = await vscode.window.showTextDocument(created, { preserveFocus: true, preview: false });
+  const [line, col] = result.cursor ?? [0, 0];
+  const word = editor.document.getWordRangeAtPosition(new vscode.Position(line, col), /[\w.-]+/);
+  if (word) editor.selection = new vscode.Selection(word.start, word.end);
+  await tree.refresh();
+  await form.open(path, true);
+}
+
 export function registerTreeActions(
   context: vscode.ExtensionContext,
   tree: MapTree,
@@ -115,6 +175,7 @@ export function registerTreeActions(
   context.subscriptions.push(
     vscode.commands.registerCommand("mapcan.addBus", () => add([], "bus")),
     on("mapcan.addDevice", (node) => add(node.path, "device")),
+    on("mapcan.addDeviceFile", (node) => addDeviceFile(client(), tree, form, node)),
     on("mapcan.addFrame", (node) => add(node.path, "frame")),
     on("mapcan.addSignal", (node) => add(node.path, "signal")),
     on("mapcan.editNode", (node) => form.open(node.path)),

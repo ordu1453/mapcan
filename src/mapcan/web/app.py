@@ -57,6 +57,12 @@ class OpsBody(BaseModel):
     ops: list[dict[str, Any]]
 
 
+class DeviceFileBody(BaseModel):
+    bus: list[Any]                     # path of the bus: ["buses", i]
+    device: dict[str, Any]
+    file: str                          # the new file, relative to the map
+
+
 class TextBody(BaseModel):
     text: str
     live: bool = False                 # applied while typing (see EditorSession.set_text)
@@ -758,6 +764,12 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def post_ops(body: OpsBody) -> dict:
         async with lock:
             wsp.require().apply(body.ops)
+            return await changed()
+
+    @app.post("/api/device_file")
+    async def post_device_file(body: DeviceFileBody) -> dict:
+        async with lock:
+            wsp.require().add_device_file(body.bus, body.device, body.file)
             return await changed()
 
     @app.post("/api/text")

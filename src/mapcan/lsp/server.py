@@ -456,6 +456,33 @@ def edit_command(ls: MapcanServer, *args) -> dict:
     return out
 
 
+@server.command("mapcan.lsp.deviceFile")
+def device_file_command(ls: MapcanServer, *args) -> dict:
+    """A new device of a bus in a file of its own (#136). Argument: {uri, path: path of the bus, file}.
+    Without ``file``: {file}, the default name of the file relative to the map. With it: {create: {uri, text},
+    cursor: the device's name in the new file, edits and others: the line of ``include`` (as mapcan.lsp.ops)},
+    or {error}."""
+    from ..web.yamlops import OpError
+
+    params = _arg(args)
+    a = ls.analysis(params.get("uri", ""))
+    if a is None:
+        return {"error": _("The document is not a mapcan map.")}
+    file = params.get("file")
+    try:
+        made = E.device_file(a, tuple(params.get("path") or ()), None if file is None else str(file))
+        if file is None:
+            return made
+        out = ls.routed(a, made["ops"], "edits")
+    except (ValueError, OpError) as e:
+        return {"error": str(e)}
+    lines = made["text"].splitlines()
+    # The device is the last named item: the bus comes before it
+    line = max(i for i, ln in enumerate(lines) if ln.lstrip().startswith("- name:"))
+    return {**out, "create": {"uri": made["target"].as_uri(), "text": made["text"]},
+            "cursor": [line, lines[line].index("name:") + len("name: ")]}
+
+
 def _params(params) -> tuple[str, tuple]:
     """(uri, path) from the request parameters {textDocument: {uri}, path}."""
     get = (lambda o, k: o.get(k)) if isinstance(params, dict) else (lambda o, k: getattr(o, k, None))

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+* **Add Device in a New File…** on a bus in the Map view (#136): the device goes into a new file,
+  `devices/<name>.yaml` relative to the map by default, which is added to `include` of the map in
+  the same edit. The device is named after the file (`devices/pump.yaml`: `pump`) when that
+  name is a free identifier on the bus. The file opens, and the device in the Node panel. A map
+  edited by several people can keep one file per device this way, without creating the files and
+  the `include` lines by hand.
+
 ## 0.6.4
 
 * Needs mapcan 0.23.0 or newer, which the extension offers to install or update.

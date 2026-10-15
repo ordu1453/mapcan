@@ -325,6 +325,10 @@
           "when": "false"
         },
         {
+          "command": "mapcan.addDeviceFile",
+          "when": "false"
+        },
+        {
           "command": "mapcan.addFrame",
           "when": "false"
         },
@@ -452,6 +456,11 @@
         },
         {
           "command": "mapcan.addDevice",
+          "when": "view == mapcan.map && viewItem =~ /^bus(\\.included)?$/",
+          "group": "1_add@1"
+        },
+        {
+          "command": "mapcan.addDeviceFile",
           "when": "view == mapcan.map && viewItem =~ /^bus(\\.included)?$/",
           "group": "1_add@1"
         },
@@ -746,6 +755,11 @@
         "title": "Add Device",
         "category": "mapcan",
         "icon": "$(add)"
+      },
+      {
+        "command": "mapcan.addDeviceFile",
+        "title": "Add Device in a New File…",
+        "category": "mapcan"
       },
       {
         "command": "mapcan.addFrame",

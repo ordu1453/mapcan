@@ -567,6 +567,11 @@ file (or an earlier included file) already describes can only get more `devices`
 its other fields, and a value table name used twice, are errors (`include`). Included files are
 not nested.
 
+To keep one file per device, add a device with **Add Device in a New File…** on a bus in the
+VS Code Map view, or **+ Device in a new file** on a bus page of the web editor: the editor makes
+the file (by default `devices/<name>.yaml`) with the device, named after the file when that name
+is a free identifier on the bus, and adds it to `include`, in one edit.
+
 Validation, documents and generated code use the whole map. Messages about an included file
 point into that file on the command line; in the editors they are shown on the `include` line
 of the main file, with the file and line in the text. The editors' trees show the included buses,

@@ -27,6 +27,7 @@ from ..upgrade import DROP, node_kind, renamed_along, renames, upgrade_tree
 # Keys whose numbers are usually written in hex.
 HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
 LAYOUT_KEYS = ("start_bit", "bit_length", "byte", "bit", "byte_length")
+FLOW_LISTS = {"include"}     # a new list of these keys is written "[…]" on one line, as in the docs
 MAX_FRAME_BITS = 64 * 8     # a CAN FD frame is up to 64 bytes
 
 
@@ -136,7 +137,8 @@ def _blank_before_insert(lines: list[str], fresh: list[bool]) -> list[str]:
     """ruamel attributes empty separator lines to the end of the previous list item
     (or the last key of a mapping), so an item inserted at the end ends up
     *after* the separator. Move the separator after the inserted block if it starts
-    with "- " or is a key appended to the end of a nested mapping."""
+    with "- " or is a key appended to the end of a nested mapping. A top-level key
+    inserted between top-level keys separated by empty lines gets one on both sides."""
     out = list(lines)
     i = 0
     while i < len(out):
@@ -156,6 +158,30 @@ def _blank_before_insert(lines: list[str], fresh: list[bool]) -> list[str]:
                 i = j
                 continue
         i += 1
+    return _separate_top_keys(out, fresh)
+
+
+def _separate_top_keys(out: list[str], fresh: list[bool]) -> list[str]:
+    """A new top-level key with an empty line on one side only (the other keys of the map are separated by empty
+    lines) gets one on the other side too."""
+    i = 1
+    while i < len(out):
+        if not (fresh[i] and out[i].strip() and _indent(out[i]) == 0 and not fresh[i - 1]):
+            i += 1
+            continue
+        j = i + 1
+        while j < len(out) and fresh[j] and out[j].strip():
+            j += 1
+        before = not out[i - 1].strip()
+        after = j < len(out) and not out[j].strip()
+        if before and not after and j < len(out) and _indent(out[j]) == 0:
+            out.insert(j, out[i - 1])
+            fresh.insert(j, False)
+        elif after and not before and j + 1 < len(out) and out[j + 1].strip() and _indent(out[j + 1]) == 0:
+            out.insert(i, out[j])
+            fresh.insert(i, False)
+            j += 1
+        i = j + 1
     return out
 
 
@@ -187,7 +213,7 @@ def to_node(value: Any, key: Any = None, old: Any = None) -> Any:
         s = CommentedSeq()
         for v in value:
             s.append(to_node(v, key))
-        if isinstance(old, CommentedSeq) and old.fa.flow_style():
+        if (isinstance(old, CommentedSeq) and old.fa.flow_style()) or (old is None and key in FLOW_LISTS):
             s.fa.set_flow_style()           # receivers: [a, b] stays a "[…]" list
         return s
     if isinstance(value, bool) or value is None:
