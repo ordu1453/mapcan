@@ -99,7 +99,7 @@ RULES = {
     "mux-value-overflow": ("error", N_("mux value does not fit in the selector")),
     "mux-value-unknown": ("warning", N_("mux value is not in the selector's value table")),
     "mux-selector-muxed": ("error", N_("Selector is itself multiplexed")),
-    "cycle-unexpected": ("error", N_("cycle_ms is set together with trigger")),
+    "cycle-unexpected": ("error", N_("cycle_ms is set together with trigger: on_request")),
     "timeout-short": ("warning", N_("Receive timeout not longer than the period of a cyclic frame")),
     "direction-mismatch": ("warning", N_("Direction conflicts with the CANopen frame type")),
     "direction-deprecated": ("warning", N_("direction is set: it follows from the CANopen function and the sender")),
@@ -438,7 +438,7 @@ def _check_bus_load(ctx: _Ctx, bus) -> None:
     if not bus.bitrate:
         return
     cyclic = [f for f in bus.all_frames()
-              if f.can_id is not None and f.cycle_ms and f.trigger is None]
+              if f.can_id is not None and f.cycle_ms and f.trigger != "on_request"]
     if bus.fd:
         # The data phase of frames with BRS runs at data_bitrate: without it the estimate would be wrong
         if not bus.data_bitrate and any(f.bit_rate_switch and not _is_tp(f) for f in cyclic):
@@ -565,7 +565,7 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
     if frame._direction_written:
         _deprecated_direction(ctx, frame, bus, p)
 
-    if frame.cycle_ms is not None and frame.trigger is not None:
+    if frame.cycle_ms is not None and frame.trigger == "on_request":
         ctx.emit("cycle-unexpected", _("cycle_ms is set on a frame with trigger: {trigger}", trigger=frame.trigger),
                  p + ("cycle_ms",))
     if frame.timeout_ms is not None and frame.cycle_ms is not None and frame.timeout_ms <= frame.cycle_ms:

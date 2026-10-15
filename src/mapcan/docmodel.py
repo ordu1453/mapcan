@@ -35,7 +35,8 @@ LABELS = {
         "interface": "Разъём", "protocol": "Протокол", "history": "История изменений", "summary": "Сводка",
         "bit_note": "Нумерация байт и бит начинается с 0. Бит 0 — младший бит байта 0; "
                     "бит N находится в байте N div 8 на позиции N mod 8.",
-        "cyclic": "цикл {ms} мс", "event": "по событию", "on_request": "по запросу", "timeout": "тайм-аут {ms} мс",
+        "cyclic": "цикл {ms} мс", "cyclic_event": "цикл {ms} мс и по событию",
+        "event": "по событию", "on_request": "по запросу", "timeout": "тайм-аут {ms} мс",
         "tx": "TX", "rx": "RX", "no_signals": "Сигналы не описаны.",
         "unused": "не используется", "little_endian": "little-endian", "big_endian": "big-endian",
         "enum": "перечисление", "flag": "флаг", "bitfield": "битовое поле", "scaled": "масштабированное",
@@ -71,7 +72,8 @@ LABELS = {
         "interface": "Connector", "protocol": "Protocol", "history": "Revision history", "summary": "Summary",
         "bit_note": "Bytes and bits are numbered from 0. Bit 0 is the LSB of byte 0; "
                     "bit N is in byte N div 8 at position N mod 8.",
-        "cyclic": "every {ms} ms", "event": "on event", "on_request": "on request", "timeout": "timeout {ms} ms",
+        "cyclic": "every {ms} ms", "cyclic_event": "every {ms} ms and on event",
+        "event": "on event", "on_request": "on request", "timeout": "timeout {ms} ms",
         "tx": "TX", "rx": "RX", "no_signals": "No signals defined.",
         "unused": "unused", "little_endian": "little-endian", "big_endian": "big-endian",
         "enum": "enum", "flag": "flag", "bitfield": "bit field", "scaled": "scaled",
@@ -342,8 +344,7 @@ class ViewBuilder:
 
     def mode_label(self, f: Frame) -> str:
         """How the frame is sent, with its receive timeout: "every 100 ms, timeout 300 ms"."""
-        mode = "" if f.mode is None else self.L["cyclic"].format(ms=f.cycle_ms) if f.mode == "cyclic" \
-            else self.L[f.mode]
+        mode = "" if f.mode is None else self.L[f.mode].format(ms=f.cycle_ms)
         timeout = self.L["timeout"].format(ms=f.timeout_ms) if f.timeout_ms is not None else ""
         return ", ".join(x for x in (mode, timeout) if x)
 

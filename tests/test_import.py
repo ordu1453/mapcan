@@ -172,3 +172,49 @@ def test_brs_frame_type_in_documents():
     assert ViewBuilder(cmap, "en").raw_type(fast) == "CAN FD 11-bit"
     assert ViewBuilder(cmap, "en").raw_type(slow) == "CAN FD 11-bit, no BRS"
     assert ViewBuilder(cmap, "ru").raw_type(slow) == "CAN FD 11 бит, без BRS"
+
+
+TIMING_MAP = """
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    devices:
+      - name: ecu
+        frames:
+          - {name: both, id: 0x100, length: 1, cycle_ms: 100, trigger: event}
+          - {name: cyclic, id: 0x101, length: 1, cycle_ms: 50}
+          - {name: event, id: 0x102, length: 1, trigger: event}
+"""
+
+
+def _timing(frames) -> dict:
+    return {f.name: (f.cycle_ms, f.trigger, f.mode) for f in frames}
+
+
+def test_cyclic_and_event_dbc_roundtrip(tmp_path):
+    """A frame sent every period and on an event is CyclicAndSpontaneous in DBC, and comes back the same."""
+    cmap = loads(TIMING_MAP, "t.yaml").map
+    assert not check(loads(TIMING_MAP, "t.yaml")).errors
+    (dbc,) = export_dbc(cmap, tmp_path)
+    db = cantools.database.load_file(str(dbc))
+    assert {m.name: (m.cycle_time, m.send_type) for m in db.messages} == {
+        "both": (100, "CyclicAndSpontaneous"), "cyclic": (50, "Cyclic"), "event": (None, "Spontaneous")}
+    text, warnings = import_dbc(dbc)
+    assert not warnings
+    assert _timing(loads(text, "imported.yaml").map.buses[0].devices[0].frames) == {
+        "both": (100, "event", "cyclic_event"), "cyclic": (50, None, "cyclic"), "event": (None, "event", "event")}
+    assert ViewBuilder(cmap, "en").mode_label(cmap.buses[0].devices[0].frames[0]) == "every 100 ms and on event"
+
+
+def test_import_cyclic_if_active(tmp_path):
+    dbc = tmp_path / "t.dbc"
+    dbc.write_text(DBC.replace('"Cyclic","Spontaneous"', '"Cyclic","Spontaneous","CyclicIfActive"').replace(
+        "BA_ \"GenMsgSendType\" BO_ 2566844672 1;",
+        "BA_ \"GenMsgSendType\" BO_ 2566844672 2;\nBA_ \"GenMsgCycleTime\" BO_ 2566844672 20;").replace(
+        "BA_DEF_DEF_ \"GenMsgSendType\"", "BA_DEF_ BO_ \"GenMsgCycleTime\" INT 0 65535;\n"
+        "BA_DEF_DEF_ \"GenMsgCycleTime\" 0;\nBA_DEF_DEF_ \"GenMsgSendType\""), encoding="utf-8")
+    text, _ = import_dbc(dbc)
+    command = loads(text, "imported.yaml").map.buses[0].devices[1].frames[0]
+    assert (command.cycle_ms, command.trigger) == (20, "event")

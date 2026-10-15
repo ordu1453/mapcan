@@ -170,18 +170,22 @@ const muxValue = computed({
   },
 });
 
-// Transmission mode: with a cycle_ms period cyclic, otherwise trigger (on event / on request)
-const txMode = computed(() => (node.value?.cycle_ms != null ? "cyclic" : node.value?.trigger ?? ""));
+// Transmission mode: with a cycle_ms period cyclic (with trigger: event also on event), otherwise trigger
+const txMode = computed(() => (node.value?.cycle_ms != null
+  ? (node.value?.trigger === "event" ? "cyclic_event" : "cyclic") : node.value?.trigger ?? ""));
+const txCyclic = computed(() => txMode.value === "cyclic" || txMode.value === "cyclic_event");
 const txCycle = computed(() => node.value?.cycle_ms ?? null);
 
 function setMode(e: Event) {
   const m = (e.target as HTMLSelectElement).value;
   const p = path.value;
   const ops = [];
-  if (m !== "cyclic" && node.value?.cycle_ms != null) ops.push({ op: "remove" as const, path: [...p, "cycle_ms"] });
-  if ((m === "" || m === "cyclic") && node.value?.trigger != null) ops.push({ op: "remove" as const, path: [...p, "trigger"] });
-  if (m === "cyclic") ops.push({ op: "set" as const, path: [...p, "cycle_ms"], value: txCycle.value ?? 100 });
-  else if (m !== "") ops.push({ op: "set" as const, path: [...p, "trigger"], value: m });
+  const cyclic = m === "cyclic" || m === "cyclic_event";
+  const trigger = m === "cyclic_event" ? "event" : cyclic ? "" : m;
+  if (!cyclic && node.value?.cycle_ms != null) ops.push({ op: "remove" as const, path: [...p, "cycle_ms"] });
+  if (!trigger && node.value?.trigger != null) ops.push({ op: "remove" as const, path: [...p, "trigger"] });
+  if (cyclic) ops.push({ op: "set" as const, path: [...p, "cycle_ms"], value: txCycle.value ?? 100 });
+  if (trigger) ops.push({ op: "set" as const, path: [...p, "trigger"], value: trigger });
   void actions.apply(ops);
 }
 
@@ -465,19 +469,20 @@ function onLayout(p: Path, start: number, length: number) {
 
         <!-- transmission mode of the frame -->
         <template v-if="kind === 'frame'">
-          <label class="field" :class="txMode === 'cyclic' ? '' : worstLevel(txDiags)">
+          <label class="field" :class="txCyclic ? '' : worstLevel(txDiags)">
             <span class="field-label"><HelpTip :text="UI_HELP.mode" />{{ t("Transmission") }}</span>
             <select :value="txMode" :disabled="readonly" @change="setMode">
               <option value="">{{ t("not set") }}</option>
               <option value="cyclic">{{ t("cyclic") }}</option>
+              <option value="cyclic_event">{{ t("cyclic and on event") }}</option>
               <option value="event">{{ t("on event") }}</option>
               <option value="on_request">{{ t("on request") }}</option>
             </select>
-            <template v-if="txMode !== 'cyclic'">
+            <template v-if="!txCyclic">
               <span v-for="d in txDiags" :key="d.code + d.message" class="field-msg" :class="d.level">{{ d.message }}</span>
             </template>
           </label>
-          <label v-if="txMode === 'cyclic'" class="field" :class="worstLevel(txDiags)">
+          <label v-if="txCyclic" class="field" :class="worstLevel(txDiags)">
             <span class="field-label"><HelpTip :text="describe('frame', 'cycle_ms') ?? ''" />{{ t("Period, ms") }}</span>
             <input class="mono" :value="txCycle ?? ''" :readonly="readonly" @change="setCycle" />
             <span v-if="inputErrors.cycle_ms" class="field-msg error">{{ inputErrors.cycle_ms }}</span>

@@ -254,7 +254,7 @@ class CGen:
             # How the CAN driver sends the frame: CAN FD, with or without the bit rate switch
             out.append(f"#define {self.P(F, 'IS_FD')} 1")
             out.append(f"#define {self.P(F, 'BRS')} {int(f.bit_rate_switch)}")
-        if f.mode == "cyclic":
+        if f.cycle_ms is not None:
             out.append(f"#define {self.P(F, 'CYCLE_MS')} {f.cycle_ms}u")
         if f.timeout_ms is not None:
             out.append(f"#define {self.P(F, 'TIMEOUT_MS')} {f.timeout_ms}u")

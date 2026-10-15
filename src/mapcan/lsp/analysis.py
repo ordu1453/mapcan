@@ -730,6 +730,8 @@ def frame_markdown(frame: M.Frame) -> str:
     facts = []
     if frame.mode == "cyclic":
         facts.append(_("cycle {ms} ms", ms=frame.cycle_ms))
+    elif frame.mode == "cyclic_event":
+        facts.append(_("cycle {ms} ms and on event", ms=frame.cycle_ms))
     if frame.sender_name or frame.receiver_names:
         facts.append(f"{frame.sender_name or '—'} → {', '.join(frame.receiver_names) or '—'}")
     if facts:

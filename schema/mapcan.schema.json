@@ -683,7 +683,7 @@
             }
           ],
           "default": null,
-          "description": "Cyclic transmission period in milliseconds.",
+          "description": "Cyclic transmission period in milliseconds. With trigger: event the frame is also sent at once on an event.",
           "title": "Cycle Ms"
         },
         "trigger": {
@@ -700,7 +700,7 @@
             }
           ],
           "default": null,
-          "description": "Non-cyclic transmission: event — on event, on_request — on request.",
+          "description": "Transmission on an event (event; with cycle_ms also every period) or on request (on_request).",
           "title": "Trigger"
         },
         "timeout_ms": {

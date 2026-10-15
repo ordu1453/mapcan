@@ -162,7 +162,7 @@ def _cob_id(f: Frame) -> str:
 def _pdo_comm(w: _Writer, f: Frame, index: int) -> None:
     tx = f.type.startswith("pdo_tx")
     kind = "TPDO" if tx else "RPDO"
-    timer = tx and f.mode == "cyclic"
+    timer = tx and f.cycle_ms is not None
     w.section(f"{index:04X}", ParameterName=f"{kind}{pdo_number(f)} communication parameter", ObjectType="0x9",
               SubNumber=4 if timer else 3)
     w.var(f"{index:04X}sub0", "Highest sub-index supported", 0x0005, "ro", 5 if timer else 2)

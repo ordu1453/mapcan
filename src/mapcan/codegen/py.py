@@ -159,7 +159,7 @@ class PyGen:
         sel = selector_of(f)
         out = ["", f"{U}_ID = 0x{f.can_id:03X}", f"{U}_LENGTH = {f.length}",
                f"{U}_DLC = {U}_LENGTH  # {self.T['deprecated_dlc'].format(name=f'{U}_LENGTH')}"]
-        if f.mode == "cyclic":
+        if f.cycle_ms is not None:
             out.append(f"{U}_CYCLE_MS = {f.cycle_ms}")
         if f.timeout_ms is not None:
             out.append(f"{U}_TIMEOUT_MS = {f.timeout_ms}")

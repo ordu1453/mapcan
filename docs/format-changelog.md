@@ -6,6 +6,11 @@ needs at least the version of mapcan that introduced it; former names stay reada
 
 ## Unreleased
 
+- A frame may have `cycle_ms` together with `trigger: event`: it is sent every period and at once
+  on an event. Documents read "every 100 ms and on event"; DBC export writes `GenMsgSendType =
+  CyclicAndSpontaneous`, and DBC import reads `CyclicAndSpontaneous`, `CyclicIfActive` and the like
+  as the period with `trigger: event` instead of dropping the event part. `cycle-unexpected` now
+  reports `cycle_ms` with `trigger: on_request` only.
 - The frame field `direction` is deprecated: the direction follows from the CANopen function and
   `sender`, and a frame from outside the map is written in the frames of its bus with the
   receiving devices in `receivers` (the bus's `frames` were for NMT, SYNC and TIME only). Maps with

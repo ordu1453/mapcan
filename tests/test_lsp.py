@@ -292,7 +292,7 @@ def test_messages_of_an_included_file_are_shown_in_it():
     d = next(d for d in a.diagnostics if d.code == "zero-factor")
     assert a.lines[d.line - 1].strip() == "factor: 0"
     main = (TRACTOR / "tractor.yaml").read_text(encoding="utf-8").replace("cycle_ms: 100", "cycle_ms: 100\n"
-                                                                          "            trigger: event", 1)
+                                                                          "            trigger: on_request", 1)
     a = part_analysis(PART, main)
     d = a.diagnostics[0]
     assert d.level == "warning" and "outside this file" in d.message and a.lines[d.line - 1].startswith("part_of")

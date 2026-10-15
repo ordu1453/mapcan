@@ -209,6 +209,9 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
         send = str(_attr(m, "GenMsgSendType") or "").replace(" ", "").lower()
         if m.cycle_time:
             f["cycle_ms"] = m.cycle_time
+            # CyclicAndSpontaneous, CyclicIfActive and the like: every period and on an event
+            if send.startswith("cyclic") and send != "cyclic":
+                f["trigger"] = "event"
         elif send in SEND_TYPES:
             f["trigger"] = SEND_TYPES[send]
         receivers = []

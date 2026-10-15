@@ -77,7 +77,7 @@ buses:
             id: 0x1A3
             length: 8
             cycle_ms: 50
-            trigger: event
+            trigger: on_request
             signals:
               - name: muxed
                 encoding: raw

@@ -167,7 +167,7 @@ RU: dict[str, str] = {
     "mux value does not fit in the selector": "Значение mux не помещается в селектор",
     "mux value is not in the selector's value table": "Значения mux нет в таблице значений селектора",
     "Selector is itself multiplexed": "Селектор сам мультиплексирован",
-    "cycle_ms is set together with trigger": "cycle_ms задан вместе с trigger",
+    "cycle_ms is set together with trigger: on_request": "cycle_ms задан вместе с trigger: on_request",
     "Direction conflicts with the CANopen frame type": "Направление противоречит типу кадра CANopen",
     "direction is set: it follows from the CANopen function and the sender":
         "задано direction: оно следует из функции CANopen и отправителя",
@@ -485,8 +485,8 @@ RU: dict[str, str] = {
         "Примечание или оговорка: в документах — «Примечание:», в DBC — после описания.",
     "Device abbreviation, e.g. \"BMS\": in document tables and before the name in the tree.":
         "Сокращение устройства, напр. «BMS»: в таблицах документов и в дереве перед названием.",
-    "Non-cyclic transmission: event — on event, on_request — on request.":
-        "Нециклическая передача: event — по событию, on_request — по запросу.",
+    "Transmission on an event (event; with cycle_ms also every period) or on request (on_request).":
+        "Передача по событию (event; вместе с cycle_ms — ещё и каждый период) или по запросу (on_request).",
     "GitHub username of the change's author.": "Имя пользователя GitHub автора изменения.",
     "Codes of the rules to disable.": "Коды правил, которые нужно отключить.",
     "Value encoding: enum, scaled, raw.": "Кодирование значения: enum, scaled, raw.",
@@ -615,6 +615,7 @@ RU: dict[str, str] = {
     "unit: {unit}": "единица: {unit}",
     "range: {lo} … {hi}": "диапазон: {lo} … {hi}",
     "cycle {ms} ms": "цикл {ms} мс",
+    "cycle {ms} ms and on event": "цикл {ms} мс и по событию",
     "length {n}": "длина {n}",
     "Value": "Значение",
     "Name": "Имя",
@@ -755,7 +756,8 @@ RU: dict[str, str] = {
     "map goes to the frames of the bus, with the receiving devices in receivers (mapcan migrate moves it).":
         "Устарело: направление следует из функции CANopen и отправителя, удалите его. Кадр извне карты описывается "
         "в кадрах шины, с принимающими устройствами в receivers (mapcan migrate переносит его).",
-    "Cyclic transmission period in milliseconds.": "Период циклической передачи в миллисекундах.",
+    "Cyclic transmission period in milliseconds. With trigger: event the frame is also sent at once on an event.":
+        "Период циклической передачи в миллисекундах. С trigger: event кадр передаётся ещё и сразу по событию.",
     "Device identifier: Latin letters, digits and _. Used in generated code, DBC, and frame senders and receivers. "
     "Required.":
         "Идентификатор устройства: латинские буквы, цифры и _. Используется в сгенерированном коде, DBC, в "

@@ -37,5 +37,5 @@ export const fieldHelp = (kind: FormKind, f: FieldDef): string | undefined => f.
 /** Help of the web editor's controls that are not fields of the format. */
 export const UI_HELP = {
   source: N_("If the device receives a frame that is already described at another device, pick it: the device is added to that frame's receivers and the copy here is removed. A frame is described once, at its sender."),
-  mode: N_("When the frame is sent: cyclically at a set period, on event (when data changes) or on request."),
+  mode: N_("When the frame is sent: cyclically at a set period, on event (when data changes), both (every period and at once on an event) or on request."),
 };

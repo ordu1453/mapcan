@@ -26,7 +26,8 @@ DBC_ENCODING = "cp1251"
 
 # Transmission mode of a frame (GenMsgSendType, as in the Vector CANdb++ templates). Frames without a mode
 # get the default value NoMsgSendType.
-SEND_TYPES = {"cyclic": "Cyclic", "event": "Spontaneous", "on_request": "OnRequest"}
+SEND_TYPES = {"cyclic": "Cyclic", "event": "Spontaneous", "on_request": "OnRequest",
+              "cyclic_event": "CyclicAndSpontaneous"}
 ATTRIBUTE_DEFINITION_SENDTYPE = DbcAttributeDefinition(
     name="GenMsgSendType", default_value="NoMsgSendType", kind="BO_", type_name="ENUM",
     choices=[*SEND_TYPES.values(), "NoMsgSendType"])
@@ -108,7 +109,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         receivers = [r for r in f.receiver_names if r not in senders]
         for sg in sigs:
             sg.receivers = list(receivers)
-        cycle = f.cycle_ms if f.mode == "cyclic" else None
+        cycle = f.cycle_ms if f.mode in ("cyclic", "cyclic_event") else None
         msg_attributes = OrderedDict()
         if f.mode is not None:
             msg_attributes["GenMsgSendType"] = DbcAttribute(

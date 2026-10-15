@@ -146,7 +146,7 @@ lint:
 | `length` | Data length, bytes (formerly `dlc`: the DLC on the bus is the code of this length). Required, except for CANopen service frames, which take the CiA 301 length of their function when it is omitted: NMT 2, SYNC 0, TIME 6, Heartbeat 1, SDO 8. On a J1939 bus up to 1785 bytes (see [Transport protocol](#transport-protocol)) |
 | `direction` | Deprecated (`direction-deprecated`): the direction follows from the CANopen function and `sender`, see [Sender and receivers](#sender-and-receivers). Still read; `mapcan migrate` removes it |
 | `cycle_ms` | Cyclic transmission period, ms |
-| `trigger` | Non-cyclic transmission: `event` (on event) or `on_request`. Cannot be combined with `cycle_ms` |
+| `trigger` | Transmission on `event` or `on_request`. `event` together with `cycle_ms`: every period and at once on an event (DBC `CyclicAndSpontaneous`); `on_request` cannot be combined with `cycle_ms` |
 | `timeout_ms` | Receive timeout, ms: when the frame has not arrived for this long, the receivers treat its data as lost (usually a few periods, e.g. 3 × `cycle_ms`). Shown in documents next to the transmission, written to code as `<FRAME>_TIMEOUT_MS` |
 | `signals` | Signals |
 | `sdo` | SDO exchanges (for `sdo_tx`/`sdo_rx`) |
@@ -715,7 +715,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | Code | Severity | What is checked |
 |---|---|---|
 | `timeout-short` | warning | `timeout_ms` is not longer than `cycle_ms`: the frame would time out between two transmissions |
-| `cycle-unexpected` | error | cycle_ms set together with trigger |
+| `cycle-unexpected` | error | `cycle_ms` set together with `trigger: on_request` |
 
 ### Signal layout
 

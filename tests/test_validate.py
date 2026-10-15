@@ -353,6 +353,14 @@ def test_cycle_rules():
         - name: f
           canopen: pdo_tx1
           length: 8
+          trigger: on_request
+          cycle_ms: 10
+    """))
+    # Every period and on an event
+    assert "cycle-unexpected" not in codes(one_bus("""
+        - name: f
+          canopen: pdo_tx1
+          length: 8
           trigger: event
           cycle_ms: 10
     """))

@@ -32,7 +32,8 @@ Charset = Literal["ascii", "utf-8", "latin-1"]
 SignalSource = Literal["map_version.major", "map_version.minor", "map_version.patch", "layout_crc32"]
 VERSION_RE = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?$")
 Direction = Literal["tx", "rx"]
-TxMode = Literal["cyclic", "event", "on_request"]
+# cyclic_event: every cycle_ms and at once on an event (cycle_ms with trigger: event)
+TxMode = Literal["cyclic", "cyclic_event", "event", "on_request"]
 # Largest PGN sent with the J1939-21 transport protocol (255 packets of 7 bytes)
 J1939_TP_MAX = 1785
 Trigger = Literal["event", "on_request"]
@@ -590,9 +591,11 @@ class Frame(_Base):
         json_schema_extra={"deprecated": True})
     cycle_ms: int | None = Field(
         None, gt=0,
-        description=N_("Cyclic transmission period in milliseconds."))
+        description=N_("Cyclic transmission period in milliseconds. With trigger: event the frame is also sent at "
+                       "once on an event."))
     trigger: Trigger | None = Field(
-        None, description=N_("Non-cyclic transmission: event — on event, on_request — on request."))
+        None, description=N_("Transmission on an event (event; with cycle_ms also every period) or on request "
+                             "(on_request)."))
     timeout_ms: int | None = Field(
         None, gt=0,
         description=N_("Receive timeout in milliseconds: when the frame has not arrived for this long, the receivers "
@@ -639,8 +642,11 @@ class Frame(_Base):
 
     @property
     def mode(self) -> TxMode | None:
-        """Transmission mode: cyclic if a period is set, otherwise trigger (None: not set)."""
-        return "cyclic" if self.cycle_ms is not None else self.trigger
+        """Transmission mode: cyclic if a period is set (cyclic_event with trigger: event), otherwise trigger
+        (None: not set)."""
+        if self.cycle_ms is None:
+            return self.trigger
+        return "cyclic_event" if self.trigger == "event" else "cyclic"
 
     @property
     def sender_name(self) -> str | None:
