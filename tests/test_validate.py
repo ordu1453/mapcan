@@ -627,6 +627,13 @@ def test_bus_load():
     assert "bus-load" not in codes(text.replace("CYCLE", "10"))
     fd = text.replace("    bitrate: 125000\n", "    bitrate: 125000\n    fd: true\n")
     assert "bus-load" not in codes(fd.replace("CYCLE", "1"))
+    # A frame sent on an event counts at its minimum interval (the worst case), without one not at all
+    ind = re.search(r"\n( *)cycle_ms: CYCLE", text)[1]
+    event = text.replace("cycle_ms: CYCLE", "trigger: event")
+    assert "bus-load" not in codes(event)
+    assert "bus-load" in codes(event.replace("trigger: event", f"trigger: event\n{ind}inhibit_ms: 1"))
+    both = f"cycle_ms: 100\n{ind}trigger: event\n{ind}inhibit_ms: 0.5"
+    assert "bus-load" in codes(text.replace("cycle_ms: CYCLE", both))
 
 
 def test_invalid_in_range():

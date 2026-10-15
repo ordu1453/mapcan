@@ -16,7 +16,8 @@ needs at least the version of mapcan that introduced it; former names stay reada
   DBC `GenMsgDelayTime`). It goes to DBC (whole milliseconds, rounded up) and back, to the TPDO's
   inhibit time in EDS, to generated code as `<FRAME>_INHIBIT_US` (C) and `<FRAME>_INHIBIT_MS`
   (Python), and to documents next to the transmission. New rules: `inhibit-long` (longer than
-  `cycle_ms`) and `inhibit-cyclic` (on a frame sent only cyclically).
+  `cycle_ms`) and `inhibit-cyclic` (on a frame sent only cyclically). The `bus-load` estimate counts
+  frames sent on an event at their minimum interval.
 - A frame may have `cycle_ms` together with `trigger: event`: it is sent every period and at once
   on an event. Documents read "every 100 ms and on event"; DBC export writes `GenMsgSendType =
   CyclicAndSpontaneous`, and DBC import reads `CyclicAndSpontaneous`, `CyclicIfActive` and the like

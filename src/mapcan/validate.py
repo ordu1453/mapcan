@@ -77,7 +77,7 @@ RULES = {
     "brs-without-fd": ("warning", N_("brs is set on a bus that is not CAN FD and is not used")),
     "data-bitrate-without-fd": ("warning", N_("data_bitrate or data_sample_point on a bus that is not CAN FD")),
     "data-bitrate-range": ("error", N_("CAN FD data phase bit rate lower than the bit rate")),
-    "bus-load": ("warning", N_("Estimated bus load from cyclic frames above 70%")),
+    "bus-load": ("warning", N_("Estimated bus load above 70%")),
     "duplicate-signal-name": ("error", N_("Duplicate signal/flag name in the frame")),
     "reserved-identifier": ("error", N_("Name is a C/Python keyword or a member of the generated class")),
     "name-collision": ("error", N_("Names collide in generated code (differ only in case, or clash with a _phys "
@@ -448,27 +448,37 @@ def _fd_frame_time(length: int, extended: bool, brs: bool, nominal: int, data: i
     return (arbitration + 13) / nominal + (payload + crc) / (data if brs else nominal)
 
 
+def _load_period(f: Frame) -> float | None:
+    """The shortest time between two transmissions of a frame, ms: a frame sent on an event at its minimum
+    interval (the worst case), a cyclic one at its period; None when it is not known."""
+    if f.trigger == "event" and f.inhibit_ms:
+        return min(f.inhibit_ms, f.cycle_ms or f.inhibit_ms)
+    if f.cycle_ms and f.trigger != "on_request":
+        return f.cycle_ms
+    return None
+
+
 def _check_bus_load(ctx: _Ctx, bus) -> None:
     if not bus.bitrate:
         return
-    cyclic = [f for f in bus.all_frames()
-              if f.can_id is not None and f.cycle_ms and f.trigger != "on_request"]
+    counted = [(f, period) for f in bus.all_frames() if f.can_id is not None
+               and (period := _load_period(f)) is not None]
     if bus.fd:
         # The data phase of frames with BRS runs at data_bitrate: without it the estimate would be wrong
-        if not bus.data_bitrate and any(f.bit_rate_switch and not _is_tp(f) for f in cyclic):
+        if not bus.data_bitrate and any(f.bit_rate_switch and not _is_tp(f) for f, _p in counted):
             return
         seconds = sum((_tp_bits(f) / bus.bitrate if _is_tp(f) else _fd_frame_time(
             f.length, f.extended, bool(f.bit_rate_switch), bus.bitrate, bus.data_bitrate or bus.bitrate))
-            * 1000 / f.cycle_ms for f in cyclic)
+            * 1000 / period for f, period in counted)
         load = 100 * seconds
     else:
-        bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.length, f.extended)) * 1000 / f.cycle_ms
-                         for f in cyclic)
+        bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.length, f.extended)) * 1000 / period
+                         for f, period in counted)
         load = 100 * bits_per_s / bus.bitrate
     if load > BUS_LOAD_LIMIT:
-        ctx.emit("bus-load", _("estimated load of bus {bus!r} is {load:.0f}% (cyclic frames: {count}, {bitrate} "
-                               "bit/s); keep it at or below {limit}%",
-                               bus=bus.name, load=load, count=len(cyclic), bitrate=bus.bitrate,
+        ctx.emit("bus-load", _("estimated load of bus {bus!r} is {load:.0f}% (frames counted: {count}, {bitrate} "
+                               "bit/s; event frames at their minimum interval); keep it at or below {limit}%",
+                               bus=bus.name, load=load, count=len(counted), bitrate=bus.bitrate,
                                limit=BUS_LOAD_LIMIT), bus._path + ("bitrate",))
 
 

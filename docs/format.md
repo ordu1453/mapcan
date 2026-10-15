@@ -671,7 +671,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | Code | Severity | What is checked |
 |---|---|---|
 | `bitrate-nonstandard` | warning | Non-standard bit rate (125000, 250000, 500000, 1000000…), or data phase bit rate (1000000, 2000000, 5000000, 8000000…) |
-| `bus-load` | warning | Estimated bus load from cyclic frames above 70%. On CAN FD the data phase of frames with BRS is counted at `data_bitrate`; without it, the load of such a bus is not estimated |
+| `bus-load` | warning | Estimated bus load above 70%: cyclic frames at their period, frames sent on an event at their minimum interval (`inhibit_ms`, the worst case); event frames without one are not counted. On CAN FD the data phase of frames with BRS is counted at `data_bitrate`; without it, the load of such a bus is not estimated |
 | `brs-without-fd` | warning | brs is set on a bus that is not CAN FD and is not used |
 | `data-bitrate-without-fd` | warning | `data_bitrate` or `data_sample_point` on a bus that is not CAN FD |
 | `data-bitrate-range` | error | `data_bitrate` is lower than `bitrate` |

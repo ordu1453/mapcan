@@ -316,7 +316,7 @@ RU: dict[str, str] = {
     "the '{{' opened on line {start} is not closed, or its items are not separated by commas":
         "«{{», открытая в строке {start}, не закрыта или элементы не разделены запятой",
     "Non-standard bus bit rate": "Нестандартная скорость шины",
-    "Estimated bus load from cyclic frames above 70%": "Расчётная загрузка шины циклическими кадрами выше 70 %",
+    "Estimated bus load above 70%": "Расчётная загрузка шины выше 70 %",
     "Name is a C/Python keyword or a member of the generated class":
         "Имя совпадает с ключевым словом C/Python или членом сгенерированного класса",
     "Names collide in generated code (differ only in case, or clash with a _phys property)":
@@ -347,10 +347,10 @@ RU: dict[str, str] = {
     "short label {short!r} is already used by device {other!r}": "обозначение {short!r} уже у устройства {other!r}",
     "frame {name!r} differs from {other!r} only in case: their C macros will collide":
         "кадр {name!r} отличается от {other!r} только регистром: в C-коде их макросы совпадут",
-    "estimated load of bus {bus!r} is {load:.0f}% (cyclic frames: {count}, {bitrate} bit/s); keep it at or below "
-    "{limit}%":
-        "расчётная загрузка шины {bus!r} — {load:.0f} % (циклических кадров: {count}, {bitrate} бит/с), рекомендуется "
-        "не больше {limit} %",
+    "estimated load of bus {bus!r} is {load:.0f}% (frames counted: {count}, {bitrate} bit/s; event frames at their "
+    "minimum interval); keep it at or below {limit}%":
+        "расчётная загрузка шины {bus!r} — {load:.0f} % (учтено кадров: {count}, {bitrate} бит/с; кадры по событию — "
+        "с их минимальным интервалом), рекомендуется не больше {limit} %",
     "nobody receives frame {name!r}: list the receiving devices in receivers":
         "кадр {name!r} никто не принимает: укажите получателей в receivers",
     "signal name {name!r} is a C/Python keyword: the generated code will not compile":
