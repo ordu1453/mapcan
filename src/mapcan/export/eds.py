@@ -163,11 +163,14 @@ def _pdo_comm(w: _Writer, f: Frame, index: int) -> None:
     tx = f.type.startswith("pdo_tx")
     kind = "TPDO" if tx else "RPDO"
     timer = tx and f.cycle_ms is not None
+    inhibit = tx and f.inhibit_ms is not None
     w.section(f"{index:04X}", ParameterName=f"{kind}{pdo_number(f)} communication parameter", ObjectType="0x9",
-              SubNumber=4 if timer else 3)
-    w.var(f"{index:04X}sub0", "Highest sub-index supported", 0x0005, "ro", 5 if timer else 2)
+              SubNumber=3 + inhibit + timer)
+    w.var(f"{index:04X}sub0", "Highest sub-index supported", 0x0005, "ro", 5 if timer else 3 if inhibit else 2)
     w.var(f"{index:04X}sub1", f"COB-ID used by {kind}{pdo_number(f)}", 0x0007, "rw", _cob_id(f))
     w.var(f"{index:04X}sub2", "Transmission type", 0x0005, "rw", 254)
+    if inhibit:
+        w.var(f"{index:04X}sub3", "Inhibit time", 0x0006, "rw", round(f.inhibit_ms * 10))
     if timer:
         w.var(f"{index:04X}sub5", "Event timer", 0x0006, "rw", f.cycle_ms)
 

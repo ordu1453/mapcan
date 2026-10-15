@@ -161,6 +161,8 @@ class PyGen:
                f"{U}_DLC = {U}_LENGTH  # {self.T['deprecated_dlc'].format(name=f'{U}_LENGTH')}"]
         if f.cycle_ms is not None:
             out.append(f"{U}_CYCLE_MS = {f.cycle_ms}")
+        if f.inhibit_ms is not None:
+            out.append(f"{U}_INHIBIT_MS = {f.inhibit_ms!r}")
         if f.timeout_ms is not None:
             out.append(f"{U}_TIMEOUT_MS = {f.timeout_ms}")
         for s in f.layout:

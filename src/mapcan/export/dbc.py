@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
@@ -33,6 +34,9 @@ ATTRIBUTE_DEFINITION_SENDTYPE = DbcAttributeDefinition(
     choices=[*SEND_TYPES.values(), "NoMsgSendType"])
 # Bus type: from "CAN FD" the tools (and cantools) know that the frames are to be marked
 # VFrameFormat = StandardCAN_FD / ExtendedCAN_FD.
+# Minimum interval between transmissions in whole milliseconds (Vector templates)
+ATTRIBUTE_DEFINITION_DELAYTIME = DbcAttributeDefinition(
+    name="GenMsgDelayTime", default_value=0, kind="BO_", type_name="INT", minimum=0, maximum=65535)
 ATTRIBUTE_DEFINITION_BUSTYPE = DbcAttributeDefinition(name="BusType", default_value="", type_name="STRING")
 # SPN of a J1939 signal: a signal attribute, as in the Vector J1939 templates
 ATTRIBUTE_DEFINITION_SPN = DbcAttributeDefinition(name="SPN", default_value=0, kind="SG_", type_name="INT",
@@ -115,6 +119,9 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
             msg_attributes["GenMsgSendType"] = DbcAttribute(
                 value=ATTRIBUTE_DEFINITION_SENDTYPE.choices.index(SEND_TYPES[f.mode]),
                 definition=ATTRIBUTE_DEFINITION_SENDTYPE)
+        if f.inhibit_ms is not None:
+            msg_attributes["GenMsgDelayTime"] = DbcAttribute(value=math.ceil(f.inhibit_ms),
+                                                             definition=ATTRIBUTE_DEFINITION_DELAYTIME)
         if f.bit_rate_switch is False:
             # The attribute defaults to "1" (BRS on): only frames without BRS need it
             msg_attributes["CANFD_BRS"] = DbcAttribute(
@@ -149,6 +156,8 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         attributes["BusType"] = DbcAttribute(value="CAN FD", definition=ATTRIBUTE_DEFINITION_BUSTYPE)
     if any(f.mode is not None for f in bus.all_frames() if f.can_id is not None):
         definitions["GenMsgSendType"] = ATTRIBUTE_DEFINITION_SENDTYPE
+    if any(f.inhibit_ms is not None for f in bus.all_frames() if f.can_id is not None):
+        definitions["GenMsgDelayTime"] = ATTRIBUTE_DEFINITION_DELAYTIME
     if any(s.spn is not None for f in bus.all_frames() if f.can_id is not None for s in f.layout):
         definitions["SPN"] = ATTRIBUTE_DEFINITION_SPN
     return cantools.database.Database(
@@ -188,6 +197,11 @@ def export_dbc(cmap: MapCan, out: str | Path, bus_name: str | None = None,
         if warn is not None and other:
             warn(_("{path}: DBC stores signed values in two's complement only; signals in ones' complement or sign and "
                    "magnitude are written as two's complement: {names}", path=path, names=", ".join(other)))
+        rounded = [f.name for f in b.all_frames() if f.can_id is not None and f.inhibit_ms is not None
+                   and f.inhibit_ms != int(f.inhibit_ms)]
+        if warn is not None and rounded:
+            warn(_("{path}: DBC stores the minimum interval (GenMsgDelayTime) in whole milliseconds; rounded up: "
+                   "{names}", path=path, names=", ".join(rounded)))
         if warn is not None and (lost := unencodable(dbc)):
             warn(_("{path}: characters {chars} are not in the {encoding} encoding and were written as '?'",
                    path=path, chars=" ".join(repr(c) for c in lost), encoding=DBC_ENCODING))

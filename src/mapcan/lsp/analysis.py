@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from .. import model as M
 from ..bits import msb_position, occupied_bits
 from ..diagnostics import Diagnostic
+from ..docmodel import fmt_num
 from ..i18n import _, normalize_language
 from ..loader import PART_OF_RE, LoadResult, SourceMap, loads
 from ..model import MapCan, enum_entries
@@ -732,6 +733,8 @@ def frame_markdown(frame: M.Frame) -> str:
         facts.append(_("cycle {ms} ms", ms=frame.cycle_ms))
     elif frame.mode == "cyclic_event":
         facts.append(_("cycle {ms} ms and on event", ms=frame.cycle_ms))
+    if frame.inhibit_ms is not None:
+        facts.append(_("min. interval {ms} ms", ms=fmt_num(frame.inhibit_ms)))
     if frame.sender_name or frame.receiver_names:
         facts.append(f"{frame.sender_name or '—'} → {', '.join(frame.receiver_names) or '—'}")
     if facts:

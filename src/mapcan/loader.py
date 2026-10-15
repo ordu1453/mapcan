@@ -35,7 +35,7 @@ from .upgrade import Upgraded, upgrade_tree
 # Keys whose values must be numbers.
 NUMERIC_KEYS = {
     "factor", "offset", "min", "max", "id", "node_id", "start_bit", "bit_length",
-    "byte", "bit", "byte_length", "length", "dlc", "cycle_ms", "bitrate", "command",
+    "byte", "bit", "byte_length", "length", "dlc", "cycle_ms", "inhibit_ms", "bitrate", "command",
     "index", "subindex", "mux",
 }
 _COMMA_NUMBER = re.compile(r"^\s*[+-]?\d+,\d+\s*$")

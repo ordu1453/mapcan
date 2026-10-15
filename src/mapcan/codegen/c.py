@@ -256,6 +256,9 @@ class CGen:
             out.append(f"#define {self.P(F, 'BRS')} {int(f.bit_rate_switch)}")
         if f.cycle_ms is not None:
             out.append(f"#define {self.P(F, 'CYCLE_MS')} {f.cycle_ms}u")
+        if f.inhibit_ms is not None:
+            # In microseconds: an integer also for CANopen's 0.1 ms steps
+            out.append(f"#define {self.P(F, 'INHIBIT_US')} {round(f.inhibit_ms * 1000)}u")
         if f.timeout_ms is not None:
             out.append(f"#define {self.P(F, 'TIMEOUT_MS')} {f.timeout_ms}u")
         out.append("")

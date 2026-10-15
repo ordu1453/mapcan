@@ -807,3 +807,13 @@ def test_c_unpack_leaves_no_stale_multiplexed_signals(tmp_path):
                    check=True, capture_output=True, text=True)
     out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.splitlines()
     assert out == ["0 9 0 *", "0 5 0 *", "1 9 6 A"]
+
+
+def test_inhibit_time_in_code(tmp_path):
+    from mapcan.loader import loads
+
+    timing = "length: 2\n        trigger: event\n        inhibit_ms: 0.5"
+    cmap = loads(ENUM_MAP.replace("length: 2", timing), "t.yaml").map
+    header = next(p for p in generate_c(cmap, tmp_path / "c") if p.suffix == ".h").read_text(encoding="utf-8")
+    assert "#define F_INHIBIT_US 500u\n" in header
+    assert _import(generate_py(cmap, tmp_path / "py")[0]).F_INHIBIT_MS == 0.5

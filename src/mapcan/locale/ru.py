@@ -168,6 +168,23 @@ RU: dict[str, str] = {
     "mux value is not in the selector's value table": "Значения mux нет в таблице значений селектора",
     "Selector is itself multiplexed": "Селектор сам мультиплексирован",
     "cycle_ms is set together with trigger: on_request": "cycle_ms задан вместе с trigger: on_request",
+    "Minimum interval between transmissions longer than the period":
+        "Минимальный интервал между передачами больше периода",
+    "Minimum interval between transmissions on a frame sent only cyclically":
+        "Минимальный интервал между передачами у кадра, передаваемого только циклически",
+    "minimum interval {inhibit} ms is longer than the period {cycle} ms: the frame cannot be sent every period":
+        "минимальный интервал {inhibit} мс больше периода {cycle} мс: кадр не сможет передаваться каждый период",
+    "the frame is sent only every {cycle} ms: a minimum interval changes nothing":
+        "кадр передаётся только раз в {cycle} мс: минимальный интервал ничего не меняет",
+    "Minimum time between two transmissions in milliseconds (inhibit time): the frame is not sent again sooner. "
+    "May be fractional, e.g. 0.5 (CANopen counts it in 0.1 ms). In DBC: GenMsgDelayTime; in EDS: the PDO's "
+    "inhibit time; in C: …_INHIBIT_US.":
+        "Минимальное время между двумя передачами в миллисекундах (inhibit time): раньше кадр повторно не "
+        "передаётся. Может быть дробным, напр. 0.5 (в CANopen — в единицах 0,1 мс). В DBC — GenMsgDelayTime, "
+        "в EDS — inhibit time PDO, в C — …_INHIBIT_US.",
+    "min. interval {ms} ms": "мин. интервал {ms} мс",
+    "{path}: DBC stores the minimum interval (GenMsgDelayTime) in whole milliseconds; rounded up: {names}":
+        "{path}: DBC хранит минимальный интервал (GenMsgDelayTime) в целых миллисекундах; округлено вверх: {names}",
     "Direction conflicts with the CANopen frame type": "Направление противоречит типу кадра CANopen",
     "direction is set: it follows from the CANopen function and the sender":
         "задано direction: оно следует из функции CANopen и отправителя",

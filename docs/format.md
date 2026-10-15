@@ -147,6 +147,7 @@ lint:
 | `direction` | Deprecated (`direction-deprecated`): the direction follows from the CANopen function and `sender`, see [Sender and receivers](#sender-and-receivers). Still read; `mapcan migrate` removes it |
 | `cycle_ms` | Cyclic transmission period, ms |
 | `trigger` | Transmission on `event` or `on_request`. `event` together with `cycle_ms`: every period and at once on an event (DBC `CyclicAndSpontaneous`); `on_request` cannot be combined with `cycle_ms` |
+| `inhibit_ms` | Minimum time between two transmissions, ms (inhibit time): the frame is not sent again sooner. May be fractional (CANopen counts it in 0.1 ms). DBC `GenMsgDelayTime` (whole ms, rounded up), the inhibit time of a TPDO in EDS, `<FRAME>_INHIBIT_US` in C and `<FRAME>_INHIBIT_MS` in Python; shown in documents next to the transmission |
 | `timeout_ms` | Receive timeout, ms: when the frame has not arrived for this long, the receivers treat its data as lost (usually a few periods, e.g. 3 × `cycle_ms`). Shown in documents next to the transmission, written to code as `<FRAME>_TIMEOUT_MS` |
 | `signals` | Signals |
 | `sdo` | SDO exchanges (for `sdo_tx`/`sdo_rx`) |
@@ -623,7 +624,7 @@ keep their order.
 | `document` | `title`, `subtitle`, `version`, `date`, `author`, `organization`, `language`, `bit_numbering`, `print`, `history` |
 | Bus | `name`, `title`, `description`, `protocol`, `connector`, `bitrate`, `sample_point`, `fd`, `data_bitrate`, `data_sample_point`, `brs`, `frames`, `devices` |
 | Device | `name`, `short`, `title`, `description`, `node_id`, `address`, `frames` |
-| Frame | `name`, `title`, `description`, `comment`, `canopen`, `id`, `extended`, `pgn`, `priority`, `destination`, `length`, `brs`, `direction`, `cycle_ms`, `trigger`, `timeout_ms`, `sender`, `receivers`, `signals`, `sdo` |
+| Frame | `name`, `title`, `description`, `comment`, `canopen`, `id`, `extended`, `pgn`, `priority`, `destination`, `length`, `brs`, `direction`, `cycle_ms`, `trigger`, `inhibit_ms`, `timeout_ms`, `sender`, `receivers`, `signals`, `sdo` |
 | Signal | `name`, `title`, `description`, `comment`, `encoding`, `start_bit`, `byte`, `bit`, `bit_length`, `byte_length`, `byte_order`, `representation`, `charset`, `terminator`, `factor`, `offset`, `unit`, `min`, `max`, `values`, `value_format`, `flags`, `multiplexer`, `mux`, `initial`, `source`, `invalid_raw`, `spn`, `index`, `subindex` |
 | Flag | `name`, `bit`, `bit_length`, `description`, `values` |
 | SDO exchange | `name`, `description`, `command`, `index`, `subindex`, `value` |
@@ -716,6 +717,8 @@ turned off with `--disable CODE` or `lint.disable`.
 |---|---|---|
 | `timeout-short` | warning | `timeout_ms` is not longer than `cycle_ms`: the frame would time out between two transmissions |
 | `cycle-unexpected` | error | `cycle_ms` set together with `trigger: on_request` |
+| `inhibit-long` | warning | `inhibit_ms` is longer than `cycle_ms`: the frame cannot be sent every period |
+| `inhibit-cyclic` | info | `inhibit_ms` on a frame sent only cyclically changes nothing |
 
 ### Signal layout
 

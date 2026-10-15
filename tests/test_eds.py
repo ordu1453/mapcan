@@ -113,3 +113,24 @@ def test_eds_reads_in_canopen_library(tmp_path):
     assert [(v.index, v.length) for v in tpdo1.map] == [(0x6041, 16), (0x606C, 32)]
     assert [(v.index, v.subindex) for v in node.tpdo.map[2].map] == [(0x2100, 1), (0x2100, 2), (0x2100, 3)]
     assert [v.index for v in node.rpdo.map[1].map] == [0x6040, 0x60FF]
+
+
+def test_eds_inhibit_time(tmp_path):
+    """inhibit_ms of a TPDO is its inhibit time (sub-index 3) in units of 100 µs."""
+    from mapcan.loader import loads
+
+    text = NODE.read_text(encoding="utf-8").replace(
+        "cycle_ms: 10\n", "cycle_ms: 10\n            trigger: event\n            inhibit_ms: 0.5\n", 1)
+    m = loads(text, "node.yaml").map
+    bus = m.buses[0]
+    eds = configparser.ConfigParser(interpolation=None)
+    eds.optionxform = str
+    eds.read_string(device_eds(m, bus, next(d for d in bus.devices if d.name == "drive")))
+    assert (eds["1800"]["SubNumber"], eds["1800sub0"]["DefaultValue"]) == ("5", "5")
+    assert (eds["1800sub3"]["ParameterName"], eds["1800sub3"]["DefaultValue"]) == ("Inhibit time", "5")
+    assert "1801sub3" not in eds
+    canopen = pytest.importorskip("canopen")
+    (path,) = [p for p in export_eds(m, tmp_path) if p.stem == "drive"]
+    node = canopen.Network().add_node(5, str(path))
+    node.tpdo.read(from_od=True)
+    assert (node.tpdo.map[1].inhibit_time, node.tpdo.map[1].event_timer) == (5, 10)

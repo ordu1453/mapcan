@@ -214,6 +214,8 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
                 f["trigger"] = "event"
         elif send in SEND_TYPES:
             f["trigger"] = SEND_TYPES[send]
+        if (delay := _attr(m, "GenMsgDelayTime")) and int(delay) > 0:
+            f["inhibit_ms"] = int(delay)
         receivers = []
         for s in m.signals:
             for r in s.receivers:

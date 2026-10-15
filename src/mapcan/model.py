@@ -596,6 +596,11 @@ class Frame(_Base):
     trigger: Trigger | None = Field(
         None, description=N_("Transmission on an event (event; with cycle_ms also every period) or on request "
                              "(on_request)."))
+    inhibit_ms: float | None = Field(
+        None, gt=0,
+        description=N_("Minimum time between two transmissions in milliseconds (inhibit time): the frame is not "
+                       "sent again sooner. May be fractional, e.g. 0.5 (CANopen counts it in 0.1 ms). In DBC: "
+                       "GenMsgDelayTime; in EDS: the PDO's inhibit time; in C: …_INHIBIT_US."))
     timeout_ms: int | None = Field(
         None, gt=0,
         description=N_("Receive timeout in milliseconds: when the frame has not arrived for this long, the receivers "

@@ -815,3 +815,13 @@ def test_string_signals():
     assert "string-field" in codes(sig("start_bit: 4, bit_length: 16"))
     assert "string-field" in codes(sig("byte: 0, byte_length: 8, terminator: '**'"))
     assert "encoding-field" in codes(one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, charset: ascii}")))
+
+
+def test_inhibit_rules():
+    def frame(timing: str) -> set[str]:
+        return codes(one_bus(f"- {{name: f, canopen: pdo_tx1, length: 8, {timing}}}"))
+    assert "inhibit-long" in frame("cycle_ms: 10, trigger: event, inhibit_ms: 20")
+    assert "inhibit-cyclic" in frame("cycle_ms: 10, inhibit_ms: 5")
+    assert not {"inhibit-long", "inhibit-cyclic"} & frame("cycle_ms: 10, trigger: event, inhibit_ms: 0.5")
+    assert not {"inhibit-long", "inhibit-cyclic"} & frame("trigger: event, inhibit_ms: 50")
+    assert "yaml" not in frame("trigger: event, inhibit_ms: 50")

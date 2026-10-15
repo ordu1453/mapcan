@@ -37,6 +37,7 @@ LABELS = {
                     "бит N находится в байте N div 8 на позиции N mod 8.",
         "cyclic": "цикл {ms} мс", "cyclic_event": "цикл {ms} мс и по событию",
         "event": "по событию", "on_request": "по запросу", "timeout": "тайм-аут {ms} мс",
+        "inhibit": "мин. интервал {ms} мс",
         "tx": "TX", "rx": "RX", "no_signals": "Сигналы не описаны.",
         "unused": "не используется", "little_endian": "little-endian", "big_endian": "big-endian",
         "enum": "перечисление", "flag": "флаг", "bitfield": "битовое поле", "scaled": "масштабированное",
@@ -74,6 +75,7 @@ LABELS = {
                     "bit N is in byte N div 8 at position N mod 8.",
         "cyclic": "every {ms} ms", "cyclic_event": "every {ms} ms and on event",
         "event": "on event", "on_request": "on request", "timeout": "timeout {ms} ms",
+        "inhibit": "min. interval {ms} ms",
         "tx": "TX", "rx": "RX", "no_signals": "No signals defined.",
         "unused": "unused", "little_endian": "little-endian", "big_endian": "big-endian",
         "enum": "enum", "flag": "flag", "bitfield": "bit field", "scaled": "scaled",
@@ -343,10 +345,11 @@ class ViewBuilder:
         return self.sender(f)
 
     def mode_label(self, f: Frame) -> str:
-        """How the frame is sent, with its receive timeout: "every 100 ms, timeout 300 ms"."""
+        """How the frame is sent, with its minimum interval and receive timeout: "every 100 ms, timeout 300 ms"."""
         mode = "" if f.mode is None else self.L[f.mode].format(ms=f.cycle_ms)
+        inhibit = self.L["inhibit"].format(ms=fmt_num(f.inhibit_ms)) if f.inhibit_ms is not None else ""
         timeout = self.L["timeout"].format(ms=f.timeout_ms) if f.timeout_ms is not None else ""
-        return ", ".join(x for x in (mode, timeout) if x)
+        return ", ".join(x for x in (mode, inhibit, timeout) if x)
 
     # ------------------------------------------------------------------ #
 

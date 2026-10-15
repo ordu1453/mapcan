@@ -218,3 +218,24 @@ def test_import_cyclic_if_active(tmp_path):
     text, _ = import_dbc(dbc)
     command = loads(text, "imported.yaml").map.buses[0].devices[1].frames[0]
     assert (command.cycle_ms, command.trigger) == (20, "event")
+
+
+def test_inhibit_time_dbc_roundtrip(tmp_path):
+    """inhibit_ms is GenMsgDelayTime in DBC, in whole milliseconds (a fraction is rounded up, with a warning)."""
+    text = TIMING_MAP.replace("cycle_ms: 100, trigger: event}", "cycle_ms: 100, trigger: event, inhibit_ms: 20}") \
+        .replace("{name: event, id: 0x102, length: 1, trigger: event}",
+                 "{name: event, id: 0x102, length: 1, trigger: event, inhibit_ms: 2.5}")
+    cmap = loads(text, "t.yaml").map
+    warnings = []
+    (dbc,) = export_dbc(cmap, tmp_path / "t.dbc", warn=warnings.append)
+    assert len(warnings) == 1 and "GenMsgDelayTime" in warnings[0] and warnings[0].endswith(": event")
+    db = cantools.database.load_file(str(dbc))
+    assert {m.name: m.dbc.attributes["GenMsgDelayTime"].value for m in db.messages
+            if "GenMsgDelayTime" in m.dbc.attributes} == {"both": 20, "event": 3}
+    imported, _ = import_dbc(dbc)
+    frames = {f.name: f for f in loads(imported, "imported.yaml").map.buses[0].devices[0].frames}
+    assert (frames["both"].inhibit_ms, frames["event"].inhibit_ms, frames["cyclic"].inhibit_ms) == (20, 3, None)
+    views = {f.name: ViewBuilder(cmap, lang).mode_label(f) for lang in ("en",) for f in cmap.buses[0].devices[0].frames}
+    assert views["event"] == "on event, min. interval 2.5 ms"
+    ru = ViewBuilder(cmap, "ru").mode_label(cmap.buses[0].devices[0].frames[0])
+    assert ru == "цикл 100 мс и по событию, мин. интервал 20 мс"

@@ -279,6 +279,7 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "trigger", label: N_("Trigger"), type: "select", half: true, layout: true,
         options: (c) => [["", N_("not set")], ["event", N_("on event")],
           ...(value(c, "cycle_ms") == null ? [["on_request", N_("on request")] as Option] : [])] },
+      { key: "inhibit_ms", label: N_("Minimum interval, ms"), type: "float", half: true, placeholder: N_("none") },
       { key: "timeout_ms", label: N_("Receive timeout, ms"), type: "int", half: true,
         placeholder: (c) => (typeof value(c, "cycle_ms") === "number" ? String(3 * (value(c, "cycle_ms") as number)) : "") },
     ] },

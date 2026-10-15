@@ -48,7 +48,8 @@ class MapDiff:
 
 
 DEVICE_FIELDS = ("node_id", "address", "short", "title")
-FRAME_FIELDS = ("can_id", "canopen", "length", "direction", "mode", "cycle_ms", "timeout_ms", "extended", "brs",
+FRAME_FIELDS = ("can_id", "canopen", "length", "direction", "mode", "cycle_ms", "inhibit_ms", "timeout_ms",
+                "extended", "brs",
                 "device", "pgn", "priority", "sender", "receivers", "description")
 SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "representation", "encoding", "factor", "offset",
                  "unit",
@@ -66,7 +67,7 @@ def _invalid_text(s: Signal) -> str | None:
 def _frame_attrs(f: Frame, langs: tuple[str, str]) -> dict:
     return {
         "can_id": f.can_id, "canopen": f.canopen, "length": f.length, "direction": f.direction,
-        "mode": f.mode, "cycle_ms": f.cycle_ms, "timeout_ms": f.timeout_ms,
+        "mode": f.mode, "cycle_ms": f.cycle_ms, "inhibit_ms": f.inhibit_ms, "timeout_ms": f.timeout_ms,
         "extended": f.extended, "brs": f.bit_rate_switch, "device": f.device.name if f.device else None,
         "pgn": f.pgn, "priority": f.priority, "sender": f.sender_name, "receivers": list(f.receivers),
         "description": text(f.description, *langs),

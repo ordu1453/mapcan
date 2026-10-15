@@ -14,6 +14,7 @@ from collections.abc import Iterable
 from . import bits as B
 from .canopen import CANOPEN_DLC, FUNCTION_CODES, default_direction
 from .diagnostics import Report
+from .docmodel import fmt_num
 from .i18n import N_, _
 from .loader import LoadResult, SourceMap, load, loads
 from .model import LOGO_FORMATS, Frame, MapCan, Signal, enum_entries
@@ -101,6 +102,8 @@ RULES = {
     "mux-selector-muxed": ("error", N_("Selector is itself multiplexed")),
     "cycle-unexpected": ("error", N_("cycle_ms is set together with trigger: on_request")),
     "timeout-short": ("warning", N_("Receive timeout not longer than the period of a cyclic frame")),
+    "inhibit-long": ("warning", N_("Minimum interval between transmissions longer than the period")),
+    "inhibit-cyclic": ("info", N_("Minimum interval between transmissions on a frame sent only cyclically")),
     "direction-mismatch": ("warning", N_("Direction conflicts with the CANopen frame type")),
     "direction-deprecated": ("warning", N_("direction is set: it follows from the CANopen function and the sender")),
     "frame-type-protocol": ("warning", N_("CANopen frame type on a non-CANopen bus")),
@@ -568,6 +571,14 @@ def _check_frame(ctx: _Ctx, frame: Frame) -> None:
     if frame.cycle_ms is not None and frame.trigger == "on_request":
         ctx.emit("cycle-unexpected", _("cycle_ms is set on a frame with trigger: {trigger}", trigger=frame.trigger),
                  p + ("cycle_ms",))
+    if frame.inhibit_ms is not None and frame.cycle_ms is not None:
+        if frame.inhibit_ms > frame.cycle_ms:
+            ctx.emit("inhibit-long", _("minimum interval {inhibit} ms is longer than the period {cycle} ms: the "
+                                       "frame cannot be sent every period", inhibit=fmt_num(frame.inhibit_ms),
+                                       cycle=frame.cycle_ms), p + ("inhibit_ms",))
+        elif frame.mode == "cyclic":
+            ctx.emit("inhibit-cyclic", _("the frame is sent only every {cycle} ms: a minimum interval changes "
+                                         "nothing", cycle=frame.cycle_ms), p + ("inhibit_ms",))
     if frame.timeout_ms is not None and frame.cycle_ms is not None and frame.timeout_ms <= frame.cycle_ms:
         ctx.emit("timeout-short", _("timeout {timeout} ms is not longer than the period {cycle} ms: the frame "
                                     "would time out between two transmissions", timeout=frame.timeout_ms,
