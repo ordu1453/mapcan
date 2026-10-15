@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import math
+
+from .. import bits as B
 from ..model import Bus, Frame, Signal
 
 # Comments in the generated code are in the map's document language.
@@ -37,7 +40,7 @@ CODE_TEXT = {
         "clamp_c": "/* Значение вне диапазона поля прижимается к границе, а не обрезается до младших бит. */",
         "pack": "Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра "
                 "или -1, если буфер короче кадра.",
-        "init": "Заполнить начальными значениями из карты (initial; без него — 0).",
+        "init": "Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими.",
         "out_of_range": "{name}: значение {value} вне диапазона поля {lo}..{hi}",
         "round_py": "Округление половины от нуля, как в сгенерированном C.",
         "enum_py": "Член перечисления, или int для значения, которому имя не дано.",
@@ -84,7 +87,8 @@ CODE_TEXT = {
         "clamp_c": "/* A value outside the field's range is saturated, not cut to its low bits. */",
         "pack": "Pack: a value outside a field's range is saturated; returns the frame length, "
                 "or -1 if the buffer is shorter than the frame.",
-        "init": "Fill with the initial values of the map (initial; 0 without one).",
+        "init": "The initial values of the map (initial; 0 without one): a constant, and a function filling a "
+                "message with them.",
         "out_of_range": "{name}: value {value} out of the field's range {lo}..{hi}",
         "round_py": "Rounds half away from zero, as the generated C does.",
         "enum_py": "The enum member, or an int for a value without a name.",
@@ -123,6 +127,20 @@ def frames_with_layout(bus: Bus) -> list[Frame]:
 
 def selector_of(frame: Frame) -> Signal | None:
     return next((s for s in frame.layout if s.multiplexer), None)
+
+
+def raw_limits(s: Signal) -> tuple[int, int] | None:
+    """The raw values of the map's min..max, within the field: (lo, hi), or None when the signal has neither, is
+    a float or a byte array, or they do not narrow the field."""
+    if (s.min is None and s.max is None) or s.encoding == "float" or is_byte_array(s) or s.factor == 0:
+        return None
+    lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code if s.signed else None)
+    bounds = [None if v is None else (v - s.offset) / s.factor for v in (s.min, s.max)]
+    if s.factor < 0:
+        bounds.reverse()        # a negative factor: the raw value of max is the lower bound
+    rlo = lo if bounds[0] is None else max(lo, math.ceil(bounds[0] - 1e-9))
+    rhi = hi if bounds[1] is None else min(hi, math.floor(bounds[1] + 1e-9))
+    return None if (rlo, rhi) == (lo, hi) else (rlo, rhi)
 
 
 def physical(s: Signal) -> bool:

@@ -13,7 +13,7 @@ from ..bits import raw_range
 from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, enum_entries, text
 from ..units import translate_unit
-from .common import code_text, frames_with_layout, is_byte_array, num, physical, selector_of
+from .common import code_text, frames_with_layout, is_byte_array, num, physical, raw_limits, selector_of
 
 RUNTIME = '''
 
@@ -161,6 +161,8 @@ class PyGen:
                f"{U}_DLC = {U}_LENGTH  # {self.T['deprecated_dlc'].format(name=f'{U}_LENGTH')}"]
         if f.cycle_ms is not None:
             out.append(f"{U}_CYCLE_MS = {f.cycle_ms}")
+        if f.trigger == "event":
+            out.append(f"{U}_ON_EVENT = True")
         if f.inhibit_ms is not None:
             out.append(f"{U}_INHIBIT_MS = {f.inhibit_ms!r}")
         if f.timeout_ms is not None:
@@ -188,6 +190,12 @@ class PyGen:
                                    for lo, hi in ranges)
                 out += ["", "", f"def {f.name.lower()}_{s.name.lower()}_is_{meaning}(raw: int) -> bool:",
                         f"    return {cond}"]
+        # The raw values of the map's min..max
+        for s in f.layout:
+            limits = raw_limits(s)
+            if limits is not None:
+                out += ["", "", f"def {f.name.lower()}_{s.name.lower()}_in_range(raw: int) -> bool:",
+                        f"    return {limits[0]} <= raw <= {limits[1]}"]
         out += ["", "", "@dataclass", f"class {C}:"]
         doc = self.t(f.description) or self.t(f.title)
         out.append(f'    """0x{f.can_id:03X} {f.name}: {doc}"""' if doc else f'    """0x{f.can_id:03X} {f.name}"""')

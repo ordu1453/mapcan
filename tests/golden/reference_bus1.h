@@ -186,12 +186,14 @@ typedef struct {
 #define SYNC_ID 0x080u
 #define SYNC_LENGTH 0u
 #define SYNC_DLC SYNC_LENGTH /* устарело: используйте SYNC_LENGTH */
+#define SYNC_ON_EVENT 1
 
 typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } sync_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const sync_t SYNC_INITIAL;
 void sync_init(sync_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int sync_pack(uint8_t *data, size_t size, const sync_t *msg);
@@ -203,6 +205,7 @@ int sync_unpack(sync_t *msg, const uint8_t *data, size_t size);
 #define TIME_STAMP_ID 0x100u
 #define TIME_STAMP_LENGTH 6u
 #define TIME_STAMP_DLC TIME_STAMP_LENGTH /* устарело: используйте TIME_STAMP_LENGTH */
+#define TIME_STAMP_ON_EVENT 1
 
 #define TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR (1.0)
 #define TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET (0.0)
@@ -239,7 +242,8 @@ typedef struct {
     uint16_t days_since_1984; /* Дни с 1 января 1984 г. [сут] */
 } time_stamp_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const time_stamp_t TIME_STAMP_INITIAL;
 void time_stamp_init(time_stamp_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int time_stamp_pack(uint8_t *data, size_t size, const time_stamp_t *msg);
@@ -283,7 +287,8 @@ typedef struct {
     uint8_t imd_state; /* Состояние работы */
 } imd_state_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const imd_state_t IMD_STATE_INITIAL;
 void imd_state_init(imd_state_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_state_pack(uint8_t *data, size_t size, const imd_state_t *msg);
@@ -303,6 +308,8 @@ typedef enum {
     IMD_DATA_RESISTANCE_CALCULATED_CALCULATED = 1, /* значения сопротивлений изоляции рассчитаны */
 } imd_data_resistance_calculated_t;
 
+static inline int imd_data_resistance_plus_in_range(uint16_t raw) { return raw <= 10000u; }
+
 #define IMD_DATA_RESISTANCE_PLUS_FACTOR (1.0f)
 #define IMD_DATA_RESISTANCE_PLUS_OFFSET (0.0f)
 /* resistance_plus: единица измерения — кОм */
@@ -317,6 +324,8 @@ static inline uint16_t imd_data_resistance_plus_from_phys(float phys)
     if (r >= 65536.0f) { return 65535u; }
     return (uint16_t)r;
 }
+
+static inline int imd_data_resistance_minus_in_range(uint16_t raw) { return raw <= 10000u; }
 
 #define IMD_DATA_RESISTANCE_MINUS_FACTOR (1.0f)
 #define IMD_DATA_RESISTANCE_MINUS_OFFSET (0.0f)
@@ -362,7 +371,8 @@ typedef struct {
     uint16_t bus_voltage; /* Напряжение шины питания [В] */
 } imd_data_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const imd_data_t IMD_DATA_INITIAL;
 void imd_data_init(imd_data_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_data_pack(uint8_t *data, size_t size, const imd_data_t *msg);
@@ -393,7 +403,8 @@ typedef struct {
     uint8_t force_selftest; /* Команда принудительной самодиагностики */
 } imd_command_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const imd_command_t IMD_COMMAND_INITIAL;
 void imd_command_init(imd_command_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_command_pack(uint8_t *data, size_t size, const imd_command_t *msg);
@@ -460,7 +471,11 @@ typedef struct {
     uint16_t warning_resistance; /* Порог предупредительного сопротивления изоляции [кОм] */
 } imd_sdo_request_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+static inline int imd_sdo_request_alarm_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_subindex == 1; }
+static inline int imd_sdo_request_warning_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_subindex == 2; }
+
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const imd_sdo_request_t IMD_SDO_REQUEST_INITIAL;
 void imd_sdo_request_init(imd_sdo_request_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_sdo_request_pack(uint8_t *data, size_t size, const imd_sdo_request_t *msg);
@@ -495,7 +510,8 @@ typedef struct {
     uint8_t sdo_subindex; /* Субиндекс объекта */
 } imd_sdo_response_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const imd_sdo_response_t IMD_SDO_RESPONSE_INITIAL;
 void imd_sdo_response_init(imd_sdo_response_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int imd_sdo_response_pack(uint8_t *data, size_t size, const imd_sdo_response_t *msg);
@@ -537,7 +553,8 @@ typedef struct {
     uint8_t systems_status; /* Код состояния систем */
 } cmu_state_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const cmu_state_t CMU_STATE_INITIAL;
 void cmu_state_init(cmu_state_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_state_pack(uint8_t *data, size_t size, const cmu_state_t *msg);
@@ -549,6 +566,7 @@ int cmu_state_unpack(cmu_state_t *msg, const uint8_t *data, size_t size);
 #define CMU_EVENT_ID 0x0A2u
 #define CMU_EVENT_LENGTH 3u
 #define CMU_EVENT_DLC CMU_EVENT_LENGTH /* устарело: используйте CMU_EVENT_LENGTH */
+#define CMU_EVENT_ON_EVENT 1
 
 /* event_type: Код события */
 typedef enum {
@@ -573,7 +591,8 @@ typedef struct {
     uint8_t event_object; /* Объект события — номер модуля или датчика */
 } cmu_event_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const cmu_event_t CMU_EVENT_INITIAL;
 void cmu_event_init(cmu_event_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_event_pack(uint8_t *data, size_t size, const cmu_event_t *msg);
@@ -599,7 +618,11 @@ typedef struct {
     uint8_t temperature_data[7]; /* Данные парсинга температур */
 } cmu_parse_data_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+static inline int cmu_parse_data_voltage_data_is_active(const cmu_parse_data_t *msg) { return msg->parse_type == 0; }
+static inline int cmu_parse_data_temperature_data_is_active(const cmu_parse_data_t *msg) { return msg->parse_type == 1; }
+
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const cmu_parse_data_t CMU_PARSE_DATA_INITIAL;
 void cmu_parse_data_init(cmu_parse_data_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_parse_data_pack(uint8_t *data, size_t size, const cmu_parse_data_t *msg);
@@ -611,6 +634,7 @@ int cmu_parse_data_unpack(cmu_parse_data_t *msg, const uint8_t *data, size_t siz
 #define CMU_REQUEST_ID 0x222u
 #define CMU_REQUEST_LENGTH 2u
 #define CMU_REQUEST_DLC CMU_REQUEST_LENGTH /* устарело: используйте CMU_REQUEST_LENGTH */
+#define CMU_REQUEST_ON_EVENT 1
 
 /* data_request: Запрос на отправку данных */
 typedef enum {
@@ -625,7 +649,8 @@ typedef struct {
     uint8_t frame_request; /* Номер повторно запрашиваемого кадра */
 } cmu_request_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const cmu_request_t CMU_REQUEST_INITIAL;
 void cmu_request_init(cmu_request_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cmu_request_pack(uint8_t *data, size_t size, const cmu_request_t *msg);
@@ -666,7 +691,8 @@ typedef struct {
     uint8_t error_code; /* Код ошибки преобразователя */
 } pcu_state_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const pcu_state_t PCU_STATE_INITIAL;
 void pcu_state_init(pcu_state_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_state_pack(uint8_t *data, size_t size, const pcu_state_t *msg);
@@ -747,7 +773,8 @@ typedef struct {
     uint16_t dc_input_current; /* Входной ток [А] */
 } pcu_data_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const pcu_data_t PCU_DATA_INITIAL;
 void pcu_data_init(pcu_data_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_data_pack(uint8_t *data, size_t size, const pcu_data_t *msg);
@@ -792,7 +819,8 @@ typedef struct {
     uint8_t target_voltage; /* Целевое значение напряжения [В] */
 } pcu_command_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const pcu_command_t PCU_COMMAND_INITIAL;
 void pcu_command_init(pcu_command_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int pcu_command_pack(uint8_t *data, size_t size, const pcu_command_t *msg);
@@ -809,7 +837,8 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } bypass_command_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const bypass_command_t BYPASS_COMMAND_INITIAL;
 void bypass_command_init(bypass_command_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int bypass_command_pack(uint8_t *data, size_t size, const bypass_command_t *msg);
@@ -826,7 +855,8 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } bypass_state_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const bypass_state_t BYPASS_STATE_INITIAL;
 void bypass_state_init(bypass_state_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int bypass_state_pack(uint8_t *data, size_t size, const bypass_state_t *msg);
@@ -843,7 +873,8 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } cooling_command_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const cooling_command_t COOLING_COMMAND_INITIAL;
 void cooling_command_init(cooling_command_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cooling_command_pack(uint8_t *data, size_t size, const cooling_command_t *msg);
@@ -860,7 +891,8 @@ typedef struct {
     uint8_t reserved_; /* сигналы не описаны */
 } cooling_state_t;
 
-/* Заполнить начальными значениями из карты (initial; без него — 0). */
+/* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
+extern const cooling_state_t COOLING_STATE_INITIAL;
 void cooling_state_init(cooling_state_t *msg);
 /* Упаковать: значение вне диапазона поля прижимается к границе; возвращает длину кадра или -1, если буфер короче кадра. */
 int cooling_state_pack(uint8_t *data, size_t size, const cooling_state_t *msg);

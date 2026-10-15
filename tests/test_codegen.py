@@ -1046,3 +1046,64 @@ def test_gen_c_device_cli(tmp_path):
     assert sorted(p.name for p in tmp_path.iterdir()) == ["bms.c", "bms.h"]
     r = CliRunner().invoke(app, ["gen", "c", m, "-o", str(tmp_path), "--device", "nobody"])
     assert r.exit_code != 0 and "nobody" in r.output
+
+
+LIMITS_MAP = """
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: f
+        id: 0x100
+        length: 4
+        trigger: event
+        signals:
+          - {name: sel, encoding: raw, byte: 0, byte_length: 1, multiplexer: true}
+          - {name: temp, encoding: scaled, byte: 1, byte_length: 1, factor: 0.5, offset: -10, unit: C,
+             min: -5, max: 20, initial: 0, mux: 1}
+          - {name: neg, encoding: scaled, byte: 2, byte_length: 1, factor: -2, unit: V, min: -100, max: 10,
+             representation: twos_complement, mux: [1, 2]}
+          - {name: full, encoding: scaled, byte: 3, byte_length: 1, factor: 1, unit: A, min: 0, max: 255}
+"""
+# temp: raw (min + 10) / 0.5 = 10 .. 60; neg (factor < 0): raw -5 .. 50; full: min..max is the whole field
+LIMITS = {"temp": (10, 60), "neg": (-5, 50)}
+
+
+def test_in_range_python(tmp_path):
+    from mapcan.loader import loads
+
+    mod = _import(generate_py(loads(LIMITS_MAP, "t.yaml").map, tmp_path)[0])
+    for name, (lo, hi) in LIMITS.items():
+        fn = getattr(mod, f"f_{name}_in_range")
+        assert [fn(v) for v in (lo - 1, lo, hi, hi + 1)] == [False, True, True, False], name
+    assert not hasattr(mod, "f_full_in_range") and mod.F_ON_EVENT is True
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_in_range_initial_and_active_c(tmp_path):
+    from mapcan.loader import loads
+
+    sources = [p for p in generate_c(loads(LIMITS_MAP, "t.yaml").map, tmp_path) if p.suffix == ".c"]
+    header = (tmp_path / "bus.h").read_text(encoding="utf-8")
+    assert "#define F_ON_EVENT 1\n" in header and "f_full_in_range" not in header
+    main = ["#include <stdio.h>", '#include "bus.h"', "int main(void) {", "    f_t m;"]
+    for name, (lo, hi) in LIMITS.items():
+        ctype = "int8_t" if name == "neg" else "uint8_t"
+        main += [f'    printf("%d", f_{name}_in_range(({ctype})({v})));' for v in (lo - 1, lo, hi, hi + 1)]
+    main += ['    printf("\\n");',
+             # The constant holds the initial values, as f_init() sets them
+             "    f_init(&m);",
+             '    printf("%d %d %d %d\\n", m.temp, F_INITIAL.temp, m.sel, F_INITIAL.neg);',
+             # Which multiplexed signals the selector value makes active
+             "    m.sel = 2;",
+             '    printf("%d %d\\n", f_temp_is_active(&m), f_neg_is_active(&m));',
+             "    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
+    assert out == ["01100110", "20", "20", "0", "0", "0", "1"]

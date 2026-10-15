@@ -16,7 +16,7 @@ from ..i18n import _
 from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, Signal, enum_entries, text
 from ..units import translate_unit
-from .common import code_text, frames_with_layout, is_byte_array, num, physical, selector_of, storage_bits
+from .common import code_text, frames_with_layout, is_byte_array, num, physical, raw_limits, selector_of, storage_bits
 
 HELPERS = r"""
 #ifndef MAPCAN_BITS_HELPERS
@@ -327,6 +327,9 @@ class CGen:
             out.append(f"#define {self.P(F, 'BRS')} {int(f.bit_rate_switch)}")
         if f.cycle_ms is not None:
             out.append(f"#define {self.P(F, 'CYCLE_MS')} {f.cycle_ms}u")
+        if f.trigger == "event":
+            # Sent on an event (with CYCLE_MS also every period)
+            out.append(f"#define {self.P(F, 'ON_EVENT')} 1")
         if f.inhibit_ms is not None:
             # In microseconds: an integer also for CANopen's 0.1 ms steps
             out.append(f"#define {self.P(F, 'INHIBIT_US')} {round(f.inhibit_ms * 1000)}u")
@@ -416,7 +419,16 @@ class CGen:
                 out.append(f"    {self.ctype(s)} {s.name};{' /* ' + d + unit + ' */' if d or unit else ''}")
         out.append(f"}} {self.p(F)}_t;")
         out.append("")
+        sel = selector_of(f)
+        for s in f.layout:
+            if s.mux is not None and sel is not None:
+                cond = " || ".join(f"msg->{sel.name} == {v}" for v in s.mux_values)
+                out.append(f"static inline int {self.p(F, s.name)}_is_active(const {self.p(F)}_t *msg) "
+                           f"{{ return {cond}; }}")
+        if sel is not None and any(s.mux is not None for s in f.layout):
+            out.append("")
         out.append(f"/* {self.T['init']} */")
+        out.append(f"extern const {self.p(F)}_t {self.P(F, 'INITIAL')};")
         out.append(f"void {self.p(F)}_init({self.p(F)}_t *msg);")
         if self.packs(f):
             out.append(f"/* {self.T['pack']} */")
@@ -447,15 +459,28 @@ class CGen:
         # Raw values without a value, by meaning: <frame>_<signal>_is_not_available(raw), …_is_error(raw)
         bits = storage_bits(s)
         tmin, tmax = (-(1 << (bits - 1)), (1 << (bits - 1)) - 1) if s.signed else (0, (1 << bits) - 1)
+        # A literal of the signedness of the type: no -Wsign-compare warning
+
+        def lit(v: int) -> str:
+            return _c_signed(v) if s.signed and v > tmin else _c_bound(v)
+
         for meaning, ranges in s.invalid_ranges.items():
             conds = []
             for lo, hi in ranges:
                 # A bound at the limit of the C type is always true: it is left out (no -Wtype-limits warning)
-                bounds = ((f"raw >= {_c_bound(lo)}", lo > tmin), (f"raw <= {_c_bound(hi)}", hi < tmax))
-                parts = [f"raw == {_c_bound(lo)}"] if lo == hi else [x for x, need in bounds if need] or ["1"]
+                bounds = ((f"raw >= {lit(lo)}", lo > tmin), (f"raw <= {lit(hi)}", hi < tmax))
+                parts = [f"raw == {lit(lo)}"] if lo == hi else [x for x, need in bounds if need] or ["1"]
                 conds.append(parts[0] if len(parts) == 1 else f"({' && '.join(parts)})")
             out.append(f"static inline int {self.p(F, s.name)}_is_{meaning}({self.ctype(s)} raw) "
                        f"{{ return {' || '.join(conds)}; }}")
+        # The raw values of the map's min..max: <frame>_<signal>_in_range(raw)
+        limits = raw_limits(s)
+        if limits is not None:
+            lo, hi = limits
+            parts = [x for x, need in ((f"raw >= {lit(lo)}", lo > tmin), (f"raw <= {lit(hi)}", hi < tmax))
+                     if need] or ["1"]
+            out.append(f"static inline int {self.p(F, s.name)}_in_range({self.ctype(s)} raw) "
+                       f"{{ return {' && '.join(parts)}; }}")
         if out:
             out.append("")
         return out
@@ -481,11 +506,29 @@ class CGen:
             body = [b.removeprefix("    ") for b in body[1:-1]]      # the if's own block takes the place of it
         return [f"    if ({cond}) {{"] + ["    " + b for b in body] + ["    }"]
 
+    def initial_const(self, f: Frame) -> list[str]:
+        """<FRAME>_INITIAL: the message with the initial values (in the order of the struct's fields)."""
+        F = self.frame_name(f)
+        items = []
+        for s in f.layout:
+            init = s.initial_raw
+            if is_byte_array(s):
+                n = s.bit_length // 8
+                fill = (f"(char)0x{s.terminator_byte or 0:02X}" if s.encoding == "string" else "0u")
+                items.append("{" + ", ".join([fill] * n) + "}")
+            elif init is None:
+                items.append("0.0" if self.ctype(s) == "double" else "0.0f" if s.encoding == "float" else "0")
+            else:
+                macro = self.P(F, s.name, "INITIAL" if s.encoding == "float" else "INITIAL_RAW")
+                items.append(f"({self.ctype(s)}){macro}")
+        return [f"const {self.p(F)}_t {self.P(F, 'INITIAL')} = {{{', '.join(items) or '0u'}}};", ""]
+
     def init_impl(self, f: Frame) -> list[str]:
         """<frame>_init(): every signal at the initial value of the map, 0 without one."""
         F = self.frame_name(f)
         name = self.p(F)
-        out = [f"void {name}_init({name}_t *msg)", "{", "    if (msg == NULL) {", "        return;", "    }"]
+        out = self.initial_const(f)
+        out += [f"void {name}_init({name}_t *msg)", "{", "    if (msg == NULL) {", "        return;", "    }"]
         if not f.layout:
             out.append("    msg->reserved_ = 0u;")
         for s in f.layout:

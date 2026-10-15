@@ -78,7 +78,12 @@ if (bms_status_unpack(&st, rx_data, rx_len) == 0 && st.pack_voltage > 350.0f) { 
 ```
 
 `<frame>_init()` sets every signal to its `initial` value from the map (0 without one, a string to
-its terminator), as the defaults of the Python classes do. `<frame>_unpack()` of a multiplexed frame
+its terminator), as the defaults of the Python classes do; `<FRAME>_INITIAL` is a constant with the same
+values, for code that prefers copying. `<frame>_<signal>_is_active(&msg)` tells whether a multiplexed
+signal is in the frame for the selector value of the message. A signal with `min`/`max` gets
+`<frame>_<signal>_in_range(raw)` (and the same function in the Python module), true for the raw values
+of that range. A frame sent on an event has `<FRAME>_ON_EVENT` (`ON_EVENT = True` in Python), next to
+`<FRAME>_CYCLE_MS` when it is also sent every period. `<frame>_unpack()` of a multiplexed frame
 gives the signals of another selector value their initial values too, so none keeps what an earlier
 frame had.
 
