@@ -37,7 +37,9 @@ const tests = {
     });
     const bus = ctx.api.tree.getTreeItem(roots[0]);
     // Titles, as in the web editor; the identifier is in the tooltip; the estimated bus load (#131)
-    assert.deepEqual([bus.label, bus.description, bus.tooltip], ["Demo bus", "0.3%", "Bus demo"]);
+    assert.deepEqual([bus.label, bus.description], ["Demo bus", "0.3%"]);
+    // and the tooltip says what the load is
+    assert.match(bus.tooltip, /^Bus demo\nEstimated bus load: 0\.3%\n/);
     const device = ctx.api.tree.getChildren(roots[0])[0];
     // The node ID before the title: a long title does not hide it (#130)
     const dev = ctx.api.tree.getTreeItem(device);
@@ -609,7 +611,10 @@ const tests = {
       return r && r.length === 1 && ctx.api.tree.getChildren(r[0]).length ? r : undefined;
     });
     // The bus load by the bus (#131); the node ID before a long title, which cuts it no more (#130)
-    assert.equal(ctx.api.tree.getTreeItem(bus).description, "≥0%");
+    // (none when no frame has a period, and the tooltip says why)
+    const busItem = ctx.api.tree.getTreeItem(bus);
+    assert.equal(busItem.description, "");
+    assert.match(busItem.tooltip, /\nBus load unknown: no frame has a cycle or a minimum interval\.\n/);
     const device = ctx.api.tree.getTreeItem(ctx.api.tree.getChildren(bus)[0]);
     assert.equal(device.label, "0x10 · A rather long device title that does not fit in the side bar");
     assert.equal(device.description, "");

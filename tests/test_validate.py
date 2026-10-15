@@ -649,9 +649,27 @@ def test_bus_load_text():
     assert load(OK_SIGNAL) == "1.1%"
     assert load(OK_SIGNAL, bitrate="") == ""
     on_request = OK_SIGNAL.replace("cycle_ms: 100", "trigger: on_request")
-    assert load(on_request) == "≥0%"
+    # no frame counted: nothing rather than "≥0%"
+    assert load(on_request) == ""
     assert load(OK_SIGNAL.replace("cycle_ms: 100", "cycle_ms: 10")
                 + on_request.replace("name: f", "name: g").replace("pdo_tx1", "pdo_tx2")) == "≥11%"
+
+
+def test_bus_load_note():
+    """The tooltip of the bus load: what the number is, and why there is none."""
+    from mapcan.validate import bus_load_note
+
+    def note(frames: str, bitrate: str = "    bitrate: 125000\n") -> str:
+        text = one_bus(frames).replace("    protocol: canopen\n", "    protocol: canopen\n" + bitrate)
+        return bus_load_note(run(text)[0].map.buses[0])
+
+    assert note(OK_SIGNAL).startswith("Estimated bus load: 1.1%\n")
+    assert "At least" not in note(OK_SIGNAL)
+    assert note(OK_SIGNAL, bitrate="") == "Set the bitrate of the bus to estimate its load."
+    on_request = OK_SIGNAL.replace("cycle_ms: 100", "trigger: on_request")
+    assert note(on_request) == "Bus load unknown: no frame has a cycle or a minimum interval."
+    both = OK_SIGNAL + on_request.replace("name: f", "name: g").replace("pdo_tx1", "pdo_tx2")
+    assert "At least: 1 of 2 frames are counted" in note(both)
 
 
 def test_invalid_in_range():

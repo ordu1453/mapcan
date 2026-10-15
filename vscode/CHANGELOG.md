@@ -13,6 +13,10 @@
 * The hover of a frame lists its signals first, with their position and size, and then the bit
   map, where bytes with the same signals share a row: the list no longer falls below the edge of
   the hover, and a CAN FD frame of 64 bytes stays short.
+* The tooltip of a bus in the Map view says what its estimated load is (at least, when some
+  frames have no period, how many are counted) and why there is none (no bitrate, no
+  `data_bitrate` for frames with bit rate switching). A bus none of whose frames has a period
+  shows no load instead of `≥0%`.
 
 ## 0.6.4
 

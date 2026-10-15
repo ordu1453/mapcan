@@ -87,6 +87,8 @@ export interface TreeNode {
   kind: NodeKind;
   label: string;
   sub: string;
+  /** The tooltip of sub (a bus: what its estimated load is, or why there is none). */
+  subHint?: string;
   children: TreeNode[];
   search: string;
   dir?: string | null;   // for frames: tx / rx / null (broadcast)
@@ -155,7 +157,7 @@ export function deviceLabel(v: Data, lang: string): string {
 }
 
 export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string, included: Included[] = [],
-  busLoads: Map<string, string> = new Map()): TreeNode[] {
+  busLoads: Map<string, { load: string; note?: string }> = new Map()): TreeNode[] {
   const doc: TreeNode = {
     key: "document", path: ["document"], kind: "document", label: txt(data?.document?.title, lang) || t("Document"),
     sub: data?.document?.version ?? "", children: [], search: "",
@@ -175,7 +177,8 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
   list(data?.buses).forEach((bus: Data, bi: number) => {
     const bp: Path = ["buses", bi];
     const bnode: TreeNode = {
-      key: pathKey(bp), path: bp, kind: "bus", label: displayName(bus, lang), sub: busLoads.get(pathKey(bp)) ?? "",
+      key: pathKey(bp), path: bp, kind: "bus", label: displayName(bus, lang), sub: busLoads.get(pathKey(bp))?.load ?? "",
+      subHint: busLoads.get(pathKey(bp))?.note || undefined,
       children: [], search: `${bus.name} ${txt(bus.title, lang)}`.toLowerCase(),
     };
     const frameNode = (f: Data, fp: Path): TreeNode => {

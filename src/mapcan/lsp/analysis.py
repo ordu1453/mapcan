@@ -21,7 +21,7 @@ from ..docmodel import fmt_num
 from ..i18n import _, normalize_language
 from ..loader import PART_OF_RE, LoadResult, SourceMap, loads, paused_gc
 from ..model import MapCan, enum_entries
-from ..validate import bus_load_text, check
+from ..validate import bus_load_note, bus_load_text, check
 
 Pos = tuple[int, int]          # 0-based (line, column)
 Path_ = tuple
@@ -528,9 +528,11 @@ def map_tree(a: Analysis) -> list[dict]:
         if (bl := rng(bp)) is None:
             continue
         mbus = model(bp)
-        # The estimated bus load ("≥" when frames without a known period are not counted)
+        # The estimated bus load ("≥" when frames without a known period are not counted), and what it is
+        is_bus = isinstance(mbus, M.Bus)
         bnode = {"kind": "bus", "label": display_name(bus, lang), "ident": name_of(bus),
-                 "description": bus_load_text(mbus) if isinstance(mbus, M.Bus) else "", "children": [], **bl}
+                 "description": bus_load_text(mbus) if is_bus else "",
+                 "load_note": bus_load_note(mbus) if is_bus else "", "children": [], **bl}
         for fi, f in enumerate(_items(bus.get("frames"))):
             if (fn := frame_node(f, bp + ("frames", fi))) is not None:
                 bnode["children"].append(fn)

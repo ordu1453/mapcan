@@ -83,7 +83,7 @@ export interface State {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any | null;
   /** Computed from the map: frames, and the estimated load of each bus ("≥" when not every frame is counted). */
-  resolved: { frames: ResolvedFrame[]; buses?: { path: Path; load: string }[]; language: string } | null;
+  resolved: { frames: ResolvedFrame[]; buses?: { path: Path; load: string; note?: string }[]; language: string } | null;
   /** Buses together with the included files (include); null if nothing is included. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   included_buses: any[] | null;

@@ -68,7 +68,9 @@ def test_state_has_bus_loads(client):
 
     st = client.get("/api/state").json()
     expected = [bus_load_text(b) for b in load(REFERENCE).map.buses]
-    assert st["resolved"]["buses"] == [{"path": ["buses", i], "load": t} for i, t in enumerate(expected)]
+    assert [{k: b[k] for k in ("path", "load")} for b in st["resolved"]["buses"]] == \
+        [{"path": ["buses", i], "load": t} for i, t in enumerate(expected)]
+    assert all(b["note"].startswith("Estimated bus load: ") for b in st["resolved"]["buses"])
     assert all(st["resolved"]["buses"][i]["load"] for i in range(len(expected)))
     frames = st["data"]["buses"][0]["devices"][0]["frames"]
     fi = next(i for i, f in enumerate(frames) if f.get("cycle_ms"))

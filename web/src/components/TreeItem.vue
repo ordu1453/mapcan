@@ -87,7 +87,7 @@ function click() {
           @dblclick.stop="startRename('title')">{{ title || nodeData.name }}</span>
       </span>
       <span v-else class="tlabel" @dblclick.stop="startRename(titled ? 'title' : 'name')">{{ node.label }}</span>
-      <span v-if="node.sub" class="tsub mono">{{ node.sub }}</span>
+      <span v-if="node.sub" class="tsub mono" :title="node.subHint">{{ node.sub }}</span>
       <span v-if="node.from !== undefined" class="tsub link-mark">↪</span>
       <span v-if="node.fileRoot" class="tsub include-mark"
             :title="t('From the included file {file}', { file: node.file })">🔗 {{ node.file }}</span>

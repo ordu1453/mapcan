@@ -52,8 +52,10 @@ describe("labels", () => {
   });
 
   it("a bus shows its estimated load from the server (#131)", () => {
-    const [, loaded] = buildTree(data, new Map(), "ru", [], new Map([[pathKey(["buses", 0]), "≥12%"]]));
+    const loads = new Map([[pathKey(["buses", 0]), { load: "≥12%", note: "Estimated bus load: ≥12%" }]]);
+    const [, loaded] = buildTree(data, new Map(), "ru", [], loads);
     expect(loaded.sub).toBe("≥12%");
+    expect(loaded.subHint).toBe("Estimated bus load: ≥12%");
   });
 
   it("a received frame is a link under the receiver with the sender in its label", () => {

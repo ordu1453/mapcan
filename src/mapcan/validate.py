@@ -458,10 +458,8 @@ def _load_period(f: Frame) -> float | None:
     return None
 
 
-def bus_load(bus) -> tuple[float, bool] | None:
-    """Estimated load of a bus, %, and whether it is a lower bound (frames with a CAN ID whose period is not known
-    are not counted); None when it cannot be estimated (no bitrate, or BRS frames on a CAN FD bus without its
-    data_bitrate)."""
+def _bus_load(bus) -> tuple[float, int, int] | None:
+    """Estimated load of a bus, %, the number of frames counted and of frames with a CAN ID; None as bus_load."""
     if not bus.bitrate:
         return None
     frames = [f for f in bus.all_frames() if f.can_id is not None]
@@ -478,19 +476,52 @@ def bus_load(bus) -> tuple[float, bool] | None:
         bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.length, f.extended)) * 1000 / period
                          for f, period in counted)
         load = 100 * bits_per_s / bus.bitrate
-    return load, len(counted) < len(frames)
+    return load, len(counted), len(frames)
+
+
+def bus_load(bus) -> tuple[float, bool] | None:
+    """Estimated load of a bus, %, and whether it is a lower bound (frames with a CAN ID whose period is not known
+    are not counted); None when it cannot be estimated (no bitrate, or BRS frames on a CAN FD bus without its
+    data_bitrate)."""
+    est = _bus_load(bus)
+    return None if est is None else (est[0], est[1] < est[2])
+
+
+def _load_percent(load: float) -> str:
+    if load < 0.05:
+        return "<0.1%" if load else "0%"
+    return f"{load:.0f}%" if load >= 9.95 else f"{load:.1f}%"
 
 
 def bus_load_text(bus) -> str:
     """The bus load for the editors' trees: "23%", "4.5%", "≥23%" when some frames are not counted; "" if
-    unknown."""
-    est = bus_load(bus)
-    if est is None:
+    unknown or when no frame is counted (a bus whose frames are all sent on request or on an event without a
+    minimum interval would show "≥0%", which says nothing)."""
+    est = _bus_load(bus)
+    if est is None or est[1] == 0:
         return ""
-    load, partial = est
-    if load < 0.05:
-        return "≥0%" if partial else "<0.1%" if load else "0%"
-    return ("≥" if partial else "") + (f"{load:.0f}%" if load >= 9.95 else f"{load:.1f}%")
+    load, counted, total = est
+    return ("≥" if counted < total else "") + _load_percent(load)
+
+
+def bus_load_note(bus) -> str:
+    """The tooltip of the bus load in the editors' trees: what the number is, and why there is none."""
+    if not bus.bitrate:
+        return _("Set the bitrate of the bus to estimate its load.") if bus.all_frames() else ""
+    est = _bus_load(bus)
+    if est is None:
+        return _("Set data_bitrate to estimate the load: frames with bit rate switching send their data at it.")
+    load, counted, total = est
+    if total == 0:
+        return ""
+    if counted == 0:
+        return _("Bus load unknown: no frame has a cycle or a minimum interval.")
+    lines = [_("Estimated bus load: {load}", load=_load_percent(load))]
+    if counted < total:
+        lines.append(_("At least: {counted} of {total} frames are counted; frames without a cycle or a minimum "
+                       "interval are not.", counted=counted, total=total))
+    lines.append(_("Frames sent on an event are counted at their minimum interval, with worst-case bit stuffing."))
+    return "\n".join(lines)
 
 
 def _check_bus_load(ctx: _Ctx, bus) -> None:

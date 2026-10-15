@@ -424,7 +424,7 @@ export function includedPath(path: Path): string | null {
 
 /** Estimated load of each bus, by its path, for the tree. */
 const busLoads = computed(() =>
-  new Map((store.state?.resolved?.buses ?? []).map((b) => [pathKey(b.path), b.load] as [string, string])));
+  new Map((store.state?.resolved?.buses ?? []).map((b) => [pathKey(b.path), b] as const)));
 
 export const tree = computed(() => (store.state?.data
   ? buildTree(viewData.value, resolvedFrames.value, lang.value, store.state.included ?? [], busLoads.value) : []));

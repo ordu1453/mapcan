@@ -44,6 +44,8 @@ interface RawNode {
   description: string;
   dir?: "tx" | "rx" | null;
   from?: string;
+  /** A bus: what its estimated load in the description is, or why there is none. */
+  load_note?: string;
   path: (string | number)[];
   name: [number, number] | null;
   range: [number, number, number, number];
@@ -170,7 +172,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
   }
 
   getTreeItem(node: MapNode): vscode.TreeItem {
-    const { kind, label, ident, description, dir, from } = node.raw;
+    const { kind, label, ident, description, dir, from, load_note } = node.raw;
     const state = node.children.length === 0
       ? vscode.TreeItemCollapsibleState.None
       : kind === "bus" || kind === "device"
@@ -190,6 +192,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
       if (ident !== undefined && label !== ident) lines.push(label);
       if (address) lines.push(address.startsWith("SA ") ? `Source address ${address.slice(3)}` : `Node ID ${address}`);
     }
+    if (kind === "bus" && load_note) lines.push(load_note);
     if (kind === "frame") {
       item.iconPath = this.icon(dir === "tx" ? "frame-tx" : dir === "rx" ? "frame-rx" : "frame-broadcast");
       lines.push(from !== undefined

@@ -356,6 +356,16 @@ RU: dict[str, str] = {
     "short label {short!r} is already used by device {other!r}": "обозначение {short!r} уже у устройства {other!r}",
     "frame {name!r} differs from {other!r} only in case: their C macros will collide":
         "кадр {name!r} отличается от {other!r} только регистром: в C-коде их макросы совпадут",
+    "Set the bitrate of the bus to estimate its load.": "Задайте скорость шины (bitrate), чтобы оценить её загрузку.",
+    "Set data_bitrate to estimate the load: frames with bit rate switching send their data at it.":
+        "Задайте data_bitrate, чтобы оценить загрузку: кадры с переключением скорости передают данные на ней.",
+    "Bus load unknown: no frame has a cycle or a minimum interval.":
+        "Загрузка неизвестна: ни у одного кадра нет периода или минимального интервала.",
+    "Estimated bus load: {load}": "Расчётная загрузка шины: {load}",
+    "At least: {counted} of {total} frames are counted; frames without a cycle or a minimum interval are not.":
+        "Не меньше: учтено кадров {counted} из {total}; кадры без периода и минимального интервала не учитываются.",
+    "Frames sent on an event are counted at their minimum interval, with worst-case bit stuffing.":
+        "Кадры по событию учитываются с минимальным интервалом, bit stuffing — по худшему случаю.",
     "estimated load of bus {bus!r} is {load:.0f}% (frames counted: {count}, {bitrate} bit/s; event frames at their "
     "minimum interval); keep it at or below {limit}%":
         "расчётная загрузка шины {bus!r} — {load:.0f} % (учтено кадров: {count}, {bitrate} бит/с; кадры по событию — "
