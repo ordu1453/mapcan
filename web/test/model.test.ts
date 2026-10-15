@@ -51,6 +51,11 @@ describe("labels", () => {
     expect(bms.children[0].search).toContain("bms_status");
   });
 
+  it("a bus shows its estimated load from the server (#131)", () => {
+    const [, loaded] = buildTree(data, new Map(), "ru", [], new Map([[pathKey(["buses", 0]), "≥12%"]]));
+    expect(loaded.sub).toBe("≥12%");
+  });
+
   it("a received frame is a link under the receiver with the sender in its label", () => {
     const [bms, panel] = bus.children;
     expect(bms.children.filter((c) => c.from !== undefined)).toEqual([]);

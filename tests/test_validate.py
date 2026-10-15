@@ -636,6 +636,24 @@ def test_bus_load():
     assert "bus-load" in codes(text.replace("cycle_ms: CYCLE", both))
 
 
+def test_bus_load_text():
+    """#131: the load shown by the bus in the editors' trees; "≥" when frames without a period are not counted."""
+    from mapcan.validate import bus_load_text
+
+    def load(frames: str, bitrate: str = "    bitrate: 125000\n") -> str:
+        text = one_bus(frames).replace("    protocol: canopen\n", "    protocol: canopen\n" + bitrate)
+        return bus_load_text(run(text)[0].map.buses[0])
+
+    # 8 bytes, 11-bit ID: up to 135 bits at 125 kbit/s
+    assert load(OK_SIGNAL.replace("cycle_ms: 100", "cycle_ms: 1")) == "108%"
+    assert load(OK_SIGNAL) == "1.1%"
+    assert load(OK_SIGNAL, bitrate="") == ""
+    on_request = OK_SIGNAL.replace("cycle_ms: 100", "trigger: on_request")
+    assert load(on_request) == "≥0%"
+    assert load(OK_SIGNAL.replace("cycle_ms: 100", "cycle_ms: 10")
+                + on_request.replace("name: f", "name: g").replace("pdo_tx1", "pdo_tx2")) == "≥11%"
+
+
 def test_invalid_in_range():
     assert "invalid-in-range" in codes(_sig("factor: 0.5, unit: V, min: 0, max: 200, invalid_raw: 0xFF", "scaled"))
     assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid_raw: 0xFF", "scaled"))

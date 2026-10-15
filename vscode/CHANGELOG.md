@@ -9,6 +9,8 @@
   the ones whose ID is taken on the bus disabled, not only its current value.
 * The Map view puts a device's node ID (or J1939 source address) before its title, so a long title
   no longer hides it; the tooltip shows the full title and the address.
+* The Map view shows the estimated load of each bus by its title, as the web editor does: `≥`
+  before it when frames without a known period are not counted.
 
 ## 0.6.3
 

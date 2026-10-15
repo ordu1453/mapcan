@@ -19,7 +19,7 @@ from ..loader import LoadResult, loads, map_of
 from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
 from ..upgrade import upgrade_tree
-from ..validate import check
+from ..validate import bus_load_text, check
 from .yamlops import OpError, apply_ops, device_rename_ops, dump, make_yaml, merge_text, plain
 
 HISTORY_LIMIT = 200
@@ -453,4 +453,6 @@ def resolved_view(cmap: MapCan) -> dict:
     for bus in cmap.buses:
         for f in bus.all_frames():
             frames.append(frame_view(f))
-    return {"frames": frames, "language": cmap.lang}
+    # The estimated load of each bus for the tree ("≥" when frames without a known period are not counted)
+    loads = [{"path": list(bus._path), "load": bus_load_text(bus)} for bus in cmap.buses]
+    return {"frames": frames, "buses": loads, "language": cmap.lang}

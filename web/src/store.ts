@@ -401,8 +401,12 @@ export function includedPath(path: Path): string | null {
   return includedFile(store.state?.included, path);
 }
 
+/** Estimated load of each bus, by its path, for the tree. */
+const busLoads = computed(() =>
+  new Map((store.state?.resolved?.buses ?? []).map((b) => [pathKey(b.path), b.load] as [string, string])));
+
 export const tree = computed(() => (store.state?.data
-  ? buildTree(viewData.value, resolvedFrames.value, lang.value, store.state.included ?? []) : []));
+  ? buildTree(viewData.value, resolvedFrames.value, lang.value, store.state.included ?? [], busLoads.value) : []));
 
 /** The YAML field has input not applied on the server yet. */
 export const yamlLocal = computed(() => store.yaml.draft !== null && store.yaml.draft !== store.yaml.applied);

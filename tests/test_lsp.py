@@ -77,7 +77,7 @@ def _flat(nodes: list[dict], depth: int = 0) -> list[tuple]:
 def test_map_tree_matches_web_editor(minimal):
     rows = _flat(A.map_tree(minimal))
     assert rows[:5] == [
-        (0, "bus", None, "Demo bus", "", None),
+        (0, "bus", None, "Demo bus", "0.3%", None),         # the estimated bus load (#131)
         (1, "device", None, "PMP · Pump", "0x21", None),
         (2, "frame", "tx", "pump_state", "0x1A1", None),
         (3, "signal", None, "mode", "0–7", None),

@@ -154,7 +154,8 @@ export function deviceLabel(v: Data, lang: string): string {
   return v?.short ? String(v.short) : txt(v?.title, lang) || nameOf(obj(v));
 }
 
-export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string, included: Included[] = []): TreeNode[] {
+export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: string, included: Included[] = [],
+  busLoads: Map<string, string> = new Map()): TreeNode[] {
   const doc: TreeNode = {
     key: "document", path: ["document"], kind: "document", label: txt(data?.document?.title, lang) || t("Document"),
     sub: data?.document?.version ?? "", children: [], search: "",
@@ -174,7 +175,7 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
   list(data?.buses).forEach((bus: Data, bi: number) => {
     const bp: Path = ["buses", bi];
     const bnode: TreeNode = {
-      key: pathKey(bp), path: bp, kind: "bus", label: displayName(bus, lang), sub: "",
+      key: pathKey(bp), path: bp, kind: "bus", label: displayName(bus, lang), sub: busLoads.get(pathKey(bp)) ?? "",
       children: [], search: `${bus.name} ${txt(bus.title, lang)}`.toLowerCase(),
     };
     const frameNode = (f: Data, fp: Path): TreeNode => {

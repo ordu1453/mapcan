@@ -36,8 +36,8 @@ const tests = {
       return r.length ? r : undefined;
     });
     const bus = ctx.api.tree.getTreeItem(roots[0]);
-    // Titles, as in the web editor; the identifier is in the tooltip
-    assert.deepEqual([bus.label, bus.description, bus.tooltip], ["Demo bus", "", "Bus demo"]);
+    // Titles, as in the web editor; the identifier is in the tooltip; the estimated bus load (#131)
+    assert.deepEqual([bus.label, bus.description, bus.tooltip], ["Demo bus", "0.3%", "Bus demo"]);
     const device = ctx.api.tree.getChildren(roots[0])[0];
     // The node ID before the title: a long title does not hide it (#130)
     const dev = ctx.api.tree.getTreeItem(device);

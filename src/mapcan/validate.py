@@ -458,15 +458,18 @@ def _load_period(f: Frame) -> float | None:
     return None
 
 
-def _check_bus_load(ctx: _Ctx, bus) -> None:
+def bus_load(bus) -> tuple[float, bool] | None:
+    """Estimated load of a bus, %, and whether it is a lower bound (frames with a CAN ID whose period is not known
+    are not counted); None when it cannot be estimated (no bitrate, or BRS frames on a CAN FD bus without its
+    data_bitrate)."""
     if not bus.bitrate:
-        return
-    counted = [(f, period) for f in bus.all_frames() if f.can_id is not None
-               and (period := _load_period(f)) is not None]
+        return None
+    frames = [f for f in bus.all_frames() if f.can_id is not None]
+    counted = [(f, period) for f in frames if (period := _load_period(f)) is not None]
     if bus.fd:
         # The data phase of frames with BRS runs at data_bitrate: without it the estimate would be wrong
         if not bus.data_bitrate and any(f.bit_rate_switch and not _is_tp(f) for f, _p in counted):
-            return
+            return None
         seconds = sum((_tp_bits(f) / bus.bitrate if _is_tp(f) else _fd_frame_time(
             f.length, f.extended, bool(f.bit_rate_switch), bus.bitrate, bus.data_bitrate or bus.bitrate))
             * 1000 / period for f, period in counted)
@@ -475,7 +478,28 @@ def _check_bus_load(ctx: _Ctx, bus) -> None:
         bits_per_s = sum((_tp_bits(f) if _is_tp(f) else _frame_bits(f.length, f.extended)) * 1000 / period
                          for f, period in counted)
         load = 100 * bits_per_s / bus.bitrate
+    return load, len(counted) < len(frames)
+
+
+def bus_load_text(bus) -> str:
+    """The bus load for the editors' trees: "23%", "4.5%", "≥23%" when some frames are not counted; "" if
+    unknown."""
+    est = bus_load(bus)
+    if est is None:
+        return ""
+    load, partial = est
+    if load < 0.05:
+        return "≥0%" if partial else "<0.1%" if load else "0%"
+    return ("≥" if partial else "") + (f"{load:.0f}%" if load >= 9.95 else f"{load:.1f}%")
+
+
+def _check_bus_load(ctx: _Ctx, bus) -> None:
+    est = bus_load(bus)
+    if est is None:
+        return
+    load = est[0]
     if load > BUS_LOAD_LIMIT:
+        counted = [f for f in bus.all_frames() if f.can_id is not None and _load_period(f) is not None]
         ctx.emit("bus-load", _("estimated load of bus {bus!r} is {load:.0f}% (frames counted: {count}, {bitrate} "
                                "bit/s; event frames at their minimum interval); keep it at or below {limit}%",
                                bus=bus.name, load=load, count=len(counted), bitrate=bus.bitrate,
