@@ -70,6 +70,14 @@ def _check(name, value, lo, hi):
     return value
 
 
+def _enum(cls, raw):
+    """@ENUM@"""
+    try:
+        return cls(raw)
+    except ValueError:
+        return raw
+
+
 def _set(buf, value, start, length, big_endian):
     value &= (1 << length) - 1
     done, pos = 0, start
@@ -118,7 +126,8 @@ class PyGen:
             "from enum import IntEnum",
             RUNTIME.replace("@F2B@", self.T["f2b"]).replace("@B2F@", self.T["b2f"])
             .replace("@ONES_NOTE@", self.T["ones_py"]).replace("@SM_NOTE@", self.T["sm_py"])
-            .replace("@ROUND@", self.T["round_py"]).replace("@RANGE@", self.T["out_of_range"]),
+            .replace("@ROUND@", self.T["round_py"]).replace("@RANGE@", self.T["out_of_range"])
+            .replace("@ENUM@", self.T["enum_py"]),
         ]
         # The map this module was built from
         out.append("")
@@ -193,6 +202,10 @@ class PyGen:
                 out.append(f"    {s.name}: bytes = field(default=bytes({s.bit_length // 8}))")
             elif s.encoding == "float":
                 out.append(f"    {s.name}: float = {num(init if init is not None else 0.0)}")
+            elif self._enum_cls(f, s):
+                E = self._enum_cls(f, s)
+                member = dict(enum_entries(s.values)).get(init if init is not None else 0)
+                out.append(f"    {s.name}: {E} = {f'{E}.{member.name}' if member else init or 0}")
             else:
                 out.append(f"    {s.name}: int = {init if init is not None else 0}")
         if not f.layout:
@@ -212,7 +225,7 @@ class PyGen:
                 f"            raise ValueError(f\"{bad_length}\")",
                 "        msg = cls()"]
         for s in sorted(f.layout, key=lambda s: not s.multiplexer):
-            out += self._guard(s, sel, self._unpack_stmt(s), "msg")
+            out += self._guard(s, sel, self._unpack_stmt(s, self._enum_cls(f, s)), "msg")
         out.append("        return msg")
 
         # physical values
@@ -267,7 +280,14 @@ class PyGen:
         return [f"        _set(buf, {value}, {s.start_bit}, {s.bit_length}, {be})"]
 
     @staticmethod
-    def _unpack_stmt(s) -> list[str]:
+    def _enum_cls(f: Frame, s) -> str | None:
+        """The IntEnum of an integer signal with named values."""
+        if s.encoding == "float" or is_byte_array(s) or not enum_entries(s.values):
+            return None
+        return f"{_cls(f.name)}{_cls(s.name)}"
+
+    @staticmethod
+    def _unpack_stmt(s, enum: str | None = None) -> list[str]:
         if is_byte_array(s) and s.encoding == "string":
             # The text ends at the terminator, or before the trailing 0x00 bytes
             n, b0, end = s.bit_length // 8, s.start_bit // 8, s.terminator_byte
@@ -281,7 +301,8 @@ class PyGen:
         if s.encoding == "float":
             return [f"        msg.{s.name} = _b2f(_get(data, {s.start_bit}, {s.bit_length}, {be}), {s.bit_length})"]
         signed = repr(s.signed_code) if s.signed and s.signed_code in _SIGNED_ENCODERS else s.signed
-        return [f"        msg.{s.name} = _get(data, {s.start_bit}, {s.bit_length}, {be}, {signed})"]
+        value = f"_get(data, {s.start_bit}, {s.bit_length}, {be}, {signed})"
+        return [f"        msg.{s.name} = {f'_enum({enum}, {value})' if enum else value}"]
 
 
 def generate_py(cmap: MapCan, out_dir: str | Path, buses: list[str] | None = None) -> list[Path]:

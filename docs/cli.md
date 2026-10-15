@@ -87,6 +87,10 @@ and the `<signal>_phys` setter in Python round half away from zero and saturate 
 range, so the same physical value gives the same bytes in both. A raw value outside the field is
 saturated by `<frame>_pack()` in C, and makes `pack()` in Python raise `ValueError`.
 
+A signal with named values has an `IntEnum` in the Python module (`BmsCellsCellGroup`), and the
+frame's field holds its members: `unpack()` gives `BmsCellsCellGroup.CELLS_4_6`, not `1`. A raw
+value without a name stays a plain `int`.
+
 Next to `<FRAME>_ID` and `<FRAME>_LENGTH`, the header tells the CAN driver how to send the frame:
 `<FRAME>_IS_EXTENDED` for a 29-bit ID, and on a CAN FD bus `<FRAME>_IS_FD` and `<FRAME>_BRS`
 (bit rate switch, `0` or `1`). The classes of the Python module carry the same as `IS_EXTENDED`,

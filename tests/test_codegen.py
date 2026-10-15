@@ -709,3 +709,37 @@ def test_out_of_range_c_matches_python(tmp_path):
     out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.split()
     assert [int(x) for x in out[:len(RANGE_PHYS)]] == [raw for _, _, raw in RANGE_PHYS]
     assert bytes.fromhex("".join(out[len(RANGE_PHYS):])) == mod.F(**RANGE_SATURATED).pack()
+
+
+ENUM_MAP = """
+mapcan: 1
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: f
+        id: 0x100
+        length: 2
+        signals:
+          - {name: mode, encoding: enum, byte: 0, byte_length: 1, initial: 2,
+             values: {0: OFF, 1: ON, 2: STANDBY}}
+          - {name: gear, encoding: enum, byte: 1, byte_length: 1, values: {1: FIRST, 2: SECOND}}
+"""
+
+
+def test_python_enum_fields(tmp_path):
+    """Enum fields hold IntEnum members; a raw value without a name stays an int."""
+    import typing
+
+    from mapcan.loader import loads
+
+    mod = _import(generate_py(loads(ENUM_MAP, "t.yaml").map, tmp_path)[0])
+    m = mod.F()
+    assert m.mode is mod.FMode.STANDBY and m.gear == 0 and type(m.gear) is int
+    assert typing.get_type_hints(mod.F)["mode"] is mod.FMode
+    back = mod.F.unpack(bytes([1, 7]))
+    assert back.mode is mod.FMode.ON
+    assert back.gear == 7 and type(back.gear) is int
+    assert back.pack() == bytes([1, 7])
+    assert mod.F(mode=mod.FMode.OFF, gear=mod.FGear.SECOND).pack() == bytes([0, 2])
