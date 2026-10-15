@@ -27,6 +27,9 @@
   written (its device, or outside the map for a frame of the bus). The master that sends a
   CANopen RX function written at its node stays `sender` in the YAML, with completion, Go to
   Definition and rename as before.
+* Fixed: a text field of the Node form that had the focus when the form moved to another node
+  (a node duplicated or selected in the Map view) wrote its text into that node; duplicating a
+  signal just added renamed the copy back to the original's name.
 
 ## 0.6.4
 
