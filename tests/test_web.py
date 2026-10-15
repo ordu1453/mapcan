@@ -587,3 +587,23 @@ def test_guard_rejects_cross_origin_writes(client):
         pass
     with client.websocket_connect("/ws", headers={"origin": "http://testserver"}) as ws:
         assert ws.receive_json()["type"] == "hello"
+
+
+def test_live_check_and_apply_analyse_the_text_once(tmp_path, monkeypatch):
+    """Typing in the YAML tab: the live validation of a text and its application load the map once."""
+    from mapcan.web.session import EditorSession
+
+    p = tmp_path / "m.yaml"
+    p.write_text(REFERENCE.read_text(encoding="utf-8"), encoding="utf-8")
+    s = EditorSession(p)
+    loads = []
+    load = s._load
+    monkeypatch.setattr(s, "_load", lambda text: loads.append(text) or load(text))
+    text = s.text.replace("Эталонная карта CANopen", "Эталонная карта", 1)
+    diags = s.check_text(text)
+    assert s.set_text(text, live=True)
+    assert len(loads) == 1
+    assert [d["code"] for d in s.state()["diagnostics"]] == [d["code"] for d in diags]
+    # Another text is loaded again
+    assert s.set_text(text.replace("Эталонная карта", "Карта", 1))
+    assert len(loads) == 2

@@ -97,15 +97,7 @@ def test_positions_of_unknown_fields_do_not_depend_on_earlier_maps():
 
 
 def test_a_large_map_is_read_fast():
-    lines = ["mapcan: 1", "document: {title: Big, language: en}", "buses:", "  - name: can1", "    protocol: can",
-             "    devices:", "      - name: dev", "        frames:"]
-    for f in range(300):
-        lines += [f"          - name: frame_{f}", f"            id: 0x{0x100 + f:X}", "            length: 8",
-                  "            signals:"]
-        for s in range(8):
-            lines += [f"              - name: s_{f}_{s}", "                encoding: scaled",
-                      f"                byte: {s}", "                byte_length: 1", "                factor: 0.5"]
-    text = "\n".join(lines) + "\n"
+    text = _large_map()
     assert L._fast_load(text) is not None
     start = time.perf_counter()
     result = L.loads(text, "big.yaml")
@@ -113,3 +105,61 @@ def test_a_large_map_is_read_fast():
     assert result.map is not None, [d.message for d in result.report.sorted()][:3]
     # ruamel's loader takes several times this budget; the fast one a fraction of it
     assert elapsed < 1.5, elapsed
+
+
+def _large_map(frames: int = 300) -> str:
+    lines = ["mapcan: 1", "document: {title: Big, language: en}", "buses:", "  - name: can1", "    protocol: can",
+             "    devices:", "      - name: dev", "        frames:"]
+    for f in range(frames):
+        lines += [f"          - name: frame_{f}", f"            id: 0x{0x100 + f:X}", "            length: 8",
+                  "            signals:"]
+        for s in range(8):
+            lines += [f"              - name: s_{f}_{s}", "                encoding: scaled",
+                      f"                byte: {s}", "                byte_length: 1", "                factor: 0.5"]
+    return "\n".join(lines) + "\n"
+
+
+def test_a_large_map_is_analysed_fast():
+    """The whole analysis of the language server (load, validation, node ranges), with a budget."""
+    from mapcan.lsp import analysis as A
+
+    text = _large_map()
+    A.analyze(text, "big.yaml")
+    start = time.perf_counter()
+    a = A.analyze(text, "big.yaml")
+    elapsed = time.perf_counter() - start
+    assert a.map is not None and len(a.nodes) > 10000
+    assert elapsed < 3, elapsed
+
+
+def test_plain_scalars_share_one_loader(monkeypatch):
+    """Reading a number does not make a new ruamel loader each time (it looks for plug-ins on disk)."""
+    made = []
+    make = L._make_yaml
+    monkeypatch.setattr(L, "_make_yaml", lambda: made.append(1) or make())
+    monkeypatch.setattr(L._SCALAR_YAML, "yaml", None, raising=False)
+    L._plain_value.cache_clear()
+    assert [L._plain_value(f"0x{v:X}") for v in range(0x500, 0x540)] == list(range(0x500, 0x540))
+    assert len(made) <= 1
+
+
+def test_gc_is_paused_while_reading_and_restored():
+    import gc
+    import threading
+
+    seen = []
+    with L.paused_gc():
+        seen.append(gc.isenabled())
+        with L.paused_gc():                       # nested, and in another thread at the same time
+            t = threading.Thread(target=lambda: L.loads("mapcan: 1\n", "m.yaml"))
+            t.start()
+            t.join()
+        seen.append(gc.isenabled())
+    assert seen == [False, False] and gc.isenabled()
+    gc.disable()
+    try:
+        with L.paused_gc():
+            pass
+        assert not gc.isenabled()                 # disabled before: left disabled
+    finally:
+        gc.enable()

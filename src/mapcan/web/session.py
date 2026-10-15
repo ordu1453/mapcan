@@ -12,6 +12,7 @@ from typing import Any
 from ruamel.yaml.error import YAMLError
 
 from .. import bits as B
+from ..diagnostics import Report
 from ..docmodel import PALETTE
 from ..i18n import _
 from ..loader import LoadResult, loads, map_of
@@ -78,6 +79,7 @@ class EditorSession:
         self._live_base: str | None = None     # text before a series of edits in the YAML tab while typing
         self._result: LoadResult | None = None
         self._report = None
+        self._last_check: tuple | None = None      # (text and included files, result, report) of check_text
         self.parts: dict[str, _Part] = {}       # included files read so far, by resolved path
         self.reload()
 
@@ -100,6 +102,19 @@ class EditorSession:
 
     def _load(self, text: str) -> LoadResult:
         return loads(text, str(self.path.name), self.path.parent, read=self._read_part)
+
+    def _parts_key(self) -> tuple:
+        return tuple((p, part.text) for p, part in sorted(self.parts.items()))
+
+    def _checked(self, text: str) -> tuple[LoadResult, Report]:
+        """The load and validation of a text: those of the live validation of the same text (and the same
+        included files) are reused, so typing in the YAML tab analyses each pause once, not twice."""
+        last = self._last_check
+        key = (text, self._parts_key())
+        if last is not None and last[0] == key:
+            return last[1], last[2]
+        result = self._load(text)
+        return result, check(result)
 
     def disk_changed(self) -> bool:
         """The map or an included file was changed outside since the last load/save."""
@@ -182,14 +197,17 @@ class EditorSession:
             self.doc = self.yaml.load(text)
         except YAMLError:
             self.doc = None           # syntax error: only the YAML tab is available
-        self._result = self._load(text)
-        self._report = check(self._result)
+        self._result, self._report = self._checked(text)
         self.version += 1
 
     def check_text(self, text: str) -> list[dict]:
         """Validate a text without applying it (live validation in the YAML tab)."""
-        result = self._load(text.replace("\r\n", "\n"))
-        return [asdict(result.source.in_main_file(d)) for d in check(result).sorted()]
+        text = text.replace("\r\n", "\n")
+        key = (text, self._parts_key())
+        result = self._load(text)
+        report = check(result)
+        self._last_check = (key, result, report)
+        return [asdict(result.source.in_main_file(d)) for d in report.sorted()]
 
     def recheck(self) -> None:
         """Rebuild the validation messages (after the interface language changed)."""

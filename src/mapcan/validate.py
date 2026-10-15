@@ -16,7 +16,7 @@ from .canopen import CANOPEN_DLC, FUNCTION_CODES, default_direction
 from .diagnostics import Report
 from .docmodel import fmt_num
 from .i18n import N_, _
-from .loader import LoadResult, SourceMap, load, loads
+from .loader import LoadResult, SourceMap, load, loads, paused_gc
 from .model import LOGO_FORMATS, Frame, MapCan, Signal, enum_entries
 from .protocols import j1939_is_pdu1
 
@@ -888,7 +888,8 @@ def check(result: LoadResult, disable: Iterable[str] = ()) -> Report:
     disabled = set(disable)
     report.extend(d for d in result.report.diagnostics if d.code not in disabled)
     if result.map is not None:
-        report.extend(validate_map(result.map, result.source, disabled).diagnostics)
+        with paused_gc():
+            report.extend(validate_map(result.map, result.source, disabled).diagnostics)
     return report
 
 

@@ -763,7 +763,7 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     @app.post("/api/text")
     async def post_text(body: TextBody) -> dict:
         async with lock:
-            wsp.require().set_text(body.text, body.live)
+            await run_in_threadpool(wsp.require().set_text, body.text, body.live)
             return await changed()
 
     @app.post("/api/check")

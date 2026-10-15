@@ -18,7 +18,7 @@ from ..bits import msb_position, occupied_bits
 from ..diagnostics import Diagnostic
 from ..docmodel import fmt_num
 from ..i18n import _, normalize_language
-from ..loader import PART_OF_RE, LoadResult, SourceMap, loads
+from ..loader import PART_OF_RE, LoadResult, SourceMap, loads, paused_gc
 from ..model import MapCan, enum_entries
 from ..validate import check
 
@@ -252,6 +252,11 @@ def _views(a: Analysis, result: LoadResult, read: Reader, skip: str | None) -> N
 
 def analyze(text: str, filename: str | None = None, read: Reader = read_disk) -> Analysis:
     """Analysis of a map; ``read`` gives the texts of its included files (the editor's, if they are open)."""
+    with paused_gc():
+        return _analyze(text, filename, read)
+
+
+def _analyze(text: str, filename: str | None, read: Reader) -> Analysis:
     result = loads(text, filename, read=read)
     report = check(result)
     lines = text.splitlines()

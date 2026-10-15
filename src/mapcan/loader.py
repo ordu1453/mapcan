@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import datetime as _dt
 import functools
+import gc
 import os
 import re
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -340,13 +343,29 @@ if _CLoader is not None:
             _pyyaml.cyaml.CParser.__init__(self, stream)
             _pyyaml.resolver.BaseResolver.__init__(self)
 
+        def resolve(self, kind, value, implicit):
+            # The tags are not read (a written one sends the text to ruamel): PyYAML's lookup of each node's tag
+            # took a quarter of the analysis of a large map
+            return _TAGS[kind]
+
+    _TAGS = {_pyyaml.ScalarNode: _pyyaml.resolver.BaseResolver.DEFAULT_SCALAR_TAG,
+             _pyyaml.SequenceNode: _pyyaml.resolver.BaseResolver.DEFAULT_SEQUENCE_TAG,
+             _pyyaml.MappingNode: _pyyaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG}
+
 
 @functools.lru_cache(maxsize=4096)
 def _plain_value(text: str):
     """A plain (unquoted) scalar as ruamel's loader reads it: a string, or a number, bool, null or date."""
     if _RESOLVER.resolve(_RuamelScalar, text, (True, False)) == _STR:
         return text
-    return _plain_scalar(_make_yaml().load(text))
+    # One loader per thread: making one looks for plug-ins on disk, which costs more than reading the value
+    y = getattr(_SCALAR_YAML, "yaml", None)
+    if y is None:
+        y = _SCALAR_YAML.yaml = _make_yaml()
+    return _plain_scalar(y.load(text))
+
+
+_SCALAR_YAML = threading.local()
 
 
 def _fast_load(text: str) -> tuple[Any, dict[int, Any]] | None:
@@ -424,10 +443,45 @@ def map_of(path: str | Path) -> Path:
     return main if any(Path(f).resolve() == path for _i, f in included) else path
 
 
+_gc_lock = threading.Lock()
+_gc_paused = 0
+
+
+@contextlib.contextmanager
+def paused_gc():
+    """No cyclic garbage collection while a map is read: the parse makes hundreds of thousands of dicts and lists,
+    each batch of which started a collection over all of them (a third of the analysis of a large map). The
+    objects stay tracked: what forms cycles is collected by the next collections as usual. Counted: analyses
+    run in several threads."""
+    global _gc_paused
+    with _gc_lock:
+        _gc_paused += 1
+        if _gc_paused == 1:
+            was = gc.isenabled()
+            gc.disable()
+            paused_gc.was_enabled = was
+    try:
+        yield
+    finally:
+        with _gc_lock:
+            _gc_paused -= 1
+            if _gc_paused == 0 and paused_gc.was_enabled:
+                gc.enable()
+
+
+paused_gc.was_enabled = True
+
+
 def loads(text: str, filename: str | None = None, base_dir: str | Path | None = None,
           read: Callable[[str], str | None] | None = None) -> LoadResult:
     """Load a map from its text. ``read``: gives the text of an included file by its resolved path instead of
     the disk, or None to read the disk (the editors pass the files open in them, with unsaved changes)."""
+    with paused_gc():
+        return _loads(text, filename, base_dir, read)
+
+
+def _loads(text: str, filename: str | None, base_dir: str | Path | None,
+           read: Callable[[str], str | None] | None) -> LoadResult:
     report = Report()
     src = SourceMap(filename)
     fast = _fast_load(text)

@@ -59,6 +59,8 @@ class MapcanServer(LanguageServer):
         # The last analysis of each document (for completion while the text does not parse).
         self.analyses: dict[str, A.Analysis] = {}
         self.pending: dict[str, asyncio.Task] = {}     # the analysis waiting for the typing to pause
+        # The analysis running in a worker thread for a text: requests for that text wait for it
+        self.running: dict[str, tuple[str, asyncio.Future]] = {}
 
     def read(self, path: str) -> str | None:
         """Text of a file of the map: the editor's if it is open (with unsaved changes), else the disk's."""
@@ -89,6 +91,27 @@ class MapcanServer(LanguageServer):
             return None
         a = self._analyze(uri, doc.source)
         self.analyses[uri] = a
+        return a
+
+    async def current(self, uri: str) -> A.Analysis | None:
+        """The analysis of the current text without holding up the server: a fresh one as it is, otherwise one
+        made in a worker thread (a request that comes meanwhile waits for the same run). Hover, the outline and
+        the tree answer from it, so other requests and notifications are handled while a large map is read."""
+        text = self.workspace.get_text_document(uri).source
+        last = self.analyses.get(uri)
+        if last is not None and self._fresh(last, text):
+            return last
+        if not A.handled(text):
+            self.analyses.pop(uri, None)
+            return None
+        run = self.running.get(uri)
+        if run is None or run[0] != text:
+            run = (text, asyncio.ensure_future(asyncio.to_thread(self._analyze, uri, text)))
+            self.running[uri] = run
+            run[1].add_done_callback(lambda f: self.running.pop(uri, None) if self.running.get(uri) is run else None)
+        a = await asyncio.shield(run[1])
+        if self.workspace.get_text_document(uri).source == text:
+            self.analyses[uri] = a
         return a
 
     def editable(self, uri: str) -> A.Analysis | None:
@@ -130,31 +153,24 @@ class MapcanServer(LanguageServer):
         key = str(Path(path).resolve())
         return [u for u, a in list(self.analyses.items()) if u != uri and key in a.deps]
 
-    async def publish_later(self, uri: str) -> None:
+    async def publish_later(self, uri: str, delay: float = DEBOUNCE) -> None:
         """Analyse in a worker thread once the typing pauses; a newer change cancels this run, and a result
         for an outdated text is dropped."""
-        await asyncio.sleep(DEBOUNCE)
-        doc = self.workspace.get_text_document(uri)
-        text = doc.source
-        if not A.handled(text):
-            self.publish(uri)
-            return
-        last = self.analyses.get(uri)
-        if last is None or not self._fresh(last, text):
-            last = await asyncio.to_thread(self._analyze, uri, text)
-            if self.workspace.get_text_document(uri).source != text:
-                return          # changed meanwhile: the run of that change publishes
-            self.analyses[uri] = last
+        await asyncio.sleep(delay)
+        text = self.workspace.get_text_document(uri).source
+        await self.current(uri)
+        if self.workspace.get_text_document(uri).source != text:
+            return          # changed meanwhile: the run of that change publishes
         self.publish(uri)
         caps = self.client_capabilities.workspace
         if caps and caps.inlay_hint and caps.inlay_hint.refresh_support:
             self.workspace_inlay_hint_refresh(None)
 
-    def schedule(self, uri: str) -> None:
+    def schedule(self, uri: str, delay: float = DEBOUNCE) -> None:
         old = self.pending.pop(uri, None)
         if old is not None:
             old.cancel()
-        task = asyncio.ensure_future(self.publish_later(uri))
+        task = asyncio.ensure_future(self.publish_later(uri, delay))
         self.pending[uri] = task
         task.add_done_callback(lambda t: self.pending.pop(uri, None) if self.pending.get(uri) is t else None)
 
@@ -172,8 +188,9 @@ server = MapcanServer()
 
 
 @server.feature(T.TEXT_DOCUMENT_DID_OPEN)
-def did_open(ls: MapcanServer, params: T.DidOpenTextDocumentParams) -> None:
-    ls.publish(params.text_document.uri)
+async def did_open(ls: MapcanServer, params: T.DidOpenTextDocumentParams) -> None:
+    # Analysed in a worker thread at once: opening a large map does not hold up the server
+    ls.schedule(params.text_document.uri, 0)
 
 
 @server.feature(T.TEXT_DOCUMENT_DID_CHANGE)
@@ -195,8 +212,8 @@ def did_close(ls: MapcanServer, params: T.DidCloseTextDocumentParams) -> None:
 
 
 @server.feature(T.TEXT_DOCUMENT_DOCUMENT_SYMBOL)
-def document_symbol(ls: MapcanServer, params: T.DocumentSymbolParams) -> list[T.DocumentSymbol] | None:
-    a = ls.analysis(params.text_document.uri)
+async def document_symbol(ls: MapcanServer, params: T.DocumentSymbolParams) -> list[T.DocumentSymbol] | None:
+    a = await ls.current(params.text_document.uri)
     if a is None:
         return None
 
@@ -209,8 +226,8 @@ def document_symbol(ls: MapcanServer, params: T.DocumentSymbolParams) -> list[T.
 
 
 @server.feature(T.TEXT_DOCUMENT_HOVER)
-def hover(ls: MapcanServer, params: T.HoverParams) -> T.Hover | None:
-    a = ls.analysis(params.text_document.uri)
+async def hover(ls: MapcanServer, params: T.HoverParams) -> T.Hover | None:
+    a = await ls.current(params.text_document.uri)
     if a is None:
         return None
     md = A.hover(a, (params.position.line, params.position.character))
@@ -268,9 +285,9 @@ def _snippets(text: str, pos: A.Pos) -> T.CompletionList | None:
 
 @server.feature(T.TEXT_DOCUMENT_CODE_ACTION,
                 T.CodeActionOptions(code_action_kinds=[T.CodeActionKind.QuickFix]))
-def code_action(ls: MapcanServer, params: T.CodeActionParams) -> list[T.CodeAction] | None:
+async def code_action(ls: MapcanServer, params: T.CodeActionParams) -> list[T.CodeAction] | None:
     uri = params.text_document.uri
-    a = ls.analysis(uri)
+    a = await ls.current(uri)
     if a is None:
         return None
     diags = [d for d in params.context.diagnostics if d.source == "mapcan"]
@@ -286,9 +303,9 @@ def code_action(ls: MapcanServer, params: T.CodeActionParams) -> list[T.CodeActi
 
 
 @server.feature(T.TEXT_DOCUMENT_DEFINITION)
-def definition(ls: MapcanServer, params: T.DefinitionParams) -> T.Location | None:
+async def definition(ls: MapcanServer, params: T.DefinitionParams) -> T.Location | None:
     uri = params.text_document.uri
-    a = ls.analysis(uri)
+    a = await ls.current(uri)
     found = E.definition_location(a, (params.position.line, params.position.character)) if a else None
     if not found:
         return None
@@ -297,9 +314,9 @@ def definition(ls: MapcanServer, params: T.DefinitionParams) -> T.Location | Non
 
 
 @server.feature(T.TEXT_DOCUMENT_REFERENCES)
-def references(ls: MapcanServer, params: T.ReferenceParams) -> list[T.Location] | None:
+async def references(ls: MapcanServer, params: T.ReferenceParams) -> list[T.Location] | None:
     uri = params.text_document.uri
-    a = ls.analysis(uri)
+    a = await ls.current(uri)
     if a is None:
         return None
     found = E.reference_locations(a, (params.position.line, params.position.character),
@@ -331,11 +348,11 @@ def rename(ls: MapcanServer, params: T.RenameParams) -> T.WorkspaceEdit | None:
 
 
 @server.feature("mapcan/tree")
-def map_tree(ls: MapcanServer, params) -> list[dict]:
+async def map_tree(ls: MapcanServer, params) -> list[dict]:
     """Nodes of the map tree for the side bar. Parameter: {textDocument: {uri}}."""
     doc = params.get("textDocument") if isinstance(params, dict) else getattr(params, "textDocument", None)
     uri = doc.get("uri") if isinstance(doc, dict) else getattr(doc, "uri", None)
-    a = ls.analysis(uri) if uri else None
+    a = await ls.current(uri) if uri else None
     return A.map_tree(a) if a else []
 
 
@@ -446,10 +463,10 @@ def _params(params) -> tuple[str, tuple]:
 
 
 @server.feature("mapcan/node")
-def node_request(ls: MapcanServer, params) -> dict | None:
+async def node_request(ls: MapcanServer, params) -> dict | None:
     """Fields of the node for the form. Parameter: {textDocument: {uri}, path}."""
     uri, path = _params(params)
-    a = ls.analysis(uri) if uri else None
+    a = await ls.current(uri) if uri else None
     return E.node_fields(a, path) if a else None
 
 

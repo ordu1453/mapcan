@@ -247,7 +247,9 @@ def test_server_protocol(tmp_path):
             "textDocument": {"uri": uri}, "position": {"line": at("node_id")[0], "character": at("node_id")[1]}}}))
         proc.stdin.flush()
         msgs: list[dict] = []
-        while not {1, 2} <= {m.get("id") for m in msgs} and len(msgs) < 10:
+        # The document is analysed in a worker thread: its messages may come after the answers
+        while (not {1, 2} <= {m.get("id") for m in msgs}
+               or not any(m.get("method") == "textDocument/publishDiagnostics" for m in msgs)) and len(msgs) < 10:
             msgs.append(_read(proc.stdout))
         init = next(m for m in msgs if m.get("id") == 1)
         caps = init["result"]["capabilities"]
@@ -354,8 +356,9 @@ def test_changes_are_analysed_once_typing_pauses(tmp_path):
         while not {1, 2} <= {m.get("id") for m in msgs} and len(msgs) < 20:
             msgs.append(_read(proc.stdout))
         published = [m["params"]["diagnostics"] for m in msgs if m.get("method") == "textDocument/publishDiagnostics"]
-        assert len(published) == 2                       # didOpen, then one for the three changes
-        assert any(d["code"] == "schema" for d in published[1])
+        # One for the three changes, after the one of didOpen (left out when the changes came before it was read)
+        assert 1 <= len(published) <= 2
+        assert any(d["code"] == "schema" for d in published[-1])
     finally:
         proc.kill()
         proc.wait()
