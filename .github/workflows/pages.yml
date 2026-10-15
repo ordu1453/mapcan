@@ -23,7 +23,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Site
         run: |
           mkdir -p _site/schema
@@ -40,7 +40,7 @@ jobs:
           <p>JSON Schemas of the <a href="https://github.com/ordu1453/mapcan">mapcan</a> format:
           <a href="schema/v1.json">a map</a>, <a href="schema/part-v1.json">a file included by a map</a>.</p>
           EOF
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
 
   deploy:
     needs: build
@@ -53,4 +53,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
