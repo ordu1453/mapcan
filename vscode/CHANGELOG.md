@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.6.5
 
+* Needs mapcan 0.23.1 or newer, which the extension offers to install or update.
 * **Add Device in a New File…** on a bus in the Map view (#136): the device goes into a new file,
   `devices/<name>.yaml` relative to the map by default, which is added to `include` of the map in
   the same edit. The device is named after the file (`devices/pump.yaml`: `pump`) when that
