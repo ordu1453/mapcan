@@ -338,7 +338,8 @@ const tests = {
     await vscode.commands.executeCommand("undo");
     assert.equal(doc.getText(), original);
 
-    // Revision history: the draft lists the changes, the entry goes first with the document version
+    // Revision history: the draft lists the changes, the entry goes first; the document's version and date
+    // come from it, so the ones written in the document are removed
     const oldText = execFileSync("git", ["show", `${commits[1].hash}:pump.yaml`], { cwd: repo, encoding: "utf8" });
     const draft = await vscode.commands.executeCommand("mapcan.lsp.historyDraft", { uri: doc.uri.toString(), oldText });
     assert.ok(draft.changes.some((l) => /pressure/.test(l)), draft.changes.join("\n"));
@@ -347,7 +348,7 @@ const tests = {
     const edit = new vscode.WorkspaceEdit();
     edit.replace(doc.uri, new vscode.Range(...added.edit.range), added.edit.text);
     await vscode.workspace.applyEdit(edit);
-    assert.match(doc.getText(), /\n  version: 0\.2\.0\n/);
+    assert.doesNotMatch(doc.getText(), /\n  version: /);
     assert.match(doc.getText(), /\n  history:\n    - version: 0\.2\.0\n      date: \d{4}-\d\d-\d\d\n      author: Test\n      changes:\n/);
     await vscode.commands.executeCommand("undo");
     assert.equal(doc.getText(), original);

@@ -95,7 +95,9 @@ jobs:
       - name: Install cppcheck and the Arm toolchain
         run: |
           uv pip install cppcheck==1.5.3 && uv run --no-sync cppcheck --version
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi
+          # newlib: string.h (memcpy) of the generated code
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi \
+            libnewlib-arm-none-eabi
           arm-none-eabi-gcc --version
       - name: cppcheck, MISRA C, Cortex-M build and code size
         env:
