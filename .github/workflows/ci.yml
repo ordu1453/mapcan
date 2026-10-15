@@ -111,6 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ZEPHYR_VERSION: v4.1.0
+      ZEPHYR_TOOLCHAIN_VARIANT: host     # native_sim builds with the host's gcc: no Zephyr SDK
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
