@@ -76,3 +76,38 @@ def include_ops(include: Any, line: str) -> list[dict]:
     if not isinstance(include, list):
         raise ValueError(_("include of the map is not a list"))
     return [{"op": "insert", "path": ["include"], "value": line}]
+
+
+# --------------------------------------------------------------------------- an included file left empty
+
+_PART_KEYS = {"mapcan", "part_of", "buses", "value_tables"}
+
+
+def part_is_empty(text: str) -> bool:
+    """The included file adds nothing to the map: no value tables, and its buses are only named, without devices or
+    frames (what is left of a device's own file after the device is deleted)."""
+    import yaml
+
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return False
+    if not isinstance(data, dict) or set(data) - _PART_KEYS or data.get("value_tables"):
+        return False
+    buses = data.get("buses") or []
+    return isinstance(buses, list) and all(
+        isinstance(b, dict) and not set(b) - {"name", "devices", "frames"} and not b.get("devices")
+        and not b.get("frames") for b in buses)
+
+
+def exclude_ops(include: Any, map_path: Path, part: Path) -> list[dict]:
+    """Operations that remove the included file from ``include`` of the map (the key too if it was the only one)."""
+    if not isinstance(include, list):
+        return []
+    base = map_path.resolve().parent
+    found = [i for i, f in enumerate(include) if isinstance(f, str) and (base / f).resolve() == part.resolve()]
+    if not found:
+        return []
+    if len(found) == len(include):
+        return [{"op": "remove", "path": ["include"]}]
+    return [{"op": "remove", "path": ["include", i]} for i in reversed(found)]

@@ -8,6 +8,8 @@
   name is a free identifier on the bus. The file opens, and the device in the Node panel. A map
   edited by several people can keep one file per device this way, without creating the files and
   the `include` lines by hand.
+* Deleting a device in the Map view also deletes the included file it leaves empty (only the bus
+  by name, no devices, frames or value tables) and its line of `include`, in one edit.
 
 ## 0.6.4
 

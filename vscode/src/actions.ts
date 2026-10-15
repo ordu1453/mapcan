@@ -2,7 +2,8 @@
 // edit; it is applied to the document, so Undo works as for any other edit. A node added with "+"
 // opens in the node form, where its fields are filled in. A node of another file of the map (an included
 // file, or the main file when an included one is open) is added, copied and deleted in that file. A device
-// can also be added in a file of its own, which the map includes.
+// can also be added in a file of its own, which the map includes; deleting it deletes the file left empty and its
+// line of include.
 
 import * as vscode from "vscode";
 import { ExecuteCommandRequest, LanguageClient } from "vscode-languageclient/node";
@@ -17,6 +18,11 @@ interface EditResult {
   uri?: string;
   /** Why the edit cannot be made (a new signal has no room in its frame). */
   error?: string;
+  /** An included file a delete left adding nothing to the map (a device's own file): it is deleted, and `edits` and
+   * `others` remove it from `include`. */
+  delete?: string;
+  edits?: TextEdit[];
+  others?: Others;
 }
 
 /** Apply a tree edit; returns the node under the new cursor (the added or copied node). */
@@ -32,6 +38,15 @@ async function runEdit(
     arguments: [{ uri: uri.toString(), ...args }],
   })) as EditResult | null;
   if (result?.error) void vscode.window.showWarningMessage(result.error);
+  if (result?.delete) {
+    const edit = new vscode.WorkspaceEdit();
+    for (const e of result.edits ?? []) edit.replace(uri, new vscode.Range(...e.range), e.text);
+    const others = addOthers(edit, result.others);
+    edit.deleteFile(vscode.Uri.parse(result.delete), { ignoreIfNotExists: true });
+    if (await vscode.workspace.applyEdit(edit)) keepBackground([uri, ...others]);
+    await tree.refresh();
+    return undefined;
+  }
   if (!result?.edit) return undefined;
   const target = result.uri ? vscode.Uri.parse(result.uri) : uri;
   const [sl, sc, el, ec] = result.edit.range;

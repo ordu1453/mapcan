@@ -568,17 +568,25 @@ const tests = {
     assert.match(fs.readFileSync(file, "utf8"), /^part_of: \.\.\/main\.yaml\n\nbuses:\n {2}- name: can1\n {4}devices:\n {6}- name: node_b\n {8}title: Device 2\n {8}node_id: 0x02\n/m);
     assert.match(doc.getText(), /\n\ninclude: \[devices\/node_b\.yaml\]\n\nbuses:\n/);
     // The new file is open with the device's name selected, and the device is in the tree and the form
-    const editor = vscode.window.activeTextEditor;
-    assert.equal(editor.document.uri.toString(), vscode.Uri.file(file).toString());
+    // (visible, not active: the window may not have the focus while the tests run)
+    const editor = vscode.window.visibleTextEditors.find((e) => e.document.uri.toString() === vscode.Uri.file(file).toString());
+    assert.ok(editor);
     assert.equal(editor.document.getText(editor.selection), "node_b");
     const added = await until("the device in the tree", () => bus().children.find((d) => d.raw.ident === "node_b"));
     assert.deepEqual(ctx.api.form.openPath, added.path);
     await ctx.api.form.close();
-    // Clean up: the map without the line of include, the file deleted
-    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    // Deleting the device deletes its file, left empty, and the line of include
     await vscode.window.showTextDocument(doc);
+    await until("the device in the tree", () => bus().children.find((d) => d.raw.ident === "node_b"));
+    await vscode.commands.executeCommand("mapcan.deleteNode", bus().children.find((d) => d.raw.ident === "node_b"));
+    await until("the file deleted", () => !fs.existsSync(file));
+    assert.doesNotMatch(doc.getText(), /include/);
+    assert.doesNotMatch(doc.getText(), /\n\n\n/);
+    await until("the tree without the device", () => !bus().children.some((d) => d.raw.ident === "node_b"));
+    // Clean up
     await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
-    fs.rmSync(dir, { recursive: true, force: true });
+    // The folder may still be watched for a moment (Windows): it is in the test's temporary folder anyway
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     await vscode.window.showTextDocument(ctx.doc);
     await until("the first map in the tree", () => ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString());
   },

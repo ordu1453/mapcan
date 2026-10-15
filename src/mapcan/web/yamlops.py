@@ -126,7 +126,16 @@ def merge_text(orig: str, canon_old: str, canon_new: str) -> str:
         j += 1
     out += pending
     fresh += [False] * len(pending)
-    return "".join(_blank_before_insert(out, fresh))
+    return "".join(_squeeze_blanks(_blank_before_insert(out, fresh), o))
+
+
+def _squeeze_blanks(lines: list[str], orig: list[str]) -> list[str]:
+    """A removed block leaves the empty lines on both sides of it: a text without two empty lines in a row keeps
+    none."""
+    blank = [not ln.strip() for ln in orig]
+    if any(a and b for a, b in zip(blank, blank[1:], strict=False)):
+        return lines
+    return [ln for i, ln in enumerate(lines) if ln.strip() or i == 0 or lines[i - 1].strip()]
 
 
 def _indent(line: str) -> int:

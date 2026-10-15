@@ -20,7 +20,7 @@ from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
 from ..upgrade import upgrade_tree
 from ..validate import bus_load_text, check
-from .devicefile import device_file_target, device_file_text, include_ops, named_after_file
+from .devicefile import device_file_target, device_file_text, exclude_ops, include_ops, named_after_file, part_is_empty
 from .yamlops import OpError, apply_ops, device_rename_ops, dump, make_yaml, merge_text, plain
 
 HISTORY_LIMIT = 200
@@ -45,8 +45,9 @@ def _write(path: Path, data: str) -> None:
 
 
 class _Part:
-    """A file included by the map, edited together with it (#49). A file made by the editor (a device in a file
-    of its own, #136) is not on the disk until saved; its ``text`` is None while it does not exist (undone)."""
+    """A file included by the map, edited together with it (#49). Its ``text`` is None while it does not exist:
+    a file made by the editor (a device in a file of its own, #136) is not on the disk until saved, and one left
+    empty by a delete is removed from the disk by Save."""
 
     def __init__(self, path: Path, created: bool = False):
         self.path = path
@@ -68,9 +69,13 @@ class _Part:
 
     @property
     def dirty(self) -> bool:
-        return self.text is not None and self.text != self.saved_text
+        return self.text != self.saved_text
 
     def write(self) -> None:
+        if self.text is None:
+            self.path.unlink(missing_ok=True)
+            self.saved_text = self.disk_hash = None
+            return
         if self.created:
             self.path.parent.mkdir(parents=True, exist_ok=True)
         _write(self.path, self.text.replace("\n", self.newline))
@@ -250,7 +255,7 @@ class EditorSession:
                 part.text = None         # a file made after this state: it is not there again
         self._set_text(text)
 
-    def _commit(self, new_text: str, new_parts: dict[str, str] | None = None) -> bool:
+    def _commit(self, new_text: str, new_parts: dict[str, str | None] | None = None) -> bool:
         """A new state of the map (and of included files): one undo step."""
         self._live_base = None
         changed_parts = {k: t for k, t in (new_parts or {}).items() if self.parts[k].text != t}
@@ -296,14 +301,20 @@ class EditorSession:
                 raise OpError(_("the YAML has a syntax error; fix the text in the YAML tab"))
             routed = self._route(ops)
             new_parts = {}
-            for file, part_ops in routed.items():
+            for file, part_ops in list(routed.items()):
                 if file is None:
                     continue
                 if file not in self.parts:
                     raise OpError(_("the included file {file} cannot be read", file=Path(file).name))
                 new_parts[file] = self._apply_to(self.parts[file].text, part_ops)
+                if any(o.get("op") == "remove" for o in part_ops) and part_is_empty(new_parts[file]):
+                    # The file adds nothing to the map any more (its device was deleted): it goes, with its line of
+                    # include
+                    new_parts[file] = None
+                    routed.setdefault(None, []).extend(
+                        exclude_ops(plain(self.doc).get("include"), self.path, Path(file)))
             new_text = self.text
-            if None in routed:
+            if routed.get(None):
                 canon_old = dump(self.yaml, self.doc)
                 try:
                     apply_ops(self.doc, routed[None])

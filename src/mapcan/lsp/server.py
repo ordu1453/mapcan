@@ -424,7 +424,11 @@ def edit_command(ls: MapcanServer, *args) -> dict:
     {error} (a signal that has no room in its frame) or {}.
 
     The edit goes to the file the node is written in (for a new node, its owner's; a new bus goes to the main
-    file): ``uri`` is there when that is another file of the map than the document."""
+    file): ``uri`` is there when that is another file of the map than the document. An included file that a
+    delete leaves adding nothing to the map (a device's own file, #136) goes instead: {delete: its uri, edits,
+    others}, the edits removing it from ``include`` (as mapcan.lsp.ops)."""
+    from ..web.devicefile import exclude_ops, part_is_empty
+
     params = _arg(args)
     uri = params.get("uri", "")
     a = ls.analysis(uri) if uri else None
@@ -449,6 +453,17 @@ def edit_command(ls: MapcanServer, *args) -> dict:
         change = None
     if change is None:
         return {}
+    if action == "delete" and view.own_file and part_is_empty(change.text):
+        from ..web.yamlops import OpError
+
+        raw = a.result.raw if isinstance(a.result.raw, dict) else {}
+        main = Path(a.result.source.file or "")
+        try:
+            out = ls.routed(a, exclude_ops(raw.get("include"), main, Path(view.own_file)), "edits")
+        except OpError:
+            out = {}
+        if out.get("edits") or out.get("others"):
+            return {**out, "delete": _file_uri(view.own_file)}
     e = E.minimal_edit(view.text, change.text)
     out = {"edit": {"range": [*e.start, *e.end], "text": e.text}, "cursor": list(change.cursor)}
     if view is not a:

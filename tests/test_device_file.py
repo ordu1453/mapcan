@@ -12,7 +12,7 @@ from mapcan.loader import load
 from mapcan.lsp import analysis as A
 from mapcan.lsp import edits as E
 from mapcan.web.app import create_app
-from mapcan.web.devicefile import device_file_target
+from mapcan.web.devicefile import device_file_target, part_is_empty
 from mapcan.web.session import EditorSession
 from mapcan.web.yamlops import OpError
 
@@ -181,3 +181,77 @@ def test_a_device_added_to_the_bus_file_keeps_its_fields():
     a = A.analyze((ROOT / "examples" / "canopen-node.yaml").read_text(encoding="utf-8"), "m.yaml")
     change = E.add_node(a, ("buses", 0), "device")
     assert "      - name: device\n        title: Device 3\n        node_id: 0x02\n" in change.text
+
+
+# --------------------------------------------------------------------------- deleting the device
+
+
+@pytest.mark.parametrize(("text", "empty"), [
+    ("mapcan: 1\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: []\n", True),
+    ("mapcan: 1\npart_of: m.yaml\n", True),
+    ("mapcan: 1\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: [{name: b}]\n", False),
+    ("mapcan: 1\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: []\n    frames: [{name: f}]\n", False),
+    ("mapcan: 1\npart_of: m.yaml\nbuses:\n  - name: can2\n    protocol: can\n    devices: []\n", False),
+    ("mapcan: 1\npart_of: m.yaml\nvalue_tables: {t: {0: OFF}}\n", False),
+    ("mapcan: [", False),
+])
+def test_part_is_empty(text, empty):
+    assert part_is_empty(text) is empty
+
+
+def test_deleting_the_device_of_its_own_file_deletes_the_file(drive):
+    s = EditorSession(drive)
+    s.add_device_file(["buses", 0], DEVICE, "devices/node_c.yaml")
+    s.add_device_file(["buses", 0], {**DEVICE, "name": "node_d", "node_id": 4}, "devices/node_d.yaml")
+    s.save()
+    before = s.text
+    devices = drive.parent / "devices"
+    s.apply([{"op": "remove", "path": ["buses", 0, "devices", 2]}])
+    assert "include: [devices/node_d.yaml]\n" in s.text
+    assert s.state()["dirty_files"] == ["devices/node_c.yaml"]
+    assert (devices / "node_c.yaml").exists()           # until Save
+    s.save()
+    assert sorted(p.name for p in devices.iterdir()) == ["node_d.yaml"]
+    # The last one: the key goes, without leaving two empty lines
+    s.apply([{"op": "remove", "path": ["buses", 0, "devices", 2]}])
+    assert "include" not in s.text and "\n\n\n" not in s.text
+    s.save()
+    assert not list(devices.iterdir())
+    # Undo brings back the file and its line
+    s.undo()
+    s.undo()
+    assert s.text == before
+    s.save()
+    assert sorted(p.name for p in devices.iterdir()) == ["node_c.yaml", "node_d.yaml"]
+    assert not [d for d in s.state()["diagnostics"] if d["level"] == "error"]
+
+
+def test_a_file_with_more_in_it_stays(tractor):
+    """powertrain.yaml describes a bus of its own: deleting a device there keeps the file."""
+    s = EditorSession(tractor)
+    devices = s.state()["included_buses"][1]["devices"]
+    s.apply([{"op": "remove", "path": ["buses", 1, "devices", len(devices) - 1]}])
+    assert "include: [powertrain.yaml]" in s.text
+    assert s.state()["dirty_files"] == ["powertrain.yaml"]
+
+
+def test_language_server_deletes_the_emptied_file(drive):
+    pytest.importorskip("pygls")
+    from mapcan.lsp.server import edit_command
+
+    s = EditorSession(drive)
+    s.add_device_file(["buses", 0], DEVICE, "devices/node_c.yaml")
+    s.save()
+    ls = _Server(drive)
+    r = edit_command(ls, {"uri": ls.uri, "action": "delete", "path": ["buses", 0, "devices", 2]})
+    assert r["delete"] == (drive.parent / "devices" / "node_c.yaml").resolve().as_uri()
+    text = E.apply_edits(ls.a.text, [E.Edit(tuple(e["range"][:2]), tuple(e["range"][2:]), e["text"])
+                                     for e in r["edits"]])
+    assert "include" not in text and "\n\n\n" not in text
+    # From the included file itself: the line of include is in the main file
+    ls = _Server(drive.parent / "devices" / "node_c.yaml")
+    r = edit_command(ls, {"uri": ls.uri, "action": "delete", "path": ["buses", 0, "devices", 2]})
+    assert r["delete"] == ls.uri and not r["edits"] and [o["uri"] for o in r["others"]] == [drive.resolve().as_uri()]
+    # A device of the main file: an ordinary edit
+    r = edit_command(ls, {"uri": ls.uri, "action": "delete", "path": ["buses", 0, "devices", 0]})
+    assert "delete" not in r and "edit" in r

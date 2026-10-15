@@ -570,7 +570,9 @@ not nested.
 To keep one file per device, add a device with **Add Device in a New File…** on a bus in the
 VS Code Map view, or **+ Device in a new file** on a bus page of the web editor: the editor makes
 the file (by default `devices/<name>.yaml`) with the device, named after the file when that name
-is a free identifier on the bus, and adds it to `include`, in one edit.
+is a free identifier on the bus, and adds it to `include`, in one edit. Deleting a device from the
+editors' trees deletes an included file it leaves adding nothing to the map (only the bus by name,
+without devices, frames or value tables), with its line of `include`; Undo brings both back.
 
 Validation, documents and generated code use the whole map. Messages about an included file
 point into that file on the command line; in the editors they are shown on the `include` line
