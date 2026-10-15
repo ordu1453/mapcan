@@ -1,0 +1,6 @@
+# mapcan as a Zephyr module: add this repository to the west manifest (or ZEPHYR_EXTRA_MODULES), set
+# CONFIG_MAPCAN=y and call mapcan_generate() in the application's CMakeLists.txt (docs/zephyr.md).
+name: mapcan
+build:
+  cmake: zephyr
+  kconfig: zephyr/Kconfig

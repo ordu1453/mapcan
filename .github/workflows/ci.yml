@@ -104,6 +104,35 @@ jobs:
           MAPCAN_REQUIRE_CPPCHECK: "1"     # a missing cppcheck fails the job instead of skipping the test
         run: uv run --no-sync pytest tests/test_codegen.py -k "cppcheck_and_misra or cortex" -p no:cacheprovider
 
+  # The Zephyr module and adapter: examples/zephyr (the bms of examples/vehicle-can.yaml, its code generated from
+  # the map at build time) built for native_sim with Zephyr's loopback CAN driver and run for two seconds.
+  zephyr:
+    if: ${{ !inputs.skip-linux }}
+    runs-on: ubuntu-latest
+    env:
+      ZEPHYR_VERSION: v4.1.0
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the build tools, Zephyr and mapcan
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build device-tree-compiler gperf
+          git clone --depth 1 --branch "$ZEPHYR_VERSION" https://github.com/zephyrproject-rtos/zephyr ../zephyrproject/zephyr
+          pip install west -r ../zephyrproject/zephyr/scripts/requirements-base.txt .
+          west init -l ../zephyrproject/zephyr
+      - name: Build examples/zephyr for native_sim
+        run: |
+          west build -b native_sim/native/64 examples/zephyr -d build/zephyr-app \
+            -- -DZEPHYR_EXTRA_MODULES="$GITHUB_WORKSPACE"
+      - name: Run it
+        run: |
+          build/zephyr-app/zephyr/zephyr.exe --stop_at=2 | tee zephyr.txt
+          grep -F "bms: contactor request 2, torque request 1205 (raw)" zephyr.txt
+          grep -F "bms: command timed out: yes" zephyr.txt
+
   # A trial build of the Docker image (without publishing): otherwise a broken Dockerfile shows up only
   # in release.yml after the tag.
   docker:

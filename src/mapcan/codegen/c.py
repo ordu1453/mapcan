@@ -846,6 +846,14 @@ class DeviceGen(CGen):
             out.append(f"}} {self.p(D, 'tx_frame')}_t;")
             out.append(f"/* {self.T['tx_schedule']} */")
             out.append(f"extern const mapcan_tx_entry_t {self.p(D, 'tx_schedule')}[{self.P(D, 'TX_COUNT')}];")
+            out.append(f"/* {self.T['tx_state']} */")
+            out.append("typedef struct {")
+            out += [f"    {self.p(self.frame_name(f))}_t {self.frame_name(f)};" for f in self.tx]
+            out.append(f"}} {self.p(D, 'tx')}_t;")
+            out.append(f"void {self.p(D, 'tx_init')}({self.p(D, 'tx')}_t *tx);")
+            out.append(f"/* {self.T['tx_pack']} */")
+            out.append(f"int {self.p(D, 'tx_pack')}(const {self.p(D, 'tx')}_t *tx, {self.p(D, 'tx_frame')}_t frame, "
+                       "uint8_t *data, size_t size);")
         out.append(f"#define {self.P(D, 'RX_COUNT')} {len(self.rx)}u")
         if self.rx:
             out.append("typedef enum {")
@@ -888,6 +896,18 @@ class DeviceGen(CGen):
                            f"{_c_bool(f.bus.fd)}, {f.cycle_ms or 0}u, {_c_bool(f.trigger == 'event')}, "
                            f"{inhibit}u}},")
             out += ["};", ""]
+            tx_t = f"{self.p(D, 'tx')}_t"
+            out += [f"void {self.p(D, 'tx_init')}({tx_t} *tx)", "{",
+                    "    if (tx == NULL) {", "        return;", "    }"]
+            out += [f"    {self.p(self.frame_name(f))}_init(&tx->{self.frame_name(f)});" for f in self.tx]
+            out += ["}", ""]
+            out += [f"int {self.p(D, 'tx_pack')}(const {tx_t} *tx, {self.p(D, 'tx_frame')}_t frame, uint8_t *data, "
+                    "size_t size)", "{", "    int rc = -1;", "    if (tx != NULL) {", "        switch (frame) {"]
+            for f in self.tx:
+                F = self.frame_name(f)
+                out += [f"        case {self.P(D, 'TX', F)}:",
+                        f"            rc = {self.p(F)}_pack(data, size, &tx->{F});", "            break;"]
+            out += ["        default:", "            break;", "        }", "    }", "    return rc;", "}", ""]
         if not self.rx:
             return out
         out.append(f"const mapcan_rx_entry_t {self.p(D, 'rx_frames')}[{self.P(D, 'RX_COUNT')}] = {{")
@@ -956,8 +976,19 @@ def device_names(cmap: MapCan, buses: list[str] | None = None) -> list[str]:
     return out
 
 
+TARGETS = ("c", "zephyr")
+
+
+def _target_files(g: CGen, out: Path, target: str) -> list[Path]:
+    """The files of an adapter to an RTOS or driver API next to the code (none for plain C)."""
+    if target == "zephyr":
+        from .zephyr import write_zephyr
+        return write_zephyr(g, out)
+    return []
+
+
 def generate_c_devices(cmap: MapCan, out_dir: str | Path, devices: list[str] | None = None, prefix: str = "",
-                       buses: list[str] | None = None, phys_type: str = "float") -> list[Path]:
+                       buses: list[str] | None = None, phys_type: str = "float", target: str = "c") -> list[Path]:
     """<device>.h / <device>.c for each device (all of them without ``devices``); a device on several buses
     gets a pair per bus, named with the bus (<bus>_<device>)."""
     names = device_names(cmap, buses)
@@ -979,12 +1010,12 @@ def generate_c_devices(cmap: MapCan, out_dir: str | Path, devices: list[str] | N
             h, c = out / f"{g.base}.h", out / f"{g.base}.c"
             h.write_text(g.header(), encoding="utf-8")
             c.write_text(g.source(), encoding="utf-8")
-            written += [h, c]
+            written += [h, c, *_target_files(g, out, target)]
     return written
 
 
 def generate_c(cmap: MapCan, out_dir: str | Path, prefix: str = "", buses: list[str] | None = None,
-               phys_type: str = "float") -> list[Path]:
+               phys_type: str = "float", target: str = "c") -> list[Path]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     written = []
@@ -995,5 +1026,5 @@ def generate_c(cmap: MapCan, out_dir: str | Path, prefix: str = "", buses: list[
         h, c = out / f"{g.base}.h", out / f"{g.base}.c"
         h.write_text(g.header(), encoding="utf-8")
         c.write_text(g.source(), encoding="utf-8")
-        written += [h, c]
+        written += [h, c, *_target_files(g, out, target)]
     return written

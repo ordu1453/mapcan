@@ -159,6 +159,12 @@ if (bms_rx_timed_out(&rx, BMS_RX_VCU_COMMAND, now_ms)) { enter_safe_state(); }
 `mapcan gen py --device bms` writes the same selection as a Python module for a test bench that stands
 in for the device: its frames, `TX_FRAMES`, `RX_FRAMES`, and `DECODERS` of the frames it receives.
 
+The device also has `bms_tx_t`, the values of the frames it sends (`bms_tx_init()` sets the initial ones),
+and `bms_tx_pack(&tx, BMS_TX_BMS_STATUS, buf, size)`, which packs one of them by its number: what a TX
+scheduler of any RTOS needs. `--target zephyr` adds an adapter to the CAN API of Zephyr RTOS (`struct
+can_frame`, filters, a TX schedule on work items), and this repository is a Zephyr module that generates the
+code from the map at build time: see [zephyr.md](zephyr.md).
+
 A device on several buses (a gateway) gets a pair of files per bus, named with the bus. The device
 files replace the bus files of that bus in a firmware: include one or the other.
 

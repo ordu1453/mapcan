@@ -21,7 +21,7 @@ from mapcan.export.dbc import bus_database
 from mapcan.loader import load
 from mapcan.model import Signal
 
-from .conftest import REFERENCE, ROOT, run
+from .conftest import DATA, REFERENCE, ROOT, run
 
 PATTERN = 0xA5C396E15A3C691E
 
@@ -1266,3 +1266,100 @@ def test_code_size_cortex_m0(map_name, bus, tmp_path):
     text = int(subprocess.run([ARM_SIZE, str(obj)], check=True, capture_output=True, text=True)
                .stdout.splitlines()[-1].split()[0])
     assert text <= CODE_SIZE_BUDGET[(map_name, bus)], text
+
+
+ZEPHYR_STUB = DATA / "zephyr_stub"
+STUB_GLOBALS = ["uint32_t stub_uptime_ms;", "struct can_frame stub_sent[16];", "int stub_sent_count;",
+                "struct can_filter stub_filters[16];", "int stub_filter_count;",
+                "struct k_work_delayable *stub_works[16];", "int stub_work_count;"]
+
+
+def _zephyr_build(tmp_path, sources, main: list[str], fd: bool = False) -> list[str]:
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    *(["-DCONFIG_CAN_FD_MODE"] if fd else []), "-isystem", str(ZEPHYR_STUB),
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    return subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.splitlines()
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+@pytest.mark.parametrize("kind", ["bus", "device"])
+def test_zephyr_adapter_builds(cmap, kind, tmp_path):
+    """--target zephyr: the adapter of the buses and of the devices builds against the Zephyr CAN API."""
+    from mapcan.codegen.c import generate_c_devices
+
+    files = (generate_c(cmap, tmp_path, target="zephyr") if kind == "bus"
+             else generate_c_devices(cmap, tmp_path, target="zephyr"))
+    zephyr = [p for p in files if p.name.endswith("_zephyr.c")]
+    assert zephyr
+    for src in zephyr:
+        base = src.name.removesuffix("_zephyr.c")
+        main = ["#include <zephyr/drivers/can.h>", f'#include "{base}_zephyr.h"', *STUB_GLOBALS,
+                "int main(void) { return 0; }"]
+        _zephyr_build(tmp_path, [src, tmp_path / f"{base}.c"], main, fd=any(b.fd for b in cmap.buses))
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_zephyr_device(tmp_path):
+    """The Zephyr adapter of a device: its TX schedule sends the frames of the Python module at the periods of the
+    map (a hook updates the values), filters are installed, received frames are dispatched."""
+    from mapcan.codegen.c import generate_c_devices
+
+    cmap = load(ROOT / "examples" / "vehicle-can.yaml").map
+    files = generate_c_devices(cmap, tmp_path, ["bms"], target="zephyr")
+    mod = _import(generate_py(cmap, tmp_path / "py")[0])
+    command = mod.VcuCommand(contactor_request=1, torque_request=-300)
+    data = command.pack()
+    main = ["#include <stdio.h>", "#include <inttypes.h>", '#include "bms_zephyr.h"', *STUB_GLOBALS,
+            "static void hook(bms_tx_frame_t frame, bms_tx_t *tx, void *user_data)", "{", "    (void)user_data;",
+            "    if (frame == BMS_TX_BMS_CELLS) {", "        tx->bms_cells.cell_group = 1u;",
+            "        tx->bms_cells.cell_4 = 3300u;", "    }", "}",
+            "static void show(const struct can_frame *f)", "{",
+            '    printf("%" PRIX32 " %u %u", f->id, f->dlc, f->flags);',
+            '    for (int i = 0; i < can_dlc_to_bytes(f->dlc); i++) printf(" %02X", f->data[i]);', '    printf("\\n");',
+            "}",
+            "int main(void)", "{", "    struct device can = {\"can0\"};", "    static bms_tx_t tx;",
+            "    static bms_rx_t rx;", "    struct k_msgq q;", "    bms_tx_init(&tx);", "    bms_rx_init(&rx);",
+            '    printf("%d\\n", bms_zephyr_tx_start(&can, &tx, hook, NULL));',
+            "    for (int i = 0; i < stub_work_count; i++) {",
+            "        stub_works[i]->work.handler(&stub_works[i]->work);",
+            '        printf("%" PRId64 "\\n", stub_works[i]->delay_ms);', "    }",
+            "    for (int i = 0; i < stub_sent_count; i++) show(&stub_sent[i]);",
+            '    printf("%d", bms_zephyr_add_rx_filters(&can, &q));',     # the order of printf arguments is not set
+            '    printf(" %d %" PRIX32 " %" PRIX32 " %u\\n", stub_filter_count, stub_filters[0].id,',
+            "           stub_filters[0].mask, stub_filters[0].flags);",
+            "    struct can_frame f = {0};", "    f.id = 0x" + f"{command.ID:X}" + "u;",
+            f"    f.dlc = can_bytes_to_dlc({len(data)}u);",
+            *[f"    f.data[{i}] = 0x{b:02X}u;" for i, b in enumerate(data)],
+            "    stub_uptime_ms = 1234u;",
+            '    printf("%d", bms_zephyr_dispatch(&rx, &f));',
+            '    printf(" %d %" PRIu32 " %d %d\\n", rx.received[0], rx.received_ms[0],',
+            "           (int)rx.vcu_command.contactor_request, (int)rx.vcu_command.torque_request);",
+            "    vcu_command_t c;", "    f.flags = CAN_FRAME_IDE;",
+            '    printf("%d", vcu_command_from_can_frame(&c, &f));',
+            "    f.flags = CAN_FRAME_RTR;", '    printf(" %d\\n", bms_zephyr_dispatch(&rx, &f));',
+            "    bms_zephyr_tx_stop();",
+            '    printf("%d %d\\n", stub_works[0]->scheduled, stub_works[1]->scheduled);', "    return 0;", "}"]
+    out = _zephyr_build(tmp_path, [p for p in files if p.suffix == ".c"], main)
+    status, cells = mod.BmsStatus().pack(), mod.BmsCells(cell_group=1, cell_4=3300).pack()
+    assert out == ["0", str(mod.BMS_STATUS_CYCLE_MS), str(mod.BMS_CELLS_CYCLE_MS),
+                   f"{mod.BmsStatus.ID:X} 8 0" + "".join(f" {b:02X}" for b in status),
+                   f"{mod.BmsCells.ID:X} 8 1" + "".join(f" {b:02X}" for b in cells),
+                   f"0 1 {mod.VcuCommand.ID:X} 7FF 0",
+                   "0 1 1234 1 -300",
+                   "-1 -1",
+                   "0 0"]
+
+
+def test_gen_c_target_cli(tmp_path):
+    from typer.testing import CliRunner
+
+    from mapcan.cli import app
+
+    m = str(ROOT / "examples" / "vehicle-can.yaml")
+    r = CliRunner().invoke(app, ["gen", "c", m, "-o", str(tmp_path), "--device", "bms", "--target", "zephyr"])
+    assert r.exit_code == 0, r.output
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["bms.c", "bms.h", "bms_zephyr.c", "bms_zephyr.h"]
+    assert CliRunner().invoke(app, ["gen", "c", m, "-o", str(tmp_path), "--target", "rtos"]).exit_code != 0

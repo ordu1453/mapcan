@@ -84,6 +84,10 @@ RU: dict[str, str] = {
         "Код одного устройства вместо шин: его кадры, расписание передачи, фильтры приёма и разбор (можно "
         "повторять).",
     "Code of every device instead of the buses.": "Код каждого устройства вместо шин.",
+    "c: the driver-independent code; zephyr: also an adapter to the Zephyr RTOS CAN API (struct can_frame, "
+    "filters, TX schedule).":
+        "c — код, не зависящий от драйвера; zephyr — ещё и адаптер к CAN API Zephyr RTOS (struct can_frame, "
+        "фильтры, расписание передачи).",
     "Module of one device instead of the buses, for a test bench standing in for it (repeatable).":
         "Модуль одного устройства вместо шин — для стенда, который его заменяет (можно повторять).",
     "Module of every device instead of the buses.": "Модуль каждого устройства вместо шин.",

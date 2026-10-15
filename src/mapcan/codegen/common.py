@@ -38,6 +38,8 @@ CODE_TEXT = {
         "rx_frames": "Принимаемые кадры в порядке перечисления …_RX_*.",
         "rx_filters": "Фильтры приёма: точное совпадение ID каждого кадра; …_RX_FILTER_* — одна пара на все ID.",
         "rx_state": "Последние принятые значения каждого кадра и время их приёма (now_ms при разборе).",
+        "tx_state": "Значения передаваемых кадров устройства (…_tx_init — начальные из карты).",
+        "tx_pack": "Упаковать передаваемый кадр по его номеру (…_TX_*): длина кадра или -1.",
         "rx_timed_out": "Кадр не принят дольше тайм-аута (timeout_ms карты, без него — три периода) или ещё ни "
                         "разу; false для кадра без тайм-аута.",
         "rx_dispatch": "Распаковать принятый кадр в rx (now_ms — время в мс от любого счётчика): номер кадра "
@@ -91,6 +93,8 @@ CODE_TEXT = {
         "rx_frames": "Received frames in the order of …_RX_*.",
         "rx_filters": "Acceptance filters: the exact ID of each frame; …_RX_FILTER_* is one pair for all the IDs.",
         "rx_state": "The last received values of each frame and when they came (now_ms of the dispatch).",
+        "tx_state": "The values of the frames the device sends (…_tx_init: the initial ones of the map).",
+        "tx_pack": "Pack a frame the device sends by its number (…_TX_*): the frame length, or -1.",
         "rx_timed_out": "The frame has not come for longer than its timeout (timeout_ms of the map, three periods "
                         "without one) or never; false for a frame without a timeout.",
         "rx_dispatch": "Unpack a received frame into rx (now_ms: the time in ms from any counter): the frame "

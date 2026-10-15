@@ -59,6 +59,11 @@ needs at least the version of mapcan that introduced it; former names stay reada
   in parentheses, the selector is compared with literals of its signedness, and the helpers of the
   signed representations work in explicit steps. The bit helpers index bytes with `uint16_t`: a
   transport-protocol PGN longer than 256 bytes was read at wrong offsets.
+- Generated C: `--target zephyr` adds an adapter to the Zephyr RTOS CAN API (`<frame>_to_can_frame()`,
+  `<frame>_from_can_frame()`, and for a device its `struct can_filter`s, dispatch, sending and a TX
+  schedule on `k_work_delayable`); the repository is a Zephyr module with `mapcan_generate()`, which
+  generates the code from the map at build time (docs/zephyr.md). The code of a device has `<device>_tx_t`
+  with `<device>_tx_init()` and `<device>_tx_pack()`.
 - Generated C per device: `mapcan gen c --device <name>` (or `--devices`) writes the frames a device
   sends and receives, its TX schedule, the frames it receives with acceptance filters, and
   `<device>_rx_dispatch()`, which unpacks a received frame into the device's RX state and notes when
