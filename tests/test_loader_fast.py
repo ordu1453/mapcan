@@ -163,3 +163,37 @@ def test_gc_is_paused_while_reading_and_restored():
         assert not gc.isenabled()                 # disabled before: left disabled
     finally:
         gc.enable()
+
+
+def test_included_files_are_read_fast(monkeypatch):
+    """Included files go through libyaml as the main file does, with the same data, positions and messages as
+    through ruamel's loader."""
+    main = ROOT / "examples" / "tractor" / "tractor.yaml"
+    text = main.read_text(encoding="utf-8")
+    fast = L.loads(text, str(main))
+    assert fast.source.includes
+    made = []
+    make = L._make_yaml
+    monkeypatch.setattr(L, "_make_yaml", lambda: made.append(1) or make())
+    L.loads(text, str(main))
+    assert made == []                    # neither the map nor its included files need ruamel's loader
+    monkeypatch.setattr(L, "_fast_load", lambda t: None)
+    slow = L.loads(text, str(main))
+    assert fast.merged == slow.merged and fast.source.positions == slow.source.positions
+    assert fast.source.files == slow.source.files
+    assert [d.format() for d in fast.report.sorted()] == [d.format() for d in slow.report.sorted()]
+
+
+def test_disk_reads_are_cached_until_the_file_changes(tmp_path):
+    import os
+
+    from mapcan.lsp import analysis as A
+
+    p = tmp_path / "part.yaml"
+    p.write_text("a: 1\n", encoding="utf-8")
+    assert A.read_disk(str(p)) == "a: 1\n"
+    p.write_text("a: 22\n", encoding="utf-8")
+    st = p.stat()
+    os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+    assert A.read_disk(str(p)) == "a: 22\n"
+    assert A.read_disk(str(tmp_path / "missing.yaml")) is None

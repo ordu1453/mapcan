@@ -592,14 +592,20 @@ def _include(data: dict, base: Path | None, src: SourceMap, report: Report,
             report.add(src.diag("error", "include", _("include: file {name!r} not found", name=name), ("include", i)))
             continue
         fname = str(path)
-        try:
-            raw = _make_yaml().load(text)
-        except MarkedYAMLError as e:
-            problem, line, col = _yaml_error(e, text)
-            report.add(Diagnostic("error", "yaml", problem, fname, line, col))
-            continue
+        # Read as the main file is: through libyaml, ruamel's loader only for what it does not read the same way
+        fast = _fast_load(text)
+        if fast is not None:
+            raw, marks = fast
+        else:
+            marks = None
+            try:
+                raw = _make_yaml().load(text)
+            except MarkedYAMLError as e:
+                problem, line, col = _yaml_error(e, text)
+                report.add(Diagnostic("error", "yaml", problem, fname, line, col))
+                continue
         sub_src = SourceMap(fname)
-        part = _plain(raw, (), sub_src, report) if raw is not None else {}
+        part = _plain(raw, (), sub_src, report, marks=marks) if raw is not None else {}
         sub_src.positions.setdefault((), (1, 1))
         src.includes.append((i, fname))
         if not isinstance(part, dict):

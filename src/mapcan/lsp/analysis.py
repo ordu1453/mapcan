@@ -6,6 +6,7 @@ and :mod:`mapcan.lsp.server` converts them to the protocol's types.
 
 from __future__ import annotations
 
+import os
 import re
 import typing
 from dataclasses import dataclass, field
@@ -229,11 +230,23 @@ def _strip_comment(line: str) -> str:
 Reader = typing.Callable[[str], "str | None"]
 
 
+# Texts of files read from disk, by path: kept until the file changes (its modification time or size)
+_DISK: dict[str, tuple[tuple[int, int], str]] = {}
+
+
 def read_disk(path: str) -> str | None:
+    """The text of a file on disk; an included file that did not change is not read again on every analysis."""
     try:
-        return Path(path).read_text(encoding="utf-8")
-    except OSError:
+        st = os.stat(path)
+        key = (st.st_mtime_ns, st.st_size)
+        cached = _DISK.get(path)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        text = Path(path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
         return None
+    _DISK[path] = (key, text)
+    return text
 
 
 def _views(a: Analysis, result: LoadResult, read: Reader, skip: str | None) -> None:
