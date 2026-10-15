@@ -778,7 +778,9 @@ def op_rename_key(doc, path: list, new_key: Any) -> None:
 
 
 def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None) -> dict:
-    """The most readable notation of a position that parses back to the same start/length."""
+    """The canonical notation of a position (#117), which parses back to the same start/length: by bytes when the
+    signal takes whole bytes from a byte boundary (``byte`` + ``byte_length``) or fits in one byte (``byte`` + ``bit``
+    + ``bit_length``), else ``start_bit`` + ``bit_length``."""
     candidates: list[dict] = []
     byte, bit = divmod(start, 8)
     if big_endian:
@@ -787,6 +789,8 @@ def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None)
             first = byte - nbytes + 1
             if first >= 0:
                 candidates.append({"byte": first, "byte_length": nbytes})
+        if bit + length <= 8:
+            candidates.append({"byte": byte, "bit": bit, "bit_length": length})
     else:
         if bit == 0 and length % 8 == 0:
             candidates.append({"byte": byte, "byte_length": length // 8})
@@ -813,8 +817,54 @@ def op_set_layout(doc, path: list, start_bit: int, bit_length: int) -> None:
     if (not all(isinstance(v, int) and not isinstance(v, bool) for v in (start_bit, bit_length))
             or not 0 <= start_bit < MAX_FRAME_BITS or not 1 <= bit_length <= 64):
         raise OpError(_("invalid position"))
-    big = sig.get("byte_order") == "big_endian"
-    used_canonical = "start_bit" in sig and not any(k in sig for k in ("byte", "bit", "byte_length"))
+    _write_layout(sig, start_bit, bit_length)
+
+
+def _signal_of(sig: CommentedMap, keys: dict) -> Signal | None:
+    """The signal's position with ``keys`` as its layout keys; None when it does not parse."""
+    encoding = sig.get("encoding")
+    order = sig.get("byte_order")
+    try:
+        return Signal(name="x", encoding=encoding if isinstance(encoding, str) else "raw",
+                      byte_order=order if order in ("big_endian", "little_endian") else "little_endian", **keys)
+    except (ValueError, TypeError):
+        return None
+
+
+def _canonical_keys(sig: CommentedMap, start_bit: int, bit_length: int) -> dict | None:
+    """The layout keys of the position in the canonical notation; None when the signal has them already. In the
+    notation by bytes, a length the encoding implies (a float's 32 bits, a flag's bit) and ``bit: 0`` stay implicit
+    when they are."""
+    current = {k: sig[k] for k in LAYOUT_KEYS if k in sig}
+    new = layout_keys(start_bit, bit_length, sig.get("byte_order") == "big_endian", sig.get("encoding"))
+    if "byte" in new:
+        drop = set()
+        if "bit_length" not in current and "byte_length" not in current:
+            drop |= {"bit_length", "byte_length"}
+        if new.get("bit") == 0 and "byte" in current and "bit" not in current:
+            drop.add("bit")
+        short = {k: v for k, v in new.items() if k not in drop}
+        if short != new and (s := _signal_of(sig, short)) is not None and (s.start_bit, s.bit_length) == (
+                start_bit, bit_length):
+            new = short
+    return None if new == current else new
+
+
+def canonical_position(sig: Any) -> dict | None:
+    """The layout keys of a signal in the canonical notation (#117) when it has others and its position parses."""
+    if not isinstance(sig, CommentedMap):
+        return None
+    s = _signal_of(sig, {k: sig[k] for k in LAYOUT_KEYS if k in sig})
+    if s is None or s.start_bit is None or s.bit_length is None:
+        return None
+    return _canonical_keys(sig, s.start_bit, s.bit_length)
+
+
+def _write_layout(sig: CommentedMap, start_bit: int, bit_length: int) -> None:
+    """Write a position in the canonical notation where the layout keys of the signal are."""
+    new = _canonical_keys(sig, start_bit, bit_length)
+    if new is None:
+        return
     keys = list(sig.keys())
     pos = min((keys.index(k) for k in LAYOUT_KEYS if k in sig), default=None)
     if pos is None:
@@ -822,12 +872,16 @@ def op_set_layout(doc, path: list, start_bit: int, bit_length: int) -> None:
     for k in LAYOUT_KEYS:
         if k in sig:
             del sig[k]
-    if used_canonical:
-        new = {"start_bit": start_bit, "bit_length": bit_length}
-    else:
-        new = layout_keys(start_bit, bit_length, big, sig.get("encoding"))
     for i, (k, v) in enumerate(new.items()):
         sig.insert(pos + i, k, v)
+
+
+def canonical_layout(sig: Any) -> None:
+    """Rewrite the position of a signal in the canonical notation (#117), if it parses: the form edits its fields
+    one by one, and ``bit_length: 12`` written next to ``byte: 1`` becomes ``start_bit: 8``."""
+    s = _signal_of(sig, {k: sig[k] for k in LAYOUT_KEYS if k in sig}) if isinstance(sig, CommentedMap) else None
+    if s is not None and s.start_bit is not None and s.bit_length is not None:
+        _write_layout(sig, s.start_bit, s.bit_length)
 
 
 OPS = {
@@ -849,11 +903,14 @@ def check_editable(source, ops: list[dict]) -> None:
 
 
 def apply_ops(doc, ops: list[dict]) -> None:
+    # Signals whose position fields were written one by one: their position is made canonical after the batch
+    positioned: list[tuple[list, Any]] = []
     for o in ops:
         kind = o.get("op")
         if kind not in OPS:
             raise OpError(_("unknown operation: {op!r}", op=kind))
-        if not isinstance(o.get("path"), list):
+        path = o.get("path")
+        if not isinstance(path, list):
             raise OpError(_("path must be a list"))
         try:
             OPS[kind](doc, o)
@@ -861,6 +918,23 @@ def apply_ops(doc, ops: list[dict]) -> None:
             raise
         except (KeyError, TypeError, ValueError) as e:
             raise OpError(f"{kind}: {e}") from e
+        if kind in ("set", "remove") and len(path) >= 3 and path[-3] == "signals" \
+                and path[-1] in (*LAYOUT_KEYS, "byte_order"):
+            sig = _get_or_none(doc, path[:-1])
+            if isinstance(sig, CommentedMap):
+                positioned.append((path[:-1], sig.get("name")))
+    for path, name in positioned:
+        # A later operation of the batch may have moved or removed the signal: only the same one is touched
+        sig = _get_or_none(doc, path)
+        if isinstance(sig, CommentedMap) and sig.get("name") == name:
+            canonical_layout(sig)
+
+
+def _get_or_none(doc, path: list) -> Any:
+    try:
+        return _get(doc, path)
+    except (OpError, KeyError, IndexError, TypeError, ValueError):
+        return None
 
 
 # ---------------------------------------------------------------- renaming devices

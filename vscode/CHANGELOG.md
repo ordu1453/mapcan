@@ -19,6 +19,10 @@
   shows no load instead of `≥0%`.
 * The Node form of a frame or a signal starts with its identifier, then the optional title that
   defaults to it; a node just added has its identifier selected, ready to be typed over.
+* A signal's position is written in one notation whichever field of the Node form or drag on the
+  bit layout changed it (#117): `byte` + `byte_length` for whole bytes from a byte boundary,
+  `byte` + `bit` + `bit_length` within one byte, `start_bit` + `bit_length` otherwise. A signal
+  dragged across a byte boundary switches the notation in place.
 
 ## 0.6.4
 

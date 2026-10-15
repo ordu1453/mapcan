@@ -61,6 +61,7 @@ def test_values_keys_become_ints():
     (12, 12, False, {"start_bit": 12, "bit_length": 12}),
     (16, 16, True, {"byte": 1, "byte_length": 2}),
     (19, 9, True, {"start_bit": 19, "bit_length": 9}),
+    (19, 4, True, {"byte": 2, "bit": 3, "bit_length": 4}),
 ])
 def test_layout_keys(start, length, be, expected):
     assert layout_keys(start, length, be, None) == expected
@@ -70,6 +71,50 @@ def test_layout_keys_flag_encoding_needs_explicit_length():
     # for encoding: flag, `byte: 1` would mean 1 bit: an explicit length is needed
     assert layout_keys(8, 8, False, "flag") != {"byte": 1}
     assert layout_keys(11, 1, False, "flag") == {"byte": 1, "bit": 3}
+
+
+SIGNAL_DOC = "signals:\n  - name: s\n    encoding: raw\n{layout}    unit: V\n"
+SIGNAL = ["signals", 0]
+
+
+def _layout(layout: str, ops: list[dict]) -> str:
+    out = _edit(SIGNAL_DOC.format(layout=layout), ops)
+    return out.split("encoding: raw\n", 1)[1].split("    unit: V\n", 1)[0]
+
+
+@pytest.mark.parametrize("layout, ops, expected", [
+    # a length across bytes written next to `byte` turns into start_bit, and back
+    ("    byte: 1\n    byte_length: 1\n",
+     [{"op": "remove", "path": [*SIGNAL, "byte_length"]}, {"op": "set", "path": [*SIGNAL, "bit_length"], "value": 12}],
+     "    start_bit: 8\n    bit_length: 12\n"),
+    ("    start_bit: 8\n    bit_length: 12\n", [{"op": "set", "path": [*SIGNAL, "bit_length"], "value": 16}],
+     "    byte: 1\n    byte_length: 2\n"),
+    # dragged to a byte boundary: the notation follows (#117)
+    ("    start_bit: 3\n    bit_length: 8\n",
+     [{"op": "set_layout", "path": SIGNAL, "start_bit": 16, "bit_length": 8}], "    byte: 2\n    byte_length: 1\n"),
+    # a value in one byte: byte, bit and bit_length
+    ("    start_bit: 8\n    bit_length: 16\n", [{"op": "set", "path": [*SIGNAL, "bit_length"], "value": 4}],
+     "    byte: 1\n    bit: 0\n    bit_length: 4\n"),
+    # big-endian: byte is the byte with the high part
+    ("    start_bit: 8\n    bit_length: 16\n", [{"op": "set", "path": [*SIGNAL, "byte_order"], "value": "big_endian"}],
+     "    byte: 0\n    byte_length: 2\n"),
+])
+def test_position_is_written_canonical(layout, ops, expected):
+    """#117: the editors write a position in one notation, whichever field or drag changed it."""
+    assert _layout(layout, ops) == expected
+
+
+def test_position_that_does_not_parse_is_left_as_typed():
+    out = _edit(SIGNAL_DOC.format(layout="    byte: 1\n    byte_length: 1\n"),
+                [{"op": "set", "path": [*SIGNAL, "bit_length"], "value": 12}])
+    assert "    byte: 1\n    byte_length: 1\n" in out and "    bit_length: 12\n" in out
+
+
+def test_position_keeps_the_length_the_encoding_implies():
+    text = "signals:\n  - name: s\n    encoding: float\n    byte: 0\n"
+    assert _edit(text, [{"op": "set", "path": [*SIGNAL, "byte"], "value": 4}]).endswith("    byte: 4\n")
+    out = _edit(text, [{"op": "set_layout", "path": SIGNAL, "start_bit": 3, "bit_length": 32}])
+    assert out.endswith("    start_bit: 3\n    bit_length: 32\n")
 
 
 def test_errors():

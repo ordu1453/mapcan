@@ -315,3 +315,31 @@ def format_text(text: str) -> str:
                         or new.count("#") != text.count("#")):
         raise FmtError(_("cannot format: the result would read differently; the file is left as it is"))
     return new
+
+
+def position_notes(text: str) -> list[tuple[int, str, str]]:
+    """Signals whose position is not written in the canonical notation the editors use (#117): (line from 1, signal,
+    the canonical keys as YAML). ``mapcan fmt`` does not rewrite them: they are reported by ``--check`` only."""
+    from .web.yamlops import canonical_position
+
+    try:
+        doc = make_yaml(text).load(text)
+    except Exception:  # noqa: BLE001 — not YAML: format_text reports it
+        return []
+    out = []
+
+    def frames(node: Any) -> list:
+        items = node.get("frames") if isinstance(node, CommentedMap) else None
+        return items if isinstance(items, CommentedSeq) else []
+
+    buses = doc.get("buses") if isinstance(doc, CommentedMap) else None
+    for bus in buses if isinstance(buses, CommentedSeq) else []:
+        devices = bus.get("devices") if isinstance(bus, CommentedMap) else None
+        owners = [bus, *(devices if isinstance(devices, CommentedSeq) else [])]
+        for frame in (f for o in owners for f in frames(o)):
+            signals = frame.get("signals") if isinstance(frame, CommentedMap) else None
+            for sig in signals if isinstance(signals, CommentedSeq) else []:
+                if (keys := canonical_position(sig)) is not None:
+                    written = ", ".join(f"{k}: {v}" for k, v in keys.items())
+                    out.append((sig.lc.line + 1, str(sig.get("name", "?")), written))
+    return out

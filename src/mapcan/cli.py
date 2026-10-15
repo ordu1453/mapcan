@@ -261,7 +261,7 @@ def fmt(
     paths: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help=_("Map files.")),
     check: bool = typer.Option(False, "--check", help=_("Do not write; exit code 1 if a file is not formatted.")),
 ) -> None:
-    from .fmt import FmtError, format_text
+    from .fmt import FmtError, format_text, position_notes
 
     unformatted, failed = [], False
     for f in _with_included(paths):
@@ -272,6 +272,11 @@ def fmt(
             typer.secho(f"{f}: {e}", fg=typer.colors.RED, err=True)
             failed = True
             continue
+        if check:
+            # Positions in another notation than the editors write (#117): a note, the map stays valid
+            for line, name, keys in position_notes(text):
+                typer.echo(_("{file}:{line}: note: signal {name!r}: the editors write its position as {keys}",
+                             file=f, line=line, name=name, keys=keys))
         if new == text:
             continue
         unformatted.append(f)

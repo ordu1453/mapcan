@@ -302,6 +302,13 @@ marked as float.
 `start_bit` cannot be combined with `byte`/`bit`, and `bit_length` cannot be combined with
 `byte_length`.
 
+Both notations are valid. The editors (the forms and bit layouts of the web editor and VS Code,
+`mapcan import dbc`) write one of them, whichever field or drag changed the position: the shorthand
+when the signal takes whole bytes from a byte boundary (`byte` + `byte_length`) or fits in one byte
+(`byte` + `bit` + `bit_length`), and `start_bit` + `bit_length` otherwise. A length the encoding
+implies (32 bits of a `float`, 1 bit of a `flag`) and `bit: 0` stay omitted where they were.
+`mapcan fmt --check` notes the positions written otherwise, without failing.
+
 #### Big-endian
 
 For `big_endian` (Motorola) signals, `start_bit` is also the position of the least significant
@@ -617,7 +624,8 @@ Included devices can be chosen as senders and receivers of the main file's frame
 The same map can be written with the keys in any order. `mapcan fmt FILE…` writes the keys of every
 node in one order, so that diffs of maps edited by different people and editors show only what changed;
 `mapcan fmt --check` exits 1 if a file is not in that order (for CI and a pre-commit hook). Included
-files are formatted with their map.
+files are formatted with their map. `--check` also notes signal positions written in another notation
+than the editors write (see [Shorthand position](#shorthand-position)); they do not fail the check.
 
 Only the order changes. Comments move with their key (a comment line just above a key belongs to it),
 and the author's choices stay: block or flow style (`{name: …}`), the position notation (`start_bit`

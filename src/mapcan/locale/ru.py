@@ -886,6 +886,8 @@ RU: dict[str, str] = {
     "Do not write; exit code 1 if a file is not formatted.":
         "Не записывать; код выхода 1, если файл не отформатирован.",
     "{file}: not formatted, run mapcan fmt": "{file}: не отформатирован, выполните mapcan fmt",
+    "{file}:{line}: note: signal {name!r}: the editors write its position as {keys}":
+        "{file}:{line}: примечание: сигнал {name!r}: редакторы записывают его положение как {keys}",
     "part_of: the map {map!r} is not found": "part_of: карта {map!r} не найдена",
     "part_of: the map {map!r} does not include this file": "part_of: карта {map!r} не включает этот файл",
     "the map {map!r} has {n} error(s) outside this file: open it to see them":

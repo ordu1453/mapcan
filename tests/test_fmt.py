@@ -91,3 +91,12 @@ def test_cli_check_and_write(tmp_path):
     assert runner.invoke(app, ["fmt", str(p)]).exit_code == 0
     assert p.read_bytes() == b"mapcan: 1\r\ndocument: {title: T, language: en}\r\nbuses: []\r\n"
     assert runner.invoke(app, ["fmt", "--check", str(p)]).exit_code == 0
+
+
+def test_cli_check_notes_positions_in_another_notation():
+    """#117: a position written otherwise than the editors write it is a note, not a failure, and is not
+    rewritten."""
+    r = runner.invoke(app, ["fmt", "--check", str(ROOT / "examples" / "minimal.yaml")])
+    assert r.exit_code == 0
+    assert "minimal.yaml:77: note: signal 'counter': the editors write its position as byte: 7, bit: 0, " \
+           "bit_length: 4" in r.output
