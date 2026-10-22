@@ -898,3 +898,21 @@ def test_inhibit_rules():
     assert not {"inhibit-long", "inhibit-cyclic"} & frame("cycle_ms: 10, trigger: event, inhibit_ms: 0.5")
     assert not {"inhibit-long", "inhibit-cyclic"} & frame("trigger: event, inhibit_ms: 50")
     assert "yaml" not in frame("trigger: event, inhibit_ms: 50")
+
+
+@pytest.mark.parametrize(("protocol", "warns"), [("canopen", True), ("j1939", True), ("can", False)])
+def test_big_endian_on_little_endian_protocols(protocol, warns):
+    """CANopen and J1939 carry little-endian data: a big-endian number spanning bytes is a mistake there, also outside
+    a PDO; within one byte the order changes nothing."""
+    frame = """
+        - name: f
+          id: 0x300
+          length: 8
+          signals:
+            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 2, byte_order: big_endian}
+            - {name: b, encoding: raw, description: x, byte: 2, byte_length: 1, byte_order: big_endian}
+            - {name: c, encoding: raw, description: x, byte: 3, byte_length: 2}
+    """
+    _, report = run(one_bus(frame, protocol=protocol))
+    found = [tuple(d.node) for d in report.diagnostics if d.code == "byte-order-protocol"]
+    assert found == ([("buses", 0, "devices", 0, "frames", 0, "signals", 0, "byte_order")] if warns else [])

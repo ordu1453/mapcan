@@ -157,8 +157,17 @@ const bitLength = (c: FormContext): number | null => {
   const bytes = value(c, "byte_length");
   return (value(c, "bit_length") as number | undefined) ?? (typeof bytes === "number" ? bytes * 8 : c.bitLength);
 };
-// Byte order matters for a value longer than a byte (any protocol: the format allows big-endian everywhere)
-const multiByte = (c: FormContext) => !["flag", "bytes", "string"].includes(encoding(c)) && (bitLength(c) ?? 0) > 8;
+// Byte order matters for a number that spans bytes. CANopen (CiA 301) and J1939 carry little-endian data only:
+// there the field shows only when it is set (to see and fix it; the validation warns, byte-order-protocol).
+const spansBytes = (c: FormContext): boolean => {
+  const len = bitLength(c) ?? 0;
+  const start = (value(c, "start_bit") as number | undefined)
+    ?? (typeof value(c, "byte") === "number" ? (value(c, "byte") as number) * 8 + ((value(c, "bit") as number | undefined) ?? 0) : 0);
+  return len > 8 || (len > 1 && (start % 8) + len > 8);
+};
+const LITTLE_ENDIAN_ONLY = ["canopen", "j1939"];
+const multiByte = (c: FormContext) => !["flag", "bytes", "string"].includes(encoding(c))
+  && (value(c, "byte_order") != null || (spansBytes(c) && !LITTLE_ENDIAN_ONLY.includes(c.protocol)));
 // The bit in the byte matters only for a value shorter than a byte
 const subByte = (c: FormContext) => encoding(c) === "flag" || (bitLength(c) ?? 8) < 8;
 // The other fields of the SDO exchange's value appear once it has an identifier

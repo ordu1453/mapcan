@@ -234,6 +234,8 @@ RU: dict[str, str] = {
         "direction кадра {name!r} противоречит его функции CANopen или отправителю: удалите его и укажите в sender "
         "устройство, которое передаёт кадр",
     "CANopen frame type on a non-CANopen bus": "Тип кадра CANopen на шине не CANopen",
+    "Big-endian signal on a CANopen or J1939 bus (they carry little-endian data)":
+        "Сигнал big-endian на шине CANopen или J1939 (они передают данные little-endian)",
     "sdo description on a frame that is not sdo_tx/sdo_rx": "Описание sdo у кадра не типа sdo_tx/sdo_rx",
     "Duplicate SDO exchange (command, index, subindex)": "Повтор SDO-обмена (команда, индекс, субиндекс)",
     "Name does not match the style rule (lint)": "Имя не соответствует правилу стиля (lint)",
@@ -480,7 +482,7 @@ RU: dict[str, str] = {
     "{name!r}: subindex without index": "{name!r}: subindex без index",
     "{name!r}: index {index:#06x} is outside the manufacturer and profile areas (0x2000..0x9FFF)":
         "{name!r}: индекс {index:#06x} вне областей производителя и профилей (0x2000..0x9FFF)",
-    "{name!r}: CANopen PDOs carry little-endian data": "{name!r}: PDO CANopen передаёт данные little-endian",
+    "{name!r}: {protocol} carries little-endian data": "{name!r}: {protocol} передаёт данные little-endian",
     "object {index:04X}:{sub:02X} is already mapped by {other}": "объект {index:04X}:{sub:02X} уже у сигнала {other}",
     "CANopen: index of the dictionary object mapped into the PDO.":
         "CANopen: индекс объекта словаря, отображённого в PDO.",

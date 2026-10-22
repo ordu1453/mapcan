@@ -111,10 +111,10 @@ const tests = {
   },
 
   async "completion offers enum values"(ctx) {
-    const pos = positionOf(ctx.doc, "byte_order: big_endian", "byte_order: ".length);
+    const pos = positionOf(ctx.doc, "encoding: scaled", "encoding: ".length);
     const list = await vscode.commands.executeCommand("vscode.executeCompletionItemProvider", ctx.doc.uri, pos);
     const labels = list.items.map((i) => (typeof i.label === "string" ? i.label : i.label.label));
-    assert.ok(labels.includes("little_endian"), labels.slice(0, 20).join(", "));
+    assert.ok(labels.includes("bitfield"), labels.slice(0, 20).join(", "));
   },
 
   async "export writes files from the current text"(ctx) {

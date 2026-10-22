@@ -107,6 +107,8 @@ RULES = {
     "direction-mismatch": ("warning", N_("Direction conflicts with the CANopen frame type")),
     "direction-deprecated": ("warning", N_("direction is set: it follows from the CANopen function and the sender")),
     "frame-type-protocol": ("warning", N_("CANopen frame type on a non-CANopen bus")),
+    "byte-order-protocol": ("warning", N_("Big-endian signal on a CANopen or J1939 bus (they carry little-endian "
+                                          "data)")),
     "sdo-frame-type": ("warning", N_("sdo description on a frame that is not sdo_tx/sdo_rx")),
     "sdo-duplicate": ("error", N_("Duplicate SDO exchange (command, index, subindex)")),
     "name-style": ("warning", N_("Name does not match the style rule (lint)")),
@@ -355,6 +357,7 @@ def _check_bus(ctx: _Ctx, bus) -> None:
             ctx.emit("can-id-range", _("CAN ID {can_id:#x} > 0x7FF", can_id=frame.can_id), p + ("id",))
     _check_spn(ctx, bus)
     _check_od(ctx, bus)
+    _check_byte_order(ctx, bus)
     _check_bus_load(ctx, bus)
 
 
@@ -374,9 +377,6 @@ def _check_od(ctx: _Ctx, bus) -> None:
             elif not 0x2000 <= s.index <= 0x9FFF:
                 ctx.emit("canopen-od", _("{name!r}: index {index:#06x} is outside the manufacturer and profile areas "
                                          "(0x2000..0x9FFF)", name=s.name, index=s.index), p)
-            elif s.byte_order == "big_endian":
-                ctx.emit("canopen-od", _("{name!r}: CANopen PDOs carry little-endian data", name=s.name),
-                         s._path + ("byte_order",))
     for dev in bus.devices:
         seen: dict[tuple[int, int], str] = {}
         for frame in dev.frames:
@@ -389,6 +389,24 @@ def _check_od(ctx: _Ctx, bus) -> None:
                                                index=key[0], sub=key[1], other=seen[key]), s._path + ("index",))
                 else:
                     seen[key] = f"{frame.name}.{s.name}"
+
+
+def _check_byte_order(ctx: _Ctx, bus) -> None:
+    """CANopen (CiA 301) and J1939 (SAE J1939-71) carry little-endian data: a big-endian number spanning bytes is
+    a mistake there (within one byte the order changes nothing)."""
+    if bus.protocol not in ("canopen", "j1939"):
+        return
+    for frame in bus.all_frames():
+        for s in frame.signals:
+            if s.byte_order != "big_endian" or s.encoding in ("bytes", "string"):
+                continue
+            if len({b // 8 for b in B.occupied_bits(s.start_bit, s.bit_length, True)}) > 1:
+                ctx.emit("byte-order-protocol", _("{name!r}: {protocol} carries little-endian data",
+                                                  name=s.name, protocol=_PROTOCOL_NAMES[bus.protocol]),
+                         s._path + ("byte_order",))
+
+
+_PROTOCOL_NAMES = {"canopen": "CANopen", "j1939": "J1939"}
 
 
 def _check_spn(ctx: _Ctx, bus) -> None:

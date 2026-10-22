@@ -98,5 +98,5 @@ def test_cli_check_notes_positions_in_another_notation():
     rewritten."""
     r = runner.invoke(app, ["fmt", "--check", str(ROOT / "examples" / "minimal.yaml")])
     assert r.exit_code == 0
-    assert "minimal.yaml:77: note: signal 'counter': the editors write its position as byte: 7, bit: 0, " \
+    assert "minimal.yaml:76: note: signal 'counter': the editors write its position as byte: 7, bit: 0, " \
            "bit_length: 4" in r.output

@@ -124,10 +124,24 @@ group("other nodes", () => {
     const sig = (extra: Partial<FormContext>) => visible("signal", ctx({ protocol: "can", ...extra }));
     expect(sig({ signalEncoding: "scaled" })).toEqual(expect.arrayContaining(["factor", "unit"]));
     expect(sig({ signalEncoding: "enum" })).not.toContain("factor");
-    expect(visible("signal", ctx({ signalEncoding: "raw", bitLength: 16 }))).toContain("byte_order");
     expect(sig({ signalEncoding: "raw", bitLength: 16 })).toContain("byte_order");
     expect(sig({ signalEncoding: "raw", bitLength: 8 })).not.toContain("byte_order");
     expect(sig({ signalEncoding: "bytes", bitLength: 16 })).not.toContain("byte_order");
+    // A multi-byte bit field: the order decides which byte holds its bit 0
+    expect(sig({ signalEncoding: "bitfield", bitLength: 16 })).toContain("byte_order");
+    // Fewer than 8 bits across a byte boundary: the order matters too
+    expect(sig({ signalEncoding: "raw", bitLength: 6, values: { start_bit: 4, bit_length: 6 } })).toContain("byte_order");
+    expect(sig({ signalEncoding: "raw", bitLength: 6, values: { byte: 1, bit: 2, bit_length: 6 } })).not.toContain("byte_order");
+  });
+
+  it("CANopen and J1939 carry little-endian data: no byte order unless it is set", () => {
+    for (const protocol of ["canopen", "j1939"]) {
+      expect(visible("signal", ctx({ protocol, signalEncoding: "raw", bitLength: 16 }))).not.toContain("byte_order");
+      expect(visible("signal", ctx({ protocol, signalEncoding: "bitfield", bitLength: 16 }))).not.toContain("byte_order");
+      // Set in the YAML: shown, to see and fix it
+      expect(visible("signal", ctx({ protocol, signalEncoding: "raw", bitLength: 16, values: { byte_order: "big_endian" } })))
+        .toContain("byte_order");
+    }
   });
 });
 

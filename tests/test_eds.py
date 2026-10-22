@@ -45,7 +45,7 @@ def test_od_rules():
                                          .replace("length: 4", "length: 4\n          id: 0x300")))
     be = frame.replace("INDEX", "0x2000").replace("byte_length: 2, index: 0x2000",
                                                   "byte_length: 2, byte_order: big_endian, index: 0x2000")
-    assert "canopen-od" in codes(one_bus(be))
+    assert "canopen-od" not in codes(one_bus(be)) and "byte-order-protocol" in codes(one_bus(be))
 
 
 def test_od_in_documents():

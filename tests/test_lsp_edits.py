@@ -57,10 +57,10 @@ def test_number_fixes(old, new, code):
 
 
 def test_unknown_key_and_value_suggestions():
-    text = MINIMAL.replace("byte_order: big_endian", "byte_ordr: big_endian")
-    assert fixed(text, "schema", "Change to 'byte_order'") == MINIMAL
-    text = MINIMAL.replace("byte_order: big_endian", "byte_order: big_endain")
-    assert fixed(text, "schema", "Change to 'big_endian'") == MINIMAL
+    text = MINIMAL.replace("representation: twos_complement", "representaton: twos_complement")
+    assert fixed(text, "schema", "Change to 'representation'") == MINIMAL
+    text = MINIMAL.replace("representation: twos_complement", "representation: twos_complemnt")
+    assert fixed(text, "schema", "Change to 'twos_complement'") == MINIMAL
 
 
 def test_dash_without_space():

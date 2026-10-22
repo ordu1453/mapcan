@@ -180,7 +180,7 @@ CANopen ID computation:
 | `terminator` | `string`: the byte that ends a shorter text and fills the rest of the field: a number (`0x00`) or one character (`"*"`, as in J1939 text parameters). Without it the text fills the field and unused bytes are 0x00 |
 | `start_bit` + `bit_length` | Canonical position |
 | `byte` [+ `bit`] + `byte_length` \| `bit_length` | Shorthand position (see below) |
-| `byte_order` | `little_endian` (default) or `big_endian` |
+| `byte_order` | `little_endian` (default) or `big_endian`. CANopen and J1939 carry little-endian data, so the editors offer the field only on other buses (or when it is set), and validation warns about a big-endian signal there (`byte-order-protocol`) |
 | `representation` | How the raw value is read as a number: `unsigned` (default), `twos_complement` (the usual signed integer), `ones_complement` or `sign_magnitude`. Generated C and Python code packs and unpacks the value in this representation; the last two have a symmetric range (−127…127 for 8 bits). DBC stores two's complement only, so the export warns about the other two. Formerly `signed` + `signed_code` |
 | `values` | Value table: `{0: NO_DATA, 1: {name: OK, description: "normal"}}` |
 | `value_format` | `dec` \| `hex`: how values are shown in documents |
@@ -699,6 +699,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `dlc-missing` | error | Frame has no `length` (only CANopen service frames may omit it) |
 | `canopen-dlc` | warning | Length of a CANopen service frame does not match CiA 301 |
 | `frame-type-protocol` | warning | `canopen` set on a frame of a non-CANopen bus |
+| `byte-order-protocol` | warning | A big-endian signal spanning bytes on a CANopen or J1939 bus: both carry little-endian data (CiA 301, SAE J1939-71) |
 | `direction-deprecated` | warning | `direction` is set: it follows from the CANopen function and `sender`; a frame from outside the map goes to the frames of its bus. `mapcan migrate` does both |
 | `direction-mismatch` | warning | Direction conflicts with the frame's CANopen function |
 
@@ -712,7 +713,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `j1939-field-protocol` | warning | pgn/priority/destination/address/spn on a non-J1939 bus |
 | `j1939-spn-duplicate` | warning | The same SPN on several signals of the bus |
 | `j1939-tp` | info | A PGN longer than 8 bytes is sent with the J1939-21 transport protocol |
-| `canopen-od` | warning | Dictionary object on a signal outside a device's PDO, outside 0x2000..0x9FFF, or big-endian |
+| `canopen-od` | warning | Dictionary object on a signal outside a device's PDO, or outside 0x2000..0x9FFF |
 | `od-duplicate` | warning | The same dictionary object on several signals of a device |
 
 ### Sender and receivers
