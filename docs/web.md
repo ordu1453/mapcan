@@ -49,6 +49,8 @@ offers to save them before switching.
 
 The start screen also lists the bundled examples: pick one, choose where to save a copy, and it
 opens. The mapcan version is shown in the top bar next to the title and on the start screen.
+**File → Report an issue** (and the link on the start screen) opens a new GitHub issue with the
+versions of mapcan, the server's system and the browser filled in; the map itself is not sent.
 
 ### Security
 

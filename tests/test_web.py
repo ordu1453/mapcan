@@ -624,3 +624,11 @@ def test_live_check_and_apply_analyse_the_text_once(tmp_path, monkeypatch):
     # Another text is loaded again
     assert s.set_text(text.replace("Эталонная карта", "Карта", 1))
     assert len(loads) == 2
+
+
+def test_meta_has_what_a_bug_report_needs(client, mapfile):
+    """The web editor's Report an issue fills in how mapcan runs and on what (the map is not sent)."""
+    meta = client.get("/api/meta").json()
+    assert meta["mode"] == "serve" and "Python" in meta["system"]
+    with TestClient(create_app(EditorSession(mapfile), mode="app")) as c:
+        assert c.get("/api/meta").json()["mode"] == "app"

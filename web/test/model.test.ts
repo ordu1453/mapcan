@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { buildTree, deviceLabel, displayName, includedFile, localPath, mergedPath, pathKey, viewOf, type TreeNode }
   from "../src/model";
+import { issueUrl, ISSUES_URL } from "../src/links";
 import type { ResolvedFrame } from "../src/types";
 
 const data = {
@@ -104,5 +105,17 @@ describe("included files", () => {
     expect(mergedPath(parts, "common.yaml", ["buses", 0, "name"])).toEqual(["buses", 1, "name"]);
     expect(mergedPath(parts, "panel.yaml", ["buses", 0])).toBeNull();    // the bus only extended by the file
     expect(mergedPath(parts, null, ["document"])).toEqual(["document"]);
+  });
+});
+
+describe("report an issue", () => {
+  it("a new issue with the versions filled in, the map is not in it", () => {
+    const url = new URL(issueUrl({ version: "0.23.1", mode: "app", system: "Windows 11, Python 3.12.8" }));
+    expect(url.origin + url.pathname).toBe(ISSUES_URL);
+    const body = url.searchParams.get("body") ?? "";
+    expect(body).toContain("mapcan 0.23.1, web editor (mapcan app)");
+    expect(body).toContain("Server: Windows 11, Python 3.12.8");
+    expect(body).toContain("Browser: ");
+    expect(issueUrl(null)).toBe(ISSUES_URL);
   });
 });

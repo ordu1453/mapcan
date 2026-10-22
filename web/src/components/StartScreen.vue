@@ -3,7 +3,7 @@
 import { computed } from "vue";
 import { actions, store } from "../store";
 import { t } from "../i18n";
-import { DOCS_URL, ISSUES_URL, REPO_URL } from "../links";
+import { DOCS_URL, issueUrl, REPO_URL } from "../links";
 import BrandMark from "./BrandMark.vue";
 
 const RECENT_LIMIT = 3;
@@ -47,7 +47,7 @@ function openExample(name: string) {
       <p class="start-links">
         <a :href="REPO_URL" target="_blank" rel="noopener">{{ t("mapcan on GitHub") }}</a> ·
         <a :href="DOCS_URL" target="_blank" rel="noopener">{{ t("Documentation") }}</a> ·
-        <a :href="ISSUES_URL" target="_blank" rel="noopener">{{ t("Report an issue") }}</a>
+        <a :href="issueUrl(store.meta)" target="_blank" rel="noopener">{{ t("Report an issue") }}</a>
       </p>
     </div>
   </div>

@@ -143,6 +143,10 @@ export interface Meta {
   open: boolean;
   file: string | null;
   session_id: number;
+  /** How mapcan runs: the app window or mapcan serve (for a bug report). */
+  mode?: "app" | "serve";
+  /** The server's system and Python (for a bug report). */
+  system?: string;
 }
 
 export interface UpdateInfo {

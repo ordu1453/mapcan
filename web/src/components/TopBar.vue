@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { api } from "../api";
 import { actions, exportLang, lang, store } from "../store";
 import { docLanguages, N_, t } from "../i18n";
-import { releaseUrl } from "../links";
+import { DOCS_URL, issueUrl, releaseUrl } from "../links";
 import BrandMark from "./BrandMark.vue";
 
 const emit = defineEmits<{ preview: [fmt: "html" | "pdf" | "md"]; diff: [] }>();
@@ -123,6 +123,11 @@ onBeforeUnmount(() => {
         <button :disabled="!hasMap || !store.state?.dirty || store.state?.readonly" @click="actions.save()">{{ t("Save") }} <kbd>Ctrl+S</kbd></button>
         <button :disabled="!hasMap || store.meta?.readonly" @click="store.dialog = 'saveas'">{{ t("Save as…") }} <kbd>Ctrl+Shift+S</kbd></button>
         <button :disabled="!hasMap" @click="actions.closeFile()">{{ t("Close map") }}</button>
+        <div class="dd-sep" />
+        <a :href="DOCS_URL" target="_blank" rel="noopener">{{ t("Documentation") }}</a>
+        <a :href="issueUrl(store.meta)" target="_blank" rel="noopener"
+           :title="t('A new issue on GitHub with the versions of mapcan, the system and the browser; the map is not sent')">
+          {{ t("Report an issue") }}</a>
       </div>
     </div>
 

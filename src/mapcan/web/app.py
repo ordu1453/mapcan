@@ -9,6 +9,7 @@ import hmac
 import html
 import io
 import os
+import platform
 import re
 import shutil
 import string
@@ -254,10 +255,11 @@ class TokenAuth:
 class Workspace:
     """The open map (there may be none), the workspace folder, the user settings."""
 
-    def __init__(self, session: EditorSession | None, cwd: Path, readonly: bool):
+    def __init__(self, session: EditorSession | None, cwd: Path, readonly: bool, mode: str = "serve"):
         self.session = session
         self.cwd = cwd
         self.readonly = readonly
+        self.mode = mode
         self.generation = 1 if session else 0
         self.config = UserConfig.load()
         if session:
@@ -306,6 +308,9 @@ class Workspace:
             "open": s is not None,
             "file": str(s.path) if s else None,
             "session_id": self.generation,
+            # For a bug report: how mapcan runs (the app window or mapcan serve) and on what
+            "mode": self.mode,
+            "system": f"{platform.system()} {platform.release()}, Python {platform.python_version()}",
         }
 
 
@@ -527,7 +532,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
                cwd: Path | None = None, readonly: bool | None = None, *,
                check_updates: bool = False, instance_token: str | None = None,
                on_activate: Callable[[], None] | None = None,
-               allowed_hosts: Collection[str] | None = None, auth_token: str | None = None) -> FastAPI:
+               allowed_hosts: Collection[str] | None = None, auth_token: str | None = None,
+               mode: str = "serve") -> FastAPI:
     """The editor application.
 
     ``allowed_hosts`` are the names allowed in the ``Host`` header (for a server on localhost),
@@ -535,13 +541,14 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     ``auth_token``: every request needs this token (see :class:`TokenAuth`), for a server on the network;
     ``check_updates``: answer /api/update with information from GitHub Releases;
     ``instance_token`` allows /api/instance/activate (mapcan run again
-    passes the file to the running instance), ``on_activate`` brings the window to the front.
+    passes the file to the running instance), ``on_activate`` brings the window to the front; ``mode``: "app" (the app window) or "serve" (for a bug
+    report).
     """
     hub = Hub()
     lock = asyncio.Lock()
     root = cwd or (session.path.parent if session else Path.cwd())
     wsp = Workspace(session, root.resolve(),
-                    readonly if readonly is not None else bool(session and session.readonly))
+                    readonly if readonly is not None else bool(session and session.readonly), mode)
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
