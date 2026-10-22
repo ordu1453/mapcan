@@ -116,8 +116,14 @@ function commit(def: FieldDef, value: unknown) {
     else if (node.value?.value != null) void actions.apply([{ op: "remove", path: [...path.value, "value"] }]);
     return;
   }
+  // A device named as the sender does not receive the frame: it leaves the receivers
+  const rec = node.value?.receivers;
+  const leaves = kind.value === "frame" && def.key === "sender" && Array.isArray(rec) && rec.includes(value);
+  const rest = leaves ? rec.filter((r: unknown) => r !== value) : [];
   void actions.apply([{ op: "set", path: [...path.value, ...def.key.split(".")], value },
-    ...(allowed && length != null && !allowed.includes(length) ? [{ op: "remove" as const, path: [...path.value, "length"] }] : [])]);
+    ...(allowed && length != null && !allowed.includes(length) ? [{ op: "remove" as const, path: [...path.value, "length"] }] : []),
+    ...(leaves ? [rest.length ? { op: "set" as const, path: [...path.value, "receivers"], value: rest }
+      : { op: "remove" as const, path: [...path.value, "receivers"] }] : [])]);
 }
 
 // The heading has the title for people (with the abbreviation for a device) and the identifier; each part is edited with a double click
@@ -327,6 +333,18 @@ const frameSignals = computed(() => {
 const devices = computed(() => (kind.value === "bus" && Array.isArray(node.value?.devices)
   ? node.value.devices.map((d: any) => (d && typeof d === "object" ? d : {})) : []));
 
+/** Who sends the frame and who receives it, as links to the devices (also when it is described at its receiver). */
+const route = computed(() => {
+  const f = rframe.value;
+  if (kind.value !== "frame" || !f) return null;
+  const devs: any[] = getAt(data.value, path.value.slice(0, 2))?.devices ?? [];
+  const peer = (name: string) => {
+    const i = devs.findIndex((d) => d?.name === name);
+    return { name, label: i >= 0 ? deviceLabel(devs[i], lang.value) : name, path: i >= 0 ? [...path.value.slice(0, 2), "devices", i] : null };
+  };
+  return { sender: f.sender ? peer(f.sender) : null, receivers: f.receivers.map(peer) };
+});
+
 /** Exchange of the device, computed from the senders and receivers of all frames of the bus. */
 const exchange = computed(() => {
   if (kind.value !== "device") return null;
@@ -404,7 +422,7 @@ function onLayout(p: Path, start: number, length: number) {
         </h2>
       </div>
       <div class="ne-actions">
-        <template v-if="isListItem && !readonly">
+        <template v-if="isListItem && !readonly && !store.selectedSender">
           <button class="icon" :title="t('Duplicate')" @click="duplicateNode(path)">⧉</button>
           <button class="icon danger" :title="store.selectedVia ? t('Stop receiving (remove from receivers)') : t('Delete (Del)')"
                   @click="removeSelected()">✕</button>
@@ -422,6 +440,18 @@ function onLayout(p: Path, start: number, length: number) {
       <button v-if="d.code === 'rx-duplicate' && rxTwin && !readonly" class="small fix"
               @click="receiveFrame(path, rxTwin.path)">{{ t("Receive frame {frame}", { frame: rxTwin.label }) }}</button>
     </div>
+    <p v-if="route" class="frame-route">
+      <span class="muted">{{ t("Sender") }}:</span>
+      <a v-if="route.sender?.path" @click="actions.select(route.sender.path)">{{ route.sender.label }}</a>
+      <span v-else-if="route.sender">{{ route.sender.label }}</span>
+      <span v-else class="muted">{{ t("outside the map") }}</span>
+      <span class="muted">→ {{ t("Receivers") }}:</span>
+      <template v-for="(r, i) in route.receivers" :key="r.name">
+        <span v-if="i" class="muted">, </span>
+        <a v-if="r.path" @click="actions.select(r.path)">{{ r.label }}</a><span v-else>{{ r.label }}</span>
+      </template>
+      <span v-if="!route.receivers.length" class="muted">—</span>
+    </p>
     <div v-if="kind === 'frame' && store.selectedVia" class="banner info">
       {{ t("The frame is described at its sender; {device} receives it. Delete or ✕ stops receiving it and keeps the frame.",
            { device: viaLabel }) }}

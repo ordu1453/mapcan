@@ -96,10 +96,20 @@ export interface TreeNode {
   from?: string;
   /** For a link, the name of the receiving device it is under. */
   receiver?: string;
+  /** A link to a frame the device sends that is described at its receiver (path is the original's path); the
+   * value is the receiver's label. */
+  to?: string;
+  /** For such a link, the name of the sending device it is under. */
+  sender?: string;
   /** The node is described in an included file (include): its path relative to the map. */
   file?: string;
   /** The node is added by an included file as a whole (its descendants have file too). */
   fileRoot?: boolean;
+}
+
+/** A link to a frame described at another device (received, or sent and described at the receiver). */
+export function isLink(n: TreeNode): boolean {
+  return n.from !== undefined || n.to !== undefined;
 }
 
 /** Included file the node is described in; null for a node of the main file. */
@@ -136,7 +146,7 @@ export function viewOf(s: { data: Data; included_buses?: Data[] | null } | null 
 
 function markIncluded(nodes: TreeNode[], included: Included[]): void {
   for (const n of nodes) {
-    const file = n.from === undefined ? includedFile(included, n.path) : null;
+    const file = !isLink(n) ? includedFile(included, n.path) : null;
     if (file) {
       n.file = file;
       n.fileRoot = included.some((r) => samePath(r.path, n.path));
@@ -201,10 +211,17 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
       subHint: busLoads.get(pathKey(bp))?.note || undefined,
       children: [], search: `${bus.name} ${txt(bus.title, lang)}`.toLowerCase(),
     };
+    const labelOf = (name: string | null | undefined) => {
+      const d = list(bus.devices).find((x: Data) => x?.name === name);
+      return d ? deviceLabel(d, lang) : name ?? "";
+    };
     const frameNode = (f: Data, fp: Path): TreeNode => {
       const rf = frames.get(pathKey(fp));
+      // A frame described at its receiver (sender: another device): the label names the sender, as a link does
+      const fromOther = !!rf?.device && !!rf.sender && rf.sender !== rf.device;
       const fnode: TreeNode = {
-        key: pathKey(fp), path: fp, kind: "frame", label: displayName(f, lang),
+        key: pathKey(fp), path: fp, kind: "frame",
+        label: fromOther ? `${labelOf(rf!.sender)} · ${displayName(f, lang)}` : displayName(f, lang),
         sub: f.pgn != null ? `PGN ${hex(f.pgn, 4)}` : frameSub(rf), children: [],
         dir: rf?.device ? rf.direction : null,
         search: [f.name, txt(f.title, lang), txt(f.description, lang), rf?.can_id != null ? hex(rf.can_id) : "",
@@ -258,6 +275,20 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
           sub: frameSub(rf), children: [], dir: "rx", from: senderLabel || rf.sender || "", receiver: d.name,
           search: [rf.name, txt(frame.title, lang), rf.sender ?? "", sender?.short ?? "", txt(sender?.title, lang),
             rf.can_id != null ? hex(rf.can_id) : ""].join(" ").toLowerCase(),
+        });
+      }
+      // Frames the device sends that are described at their receiver (sender: this device): links too, the label
+      // names the device they are described at
+      for (const rf of frames.values()) {
+        if (rf.path[1] !== bi || !rf.device || rf.device === d.name || rf.sender !== d.name) continue;
+        const ownerLabel = labelOf(rf.device);
+        const frame = obj(getAt(data, rf.path));
+        dnode.children.push({
+          key: `${pathKey(dp)}/sent:${pathKey(rf.path)}`, path: rf.path, kind: "frame",
+          label: `${ownerLabel} · ${displayName(frame, lang)}`, sub: frameSub(rf), children: [], dir: "tx",
+          to: ownerLabel, sender: d.name,
+          search: [rf.name, txt(frame.title, lang), rf.device, ownerLabel, rf.can_id != null ? hex(rf.can_id) : ""]
+            .join(" ").toLowerCase(),
         });
       }
       bnode.children.push(dnode);

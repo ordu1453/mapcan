@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { canRename } from "../edit";
-import { getAt, pathKey, samePath, startsWith, txt, worst, type TreeNode } from "../model";
+import { getAt, isLink, pathKey, samePath, startsWith, txt, worst, type TreeNode } from "../model";
 import { actions, diagsByNode, lang, store, viewData } from "../store";
 import InlineRename from "./InlineRename.vue";
 import TreeIcon from "./TreeIcon.vue";
@@ -37,7 +37,12 @@ const nested = computed(() => {
 });
 // A frame selected through a link is highlighted only in the link, not at its sender (and the other way round)
 const selected = computed(() => samePath(store.selected, props.node.path)
-  && (store.selectedVia ?? undefined) === props.node.receiver);
+  && (store.selectedVia ?? undefined) === props.node.receiver && (store.selectedSender ?? undefined) === props.node.sender);
+const link = computed(() => isLink(props.node));
+const linkTitle = computed(() => (props.node.from !== undefined
+  ? t("Receives the frame from {sender}", { sender: props.node.from || t("outside the map") })
+  : props.node.to !== undefined ? t("Sends the frame described at its receiver {device}", { device: props.node.to })
+    : undefined));
 const onPath = computed(() => !selected.value && startsWith(store.selected, props.node.path));
 const match = computed(() => props.query !== "" && props.node.search.includes(props.query));
 
@@ -51,19 +56,19 @@ const title = computed(() => txt(nodeData.value?.title, lang.value));
 // No title yet: the edit field opens with the identifier the tree shows now
 const partValue = (p: Part) => (p === "title" ? title.value || nodeData.value?.name || "" : nodeData.value?.[p] ?? "");
 function startRename(field: Part) {
-  if (props.node.from === undefined && canRename(props.node.path)) renaming.value = field;
+  if (!link.value && canRename(props.node.path)) renaming.value = field;
 }
 
 // A new bus or device: open the title for editing right away (it is required and filled in by default)
 watch(() => store.renameRequest, (p) => {
-  if (p && props.node.from === undefined && samePath(p, props.node.path)) {
+  if (p && !link.value && samePath(p, props.node.path)) {
     store.renameRequest = null;
     startRename("title");
   }
 }, { immediate: true });
 
 function click() {
-  actions.select(props.node.path, props.node.receiver ?? null);
+  actions.select(props.node.path, props.node.receiver ?? null, props.node.sender ?? null);
   if (!props.expanded.has(props.node.key) && props.node.children.length) emit("toggle", props.node.key);
 }
 </script>
@@ -71,10 +76,9 @@ function click() {
 <template>
   <li>
     <!-- A link to another device's frame has its own data-key: scrolling to the selected frame goes to the original -->
-    <div class="tree-row" :class="{ selected, 'on-path': onPath, match, link: node.from !== undefined, included: !!node.file }"
+    <div class="tree-row" :class="{ selected, 'on-path': onPath, match, link, included: !!node.file }"
          :style="{ paddingLeft: depth * 14 + 6 + 'px' }"
-         :data-key="node.from !== undefined ? node.key : pathKey(node.path)" @click="click"
-         :title="node.from !== undefined ? t('Receives the frame from {sender}', { sender: node.from || t('outside the map') }) : undefined">
+         :data-key="link ? node.key : pathKey(node.path)" @click="click" :title="linkTitle">
       <span class="twisty" :class="{ hidden: !node.children.length }" @click.stop="emit('toggle', node.key)">
         {{ open ? "▾" : "▸" }}
       </span>
@@ -88,7 +92,7 @@ function click() {
       </span>
       <span v-else class="tlabel" @dblclick.stop="startRename(titled ? 'title' : 'name')">{{ node.label }}</span>
       <span v-if="node.sub" class="tsub mono" :title="node.subHint">{{ node.sub }}</span>
-      <span v-if="node.from !== undefined" class="tsub link-mark">↪</span>
+      <span v-if="link" class="tsub link-mark">↪</span>
       <span v-if="node.fileRoot" class="tsub include-mark"
             :title="t('From the included file {file}', { file: node.file })">🔗 {{ node.file }}</span>
       <span v-if="own" class="dot" :class="own" :title="own" />

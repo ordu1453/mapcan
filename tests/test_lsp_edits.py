@@ -460,3 +460,25 @@ def test_frame_types_of_a_frame_in_an_included_file(tmp_path):
     # The same in the included file opened on its own
     part = A.analyze_part(INCLUDED_NODE, str(tmp_path / "devices" / "node.yaml"))
     assert {t["type"] for t in E.node_fields(part, FRAME)["frameTypes"]} == set(types)
+
+
+def test_set_sender_leaves_the_receivers():
+    """A device named as a frame's sender does not receive it: the form's Sender field takes it out of receivers."""
+    from .conftest import one_bus
+
+    text = one_bus("""
+        - name: f
+          id: 0x300
+          length: 1
+          receivers: [master, panel]
+    """, protocol="can", devices_extra="      - name: master\n        frames: []\n      - name: panel\n        frames: []\n")
+    a = A.analyze(text, "t.yaml")
+    frame = ("buses", 0, "devices", 0, "frames", 0)
+    out = apply(text, E.set_field(a, frame + ("sender",), "master"))
+    assert "sender: master" in out and "receivers: [panel]" in out and errors(out) == []
+    b = A.analyze(out, "t.yaml")
+    out2 = apply(out, E.set_field(b, frame + ("sender",), "panel"))
+    assert "sender: panel" in out2 and "receivers" not in out2
+    # Back to the device itself: the key goes
+    c = A.analyze(out2, "t.yaml")
+    assert "sender" not in apply(out2, E.set_field(c, frame + ("sender",), None))

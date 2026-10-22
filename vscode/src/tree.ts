@@ -44,6 +44,8 @@ interface RawNode {
   description: string;
   dir?: "tx" | "rx" | null;
   from?: string;
+  /** A link to a frame the device sends that is described at its receiver: that device's label. */
+  to?: string;
   /** A bus: what its estimated load in the description is, or why there is none. */
   load_note?: string;
   path: (string | number)[];
@@ -87,7 +89,7 @@ export class MapNode {
 
   /** Links to frames of other devices are not part of this node's text. */
   get isLink(): boolean {
-    return this.raw.from !== undefined;
+    return this.raw.from !== undefined || this.raw.to !== undefined;
   }
 
   /** The other file of the map the node is described in: its edits go to that file. */
@@ -183,7 +185,7 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
     const address = kind === "device" ? description : "";
     const item = new vscode.TreeItem(address ? `${address} · ${label}` : label, state);
     item.id = node.id;
-    item.description = address ? "" : from !== undefined ? `${description} ↪`.trim() : description;
+    item.description = address ? "" : node.isLink ? `${description} ↪`.trim() : description;
     // A node of another file is edited in that file
     item.contextValue = node.isLink ? "frameLink" : node.file ? `${kind}.included` : kind;
     // The identifier is not in the label (only titles are), so the tooltip shows it
@@ -197,7 +199,8 @@ export class MapTree implements vscode.TreeDataProvider<MapNode>, vscode.FileDec
       item.iconPath = this.icon(dir === "tx" ? "frame-tx" : dir === "rx" ? "frame-rx" : "frame-broadcast");
       lines.push(from !== undefined
         ? `Received from ${from || "outside the map"}`
-        : dir === "tx" ? "TX" : dir === "rx" ? "RX" : "Broadcast");
+        : node.raw.to !== undefined ? `Sent; described at the receiver ${node.raw.to}`
+          : dir === "tx" ? "TX" : dir === "rx" ? "RX" : "Broadcast");
     } else {
       item.iconPath = this.icon(kind);
     }

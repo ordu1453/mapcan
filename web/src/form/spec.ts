@@ -145,6 +145,14 @@ export const frameDirection = (c: FormContext): string | null => {
 const others = (c: FormContext): Option[] => c.devices.filter((d) => d.name !== c.owner).map((d) => [d.name, d.label]);
 const receivers = (c: FormContext): Option[] => others(c).filter(([d]) => d !== value(c, "sender"));
 
+// The sender of a frame of a device: by default the device itself, or outside the map for a CANopen RX function (from
+// the master); naming another device of the bus makes the frame received by its device. A CANopen function that the
+// device sends (pdo_tx*, heartbeat…), a broadcast one, or a bus with no other device has no choice.
+const rxFunction = (c: FormContext) => c.protocol === "canopen" && TYPE_DIRECTION[frameType(c)] === "rx";
+const senderChoice = (c: FormContext) => !!c.owner && (frameType(c) === "raw" || rxFunction(c)) && others(c).length > 0;
+const senders = (c: FormContext): Option[] =>
+  [["", rxFunction(c) ? N_("outside the map") : N_("the device itself")], ...others(c)];
+
 // BRS: empty means the default (the bus value for a frame, on for a bus), shown in brackets
 const brsOptions = (base: string, on: boolean): Option[] =>
   [["", `${t(base)} (${t(on ? N_("on") : N_("off"))})`], ["true", N_("on")], ["false", N_("off")]];
@@ -294,8 +302,9 @@ export const FORMS: Record<FormKind, Section[]> = {
     ] },
     { title: N_("Routing"), fields: [
       // Who sends a frame follows from where it is written (its device, or outside the map for a frame of the bus),
-      // so there is no field for the sender or the direction. The sender of a CANopen RX function written at its
-      // receiving node (the master) stays a YAML key: the editors rename it with the device.
+      // unless another device is named as its sender: then the frame is described at its receiver. There is no field
+      // for the direction: it follows from the CANopen function and the sender.
+      { key: "sender", label: N_("Sender"), type: "select", half: true, options: senders, when: senderChoice },
       // The receiver of an RX frame is its device
       { key: "receivers", label: N_("Receivers"), type: "devices", wide: true, options: receivers,
         when: (c) => !(c.owner && frameDirection(c) === "rx") && receivers(c).length > 0 },
@@ -402,7 +411,6 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
   frame: {
     signals: "child nodes and the bit layout", sdo: "child nodes of the tree",
     direction: "deprecated: it follows from the CANopen function and the sender",
-    sender: "follows from where the frame is written; the master of a CANopen RX function is written in the YAML",
   },
   signal: { values: "value table", flags: "flags table" },
   flag: { values: "value table" },

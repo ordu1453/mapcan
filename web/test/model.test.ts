@@ -1,7 +1,7 @@
 // Labels of nodes in the tree: titles for people instead of identifiers, links to received frames.
 
 import { describe, expect, it } from "vitest";
-import { buildTree, deviceLabel, displayName, includedFile, localPath, mergedPath, pathKey, viewOf, type TreeNode }
+import { buildTree, deviceLabel, displayName, includedFile, isLink, localPath, mergedPath, pathKey, viewOf, type TreeNode }
   from "../src/model";
 import { issueUrl, ISSUES_URL } from "../src/links";
 import type { ResolvedFrame } from "../src/types";
@@ -69,6 +69,34 @@ describe("labels", () => {
     expect(link.receiver).toBe("panel");
     expect(link.dir).toBe("rx");
     expect(link.key).not.toBe(pathKey(status.path));
+  });
+});
+
+describe("a frame described at its receiver", () => {
+  // panel receives a frame that bms sends, written at panel with sender: bms
+  const map = {
+    buses: [{
+      name: "can1", protocol: "canopen",
+      devices: [{ name: "bms", short: "BMS", frames: [] },
+        { name: "panel", title: "Панель", frames: [{ name: "cmd", title: "Команда", sender: "bms" }] }],
+    }],
+  };
+  const cmd = frame(["buses", 0, "devices", 1, "frames", 0],
+    { name: "cmd", device: "panel", sender: "bms", receivers: ["panel"], direction: "rx" });
+  const [, can1] = buildTree(map, new Map([[pathKey(cmd.path), cmd]]), "ru");
+  const [bms, panel] = can1.children;
+
+  it("the frame names its sender", () => {
+    expect(panel.children[0].label).toBe("BMS · Команда");
+    expect(isLink(panel.children[0])).toBe(false);
+  });
+
+  it("the sender has a link to it, named after the device it is described at", () => {
+    const link = bms.children[0];
+    expect(isLink(link)).toBe(true);
+    expect([link.label, link.dir, link.to, link.sender]).toEqual(["Панель · Команда", "tx", "Панель", "bms"]);
+    expect(link.path).toEqual(cmd.path);
+    expect(link.key).not.toBe(pathKey(cmd.path));
   });
 });
 

@@ -458,6 +458,8 @@
   "What is new in mapcan {version} (GitHub)": "Что нового в mapcan {version} (GitHub)",
   "mapcan on GitHub": "mapcan на GitHub",
   "Documentation": "Документация",
+  "the device itself": "само устройство",
+  "Sends the frame described at its receiver {device}": "Передаёт кадр, описанный у получателя {device}",
   "A new issue on GitHub with the versions of mapcan, the system and the browser; the map is not sent": "Новый issue на GitHub с версиями mapcan, системы и браузера; карта не отправляется",
   "Report an issue": "Сообщить о проблеме"
 }

@@ -94,6 +94,19 @@ def _selected(a: A.Analysis, node: dict) -> str:
     return "\n".join([a.lines[sl][sc:], *a.lines[sl + 1:el], a.lines[el][:ec]])
 
 
+def test_map_tree_frame_described_at_its_receiver():
+    """A frame written at its receiver with sender: another device names the sender, and the sender has a link to it
+    (to: the device it is described at), as the web editor's tree."""
+    a = A.analyze((ROOT / "examples" / "canopen-node.yaml").read_text(encoding="utf-8"), "canopen-node.yaml")
+    controller, drive = A.map_tree(a)[0]["children"]
+    link = next(n for n in controller["children"] if n.get("to") is not None)
+    assert (link["label"], link["dir"], link["to"], link["ident"]) == (
+        "Traction drive · drive_command", "tx", "Traction drive", "drive_command")
+    own = next(n for n in drive["children"] if n["ident"] == "drive_command")
+    assert own["label"] == "Vehicle controller · drive_command" and own["path"] == link["path"]
+    assert "to" not in own and "from" not in own
+
+
 def test_map_tree_selects_whole_blocks():
     text = MINIMAL.replace("                bit_length: 4\n", (
         "                bit_length: 4   # last\n\n"

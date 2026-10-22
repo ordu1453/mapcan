@@ -31,9 +31,20 @@ group("frame", () => {
     expect(keys).toContain("length");
   });
 
-  it("no field for the sender or the direction: they follow from where the frame is written", () => {
-    expect(formFields("frame").map((f) => f.key)).not.toEqual(expect.arrayContaining(["sender"]));
+  it("no field for the direction: it follows from the CANopen function and the sender", () => {
     expect(formFields("frame").map((f) => f.key)).not.toEqual(expect.arrayContaining(["direction"]));
+  });
+
+  it("the sender: the device itself or another device; outside the map for a CANopen RX function", () => {
+    const own = ctx({ protocol: "can", devices: devices("pump", "master") });
+    expect(visible("frame", own)).toContain("sender");
+    expect(optionsOf(field("frame", "sender"), own).map(([v]) => v)).toEqual(["", "master"]);
+    const rx = ctx({ values: { canopen: "pdo_rx1" }, devices: devices("pump", "master") });
+    expect(visible("frame", rx)).toContain("sender");
+    expect(optionsOf(field("frame", "sender"), rx)[0][1]).toBe("outside the map");
+    // A CANopen function the device sends, and a frame of the bus: no choice
+    expect(visible("frame", ctx({ values: { canopen: "pdo_tx1" }, devices: devices("pump", "master") }))).not.toContain("sender");
+    expect(visible("frame", ctx({ owner: null, protocol: "can", devices: devices("pump", "master") }))).not.toContain("sender");
   });
 
   it("a frame of a device: receivers; a sender written in the YAML makes it received, without receivers", () => {

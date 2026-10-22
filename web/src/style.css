@@ -182,6 +182,9 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .card > h3.sub { margin-top: 14px; }
 
 .banner { padding: 6px 10px; border-radius: 6px; border: 1px solid; }
+.frame-route { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; }
+.frame-route a { cursor: pointer; color: var(--accent); }
+.frame-route a:hover { text-decoration: underline; }
 .banner.error { background: var(--error-soft); border-color: var(--error); }
 .banner.warning { background: var(--warning-soft); border-color: var(--warning); }
 .banner.info { background: var(--info-soft); border-color: var(--info); }

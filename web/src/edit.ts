@@ -384,7 +384,7 @@ export function installDeleteShortcut(): void {
     if (document.querySelector(".modal-backdrop") || !store.state?.data || store.state.readonly || store.busy) return;
     if (store.tab !== "editor") return;
     const path = store.selected;
-    if (path.length < 2 || typeof path[path.length - 1] !== "number") return;
+    if (path.length < 2 || typeof path[path.length - 1] !== "number" || store.selectedSender) return;
     e.preventDefault();
     void removeSelected();
   });

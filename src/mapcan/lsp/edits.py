@@ -1245,6 +1245,8 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
         return [minimal_edit(a.text, apply_ops(a, [op]))]
     if key == "canopen" and node_kind(path[:-1]) == "frame":
         return _set_frame_type(a, path, value)
+    if key == "sender" and node_kind(path[:-1]) == "frame":
+        return _set_sender(a, path, value)
     if not isinstance(raw_at(a, path[:-1]), dict):
         # A field of a nested mapping that does not exist yet (value.name of an SDO): the mapping is added with it
         parent = path[:-1]
@@ -1305,6 +1307,18 @@ def _set_frame_type(a: Analysis, path: Path_, value) -> list[Edit]:
         if edits and allowed and isinstance(length, int) and length not in allowed:
             edits += delete_key(a, path[:-1] + (key,))
     return edits
+
+
+def _set_sender(a: Analysis, path: Path_, value) -> list[Edit]:
+    """The sender of a frame; a device named as the sender does not receive the frame, so it leaves the receivers."""
+    receivers = raw_at(a, path[:-1] + ("receivers",))
+    if not value or not isinstance(receivers, list) or value not in receivers:
+        return _set_plain(a, path, value)
+    rest = [r for r in receivers if r != value]
+    ops = [{"op": "set", "path": list(path), "value": value},
+           {"op": "set", "path": list(path[:-1] + ("receivers",)), "value": rest} if rest
+           else {"op": "remove", "path": list(path[:-1] + ("receivers",))}]
+    return [minimal_edit(a.text, apply_ops(a, ops))]
 
 
 def _set_plain(a: Analysis, path: Path_, value) -> list[Edit]:

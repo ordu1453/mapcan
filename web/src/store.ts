@@ -49,6 +49,9 @@ export const store = reactive({
   focusPath: null as Path | null,              // form field to go to (a click on a validation message)
   // The frame is selected through a "receives" link under a device: that device's name (Delete removes it from the receivers)
   selectedVia: null as string | null,
+  // The frame is selected through a link under its sender (it is described at its receiver): the sender's name.
+  // Delete does nothing there: the frame is deleted at the device it is described at
+  selectedSender: null as string | null,
   renameRequest: null as Path | null,          // node whose title edit opens right away in the tree
   update: null as UpdateInfo | null,           // available new version (the banner at the top)
   git: null as GitStatus | null,               // git state of the map file (the Git menu)
@@ -152,6 +155,7 @@ function accept(s: State): void {
     if (!samePath(p, store.selected) || !(Array.isArray(receivers) && receivers.includes(store.selectedVia))) {
       store.selectedVia = null;
     }
+    if (!samePath(p, store.selected) || getAt(view, [...p, "sender"]) !== store.selectedSender) store.selectedSender = null;
     store.selected = p;
   }
 }
@@ -175,6 +179,7 @@ function acceptSession(r: SessionResult): void {
   store.fileChangedBanner = false;
   store.selected = ["document"];
   store.selectedVia = null;
+  store.selectedSender = null;
   store.muxView = {};
   store.tab = "editor";
   store.yaml = { draft: null, applied: null, diags: null };
@@ -354,10 +359,12 @@ export const actions = {
       store.busy = false;
     }
   },
-  /** via: the receiving device if the frame is selected through the link to it in the tree. */
-  select: (p: Path, via: string | null = null) => {
+  /** via: the receiving device if the frame is selected through the link to it in the tree; sender: the sending
+   * device if through the link under it (the frame is described at its receiver). */
+  select: (p: Path, via: string | null = null, sender: string | null = null) => {
     store.selected = p;
     store.selectedVia = via;
+    store.selectedSender = sender;
     // In the YAML tab a node of another file opens that file
     if (store.tab === "yaml" && store.state?.data && fileOf(p) !== store.yamlFile) void actions.openYaml(fileOf(p));
   },

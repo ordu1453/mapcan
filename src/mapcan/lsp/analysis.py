@@ -446,7 +446,8 @@ def device_label(d: dict, lang: str) -> str:
 
 
 def map_tree(a: Analysis) -> list[dict]:
-    """Nodes: kind, label, ident, description, dir (frames), from (received frames), range, selection, children.
+    """Nodes: kind, label, ident, description, dir (frames), from (received frames), to (frames the device sends,
+    described at their receiver), range, selection, children.
 
     Labels are as in the web editor's tree: titles in the document language, the identifier (``ident``)
     only if there is no title. Built from the raw YAML; computed IDs and bits come from the model if the map parses.
@@ -484,7 +485,7 @@ def map_tree(a: Analysis) -> list[dict]:
     def model(path: Path_):
         return _find(a.map, path) if a.map is not None else None
 
-    def frame_node(f: dict, path: Path_) -> dict | None:
+    def frame_node(f: dict, path: Path_, devices: list) -> dict | None:
         loc = rng(path)
         if loc is None:
             return None
@@ -494,7 +495,12 @@ def map_tree(a: Analysis) -> list[dict]:
             sub = f"PGN {_hexw(f['pgn'], 4)}"
         elif isinstance(rf, M.Frame) and rf.can_id is not None:
             sub = _hex(rf.can_id, rf.extended)
-        node = {"kind": "frame", "label": display_name(f, lang), "ident": name_of(f), "description": sub,
+        label = display_name(f, lang)
+        # A frame described at its receiver (sender: another device): the label names the sender, as a link does
+        if isinstance(rf, M.Frame) and rf.device is not None and rf.sender_name not in (None, rf.device.name):
+            sender = next((x for x in devices if x.get("name") == rf.sender_name), None)
+            label = f"{device_label(sender, lang) if sender else rf.sender_name} · {label}"
+        node = {"kind": "frame", "label": label, "ident": name_of(f), "description": sub,
                 "dir": rf.direction if isinstance(rf, M.Frame) and rf.device is not None else None,
                 "children": [], **loc}
         for si, s in enumerate(_items(f.get("signals"))):
@@ -533,10 +539,10 @@ def map_tree(a: Analysis) -> list[dict]:
         bnode = {"kind": "bus", "label": display_name(bus, lang), "ident": name_of(bus),
                  "description": bus_load_text(mbus) if is_bus else "",
                  "load_note": bus_load_note(mbus) if is_bus else "", "children": [], **bl}
-        for fi, f in enumerate(_items(bus.get("frames"))):
-            if (fn := frame_node(f, bp + ("frames", fi))) is not None:
-                bnode["children"].append(fn)
         devices = _items(bus.get("devices"))
+        for fi, f in enumerate(_items(bus.get("frames"))):
+            if (fn := frame_node(f, bp + ("frames", fi), devices)) is not None:
+                bnode["children"].append(fn)
         for di, d in enumerate(devices):
             dp = bp + ("devices", di)
             if (dl := rng(dp)) is None:
@@ -546,7 +552,7 @@ def map_tree(a: Analysis) -> list[dict]:
             dnode = {"kind": "device", "label": display_name(d, lang), "ident": name_of(d), "description": sub,
                      "children": [], **dl}
             for fi, f in enumerate(_items(d.get("frames"))):
-                if (fn := frame_node(f, dp + ("frames", fi))) is not None:
+                if (fn := frame_node(f, dp + ("frames", fi), devices)) is not None:
                     dnode["children"].append(fn)
             # Frames of other devices that the device receives: links after its own; the frame's title may
             # not tell whose it is, so the link's label names the sender
@@ -562,6 +568,20 @@ def map_tree(a: Analysis) -> list[dict]:
                     "kind": "frame", "label": f"{sender_label} · {title}" if sender_label else title,
                     "ident": rf.name, "dir": "rx", "from": sender_label or rf.sender_name or "",
                     "description": _hex(rf.can_id, rf.extended) if rf.can_id is not None else "",
+                    "children": [], **loc})
+            # Frames the device sends that are described at their receiver (sender: this device): links too, the
+            # label names the device they are described at
+            for rf in mbus.all_frames() if isinstance(mbus, M.Bus) else []:
+                if (rf.device is None or rf.device.name == d.get("name") or rf.sender_name != d.get("name")
+                        or (loc := rng(rf._path)) is None):
+                    continue
+                owner = next((x for x in devices if x.get("name") == rf.device.name), None)
+                owner_label = device_label(owner, lang) if owner else rf.device.name
+                frame = raw_at_path(raw, rf._path)
+                title = display_name(frame if isinstance(frame, dict) else {"name": rf.name}, lang)
+                dnode["children"].append({
+                    "kind": "frame", "label": f"{owner_label} · {title}", "ident": rf.name, "dir": "tx",
+                    "to": owner_label, "description": _hex(rf.can_id, rf.extended) if rf.can_id is not None else "",
                     "children": [], **loc})
             bnode["children"].append(dnode)
         out.append(bnode)
