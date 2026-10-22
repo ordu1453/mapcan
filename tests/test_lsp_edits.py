@@ -471,7 +471,8 @@ def test_set_sender_leaves_the_receivers():
           id: 0x300
           length: 1
           receivers: [master, panel]
-    """, protocol="can", devices_extra="      - name: master\n        frames: []\n      - name: panel\n        frames: []\n")
+    """, protocol="can",
+        devices_extra="      - name: master\n        frames: []\n      - name: panel\n        frames: []\n")
     a = A.analyze(text, "t.yaml")
     frame = ("buses", 0, "devices", 0, "frames", 0)
     out = apply(text, E.set_field(a, frame + ("sender",), "master"))

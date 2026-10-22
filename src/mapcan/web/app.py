@@ -541,8 +541,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     ``auth_token``: every request needs this token (see :class:`TokenAuth`), for a server on the network;
     ``check_updates``: answer /api/update with information from GitHub Releases;
     ``instance_token`` allows /api/instance/activate (mapcan run again
-    passes the file to the running instance), ``on_activate`` brings the window to the front; ``mode``: "app" (the app window) or "serve" (for a bug
-    report).
+    passes the file to the running instance), ``on_activate`` brings the window to the front;
+    ``mode``: "app" (the app window) or "serve" (for a bug report).
     """
     hub = Hub()
     lock = asyncio.Lock()
