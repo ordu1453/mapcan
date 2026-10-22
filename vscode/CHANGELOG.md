@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.6
+
+* Needs mapcan 0.23.2 or newer, which the extension offers to install or update.
+* A frame described at its receiver is labeled with its sender in the Map view, and the sending
+  device has a link to it (`↪`, tooltip "Sent; described at the receiver ..."). The frame form has
+  a **Sender** field again: the device itself (outside the map for a CANopen RX function) or another
+  device of the bus; a device named as the sender leaves the receivers.
+* The signal form shows factor and offset only for `scaled` and `float` encodings and the
+  representation only for `enum`; the form and the validation follow the same table of encodings.
+* Byte order is offered only where it matters, and big-endian on CANopen and J1939 buses is a
+  warning.
+
 ## 0.6.5
 
 * Needs mapcan 0.23.1 or newer, which the extension offers to install or update.

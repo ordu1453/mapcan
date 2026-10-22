@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 import { latestMapcan } from "./install";
 
 /** The oldest mapcan whose language server this extension works with. */
-export const MIN_SERVER = "0.23.1";
+export const MIN_SERVER = "0.23.2";
 
 /** `version` is older than `min`; versions are compared by their first three numbers (0.21.0.dev1 is 0.21.0). */
 export function isOlder(version: string, min: string): boolean {
