@@ -41,3 +41,7 @@ canmap_tasks.md
 
 # UI mockups
 examples_ui/
+
+# Browser tests of the web editor
+web/test-results/
+web/playwright-report/

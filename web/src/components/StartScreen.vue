@@ -17,7 +17,7 @@ function openExample(name: string) {
 </script>
 
 <template>
-  <div class="start">
+  <main class="start">
     <div class="start-card">
       <h1><BrandMark :size="28" /></h1>
 
@@ -28,7 +28,7 @@ function openExample(name: string) {
       </div>
 
       <section v-if="recent.length">
-        <h3>{{ t("Recent") }}</h3>
+        <h2>{{ t("Recent") }}</h2>
         <ul class="start-recent">
           <li v-for="r in recent" :key="r.path">
             <button class="link" :title="r.path" @click="actions.openFile(r.path)">{{ r.name }}</button>
@@ -37,7 +37,7 @@ function openExample(name: string) {
       </section>
 
       <section v-if="examples.length">
-        <h3>{{ t("Examples") }}</h3>
+        <h2>{{ t("Examples") }}</h2>
         <ul class="start-recent">
           <li v-for="e in examples" :key="e.name">
             <button class="link" :title="t('Save a copy and open it')" @click="openExample(e.name)">{{ e.title }}</button>
@@ -51,5 +51,5 @@ function openExample(name: string) {
         <a :href="issueUrl(store.meta)" target="_blank" rel="noopener">{{ t("Report an issue") }}</a>
       </p>
     </div>
-  </div>
+  </main>
 </template>

@@ -339,7 +339,7 @@ function onKey(e: KeyboardEvent) {
         <div v-if="range" class="yaml-node" :style="{ top: 6 + (range.first - 1) * LINE - scrollTop + 'px',
              height: (range.last - range.first + 1) * LINE + 'px' }" />
         <pre ref="code" class="yaml-hl mono" aria-hidden="true" :style="{ lineHeight: LINE + 'px' }"><code v-html="html" /></pre>
-        <textarea ref="ta" v-model="text" class="mono" spellcheck="false" :readonly="store.state?.readonly"
+        <textarea ref="ta" v-model="text" class="mono" spellcheck="false" :aria-label="t('YAML text')" :readonly="store.state?.readonly"
                   :style="{ lineHeight: LINE + 'px' }" @scroll="syncScroll" @keydown="onKey" @input="onInput"
                   @keyup="onKeyUp" @mouseup="hint = null; selectAtCursor()" @blur="hint = null" />
         <div v-if="hint" class="yaml-suggest" :style="hintStyle" @mousedown.prevent>

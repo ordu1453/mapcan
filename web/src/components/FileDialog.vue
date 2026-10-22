@@ -142,10 +142,10 @@ const fmtDate = (s: number) => new Date(s * 1000).toLocaleString("en-US", { date
       <section class="fd-main">
         <div class="fd-nav">
           <button class="icon" :title="t('Up')" :disabled="!listing?.parent" @click="go(listing!.parent!)">↑</button>
-          <select v-if="listing?.drives.length" class="fd-drive" @change="go(($event.target as HTMLSelectElement).value)">
+          <select v-if="listing?.drives.length" class="fd-drive" :aria-label="t('Drive')" @change="go(($event.target as HTMLSelectElement).value)">
             <option v-for="d in listing.drives" :key="d" :value="d" :selected="listing.dir.toUpperCase().startsWith(d)">{{ d }}</option>
           </select>
-          <input v-model="dirInput" class="mono fd-path" @keydown.enter="go(dirInput)" />
+          <input v-model="dirInput" class="mono fd-path" :aria-label="t('Folder')" @keydown.enter="go(dirInput)" />
           <button class="small" :title="t('Folder mapcan serve was started in')" @click="go(store.meta?.cwd ?? '')">{{ t("Working folder") }}</button>
           <button class="small" @click="go(store.meta?.home ?? '')">{{ t("Home folder") }}</button>
         </div>

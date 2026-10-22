@@ -50,6 +50,7 @@ Run the tests of what you changed; CI runs all of them on every push and pull re
 | Python: format, validation, exports, code generation, LSP, web API | `uv run pytest` |
 | Lint | `uv run ruff check src tests` |
 | Web UI: types, build, unit tests | `cd web && npm run build && npm test` |
+| Web UI in a browser: user flows and the accessibility check (`web/e2e`) | `cd web && npx playwright install chromium && npm run e2e` (or `PLAYWRIGHT_CHANNEL=msedge` / `chrome` with an installed browser) |
 | VS Code extension: types, integration tests in a real VS Code | `cd vscode && npm run typecheck && npm test` |
 
 Some outputs are compared with reference files in `tests/golden`. After an intended change,

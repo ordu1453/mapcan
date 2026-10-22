@@ -170,6 +170,21 @@ jobs:
         run: npm test
       - name: Built bundle is committed and up to date
         run: git diff --exit-code src/mapcan/web/static
+      # Browser smoke tests and the accessibility check (web/e2e) against `mapcan serve` from .venv
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked --extra web
+      - name: Browser tests
+        working-directory: web
+        run: npx playwright install --with-deps chromium && npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: web-e2e-report
+          path: |
+            web/playwright-report/
+            web/test-results/
 
   # VS Code extension: types, build, .vsix package and integration tests in a real VS Code
   # (downloaded to vscode/.vscode-test/; the window is in an xvfb virtual display). The language server is from .venv.
