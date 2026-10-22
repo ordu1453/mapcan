@@ -916,3 +916,18 @@ def test_big_endian_on_little_endian_protocols(protocol, warns):
     _, report = run(one_bus(frame, protocol=protocol))
     found = [tuple(d.node) for d in report.diagnostics if d.code == "byte-order-protocol"]
     assert found == ([("buses", 0, "devices", 0, "frames", 0, "signals", 0, "byte_order")] if warns else [])
+
+
+def test_encoding_fields_match_the_format_description():
+    """The value fields of each encoding in docs/format.md are those the validation allows (encoding-field); the
+    forms of the editors are checked against the same table (web/test/form.test.ts)."""
+    from mapcan.validate import ENCODING_FIELDS
+
+    doc = (DATA.parent.parent / "docs" / "format.md").read_text(encoding="utf-8")
+    table = doc.split("#### Encodings", 1)[1].split("\n\n", 2)[2].split("\n\n", 1)[0]
+    listed = {}
+    for row in table.splitlines()[2:]:
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        listed[cells[0].strip("`")] = set(re.findall(r"`(\w+)`", cells[2]))
+    for key, allowed in ENCODING_FIELDS.items():
+        assert {e for e, fields in listed.items() if key in fields} == set(allowed), key

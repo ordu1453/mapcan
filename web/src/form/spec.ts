@@ -124,6 +124,8 @@ export const signalEncoding = (c: FormContext): string => String(value(c, "encod
 const encoding = signalEncoding;
 const encodingIn = (...encodings: string[]) => (c: FormContext) => encodings.includes(encoding(c));
 const numeric = encodingIn("scaled", "raw", "float");
+// A raw integer is the value as is: factor and offset apply to a physical quantity only
+const scaledLike = encodingIn("scaled", "float");
 /** An empty choice ("not set") is offered only while the field has no value. */
 const notSet = (c: FormContext, key: string): Option[] => (value(c, key) == null ? [["", N_("not set")]] : []);
 
@@ -324,9 +326,9 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "representation", label: N_("Number representation"), type: "select", half: true,
         options: () => [["", N_("unsigned")], ["twos_complement", N_("two's complement")],
           ["ones_complement", N_("ones' complement")], ["sign_magnitude", N_("sign-magnitude")]],
-        when: encodingIn("raw", "scaled") },
-      { key: "factor", label: N_("Factor (scale)"), type: "float", half: true, placeholder: "1", when: numeric },
-      { key: "offset", label: N_("Offset"), type: "float", half: true, placeholder: "0", when: numeric },
+        when: encodingIn("raw", "scaled", "enum") },
+      { key: "factor", label: N_("Factor (scale)"), type: "float", half: true, placeholder: "1", when: scaledLike },
+      { key: "offset", label: N_("Offset"), type: "float", half: true, placeholder: "0", when: scaledLike },
       { key: "min", label: N_("Minimum (min)"), type: "float", half: true, when: numeric },
       { key: "max", label: N_("Maximum (max)"), type: "float", half: true, when: numeric },
       { key: "initial", label: N_("Initial value"), type: "float", half: true,

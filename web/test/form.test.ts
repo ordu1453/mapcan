@@ -1,6 +1,8 @@
 // Forms of the nodes (src/form): which fields apply, and that they cover the format's schema.
 
 import { describe as group, expect, it } from "vitest";
+// The format's description: the table of encodings says which value fields each one has
+import formatDoc from "../../docs/format.md?raw";
 import { describe, fieldHelp, schemaFields } from "../src/form/help";
 import { formatValue, parseInput, parseInteger, ParseError, selectValue } from "../src/form/input";
 import { applies, FORMS, formFields, isRequired, NOT_IN_FORM, optionsOf, type FormContext, type FormKind } from "../src/form/spec";
@@ -160,6 +162,23 @@ group("forms and the format", () => {
       const known = new Set(schemaFields(kind));
       const keys = [...formFields(kind).map((f) => f.key), ...Object.keys(NOT_IN_FORM[kind])];
       expect(keys.filter((k) => !known.has(k)), kind).toEqual([]);
+    }
+  });
+
+  it("the value fields of a signal are those the format allows for its encoding (docs/format.md)", () => {
+    // The table of encodings: | `raw` | meaning | `representation`, `unit`, … |; the validation is checked against it too
+    const doc = formatDoc.replaceAll("\r", "");
+    const rows: string[] = doc.split("#### Encodings")[1].split("\n\n")[2].split("\n").slice(2);
+    const allowed = new Map<string, Set<string>>(rows.map((r) => {
+      const cells = r.split("|").map((c) => c.trim());
+      return [cells[1].replace(/`/g, ""), new Set(Array.from(cells[3].matchAll(/`(\w+)`/g), (m) => m[1]))];
+    }));
+    const keys = new Set([...allowed.values()].flatMap((f) => [...f]));
+    const fields = formFields("signal").filter((f) => keys.has(f.key));
+    expect(fields.length).toBeGreaterThan(5);
+    for (const [enc, own] of allowed) {
+      const shown = fields.filter((f) => applies(f, ctx({ protocol: "can", signalEncoding: enc }))).map((f) => f.key);
+      expect(shown.sort(), enc).toEqual(fields.map((f) => f.key).filter((k) => own.has(k)).sort());
     }
   });
 
