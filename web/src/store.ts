@@ -3,8 +3,8 @@
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
 import { t } from "./i18n";
-import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, includedFile, nodeKind, ownerPath, pathKey, samePath,
-  viewOf } from "./model";
+import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, includedFile, localPath, nodeKind, ownerPath, pathKey,
+  samePath, viewOf } from "./model";
 import type { Diagnostic, Meta, Op, Path, GitStatus, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
 interface Toast {
@@ -39,6 +39,9 @@ export const store = reactive({
   toasts: [] as Toast[],
   muxView: {} as Record<string, number | null>, // chosen selector value per frame
   revealLine: null as number | null,           // line to go to in the YAML tab
+  // File the YAML tab shows: an included file (relative to the map, a key of state.parts) or null, the map.
+  // The draft below is the text of this file.
+  yamlFile: null as string | null,
   // Text of the YAML tab: null shows the server's text; otherwise a draft applied while typing.
   // applied is the last applied draft (the server may have added references to it on a rename),
   // diags the validation of the unapplied draft (null: not validated yet).
@@ -125,6 +128,11 @@ function accept(s: State): void {
   if (y.draft !== null && y.draft === y.applied && s.version !== ownVersion) store.yaml = { draft: null, applied: null, diags: null };
   const before = store.state;
   store.state = s;
+  // The included file of the YAML tab is gone (its device deleted, undo): the tab shows the map
+  if (store.yamlFile !== null && !(s.parts && store.yamlFile in s.parts)) {
+    store.yamlFile = null;
+    store.yaml = { draft: null, applied: null, diags: null };
+  }
   if (s.disk_changed) store.fileChangedBanner = true;
   if (s.opened_part && (before?.path !== s.path || before?.opened_part !== s.opened_part)) {
     toast(t("{file} is a part of the map {map}: the map is open, and the nodes of {file} are edited in that file",
@@ -170,6 +178,7 @@ function acceptSession(r: SessionResult): void {
   store.muxView = {};
   store.tab = "editor";
   store.yaml = { draft: null, applied: null, diags: null };
+  store.yamlFile = null;
   store.state = null;
   if (r.state) {
     accept(r.state);
@@ -273,7 +282,7 @@ export const actions = {
    */
   setText: (text: string, live = false) =>
     run(async () => {
-      const s = await api.text(text, live);
+      const s = await api.text(text, live, store.yamlFile);
       ownVersion = s.version;
       if (live && store.yaml.draft !== null) store.yaml.applied = text;
       else if (store.yaml.draft === text) store.yaml = { draft: null, applied: null, diags: null };
@@ -284,11 +293,12 @@ export const actions = {
     const draft = store.yaml.draft;
     if (draft === null || store.state?.readonly) return true;
     if (draft !== store.yaml.applied) {
-      const err = (await api.check(draft)).diagnostics.find((d) => d.code === "yaml");
+      const err = (await api.check(draft, store.yamlFile)).diagnostics.find((d) => d.code === "yaml");
       if (err) {
+        const line = yamlLine(err);
         store.tab = "yaml";
-        store.revealLine = err.line;
-        toast(t("YAML syntax error (line {line}): {message}", { line: err.line ?? "?", message: err.message }));
+        store.revealLine = line;
+        toast(t("YAML syntax error (line {line}): {message}", { line: line ?? "?", message: err.message }));
         return false;
       }
     }
@@ -297,7 +307,20 @@ export const actions = {
   setTab: async (tab: "editor" | "yaml") => {
     if (tab === store.tab) return;
     if (tab === "editor" && !(await actions.flushYaml())) return;
+    // The YAML tab opens on the file the selected node is written in
+    if (tab === "yaml" && store.state?.data) store.yamlFile = fileOf(store.selected);
     store.tab = tab;
+  },
+  /** Show the text of a file of the map in the YAML tab (null: the map), at a line; the draft of the file shown
+   * before is applied first. */
+  openYaml: async (file: string | null, line: number | null = null): Promise<boolean> => {
+    if (file !== store.yamlFile) {
+      if (!(await actions.flushYaml())) return false;
+      store.yamlFile = file;
+    }
+    store.tab = "yaml";
+    if (line !== null) store.revealLine = line;
+    return true;
   },
   undo: () => run(api.undo),
   redo: () => run(api.redo),
@@ -335,6 +358,8 @@ export const actions = {
   select: (p: Path, via: string | null = null) => {
     store.selected = p;
     store.selectedVia = via;
+    // In the YAML tab a node of another file opens that file
+    if (store.tab === "yaml" && store.state?.data && fileOf(p) !== store.yamlFile) void actions.openYaml(fileOf(p));
   },
   refreshGit: async () => {
     if (!store.state || store.meta?.readonly) {
@@ -420,6 +445,18 @@ export const viewData = computed(() => viewOf(store.state));
 /** Included file the node is described in (it can only be viewed); null for a node of the main file. */
 export function includedPath(path: Path): string | null {
   return includedFile(store.state?.included, path);
+}
+
+/** File the node is written in, as the YAML tab shows it: an included file, or null for the map. */
+function fileOf(path: Path): string | null {
+  return localPath(store.state?.included, path).file;
+}
+
+/** Line of a message in the file of the YAML tab (a message about an included file is on its include line in the
+ * map); null: the message is not about this file. */
+export function yamlLine(d: Diagnostic): number | null {
+  if (store.yamlFile === null) return d.line;
+  return d.part?.file === store.yamlFile ? d.part.line : null;
 }
 
 /** Estimated load of each bus, by its path, for the tree. */

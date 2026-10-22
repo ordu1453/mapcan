@@ -107,7 +107,8 @@ class EditorSession:
         self.version = 0
         self.undo_stack: list[Snapshot] = []
         self.redo_stack: list[Snapshot] = []
-        self._live_base: str | None = None     # text before a series of edits in the YAML tab while typing
+        # The file (None: the map) and its text before a series of edits in the YAML tab while typing
+        self._live_base: tuple[str | None, str] | None = None
         self._result: LoadResult | None = None
         self._report = None
         self._last_check: tuple | None = None      # (text and included files, result, report) of check_text
@@ -131,11 +132,22 @@ class EditorSession:
                 return None
         return part.text
 
-    def _load(self, text: str) -> LoadResult:
-        return loads(text, str(self.path.name), self.path.parent, read=self._read_part)
+    def _load(self, text: str, override: tuple[str, str] | None = None) -> LoadResult:
+        """Load the map; ``override``: an included file (its key in parts) read with another text."""
+        def read(path: str) -> str | None:
+            return override[1] if override is not None and path == override[0] else self._read_part(path)
+        return loads(text, str(self.path.name), self.path.parent, read=read)
 
-    def _parts_key(self) -> tuple:
-        return tuple((p, part.text) for p, part in sorted(self.parts.items()))
+    def _parts_key(self, override: tuple[str, str] | None = None) -> tuple:
+        return tuple((p, override[1] if override is not None and p == override[0] else part.text)
+                     for p, part in sorted(self.parts.items()))
+
+    def part_key(self, file: str) -> str:
+        """An included file by its path relative to the map (as the state names it): its key in parts."""
+        for k, part in self.parts.items():
+            if part.text is not None and self._rel(part.path) == file:
+                return k
+        raise OpError(_("the included file {file} cannot be read", file=file))
 
     def _checked(self, text: str) -> tuple[LoadResult, Report]:
         """The load and validation of a text: those of the live validation of the same text (and the same
@@ -227,14 +239,29 @@ class EditorSession:
         self._result, self._report = self._checked(text)
         self.version += 1
 
-    def check_text(self, text: str) -> list[dict]:
-        """Validate a text without applying it (live validation in the YAML tab)."""
+    def check_text(self, text: str, file: str | None = None) -> list[dict]:
+        """Validate a text without applying it (live validation in the YAML tab). ``file``: the text is that of
+        an included file (relative to the map), with the map's current text."""
         text = text.replace("\r\n", "\n")
-        key = (text, self._parts_key())
-        result = self._load(text)
+        with self.lock:
+            override = (self.part_key(file), text) if file is not None else None
+            main = self.text if override is not None else text
+            key = (main, self._parts_key(override))
+            result = self._load(main, override)
         report = check(result)
         self._last_check = (key, result, report)
-        return [asdict(result.source.in_main_file(d)) for d in report.sorted()]
+        return self._diag_dicts(result, report)
+
+    def _diag_dicts(self, result: LoadResult, report: Report) -> list[dict]:
+        """Messages for the editor, on the include line in the map; one about an included file also has its place
+        in that file (``part``: the file relative to the map, line, column) for the YAML tab of that file."""
+        out = []
+        for d in report.sorted():
+            item = asdict(result.source.in_main_file(d))
+            if d.file is not None and d.file != result.source.file:
+                item["part"] = {"file": self._rel(d.file), "line": d.line, "column": d.column}
+            out.append(item)
+        return out
 
     def recheck(self) -> None:
         """Rebuild the validation messages (after the interface language changed)."""
@@ -378,8 +405,8 @@ class EditorSession:
             return text
         return merge_text(text, canon_old, dump(y, doc))
 
-    def set_text(self, text: str, live: bool = False) -> bool:
-        """Take the text of the YAML tab.
+    def set_text(self, text: str, live: bool = False, file: str | None = None) -> bool:
+        """Take the text of the YAML tab: of the map, or of the included file ``file`` (relative to the map).
 
         `live`: an intermediate application while typing; such edits in a row merge into one undo
         step until a normal application or another edit comes. Device renames are counted
@@ -387,21 +414,28 @@ class EditorSession:
         """
         with self.lock:
             self._check_writable()
-            base = self._live_base
+            key = self.part_key(file) if file is not None else None
+            current = self.text if key is None else self.parts[key].text
+            live_base = self._live_base
             self._live_base = None
-            text = self._carry_renames(self.text if base is None else base, text.replace("\r\n", "\n"))
+            # A series goes on only in the same file
+            base = live_base[1] if live_base is not None and live_base[0] == key else None
+            text = self._carry_renames(current if base is None else base, text.replace("\r\n", "\n"))
             if base is None:
-                changed = self._commit(text)
+                changed = self._commit(text) if key is None else self._commit(self.text, {key: text})
                 if live and changed:
-                    self._live_base = self.undo_stack[-1][0]
+                    self._live_base = (key, current)
                 return changed
             if text == base:                     # the series brought the text back: no undo step needed
                 self.undo_stack.pop()
             elif live:
-                self._live_base = base
-            if text == self.text:
+                self._live_base = (key, base)
+            if text == current:
                 return False
             self.redo_stack.clear()
+            if key is not None:
+                self.parts[key].text = text
+                text = self.text
             self._set_text(text)
             return True
 
@@ -432,10 +466,17 @@ class EditorSession:
         and the nodes they added, with the file's path relative to the map."""
         merged = self._result.merged if self._result else None
         if not isinstance(merged, dict) or not isinstance(merged.get("buses"), list):
-            return {"included_buses": None, "included": []}
-        roots = self._result.source.included_roots()
+            return {"included_buses": None, "included": [], "parts": {}}
+        src = self._result.source
+        roots = src.included_roots()
+        files = dict.fromkeys(str(Path(f).resolve()) for _i, f in src.includes)
         return {"included_buses": merged["buses"],
-                "included": [{"path": list(p), "file": self._rel(f)} for p, f in sorted(roots, key=lambda r: r[0])]}
+                # local: the node's path in its file (the second device of a bus may be the first of the file)
+                "included": [{"path": list(p), "file": self._rel(f), "local": list(src.origin(p)[1])}
+                             for p, f in sorted(roots, key=lambda r: r[0])],
+                # Texts of the included files (relative to the map), for the YAML tab
+                "parts": {self._rel(self.parts[k].path): self.parts[k].text for k in files
+                          if k in self.parts and self.parts[k].text is not None}}
 
     def _rel(self, f: str | Path) -> str:
         try:
@@ -467,7 +508,7 @@ class EditorSession:
                 "data": upgrade_tree(plain(self.doc)) if self.doc is not None else None,
                 "resolved": resolved_view(self.map) if self.map else None,
                 **self._included(),
-                "diagnostics": [asdict(self._result.source.in_main_file(d)) for d in self._report.sorted()],
+                "diagnostics": self._diag_dicts(self._result, self._report),
                 "palette": PALETTE,
                 "units": UNITS,
             }

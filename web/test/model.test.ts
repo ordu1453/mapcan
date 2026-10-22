@@ -1,7 +1,8 @@
 // Labels of nodes in the tree: titles for people instead of identifiers, links to received frames.
 
 import { describe, expect, it } from "vitest";
-import { buildTree, deviceLabel, displayName, includedFile, pathKey, viewOf, type TreeNode } from "../src/model";
+import { buildTree, deviceLabel, displayName, includedFile, localPath, mergedPath, pathKey, viewOf, type TreeNode }
+  from "../src/model";
 import type { ResolvedFrame } from "../src/types";
 
 const data = {
@@ -87,5 +88,21 @@ describe("included files", () => {
     expect(panel.fileRoot).toBe(true);
     expect(includedFile(included, ["buses", 0, "devices", 1, "frames", 0])).toBe("common.yaml");
     expect(includedFile(included, ["buses", 0, "devices", 0])).toBeNull();
+  });
+
+  it("a node's path in its file and back (the YAML tab of that file)", () => {
+    const parts = [
+      { path: ["buses", 0, "devices", 1], file: "panel.yaml", local: ["buses", 0, "devices", 0] },
+      { path: ["buses", 1], file: "common.yaml", local: ["buses", 0] },
+    ];
+    expect(localPath(parts, ["buses", 0, "devices", 1, "frames", 2]))
+      .toEqual({ file: "panel.yaml", path: ["buses", 0, "devices", 0, "frames", 2] });
+    expect(localPath(parts, ["buses", 1, "devices", 0])).toEqual({ file: "common.yaml", path: ["buses", 0, "devices", 0] });
+    expect(localPath(parts, ["buses", 0, "devices", 0])).toEqual({ file: null, path: ["buses", 0, "devices", 0] });
+    expect(mergedPath(parts, "panel.yaml", ["buses", 0, "devices", 0, "frames", 2]))
+      .toEqual(["buses", 0, "devices", 1, "frames", 2]);
+    expect(mergedPath(parts, "common.yaml", ["buses", 0, "name"])).toEqual(["buses", 1, "name"]);
+    expect(mergedPath(parts, "panel.yaml", ["buses", 0])).toBeNull();    // the bus only extended by the file
+    expect(mergedPath(parts, null, ["document"])).toEqual(["document"]);
   });
 });

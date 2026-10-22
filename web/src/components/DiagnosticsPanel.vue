@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { ownerPath } from "../model";
-import { actions, diagnostics, store, yamlLocal } from "../store";
+import { actions, diagnostics, store, yamlLine, yamlLocal } from "../store";
 import type { Diagnostic, Level } from "../types";
 import { t } from "../i18n";
 
@@ -22,11 +22,12 @@ function go(d: Diagnostic) {
   // Paths of the draft may not match the tree: go to the line only.
   if (draft.value) {
     store.tab = "yaml";
-    store.revealLine = d.line;
+    store.revealLine = yamlLine(d);
     return;
   }
   if (!store.state?.data || !d.node.length) store.tab = "yaml";
-  if (store.tab === "yaml") store.revealLine = d.line;
+  // In the YAML tab a message about an included file opens that file at its line
+  if (store.tab === "yaml") void actions.openYaml(d.part?.file ?? null, d.part?.line ?? d.line);
   if (d.node.length && store.state?.data) {
     actions.select(ownerPath(d.node));
     store.focusPath = d.node;

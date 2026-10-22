@@ -66,6 +66,7 @@ class DeviceFileBody(BaseModel):
 class TextBody(BaseModel):
     text: str
     live: bool = False                 # applied while typing (see EditorSession.set_text)
+    file: str | None = None            # the text of an included file (relative to the map); None: of the map
 
 
 class SaveBody(BaseModel):
@@ -775,13 +776,13 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     @app.post("/api/text")
     async def post_text(body: TextBody) -> dict:
         async with lock:
-            await run_in_threadpool(wsp.require().set_text, body.text, body.live)
+            await run_in_threadpool(wsp.require().set_text, body.text, body.live, body.file)
             return await changed()
 
     @app.post("/api/check")
     async def post_check(body: TextBody) -> dict:
         s = wsp.require()
-        return {"diagnostics": await run_in_threadpool(s.check_text, body.text)}
+        return {"diagnostics": await run_in_threadpool(s.check_text, body.text, body.file)}
 
     @app.post("/api/undo")
     async def post_undo() -> dict:

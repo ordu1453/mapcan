@@ -14,6 +14,8 @@ export interface Diagnostic {
   column: number | null;
   path: string;
   node: Path;
+  /** A message about an included file: its place in that file (relative to the map), for its YAML tab. */
+  part?: { file: string; line: number | null; column: number | null };
 }
 
 export interface ResolvedFlag {
@@ -64,6 +66,8 @@ export interface ResolvedFrame {
 export interface Included {
   path: Path;
   file: string;
+  /** The node's path in its file: the second device of a bus may be the first of the file. */
+  local?: Path;
 }
 
 export interface State {
@@ -89,6 +93,8 @@ export interface State {
   included_buses: any[] | null;
   /** Nodes added by included files, and their file (relative to the map). */
   included: Included[];
+  /** Texts of the included files (relative to the map), for the YAML tab. */
+  parts?: Record<string, string>;
   diagnostics: Diagnostic[];
   palette: string[];
   /** Reference of units: pairs of symbols [ru, en]. */

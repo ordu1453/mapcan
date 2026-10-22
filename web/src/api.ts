@@ -46,8 +46,10 @@ export const api = {
   ops: (ops: Op[]) => call<State>("POST", "/api/ops", { ops }),
   deviceFile: (bus: Path, device: Record<string, unknown>, file: string) =>
     call<State>("POST", "/api/device_file", { bus, device, file }),
-  text: (text: string, live = false) => call<State>("POST", "/api/text", { text, live }),
-  check: (text: string) => call<{ diagnostics: Diagnostic[] }>("POST", "/api/check", { text }),
+  // file: the text of an included file (relative to the map); null: of the map
+  text: (text: string, live = false, file: string | null = null) => call<State>("POST", "/api/text", { text, live, file }),
+  check: (text: string, file: string | null = null) =>
+    call<{ diagnostics: Diagnostic[] }>("POST", "/api/check", { text, file }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schema: () => call<any>("GET", "/api/schema"),
   undo: () => call<State>("POST", "/api/undo"),

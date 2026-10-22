@@ -108,6 +108,26 @@ export function includedFile(included: Included[] | undefined, path: Path): stri
   return null;
 }
 
+/** The file a node of the map is written in (null: the map) and its path there. */
+export function localPath(included: Included[] | undefined, path: Path): { file: string | null; path: Path } {
+  let best: Included | null = null;
+  for (const r of included ?? []) if (startsWith(path, r.path) && (!best || r.path.length > best.path.length)) best = r;
+  return best ? { file: best.file, path: [...(best.local ?? best.path), ...path.slice(best.path.length)] }
+    : { file: null, path };
+}
+
+/** The opposite of localPath: the path in the map of the node at `path` of `file` (null: the map); null if the
+ * node is not a node of the map (a bus of an included file that only extends a bus of the map). */
+export function mergedPath(included: Included[] | undefined, file: string | null, path: Path): Path | null {
+  if (file === null) return path;
+  let best: Included | null = null;
+  for (const r of included ?? []) {
+    const local = r.local ?? r.path;
+    if (r.file === file && startsWith(path, local) && (!best || local.length > (best.local ?? best.path).length)) best = r;
+  }
+  return best ? [...best.path, ...path.slice((best.local ?? best.path).length)] : null;
+}
+
 /** Data of the map together with the included files, for the tree and for viewing their nodes. */
 export function viewOf(s: { data: Data; included_buses?: Data[] | null } | null | undefined): Data {
   if (!s?.data) return null;

@@ -283,8 +283,10 @@ def test_web_state_has_included_nodes(tmp_path):
 
     s = EditorSession(write(tmp_path))
     st = s.state()
-    assert st["included"] == [{"path": ["buses", 0, "devices", 1], "file": "common.yaml"},
-                              {"path": ["buses", 1], "file": "common.yaml"}]
+    assert st["included"] == [{"path": ["buses", 0, "devices", 1], "file": "common.yaml",
+                               "local": ["buses", 0, "devices", 0]},
+                              {"path": ["buses", 1], "file": "common.yaml", "local": ["buses", 1]}]
+    assert st["parts"] == {"common.yaml": (tmp_path / "common.yaml").read_text(encoding="utf-8")}
     assert [b["name"] for b in st["included_buses"]] == ["can1", "can2"]
     assert len(st["data"]["buses"]) == 1                         # data of the main file, without the included ones
 
@@ -315,6 +317,30 @@ def test_web_edits_included_nodes_in_their_file(tmp_path):
     s.save()
     assert "- name: battery" in common.read_text(encoding="utf-8") and "battery" in main.read_text(encoding="utf-8")
     assert not s.state()["dirty"] and not s.disk_changed()
+
+
+def test_web_yaml_tab_edits_an_included_file(tmp_path):
+    from mapcan.web.session import EditorSession
+
+    main = write(tmp_path)
+    common = tmp_path / "common.yaml"
+    main_text, common_text = main.read_text(encoding="utf-8"), common.read_text(encoding="utf-8")
+    s = EditorSession(main)
+    # Typing in the YAML tab of common.yaml: the steps of a series are one undo step, the map is not touched
+    assert s.set_text(common_text.replace("id: 0x300", "id: 0x30"), live=True, file="common.yaml")
+    assert s.set_text(common_text.replace("id: 0x300", "id: 0x301"), live=True, file="common.yaml")
+    st = s.state()
+    assert st["text"] == main_text and st["dirty_files"] == ["common.yaml"]
+    assert "id: 0x301" in st["parts"]["common.yaml"]
+    assert s.undo() and s.parts[str(common.resolve())].text == common_text and not s.dirty
+    # A message about the included file has its place in that file
+    bad = common_text.replace("id: 0x200", "id: 0x100")
+    dup = next(d for d in s.check_text(bad, file="common.yaml") if d["code"] == "duplicate-can-id")
+    assert dup["line"] == 2 and dup["part"] == {"file": "common.yaml", "line": 9, "column": dup["part"]["column"]}
+    assert s.set_text(bad, file="common.yaml")
+    assert any(d.get("part", {}).get("line") == 9 for d in s.state()["diagnostics"])
+    with pytest.raises(Exception, match="cannot be read"):
+        s.set_text("x: 1", file="other.yaml")
 
 
 def test_web_save_checks_included_files_on_disk(tmp_path):

@@ -312,6 +312,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 /* ------------------------------------------------------------------ YAML */
 .yaml-editor { display: flex; flex-direction: column; height: 100%; }
 .yaml-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.yaml-file { max-width: 40%; }
 .yaml-hint, .yaml-problem { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .yaml-problem { display: flex; align-items: center; gap: 8px; color: var(--error); }
 .yaml-problem .link { color: inherit; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }

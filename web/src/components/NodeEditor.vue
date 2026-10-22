@@ -415,6 +415,7 @@ function onLayout(p: Path, start: number, length: number) {
     <div v-if="includedFile" class="banner info">
       🔗 {{ t("The node is described in the included file {file}: edits go to that file, and Save writes it too.",
               { file: includedFile }) }}
+      <button class="small fix" @click="actions.openYaml(includedFile)">{{ t("Open the YAML of {file}", { file: includedFile }) }}</button>
     </div>
     <div v-for="d in ownDiags" :key="d.code + d.message" class="banner" :class="d.level">
       <b>{{ d.code }}</b>: {{ d.message }}

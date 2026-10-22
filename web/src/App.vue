@@ -104,7 +104,7 @@ function keepMine() {
       <MapTree v-if="store.state.data" :key="'t' + store.state.session_id" />
       <div class="content">
         <NodeEditor v-if="store.tab === 'editor'" />
-        <YamlEditor v-else :key="'y' + store.state.session_id" />
+        <YamlEditor v-else :key="'y' + store.state.session_id + ':' + (store.yamlFile ?? '')" />
       </div>
     </main>
     <DiagnosticsPanel v-if="store.state" />

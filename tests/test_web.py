@@ -615,7 +615,7 @@ def test_live_check_and_apply_analyse_the_text_once(tmp_path, monkeypatch):
     s = EditorSession(p)
     loads = []
     load = s._load
-    monkeypatch.setattr(s, "_load", lambda text: loads.append(text) or load(text))
+    monkeypatch.setattr(s, "_load", lambda text, *rest: loads.append(text) or load(text, *rest))
     text = s.text.replace("Эталонная карта CANopen", "Эталонная карта", 1)
     diags = s.check_text(text)
     assert s.set_text(text, live=True)

@@ -46,7 +46,8 @@ def test_session_adds_a_device_in_a_new_file(drive):
     assert not new.exists()                     # written by Save
     st = s.state()
     assert st["dirty_files"] == ["devices/node_c.yaml"]
-    assert {"path": ["buses", 0, "devices", 2], "file": "devices/node_c.yaml"} in st["included"]
+    assert {"path": ["buses", 0, "devices", 2], "file": "devices/node_c.yaml",
+            "local": ["buses", 0, "devices", 0]} in st["included"]
     assert [d["name"] for d in st["included_buses"][0]["devices"]][-1] == "node_c"
     assert not [d for d in st["diagnostics"] if d["level"] == "error"]
 
