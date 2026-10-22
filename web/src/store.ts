@@ -13,7 +13,7 @@ interface Toast {
   text: string;
 }
 
-export type DialogKind = "open" | "new" | "saveas" | "example" | "profile" | "git-commit" | "git-tag" | "git-release" | "git-log" | "gh-publish" | null;
+export type DialogKind = "open" | "new" | "saveas" | "example" | "import" | "profile" | "git-commit" | "git-tag" | "git-release" | "git-log" | "gh-publish" | null;
 
 function savedTemplate(): string {
   try {
@@ -252,6 +252,26 @@ export const actions = {
         return api.fromExample({ name, path, force, overwrite: true });
       }
     }),
+  /** A map from a DBC file, next to it; what the import could not bring over is listed after it opened. */
+  importDbc: async (source: string, language: string): Promise<boolean> => {
+    let warnings: string[] = [];
+    const ok = await switchFile(async (force) => {
+      let r;
+      try {
+        r = await api.importDbc({ source, language, force });
+      } catch (e) {
+        if (!(e instanceof ApiError && e.code === "exists" && (await askOverwrite(e.message)))) throw e;
+        r = await api.importDbc({ source, language, force, overwrite: true });
+      }
+      warnings = r.warnings;
+      return r;
+    }, t("DBC imported"));
+    if (ok && warnings.length) {
+      await askUser(t("Imported with warnings"), warnings.map((w) => `• ${w}`).join("\n"),
+                    [{ label: t("Close"), value: "ok", kind: "primary" }]);
+    }
+    return ok;
+  },
   saveAs: async (path: string, overwrite = false): Promise<boolean> => {
     try {
       acceptSession(await api.saveAs(path, overwrite));

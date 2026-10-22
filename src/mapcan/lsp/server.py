@@ -404,6 +404,26 @@ def new_map_command(ls: MapcanServer, *args) -> dict:
         return {"error": str(e)}
 
 
+@server.command("mapcan.lsp.importDbc")
+@server.thread()
+def import_dbc_command(ls: MapcanServer, *args) -> dict:
+    """Argument: {path, title, language}: a DBC file. Response: {text, warnings} (the YAML of the map and what the
+    import could not bring over) or {error}."""
+    from ..i18n import normalize_language
+    from ..importers.dbc import import_dbc
+
+    params = _arg(args)
+    path = Path(str(params.get("path") or ""))
+    if not path.is_file():
+        return {"error": _("file not found: {path}", path=path)}
+    try:
+        text, warnings = import_dbc(path, params.get("title") or None,
+                                    normalize_language(str(params.get("language") or "en")) or "en")
+    except Exception as e:  # noqa: BLE001 — cantools raises many kinds of errors on a broken DBC
+        return {"error": _("could not import {name}: {error}", name=path.name, error=e)}
+    return {"text": text, "warnings": warnings}
+
+
 @server.command("mapcan.lsp.example")
 def example_command(ls: MapcanServer, *args) -> dict:
     """Argument: {name, mapFile}: an example and the file name of its copy. Response: {text, includes: {path

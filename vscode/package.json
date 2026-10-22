@@ -234,7 +234,7 @@
     "viewsWelcome": [
       {
         "view": "mapcan.map",
-        "contents": "[Create Map](command:mapcan.newMap)\nOr open [an example](command:mapcan.openExample) or [a map you have](command:mapcan.openMap).",
+        "contents": "[Create Map](command:mapcan.newMap)\nOr open [an example](command:mapcan.openExample) or [a map you have](command:mapcan.openMap), or [import a DBC](command:mapcan.importDbc).",
         "when": "!mapcan.mapOpen"
       },
       {
@@ -259,6 +259,13 @@
       }
     ],
     "menus": {
+      "explorer/context": [
+        {
+          "command": "mapcan.importDbc",
+          "when": "resourceExtname == .dbc",
+          "group": "navigation@9"
+        }
+      ],
       "view/title": [
         {
           "command": "mapcan.addBus",
@@ -642,6 +649,11 @@
       {
         "command": "mapcan.openExample",
         "title": "Open Example…",
+        "category": "mapcan"
+      },
+      {
+        "command": "mapcan.importDbc",
+        "title": "Import DBC…",
         "category": "mapcan"
       },
       {

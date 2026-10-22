@@ -11,7 +11,8 @@ when the first map is opened and never sees other files.
 * **Getting started.** With no map open, the Map view offers **Create Map** — a new map from a
   template (CANopen, SAE J1939, CAN with explicit IDs, empty) saved where you choose — and links to
   open an example (an electric vehicle, a CANopen drive, a J1939 ECU, a map in several files) as a
-  copy in a folder of yours, or a map you have. **Get started with mapcan** on the Welcome page
+  copy in a folder of yours, a map you have, or a DBC file to import (**mapcan: Import DBC…**, also
+  in the Explorer's context menu of a `.dbc`: the map is written next to it). **Get started with mapcan** on the Welcome page
   (Help → Welcome) is a short tour: installing mapcan, the Map view, a problem and its quick fix on
   a map of its own, the hover of a frame, export and history.
 * **Map view.** The mapcan icon in the Activity Bar opens the buses, devices, frames, signals and
@@ -128,7 +129,7 @@ the server restarts with its settings.
 
 ## Commands
 
-* **mapcan: Create Map…**, **mapcan: Open Example…**
+* **mapcan: Create Map…**, **mapcan: Open Example…**, **mapcan: Import DBC…**
 * **mapcan: Export** (shows the Export panel)
 * **mapcan: Add Bus**
 * **mapcan: Open Document Preview**

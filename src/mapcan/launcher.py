@@ -179,13 +179,13 @@ def _webview():
 class DialogApi:
     """Methods for the window's JS (window.pywebview.api): the system open and save file dialogs."""
 
-    FILE_TYPES = ("YAML (*.yaml;*.yml)", "All files (*.*)")
+    FILE_TYPES = {"yaml": ("YAML (*.yaml;*.yml)", "All files (*.*)"), "dbc": ("DBC (*.dbc)", "All files (*.*)")}
 
     def __init__(self, get_window):
         self._get_window = get_window   # with "_": pywebview does not expose the attribute to JS
 
-    def pick_file(self, mode: str, directory: str = "", filename: str = "") -> str | None:
-        """``mode``: "open" or "save". Returns the chosen path or None (cancelled)."""
+    def pick_file(self, mode: str, directory: str = "", filename: str = "", types: str = "yaml") -> str | None:
+        """``mode``: "open" or "save"; ``types``: a key of FILE_TYPES. Returns the chosen path or None (cancelled)."""
         import webview
 
         win = self._get_window()
@@ -193,7 +193,7 @@ class DialogApi:
             return None
         kind = webview.FileDialog.SAVE if mode == "save" else webview.FileDialog.OPEN
         result = win.create_file_dialog(kind, directory=directory or "", save_filename=filename or "",
-                                        file_types=self.FILE_TYPES)
+                                        file_types=self.FILE_TYPES.get(types, self.FILE_TYPES["yaml"]))
         if not result:
             return None
         return result if isinstance(result, str) else result[0]

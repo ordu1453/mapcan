@@ -407,6 +407,21 @@ def test_diff_command_compares_two_versions():
     assert "error" in diff_command(None, {"oldText": "mapcan: [", "newText": MINIMAL})
 
 
+def test_import_dbc_command(tmp_path):
+    pytest.importorskip("pygls")
+    from mapcan.export.dbc import export_dbc
+    from mapcan.loader import load
+    from mapcan.lsp.server import import_dbc_command
+
+    [dbc] = export_dbc(load(ROOT / "examples" / "minimal.yaml").map, tmp_path)
+    r = import_dbc_command(None, {"path": str(dbc), "title": "Imported", "language": "en"})
+    assert "title: Imported" in r["text"] and isinstance(r["warnings"], list)
+    broken = tmp_path / "broken.dbc"
+    broken.write_text("BO_ not a dbc", encoding="utf-8")
+    assert "error" in import_dbc_command(None, {"path": str(broken)})
+    assert "error" in import_dbc_command(None, {"path": str(tmp_path / "nope.dbc")})
+
+
 class _Server:
     """A server with one open document, to call the commands without the protocol."""
 

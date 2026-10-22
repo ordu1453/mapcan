@@ -1,7 +1,7 @@
 // System file dialogs. Only in the app window (pywebview, mapcan app), not in a browser.
 
 interface PywebviewApi {
-  pick_file(mode: "open" | "save", directory: string, filename: string): Promise<string | null>;
+  pick_file(mode: "open" | "save", directory: string, filename: string, types: "yaml" | "dbc"): Promise<string | null>;
 }
 
 function nativeApi(): PywebviewApi | null {
@@ -11,7 +11,8 @@ function nativeApi(): PywebviewApi | null {
 
 export const hasNativeDialog = (): boolean => nativeApi() !== null;
 
-export async function nativePick(mode: "open" | "save", directory: string, filename: string): Promise<string | null> {
+export async function nativePick(mode: "open" | "save", directory: string, filename: string,
+                                 types: "yaml" | "dbc" = "yaml"): Promise<string | null> {
   const api = nativeApi();
-  return api ? api.pick_file(mode, directory, filename) : null;
+  return api ? api.pick_file(mode, directory, filename, types) : null;
 }

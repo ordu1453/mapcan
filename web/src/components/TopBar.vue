@@ -114,6 +114,7 @@ onBeforeUnmount(() => {
       <div v-if="menu === 'file'" class="dropdown left" @click="menu = null">
         <button :disabled="store.meta?.readonly" @click="store.dialog = 'new'">{{ t("New map…") }}</button>
         <button @click="store.dialog = 'open'">{{ t("Open…") }} <kbd>Ctrl+O</kbd></button>
+        <button :disabled="store.meta?.readonly" @click="store.dialog = 'import'">{{ t("Import DBC…") }}</button>
         <template v-if="store.meta?.recent.length">
           <div class="dd-title">{{ t("Recent") }}</div>
           <button v-for="r in store.meta.recent.slice(0, 6)" :key="r.path" :disabled="!r.exists" :title="r.path"

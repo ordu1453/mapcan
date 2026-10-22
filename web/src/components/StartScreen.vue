@@ -24,6 +24,7 @@ function openExample(name: string) {
       <div class="start-actions">
         <button class="primary" :disabled="store.meta?.readonly" @click="store.dialog = 'new'">{{ t("New map…") }}</button>
         <button @click="store.dialog = 'open'">{{ t("Open…") }}</button>
+        <button :disabled="store.meta?.readonly" @click="store.dialog = 'import'">{{ t("Import DBC…") }}</button>
       </div>
 
       <section v-if="recent.length">

@@ -47,6 +47,10 @@ Save as… / Close map** all work in the browser. The file dialog can browse any
 accepts a typed path and lists recent files. If the current map has unsaved changes, the editor
 offers to save them before switching.
 
+**File → Import DBC…** (also on the start screen) turns a DBC file into a map, as
+`mapcan import dbc` does: the map is written next to the DBC with its name (the editor asks before
+overwriting) and opens; whatever the DBC cannot express is listed once it is open.
+
 The start screen also lists the bundled examples: pick one, choose where to save a copy, and it
 opens. The mapcan version is shown in the top bar next to the title and on the start screen.
 **File → Report an issue** (and the link on the start screen) opens a new GitHub issue with the
@@ -177,7 +181,7 @@ available at `http://127.0.0.1:8765/api/docs`.
 | GET | `/api/update` | Newer version on GitHub Releases: `{current, latest, newer, url, installer}` (`mapcan app` and local `serve` only) |
 | POST | `/api/instance/activate` | `{token, path}`: a second launch hands the file to the running instance (the token is in `~/.mapcan/instance.json`) |
 | GET | `/api/fs/list?dir=` | Folders and YAML files for the file dialog |
-| POST | `/api/file/open`, `/api/file/new`, `/api/file/example`, `/api/file/save_as`, `/api/file/close` | File operations; `409 unsaved` means there are unsaved changes (pass `force: true` to proceed) |
+| POST | `/api/file/open`, `/api/file/new`, `/api/file/example`, `/api/file/import_dbc`, `/api/file/save_as`, `/api/file/close` | File operations; `409 unsaved` means there are unsaved changes (pass `force: true` to proceed) |
 | GET | `/api/state` | Text, data, computed layout and diagnostics |
 | POST | `/api/ops` | `{"ops": [...]}`: apply operations atomically |
 | POST | `/api/device_file` | `{"bus": ["buses", 0], "device": {...}, "file": "devices/node.yaml"}`: a new device in a new file, added to `include` |

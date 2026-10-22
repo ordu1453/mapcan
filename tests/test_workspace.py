@@ -16,7 +16,7 @@ from mapcan.web.app import create_app
 from mapcan.web.newmap import TEMPLATES, new_map_text
 from mapcan.web.session import EditorSession
 
-from .conftest import REFERENCE
+from .conftest import REFERENCE, ROOT
 
 
 @pytest.fixture
@@ -161,6 +161,37 @@ def test_fs_list(empty, tmp_path):
     assert [e["name"] for e in r["entries"]] == ["sub", "m.yaml"]
     assert r["parent"] == str(tmp_path.resolve().parent)
     assert empty.get("/api/fs/list", params={"dir": str(tmp_path / "nope")}).status_code == 404
+
+
+def test_import_dbc(empty, tmp_path):
+    from mapcan.export.dbc import export_dbc
+    from mapcan.loader import load
+
+    [dbc] = export_dbc(load(ROOT / "examples" / "minimal.yaml").map, tmp_path / "src")
+    (tmp_path / "src" / "notes.txt").write_text("x", encoding="utf-8")
+    listing = empty.get("/api/fs/list", params={"dir": str(dbc.parent), "kind": "dbc"}).json()
+    assert [e["name"] for e in listing["entries"]] == [dbc.name]
+
+    r = empty.post("/api/file/import_dbc", json={"source": str(dbc)})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    target = dbc.with_suffix(".yaml")
+    assert target.is_file() and body["meta"]["file"] == str(target.resolve())
+    assert body["state"]["data"]["document"]["title"] == dbc.stem and body["state"]["data"]["buses"]
+    assert isinstance(body["warnings"], list)
+    assert not [d for d in body["state"]["diagnostics"] if d["level"] == "error"]
+
+    again = empty.post("/api/file/import_dbc", json={"source": str(dbc)})
+    assert again.status_code == 409 and again.json()["code"] == "exists"
+    other = empty.post("/api/file/import_dbc", json={"source": str(dbc), "path": "imported/bus"})
+    assert other.status_code == 200 and (tmp_path / "imported" / "bus.yaml").is_file()
+
+    broken = tmp_path / "broken.dbc"
+    broken.write_text("BO_ not a dbc", encoding="utf-8")
+    r = empty.post("/api/file/import_dbc", json={"source": str(broken), "force": True})
+    assert r.status_code == 400 and r.json()["code"] == "import"
+    assert not broken.with_suffix(".yaml").exists()
+    assert empty.post("/api/file/import_dbc", json={"source": "nope.dbc"}).status_code == 404
 
 
 def test_readonly_workspace(tmp_path):

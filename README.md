@@ -53,6 +53,9 @@ mapcan build vehicle.yaml -o build/         # PDF, Excel, HTML, DBC, C and Pytho
 mapcan app vehicle.yaml                     # edit it on the bit layout
 ```
 
+The app, the web editor (**File → Import DBC…**) and the VS Code extension (**mapcan: Import DBC…**)
+import a DBC too.
+
 You keep your tools: the DBC exported back works in CANalyzer, SavvyCAN, PCAN-View and Wireshark.
 
 ## Why not just a DBC file?

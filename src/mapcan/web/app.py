@@ -120,6 +120,14 @@ class ExampleBody(BaseModel):
     overwrite: bool = False
 
 
+class ImportBody(BaseModel):
+    source: str                   # the DBC file
+    path: str = ""                # the new map; next to the DBC, with its name, by default
+    language: str = "en"          # document language of the new map
+    force: bool = False
+    overwrite: bool = False
+
+
 class SaveAsBody(BaseModel):
     path: str
     overwrite: bool = False
@@ -314,8 +322,12 @@ class Workspace:
         }
 
 
-def list_dir(d: Path) -> dict:
-    """Contents of a folder for the file dialog: subfolders and YAML files."""
+FILE_KINDS = {"yaml": (".yaml", ".yml"), "dbc": (".dbc",)}
+
+
+def list_dir(d: Path, kind: str = "yaml") -> dict:
+    """Contents of a folder for the file dialog: subfolders and the files of ``kind`` (FILE_KINDS)."""
+    suffixes = FILE_KINDS.get(kind, FILE_KINDS["yaml"])
     if not d.is_dir():
         raise AppError(404, "not-found", _("folder not found: {path}", path=d))
     try:
@@ -328,7 +340,7 @@ def list_dir(d: Path) -> dict:
             continue
         try:
             is_dir = it.is_dir()
-            if not is_dir and it.suffix.lower() not in (".yaml", ".yml"):
+            if not is_dir and it.suffix.lower() not in suffixes:
                 continue
             st = it.stat()
         except OSError:
@@ -680,8 +692,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         return path
 
     @app.get("/api/fs/list")
-    async def fs_list(dir: str = "") -> dict:
-        return list_dir(wsp.resolve(dir) if dir else wsp.cwd)
+    async def fs_list(dir: str = "", kind: str = "yaml") -> dict:
+        return list_dir(wsp.resolve(dir) if dir else wsp.cwd, kind)
 
     @app.post("/api/file/open")
     async def file_open(body: OpenBody) -> dict:
@@ -737,6 +749,27 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
             raise AppError(400, "template", str(e)) from e
         return await create_file(body.path, body.force, body.overwrite, lambda _path: example_text(body.name),
                                  included)
+
+    @app.post("/api/file/import_dbc")
+    async def file_import_dbc(body: ImportBody) -> dict:
+        from ..importers.dbc import import_dbc
+
+        source = wsp.resolve(body.source)
+        if not source.is_file():
+            raise AppError(404, "not-found", _("file not found: {path}", path=source))
+        warnings: list[str] = []
+
+        def make_text(path: Path) -> str:
+            try:
+                text, found = import_dbc(source, path.stem, normalize_language(body.language) or "en")
+            except Exception as e:  # noqa: BLE001 — cantools raises many kinds of errors on a broken DBC
+                raise AppError(400, "import", _("could not import {name}: {error}", name=source.name, error=e)) from e
+            warnings.extend(found)
+            return text
+
+        result = await create_file(body.path or str(source.with_suffix(".yaml")), body.force, body.overwrite,
+                                   make_text)
+        return {**result, "warnings": warnings}
 
     @app.post("/api/file/save_as")
     async def file_save_as(body: SaveAsBody) -> dict:

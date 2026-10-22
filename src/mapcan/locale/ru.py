@@ -627,6 +627,7 @@ RU: dict[str, str] = {
     "{fmt} export error: {error}": "ошибка экспорта {fmt}: {error}",
     "the file is not UTF-8 encoded": "файл не в UTF-8",
     "could not read {name}: {error}": "не удалось прочитать {name}: {error}",
+    "could not import {name}: {error}": "не удалось импортировать {name}: {error}",
     "could not create {path}: {error}": "не удалось создать {path}: {error}",
     "could not save {path}: {error}": "не удалось сохранить {path}: {error}",
     "could not save the logo: {error}": "не удалось сохранить логотип: {error}",

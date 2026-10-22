@@ -34,12 +34,16 @@ export const api = {
   meta: () => call<Meta>("GET", "/api/meta"),
   update: () => call<UpdateInfo>("GET", "/api/update"),
   setUser: (u: { name: string; github: string | null }) => call<UserProfile>("PUT", "/api/user", u),
-  list: (dir = "") => call<FsList>("GET", `/api/fs/list?dir=${encodeURIComponent(dir)}`),
+  list: (dir = "", kind: "yaml" | "dbc" = "yaml") =>
+    call<FsList>("GET", `/api/fs/list?dir=${encodeURIComponent(dir)}&kind=${kind}`),
   open: (path: string, force = false) => call<SessionResult>("POST", "/api/file/open", { path, force }),
   newFile: (b: { path: string; template: string; title: string; language: string; force?: boolean; overwrite?: boolean }) =>
     call<SessionResult>("POST", "/api/file/new", b),
   fromExample: (b: { name: string; path: string; force?: boolean; overwrite?: boolean }) =>
     call<SessionResult>("POST", "/api/file/example", b),
+  // the map from a DBC file: written next to it (or to `path`) and opened
+  importDbc: (b: { source: string; path?: string; language: string; force?: boolean; overwrite?: boolean }) =>
+    call<SessionResult & { warnings: string[] }>("POST", "/api/file/import_dbc", b),
   saveAs: (path: string, overwrite = false) => call<SessionResult>("POST", "/api/file/save_as", { path, overwrite }),
   close: (force = false) => call<SessionResult>("POST", "/api/file/close", { force }),
   state: () => call<State>("GET", "/api/state"),

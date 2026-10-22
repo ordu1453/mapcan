@@ -126,6 +126,23 @@ const tests = {
     assert.ok(fs.existsSync(path.join(outDir, "minimal.md")));
   },
 
+  async "a DBC file is imported as a map next to it (#128)"(ctx) {
+    const dbc = path.join(workspace, "imported.dbc");
+    fs.copyFileSync(path.join(workspace, "build", "dbc", "demo.dbc"), dbc);
+    await vscode.commands.executeCommand("mapcan.importDbc", vscode.Uri.file(dbc));
+    const yaml = path.join(workspace, "imported.yaml");
+    const editor = await until("the imported map", () =>
+      vscode.window.activeTextEditor?.document.uri.fsPath === vscode.Uri.file(yaml).fsPath && vscode.window.activeTextEditor);
+    assert.match(editor.document.getText(), /^ {2}title: imported$/m);
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+    await vscode.window.showTextDocument(ctx.doc);
+    // The next tests edit the map through the tree: it must show this map again, with its nodes
+    await until("the tree of the test map", () =>
+      ctx.api.tree.mapUri?.toString() === ctx.doc.uri.toString() && ctx.api.tree.getChildren().length);
+    fs.rmSync(yaml);
+    fs.rmSync(dbc);
+  },
+
   async "tree commands add, duplicate and delete nodes"(ctx) {
     const tree = ctx.api.tree;
     const frame = () => tree.getChildren(tree.getChildren(tree.getChildren()[0])[0])[0];

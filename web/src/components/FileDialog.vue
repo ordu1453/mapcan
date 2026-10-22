@@ -8,12 +8,14 @@ import Modal from "./Modal.vue";
 import { DOC_LANGUAGES, N_, t } from "../i18n";
 import { hasNativeDialog, nativePick } from "../native";
 
-const props = defineProps<{ mode: "open" | "new" | "saveas" | "example" }>();
+const props = defineProps<{ mode: "open" | "new" | "saveas" | "example" | "import" }>();
 const emit = defineEmits<{ close: [] }>();
 
 const TITLES = { open: N_("Open map"), new: N_("New map"), saveas: N_("Save as"),
-                 example: N_("Save a copy of the example") };
-const ACTION = { open: N_("Open"), new: N_("Create"), saveas: N_("Save"), example: N_("Create") };
+                 example: N_("Save a copy of the example"), import: N_("Import DBC") };
+const ACTION = { open: N_("Open"), new: N_("Create"), saveas: N_("Save"), example: N_("Create"), import: N_("Import") };
+// The import lists DBC files; the map is written next to the chosen one
+const kind = props.mode === "import" ? "dbc" : "yaml";
 
 const listing = ref<FsList | null>(null);
 const dirInput = ref("");
@@ -36,7 +38,7 @@ function dirOf(p: string | null | undefined): string {
 async function go(dir: string) {
   loading.value = true;
   try {
-    listing.value = await api.list(dir);
+    listing.value = await api.list(dir, kind);
     dirInput.value = listing.value.dir;
     error.value = "";
   } catch (e) {
@@ -89,6 +91,7 @@ async function submit() {
   if (props.mode === "open") ok = await actions.openFile(p);
   else if (props.mode === "new") ok = await actions.newFile(p, template.value, title.value.trim(), docLang.value);
   else if (props.mode === "example") ok = await actions.newFromExample(store.example ?? "", p);
+  else if (props.mode === "import") ok = await actions.importDbc(p, docLang.value);
   else ok = await actions.saveAs(p);
   if (ok) emit("close");
 }
@@ -99,10 +102,12 @@ const canBrowse = hasNativeDialog();
 // except for a new map: it also needs a template and a title.
 async function browse() {
   const base = name.value.trim().split(/[\\/]/).pop() ?? "";
-  const p = await nativePick(props.mode === "open" ? "open" : "save", listing.value?.dir ?? "", base);
+  const open = props.mode === "open" || props.mode === "import";
+  const p = await nativePick(open ? "open" : "save", listing.value?.dir ?? "", base, kind);
   if (!p) return;
   let ok = false;
   if (props.mode === "open") ok = await actions.openFile(p);
+  else if (props.mode === "import") ok = await actions.importDbc(p, docLang.value);
   else if (props.mode === "saveas") ok = await actions.saveAs(p, true);
   else if (props.mode === "example") ok = await actions.newFromExample(store.example ?? "", p, true);
   else {
@@ -116,6 +121,8 @@ async function browse() {
 async function openRecent(path: string) {
   if (await actions.openFile(path)) emit("close");
 }
+
+const importTarget = computed(() => fullPath.value.replace(/(\.dbc)?$/i, ".yaml"));
 
 const fmtSize = (n: number | null) => (n == null ? "" : n < 1024 ? t("{n} B", { n }) : t("{n} KB", { n: (n / 1024).toFixed(1) }));
 const fmtDate = (s: number) => new Date(s * 1000).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" });
@@ -158,15 +165,28 @@ const fmtDate = (s: number) => new Date(s * 1000).toLocaleString("en-US", { date
               <span class="muted mono">{{ fmtSize(e.size) }}</span>
               <span class="muted">{{ fmtDate(e.mtime) }}</span>
             </div>
-            <p v-if="!listing.entries.length" class="muted">{{ t("This folder contains no YAML files or subfolders.") }}</p>
+            <p v-if="!listing.entries.length" class="muted">{{ mode === "import"
+              ? t("This folder contains no DBC files or subfolders.")
+              : t("This folder contains no YAML files or subfolders.") }}</p>
           </template>
         </div>
 
         <div class="form-grid fd-form">
-          <label class="field" :class="{ wide: mode !== 'new' }">
-            <span class="field-label">{{ mode === "open" ? t("File") : t("File name") }}</span>
-            <input ref="nameEl" v-model="name" class="mono" :placeholder="t('mapcan.yaml or a full path')" @keydown.enter="submit" />
+          <label class="field" :class="{ wide: mode !== 'new' && mode !== 'import' }">
+            <span class="field-label">{{ mode === "open" || mode === "import" ? t("File") : t("File name") }}</span>
+            <input ref="nameEl" v-model="name" class="mono"
+                   :placeholder="mode === 'import' ? t('bus.dbc or a full path') : t('mapcan.yaml or a full path')"
+                   @keydown.enter="submit" />
           </label>
+          <template v-if="mode === 'import'">
+            <label class="field">
+              <span class="field-label">{{ t("Document language") }}</span>
+              <select v-model="docLang">
+                <option v-for="[code, label] in DOC_LANGUAGES" :key="code" :value="code">{{ t(label) }}</option>
+              </select>
+            </label>
+            <p class="field wide muted">{{ t("The map is written next to the DBC file, with its name.") }}</p>
+          </template>
           <template v-if="mode === 'new'">
             <label class="field">
               <span class="field-label">{{ t("Map title") }}</span>
@@ -191,7 +211,7 @@ const fmtDate = (s: number) => new Date(s * 1000).toLocaleString("en-US", { date
           </template>
         </div>
         <div class="fd-actions">
-          <span class="muted mono fd-target">{{ fullPath }}</span>
+          <span class="muted mono fd-target">{{ mode === "import" && name.trim() ? importTarget : fullPath }}</span>
           <button v-if="canBrowse" :disabled="store.busy" :title="t('Choose with the system file dialog')" @click="browse">{{ t("Browse…") }}</button>
           <button @click="emit('close')">{{ t("Cancel") }}</button>
           <button class="primary" :disabled="!name.trim() || store.busy" @click="submit">{{ t(ACTION[mode]) }}</button>

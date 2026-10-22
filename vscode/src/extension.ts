@@ -371,7 +371,7 @@ export async function activate(
       scheduleIdleStop();
     }
     return client;
-  });
+  }, output);
   const showChanges = registerPreview(context, () => client, currentMap, changes);
   registerHistory(context, history, currentMap, showChanges, () => client);
   await start();
