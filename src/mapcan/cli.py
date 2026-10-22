@@ -208,12 +208,20 @@ class DiffFormat(str, Enum):
     json = "json"
 
 
+class FailOn(str, Enum):
+    breaking = "breaking"
+    any = "any"
+
+
 @app.command(help=_("Compare two versions of a map (frames, signals, values) and print a changelog."))
 def diff(
     old: Path = typer.Argument(..., exists=True, dir_okay=False, help=_("Old version of the map.")),
     new: Path = typer.Argument(..., exists=True, dir_okay=False, help=_("New version of the map.")),
     fmt: DiffFormat = typer.Option(DiffFormat.text, "--format", help="text | md | json"),
     lang: Optional[str] = LangOpt,
+    fail_on: Optional[FailOn] = typer.Option(
+        None, "--fail-on",
+        help=_("Exit code 1 on breaking changes (breaking) or on any change (any).")),
 ) -> None:
     from .diff import diff_maps, render_diff
     from .loader import load
@@ -228,6 +236,12 @@ def diff(
         maps.append(res.map)
     d = diff_maps(maps[0], maps[1], lang)
     typer.echo(render_diff(d, fmt.value, lang or maps[1].lang))
+    if fail_on is FailOn.breaking and d.breaking:
+        typer.secho(_("breaking changes: {count}", count=len(d.breaking)), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
+    if fail_on is FailOn.any and not d.empty:
+        typer.secho(_("changes: {count}", count=len(d.changes)), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
 
 
 @app.command(help=_("Rewrite the former names of fields (deprecated-key) to the current ones, keeping comments and "

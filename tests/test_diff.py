@@ -73,9 +73,52 @@ def test_cli_diff(tmp_path):
     new.write_text(BASE.replace("factor: 0.1\n", "factor: 0.01\n", 1), encoding="utf-8")
     r = CliRunner().invoke(app, ["diff", str(REFERENCE), str(new), "--format", "md"])
     assert r.exit_code == 0, r.output
-    assert "- 0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01" in r.output
+    assert "- **несовместимо:** 0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01" in r.output
     r = CliRunner().invoke(app, ["diff", str(REFERENCE), str(new), "--format", "json"])
     assert json.loads(r.output)["changes"][0]["field"] == "factor"
+
+
+def test_breaking_changes():
+    # A scale, an ID (via the node ID), a removed signal and a renamed value break devices in the field
+    new = BASE.replace("factor: 0.1\n", "factor: 0.01\n", 1).replace("node_id: 0x23\n", "node_id: 0x26\n", 1)
+    new = new.replace("                  1: OK\n", "                  1: GOOD\n", 1)
+    d = _diff(new)
+    assert d.changes and all(c.breaking for c in d.changes), [c for c in d.changes if not c.breaking]
+    # An added value and a new description do not
+    new = BASE.replace("                  3: ALARM\n", "                  3: ALARM\n                  4: SERVICE\n", 1)
+    new = new.replace("description: Номер повторно запрашиваемого кадра", "description: Номер кадра", 1)
+    d = _diff(new)
+    assert len(d.changes) == 2 and not d.breaking
+
+
+def test_limits_breaking_only_when_narrowed():
+    from mapcan.diff import Change, is_breaking
+
+    def lim(fld, old, new):
+        return is_breaking(Change("changed", "signal", "b", field=fld, old=old, new=new))
+
+    assert lim("min", 0, 10) and lim("max", 100, 50) and lim("max", None, 50)
+    assert not lim("min", 10, 0) and not lim("max", 50, 100) and not lim("max", 50, None)
+
+
+def test_cli_diff_fail_on(tmp_path):
+    breaking = tmp_path / "breaking.yaml"
+    breaking.write_text(BASE.replace("factor: 0.1\n", "factor: 0.01\n", 1), encoding="utf-8")
+    compatible = tmp_path / "compatible.yaml"
+    compatible.write_text(BASE.replace("                  3: ALARM\n",
+                                       "                  3: ALARM\n                  4: SERVICE\n", 1),
+                          encoding="utf-8")
+    run = CliRunner().invoke
+    r = run(app, ["diff", str(REFERENCE), str(breaking), "--fail-on", "breaking", "--lang", "en"])
+    assert r.exit_code == 1
+    assert "[breaking] 0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01" in r.output
+    r = run(app, ["diff", str(REFERENCE), str(breaking), "--format", "md", "--lang", "en"])
+    assert r.exit_code == 0 and "- **breaking:** 0x2A1 imd_data" in r.output
+    r = run(app, ["diff", str(REFERENCE), str(breaking), "--format", "json"])
+    assert json.loads(r.output)["changes"][0]["breaking"] is True
+    assert run(app, ["diff", str(REFERENCE), str(compatible), "--fail-on", "breaking"]).exit_code == 0
+    assert run(app, ["diff", str(REFERENCE), str(compatible), "--fail-on", "any"]).exit_code == 1
+    assert run(app, ["diff", str(REFERENCE), str(REFERENCE), "--fail-on", "any"]).exit_code == 0
 
 
 def _paths(new_text: str) -> dict:

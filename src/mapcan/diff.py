@@ -27,6 +27,7 @@ class Change:
     field: str = ""          # changed field
     old: Any = None
     new: Any = None
+    breaking: bool = False   # devices built against the old version misread the bus (see is_breaking)
 
 
 @dataclass
@@ -38,6 +39,10 @@ class MapDiff:
     @property
     def empty(self) -> bool:
         return not self.changes
+
+    @property
+    def breaking(self) -> list[Change]:
+        return [c for c in self.changes if c.breaking]
 
     def to_dict(self) -> dict:
         return {"old_version": self.old_version, "new_version": self.new_version,
@@ -55,6 +60,45 @@ SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "representation", "enc
                  "unit",
                  "min", "max", "initial", "source", "invalid_raw", "multiplexer", "mux", "description")
 FLAG_FIELDS = ("bit", "bit_length", "description")
+
+# Fields whose change makes a device built against the old version send or read the bus differently
+BREAKING_FIELDS = {
+    "device": {"node_id", "address"},
+    "frame": {"can_id", "canopen", "length", "extended", "pgn", "priority"},
+    "signal": {"start_bit", "bit_length", "byte_order", "representation", "encoding", "factor", "offset",
+               "multiplexer", "mux"},
+    "flag": {"bit", "bit_length"},
+    "value": {"name"},
+}
+
+
+def _narrowed(fld: str, old: Any, new: Any) -> bool:
+    """A limit (min or max) admits fewer values than before; a limit set where there was none does too."""
+    if new is None:
+        return False
+    if old is None:
+        return True
+    try:
+        return new > old if fld == "min" else new < old
+    except TypeError:
+        return True
+
+
+def is_breaking(c: Change) -> bool:
+    """The change breaks devices built against the old version of the map.
+
+    Removing a bus, frame, signal, flag or value breaks them; so do moving or rescaling a signal, changing the
+    identifier or length of a frame, renaming or renumbering a value and narrowing a limit. Additions, texts,
+    units of display, timing and widened limits do not. A removed device is not breaking by itself: its frames
+    are listed as removed.
+    """
+    if c.kind == "added":
+        return False
+    if c.kind == "removed":
+        return c.scope != "device"
+    if c.scope == "signal" and c.field in ("min", "max"):
+        return _narrowed(c.field, c.old, c.new)
+    return c.field in BREAKING_FIELDS.get(c.scope, ())
 
 
 def _invalid_text(s: Signal) -> str | None:
@@ -104,6 +148,8 @@ def diff_maps(old: MapCan, new: MapCan, lang: str | None = None) -> MapDiff:
                 d.changes.append(_frame_change("added", name, f))
             continue
         _diff_bus(d, ob[name], nb[name], langs)
+    for c in d.changes:
+        c.breaking = is_breaking(c)
     return d
 
 
@@ -254,14 +300,14 @@ _T = {
         "bus": "шина", "device": "устройство", "frame": "кадр", "signal": "сигнал",
         "flag": "флаг", "value": "значение", "bits": "биты", "byte": "байт",
         "added_n": "добавлено", "removed_n": "удалено", "changed_n": "изменено",
-        "none": "Изменений нет.",
+        "none": "Изменений нет.", "breaking": "несовместимо",
     },
     "en": {
         "added": "added", "removed": "removed", "changed": "changed",
         "bus": "bus", "device": "device", "frame": "frame", "signal": "signal",
         "flag": "flag", "value": "value", "bits": "bits", "byte": "byte",
         "added_n": "added", "removed_n": "removed", "changed_n": "changed",
-        "none": "No changes.",
+        "none": "No changes.", "breaking": "breaking",
     },
 }
 
@@ -375,9 +421,13 @@ def release_message(version: str, changes: list[str]) -> str:
 def render_diff(diff: MapDiff, fmt: str = "text", lang: str = "ru") -> str:
     if fmt == "json":
         return diff.to_json()
+    T = _T.get(lang, _T["ru"])
     lines = changelog_lines(diff, lang)
     if not lines:
-        return _T.get(lang, _T["ru"])["none"]
+        return T["none"]
+    # changelog_lines gives one line per change, in the same order
+    mark = f"**{T['breaking']}:** " if fmt == "md" else f"[{T['breaking']}] "
+    lines = [mark + line if c.breaking else line for c, line in zip(diff.changes, lines, strict=True)]
     if fmt == "md":
         head = f"## {diff.old_version} → {diff.new_version}\n\n"
         return head + "\n".join(f"- {line}" for line in lines)

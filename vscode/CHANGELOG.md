@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+* The **Changes** tab marks the changes that break devices built against the old version of the
+  map (a signal moved or rescaled, a frame's ID changed, a value removed) as **breaking** (#129).
+
 ## 0.6.6
 
 * Needs mapcan 0.23.2 or newer, which the extension offers to install or update.

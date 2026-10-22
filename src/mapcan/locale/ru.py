@@ -21,6 +21,10 @@ RU: dict[str, str] = {
         "Редактор в отдельном окне (pywebview); повторный запуск открывает файл в уже запущенном окне.",
     "Compare two versions of a map (frames, signals, values) and print a changelog.":
         "Сравнить две версии карты (кадры, сигналы, значения) и вывести changelog.",
+    "Exit code 1 on breaking changes (breaking) or on any change (any).":
+        "Код возврата 1 при несовместимых изменениях (breaking) или при любых (any).",
+    "breaking changes: {count}": "несовместимых изменений: {count}",
+    "changes: {count}": "изменений: {count}",
     "List validation rules.": "Список правил проверки.",
     "Print the format's JSON Schema (for IDE hints).": "Вывести JSON Schema формата (для подсказок в IDE).",
     "List PDF templates or copy a built-in template to customize the layout.":

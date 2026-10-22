@@ -16,7 +16,7 @@ mapcan export eds  FILE [-o DIR] [--bus NAME]
 mapcan gen c       FILE [-o DIR] [--prefix my_] [--bus NAME]
 mapcan gen py      FILE [-o DIR] [--bus NAME]
 mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,eds,c,py] [--pdf-template NAME]
-mapcan diff        OLD NEW [--format text|md|json]
+mapcan diff        OLD NEW [--format text|md|json] [--fail-on breaking|any]
 mapcan import dbc  FILE.dbc [-o FILE.yaml] [--title TEXT] [--lang en] [--force]
 mapcan migrate     FILE… [--check]      # former field names → current ones
 mapcan fmt         FILE… [--check]      # keys in one order, comments and layout kept
@@ -187,6 +187,23 @@ marked J1939 (`VFrameFormat`) becomes a `j1939` bus with PGNs and device address
 becomes a `can` bus with explicit IDs. Value names become identifiers (`Not available` →
 `NOT_AVAILABLE`, the original text goes to the description), and whatever DBC cannot express is
 reported as a warning.
+
+## Comparing versions
+
+`mapcan diff OLD NEW` lists what changed between two versions of a map and marks the changes that
+break devices built against the old one (`[breaking]` in text, **breaking:** in Markdown, a
+`breaking` field per change in JSON):
+
+| Breaking | Compatible |
+|---|---|
+| a bus, frame, signal, flag or value removed | anything added: buses, devices, frames, signals in free bits, values |
+| a frame's ID, CANopen function, PGN, priority, length or IDE changed; a device's node ID or address | timing, transmission mode, sender and receivers |
+| a signal moved or resized; its byte order, representation, encoding, factor or offset changed | titles, descriptions, units of display, initial values |
+| a value renamed or renumbered; a flag moved; the multiplexer or a multiplexer value changed | limits widened or removed |
+| a limit narrowed or added | |
+
+`--fail-on breaking` exits with code 1 when a breaking change is found, `--fail-on any` on any change;
+[ci-example.md](ci-example.md#breaking-changes-in-pull-requests) uses it to check pull requests.
 
 ## CI
 

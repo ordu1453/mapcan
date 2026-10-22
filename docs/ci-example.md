@@ -45,6 +45,48 @@ jobs:
 merge. `mapcan fmt --check` fails when the keys of the map are not in the canonical order, so that maps
 edited by different people and editors stay easy to review; `mapcan fmt my-map.yaml` fixes it.
 
+## Breaking changes in pull requests
+
+A map describes devices already in the field: moving a signal, changing its scale or reassigning an
+ID breaks them, while a new signal in free bits does not. `mapcan diff --fail-on breaking` tells the
+two apart (see [cli.md](cli.md#comparing-versions)), so a pull request that breaks the map fails
+unless it says so on purpose: here with the label `breaking`, or by raising the major version of
+`document.version`.
+
+```yaml
+name: mapcan-compat
+on:
+  pull_request:
+    paths: ["my-map.yaml"]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'breaking') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - run: uv tool install "mapcan==X.Y.Z"
+      - name: Compare with the base branch
+        shell: bash   # with pipefail, so that tee keeps the exit code of mapcan diff
+        run: |
+          git show "origin/${{ github.base_ref }}:my-map.yaml" > base.yaml
+          old=$(yq '.document.version' base.yaml | cut -d. -f1)
+          new=$(yq '.document.version' my-map.yaml | cut -d. -f1)
+          if [ "$new" != "$old" ]; then
+            echo "major version raised ($old → $new): breaking changes allowed"
+            mapcan diff base.yaml my-map.yaml --lang en
+          else
+            mapcan diff base.yaml my-map.yaml --lang en --format md --fail-on breaking | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+```
+
+`git show` gives only the main file: a map split into included files needs the base branch checked
+out next to it (`git worktree add ../base origin/main`) and `mapcan diff ../base/my-map.yaml my-map.yaml`.
+
 ## GitLab CI
 
 `.gitlab-ci.yml`, using the published Docker image:
