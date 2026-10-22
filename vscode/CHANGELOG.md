@@ -1,12 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.6.7
 
-* Needs mapcan 0.23.3 or newer for **mapcan: Import DBC…** (#128): it picks a `.dbc` (or takes the one
-  right-clicked in the Explorer), writes the map next to it with its name, asking before overwriting,
-  and opens it; what the DBC cannot express goes to the mapcan output channel, with a notification.
-  The Map view's welcome links to it.
-
+* Needs mapcan 0.23.3 or newer, which the extension offers to install or update.
+* **mapcan: Import DBC…** (#128) picks a `.dbc` (or takes the one right-clicked in the Explorer),
+  writes the map next to it with its name, asking before overwriting, and opens it; what the DBC
+  cannot express goes to the mapcan output channel, with a notification. The Map view's welcome
+  links to it.
 * The **Changes** tab marks the changes that break devices built against the old version of the
   map (a signal moved or rescaled, a frame's ID changed, a value removed) as **breaking** (#129).
 
