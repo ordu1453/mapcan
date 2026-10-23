@@ -1,6 +1,6 @@
 [project]
 name = "mapcan"
-version = "0.23.3"
+version = "0.24.0"
 description = "A YAML map of CAN signals as the single source of truth: validation, Excel/PDF/Markdown/HTML, DBC, C/Python code"
 # readme: built from README.md with absolute links for PyPI (see fancy-pypi-readme below)
 dynamic = ["readme"]
