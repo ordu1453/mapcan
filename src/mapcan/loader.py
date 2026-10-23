@@ -31,9 +31,9 @@ except ImportError:  # pragma: no cover
 
 from .diagnostics import Diagnostic, Report
 from .i18n import _
-from .model import MapCan
+from .model import FORMAT_VERSION, MapCan
 from .resolve import resolve
-from .upgrade import Upgraded, upgrade_tree
+from .upgrade import Upgraded, upgrade_tree, upgrade_v1
 
 # Keys whose values must be numbers.
 NUMERIC_KEYS = {
@@ -511,6 +511,8 @@ def _loads(text: str, filename: str | None, base_dir: str | Path | None,
         base = Path(base_dir) if base_dir is not None else Path(filename).resolve().parent if filename else None
         _include(data, base, src, report, read)
         data = _upgrade(data, src, report)
+        if data.get("mapcan") == 1:
+            data = _upgrade_v1(data, src, report)
         merged = copy.deepcopy(data) if src.includes else None
         _value_tables(data, src, report)
     else:
@@ -554,6 +556,14 @@ def _upgrade(data: dict, src: SourceMap, report: Report) -> dict:
                         src.files.setdefault(to + p[len(frm):], src.files[p])
 
     return upgrade_tree(data, found)
+
+
+def _upgrade_v1(data: dict, src: SourceMap, report: Report) -> dict:
+    """A map of format version 1: its encodings as version 2 has them (see upgrade.py), with a note."""
+    report.add(src.diag("info", "format-v1",
+                        _("format version 1: mapcan migrate rewrites the map and its included files in version {v}",
+                          v=FORMAT_VERSION), ("mapcan",)))
+    return upgrade_v1(data)
 
 
 # --------------------------------------------------------------------------- #
@@ -628,8 +638,8 @@ def _check_part_header(part: dict, path: Path, map_file: Path | None, sub_src: S
     expected = os.path.relpath(main, path.resolve().parent).replace(os.sep, "/") if main else None
     if "mapcan" not in part or "part_of" not in part:
         report.add(sub_src.diag("warning", "include-part-of",
-                                _("an included file starts with mapcan: 1 and part_of: {map} (the map it belongs to)",
-                                  map=expected or "<map file>"), ()))
+                                _("an included file starts with mapcan: {version} and part_of: {map} (the map it "
+                                  "belongs to)", version=data.get("mapcan"), map=expected or "<map file>"), ()))
     if "mapcan" in part and part["mapcan"] != data.get("mapcan"):
         report.add(sub_src.diag("error", "include",
                                 _("format version {part} differs from the map's {main}", part=part["mapcan"],

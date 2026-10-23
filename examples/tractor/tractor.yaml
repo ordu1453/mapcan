@@ -4,7 +4,7 @@
 # powertrain.yaml (included below) adds the J1939 powertrain bus, a gateway on the cab bus
 # and the value tables both files use. Validation, documents and code cover the whole map.
 
-mapcan: 1
+mapcan: 2
 
 document:
   title: Tractor
@@ -42,7 +42,7 @@ buses:
               - name: hitch_position
                 title: Hitch position request
                 description: Rear hitch lever position
-                encoding: scaled
+                encoding: number
                 byte: 1
                 byte_length: 1
                 factor: 0.4

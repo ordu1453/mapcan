@@ -339,7 +339,7 @@ class CGen:
 
     @staticmethod
     def ctype(s: Signal) -> str:
-        if s.encoding == "float":
+        if s.is_float:
             return "double" if s.bit_length == 64 else "float"
         return ("int" if s.signed else "uint") + f"{storage_bits(s)}_t"
 
@@ -443,7 +443,7 @@ class CGen:
             if s.flags:
                 out.append("")
             out += self.default_defines(F, s)
-            if physical(s) and s.encoding == "float":
+            if physical(s) and s.is_float:
                 T = self.ctype(s)
                 sfx = "" if T == "double" else "F"
                 fn = self.p(F, S)
@@ -503,7 +503,7 @@ class CGen:
             d = self.t(s.description) or self.t(s.title)
             if is_byte_array(s):
                 # A string is text of the charset, not NUL-terminated when it fills the field
-                ctype = "char" if s.encoding == "string" else "uint8_t"
+                ctype = "char" if s.is_text else "uint8_t"
                 out.append(f"    {ctype} {s.name}[{s.bit_length // 8}];{' /* ' + d + ' */' if d else ''}")
             else:
                 unit = f" [{_c_comment(translate_unit(s.unit, self.lang))}]" if s.unit else ""
@@ -564,7 +564,7 @@ class CGen:
             out.append(f"#define {self.P(F, s.name, 'SPN')} {s.spn}u")
         init = s.initial_raw
         if init is not None and not is_byte_array(s):
-            if s.encoding == "float":
+            if s.is_float:
                 sfx = "" if s.bit_length == 64 else "F"
                 out.append(f"#define {self.P(F, s.name, 'INITIAL')} ({num(init)}{sfx})")
             else:
@@ -631,12 +631,12 @@ class CGen:
             init = s.initial_raw
             if is_byte_array(s):
                 n = s.bit_length // 8
-                fill = (f"(char)0x{s.terminator_byte or 0:02X}" if s.encoding == "string" else "0u")
+                fill = (f"(char)0x{s.terminator_byte or 0:02X}" if s.is_text else "0u")
                 items.append("{" + ", ".join([fill] * n) + "}")
             elif init is None:
-                items.append("0.0" if self.ctype(s) == "double" else "0.0F" if s.encoding == "float" else "0")
+                items.append("0.0" if self.ctype(s) == "double" else "0.0F" if s.is_float else "0")
             else:
-                macro = self.P(F, s.name, "INITIAL" if s.encoding == "float" else "INITIAL_RAW")
+                macro = self.P(F, s.name, "INITIAL" if s.is_float else "INITIAL_RAW")
                 items.append(f"({self.ctype(s)}){macro}")
         return [f"const {self.p(F)}_t {self.P(F, 'INITIAL')} = {{{', '.join(items) or '0u'}}};", ""]
 
@@ -652,14 +652,14 @@ class CGen:
             init = s.initial_raw
             if is_byte_array(s):
                 # A string is filled with its terminator (0x00 without one): the empty text
-                fill = (f"(char)0x{s.terminator_byte or 0:02X}" if s.encoding == "string" else "0u")
+                fill = (f"(char)0x{s.terminator_byte or 0:02X}" if s.is_text else "0u")
                 out += [f"    for (size_t i = 0u; i < {s.bit_length // 8}u; i++) {{",
                         f"        msg->{s.name}[i] = {fill};", "    }"]
             elif init is None:
-                zero = "0.0" if self.ctype(s) == "double" else "0.0F" if s.encoding == "float" else "0"
+                zero = "0.0" if self.ctype(s) == "double" else "0.0F" if s.is_float else "0"
                 out.append(f"    msg->{s.name} = {zero};")
             else:
-                macro = self.P(F, s.name, "INITIAL" if s.encoding == "float" else "INITIAL_RAW")
+                macro = self.P(F, s.name, "INITIAL" if s.is_float else "INITIAL_RAW")
                 out.append(f"    msg->{s.name} = ({self.ctype(s)}){macro};")
         return out + ["}", ""]
 
@@ -698,7 +698,7 @@ class CGen:
 
     def _unpack_value(self, s: Signal) -> str:
         raw, n = self._read_raw(s), s.bit_length
-        if s.encoding == "float":
+        if s.is_float:
             return f"mapcan_bits_to_f{64 if n == 64 else 32}({raw})"
         code = s.signed_code if s.signed else None
         T = self.ctype(s)
@@ -716,7 +716,7 @@ class CGen:
         it is not cut to its low bits), then each byte it touches."""
         W, v = self._raw_type(s), f"msg->{s.name}"
         bits = storage_bits(s)
-        if s.encoding == "float":
+        if s.is_float:
             value = f"mapcan_f{64 if s.bit_length == 64 else 32}_to_bits({v})"
         else:
             code = s.signed_code if s.signed else None
@@ -792,7 +792,7 @@ class CGen:
                     "    }"])
                 unpack += self._guard(s, sel, [
                     f"    for (size_t i = 0u; i < {n}u; i++) {{",
-                    f"        msg->{s.name}[i] = ({'char' if s.encoding == 'string' else 'uint8_t'})data[{b0}u + i];",
+                    f"        msg->{s.name}[i] = ({'char' if s.is_text else 'uint8_t'})data[{b0}u + i];",
                     "    }"])
                 continue
             pack += self._guard(s, sel, self._pack_bits(s))

@@ -1,0 +1,1909 @@
+{
+  "$defs": {
+    "Bus": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Bus identifier: Latin letters, digits and _, no spaces. Used in DBC and C file names and as an anchor in documents. Required.",
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable bus name, e.g. “Bus 1” or “Powertrain CAN”. Used as the section heading in documents and as the bus label in the map tree. Required.",
+          "title": "Title"
+        },
+        "connector": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Connector or harness of the bus, e.g. “X3, pins 4–5”. Used in documents only. The CAN adapter and channel of a workstation are not part of the map.",
+          "title": "Connector"
+        },
+        "bitrate": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bus bitrate in bit/s, e.g. 250000 or 500000. Shown in documents and DBC.",
+          "title": "Bitrate"
+        },
+        "protocol": {
+          "description": "Higher-layer protocol. CANopen: the frame ID is computed from the frame type and node_id; SAE J1939: from PGN, priority and the device address; CAN: each frame has an explicit ID.",
+          "enum": [
+            "canopen",
+            "j1939",
+            "can"
+          ],
+          "title": "Protocol",
+          "type": "string"
+        },
+        "fd": {
+          "default": false,
+          "description": "CAN FD bus: frames up to 64 bytes (DLC 0..8, 12, 16, 20, 24, 32, 48, 64).",
+          "title": "Fd",
+          "type": "boolean"
+        },
+        "brs": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default bit rate switch (BRS) of CAN FD frames: the data field is sent at the data phase bit rate. Turn it off if the nodes or the wiring of the bus cannot handle the higher rate. A frame can set its own value.",
+          "title": "Brs"
+        },
+        "data_bitrate": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CAN FD: bit rate of the data phase in bit/s, e.g. 2000000. Frames with the bit rate switch (BRS) send their data field at this rate; it is used in the bus load estimate and shown in documents.",
+          "title": "Data Bitrate"
+        },
+        "sample_point": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 50,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sample point of the (nominal) bit rate, percent of the bit time, e.g. 87.5. All nodes of a bus should use the same one. Shown in documents.",
+          "title": "Sample Point"
+        },
+        "data_sample_point": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 50,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CAN FD: sample point of the data phase, percent, e.g. 75. Shown in documents.",
+          "title": "Data Sample Point"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "frames": {
+          "description": "Frames whose sender is outside the map, with the receiving devices in receivers; also CANopen broadcast frames (NMT, SYNC, TIME).",
+          "items": {
+            "$ref": "#/$defs/Frame"
+          },
+          "title": "Frames",
+          "type": "array"
+        },
+        "devices": {
+          "items": {
+            "$ref": "#/$defs/Device"
+          },
+          "title": "Devices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "protocol"
+      ],
+      "title": "Bus",
+      "type": "object"
+    },
+    "Device": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Device identifier: Latin letters, digits and _. Used in generated code, DBC, and frame senders and receivers. Required.",
+          "title": "Name",
+          "type": "string"
+        },
+        "short": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short device abbreviation for tables and headings in documents, e.g. BMS. If set, the map tree shows it before the full name. If empty, documents use the identifier in uppercase.",
+          "title": "Short"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Full human-readable device name, e.g. “Battery management system”. Shown in the device section heading in documents and in the map tree. Required.",
+          "title": "Title"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "maximum": 127,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CANopen node address 1..127 (0x01..0x7F). Added to the base ID of PDO, SDO, EMCY and Heartbeat frames.",
+          "title": "Node Id"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939 source address 0..253 (0x00..0xFD). Forms the low byte of every frame ID the device sends; 254 and 255 are reserved.",
+          "title": "Address"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "frames": {
+          "items": {
+            "$ref": "#/$defs/Frame"
+          },
+          "title": "Frames",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Device",
+      "type": "object"
+    },
+    "Document": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            }
+          ],
+          "title": "Title"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtitle"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Map version: MAJOR.MINOR or MAJOR.MINOR.PATCH, numbers only (1.4.0). With a revision history it is the version of its latest entry and is not written. A device can send it in a frame (signal source map_version.*).",
+          "title": "Version"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Release date. With a revision history it is the date of its latest entry and is not written.",
+          "title": "Date"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "organization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization"
+        },
+        "language": {
+          "description": "Default document language: ISO 639-1 code (ru, en, de…).",
+          "pattern": "^[a-z]{2}$",
+          "title": "Language",
+          "type": "string"
+        },
+        "bit_numbering": {
+          "const": "lsb0",
+          "default": "lsb0",
+          "description": "Bit numbering: lsb0 — bit 0 is the least significant bit of byte 0. The field states the convention explicitly and is shown in every document.",
+          "title": "Bit Numbering",
+          "type": "string"
+        },
+        "print": {
+          "$ref": "#/$defs/Print",
+          "description": "Print details of the title page and the title block (logo, designation, signatures…), read by the PDF templates."
+        },
+        "history": {
+          "items": {
+            "$ref": "#/$defs/HistoryEntry"
+          },
+          "title": "History",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title",
+        "language"
+      ],
+      "title": "Document",
+      "type": "object"
+    },
+    "EnumValue": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "EnumValue",
+      "type": "object"
+    },
+    "Flag": {
+      "additionalProperties": false,
+      "description": "A flag inside a bit field. ``bit`` is the offset from the field's least significant bit.",
+      "properties": {
+        "name": {
+          "description": "Flag identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique within the frame.",
+          "title": "Name",
+          "type": "string"
+        },
+        "bit": {
+          "description": "Flag offset from the least significant bit of the bit field: 0 is the field's LSB.",
+          "minimum": 0,
+          "title": "Bit",
+          "type": "integer"
+        },
+        "bit_length": {
+          "default": 1,
+          "description": "Flag width in bits, 1 by default. A width above 1 makes a multi-bit value inside the field.",
+          "minimum": 1,
+          "title": "Bit Length",
+          "type": "integer"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/EnumValue"
+                  }
+                ]
+              },
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+              }
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value table (value → name) or the name of a table in value_tables.",
+          "title": "Values"
+        }
+      },
+      "required": [
+        "name",
+        "bit"
+      ],
+      "title": "Flag",
+      "type": "object"
+    },
+    "Frame": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Frame identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique on the bus.",
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable frame name, e.g. “Status”: the frame heading in documents and its label in the map tree. Optional; without it, the tree shows the identifier.",
+          "title": "Title"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "canopen": {
+          "anyOf": [
+            {
+              "enum": [
+                "nmt",
+                "sync",
+                "emcy",
+                "time",
+                "pdo_tx1",
+                "pdo_rx1",
+                "pdo_tx2",
+                "pdo_rx2",
+                "pdo_tx3",
+                "pdo_rx3",
+                "pdo_tx4",
+                "pdo_rx4",
+                "sdo_tx",
+                "sdo_rx",
+                "heartbeat"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CANopen function of the frame (CiA 301): nmt, sync, emcy, time, pdo_tx1..4, pdo_rx1..4, sdo_tx, sdo_rx, heartbeat. Sets the base ID (e.g. PDO TX 1 = 0x180 + node_id), the default direction and the length of service frames. Empty: not a CANopen service frame, the ID is set explicitly. Only on CANopen buses. Formerly type (raw: empty).",
+          "title": "Canopen"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "maximum": 536870911,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Frame CAN ID: 11-bit (0x000..0x7FF) or 29-bit (up to 0x1FFFFFFF). Leave empty to compute it: for CANopen from the type and node_id, for J1939 from the PGN, priority and address.",
+          "title": "Id"
+        },
+        "extended": {
+          "default": false,
+          "description": "Use a 29-bit (extended) identifier instead of an 11-bit one.",
+          "title": "Extended",
+          "type": "boolean"
+        },
+        "brs": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bit rate switch (BRS) of a CAN FD frame: the data field is sent at the data phase bit rate. Empty: as set on the bus. Written to DBC (the CANFD_BRS attribute).",
+          "title": "Brs"
+        },
+        "pgn": {
+          "anyOf": [
+            {
+              "maximum": 262143,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939 parameter group number, 0..0x3FFFF. PF < 240 (0xF0) means PDU1, a destination-specific frame: the low byte of the PGN must be 0 and the destination is set separately. PF ≥ 240 means PDU2, broadcast.",
+          "title": "Pgn"
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "maximum": 7,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939 priority 0..7: the top 3 bits of the ID. Lower values mean higher priority. Default 6.",
+          "title": "Priority"
+        },
+        "destination": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Destination address for a J1939 PDU1 frame, 0..255. 0xFF means all nodes.",
+          "title": "Destination"
+        },
+        "receivers": {
+          "description": "Devices on this bus that receive the frame. The owner of an RX frame is a receiver even without this list. Used in documents, DBC and each device's \"Receives\" summary.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Receivers",
+          "type": "array"
+        },
+        "sender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Device on this bus that sends the frame when it is not the frame's owner, which then receives it (e.g. a node's RPDO sent by the master). Empty: a frame of a device is sent by the device (a CANopen RX function: from outside the map), a frame of the bus from outside the map. A frame sent by one of your devices is best described at the sender, with the receiving devices listed in \"Receivers\".",
+          "title": "Sender"
+        },
+        "length": {
+          "anyOf": [
+            {
+              "maximum": 1785,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Frame data length in bytes: 0..8, for CAN FD up to 64 (12, 16, 20, 24, 32, 48, 64). Required except for CANopen service frames (NMT, SYNC, TIME, Heartbeat, SDO), whose length is set by CiA 301. Up to 1785 bytes on a J1939 bus, with the transport protocol. Formerly dlc: the DLC on the bus is the code of this length.",
+          "title": "Length"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "tx",
+                "rx"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "deprecated": true,
+          "description": "Deprecated: the direction follows from the CANopen function and the sender, remove it. A frame from outside the map goes to the frames of the bus, with the receiving devices in receivers (mapcan migrate moves it).",
+          "title": "Direction"
+        },
+        "cycle_ms": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Cyclic transmission period in milliseconds. With trigger: event the frame is also sent at once on an event.",
+          "title": "Cycle Ms"
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "enum": [
+                "event",
+                "on_request"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Transmission on an event (event; with cycle_ms also every period) or on request (on_request).",
+          "title": "Trigger"
+        },
+        "inhibit_ms": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum time between two transmissions in milliseconds (inhibit time): the frame is not sent again sooner. May be fractional, e.g. 0.5 (CANopen counts it in 0.1 ms). In DBC: GenMsgDelayTime; in EDS: the PDO's inhibit time; in C: …_INHIBIT_US.",
+          "title": "Inhibit Ms"
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Receive timeout in milliseconds: when the frame has not arrived for this long, the receivers treat its data as lost. Usually a few periods, e.g. 3 × cycle_ms. In code: …_TIMEOUT_MS.",
+          "title": "Timeout Ms"
+        },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/Signal"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "sdo": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SdoExchange"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sdo"
+        },
+        "comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A note or caveat: \"Note:\" in documents, after the description in DBC.",
+          "title": "Comment"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Frame",
+      "type": "object"
+    },
+    "HistoryEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "github": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "GitHub username of the change's author.",
+          "title": "Github"
+        },
+        "changes": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/LocalizedText"
+              }
+            ]
+          },
+          "title": "Changes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "HistoryEntry",
+      "type": "object"
+    },
+    "InvalidRaw": {
+      "additionalProperties": false,
+      "description": "Raw values without a value, by meaning (J1939-71: \"not available\" and \"error indicator\").",
+      "properties": {
+        "not_available": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Raw values meaning “not available”: the sender has no value (e.g. 0xFF).",
+          "title": "Not Available"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Raw values meaning “error”: the sender has a fault in this value (e.g. 0xFE).",
+          "title": "Error"
+        }
+      },
+      "title": "InvalidRaw",
+      "type": "object"
+    },
+    "LintRules": {
+      "additionalProperties": false,
+      "description": "Configurable style rules (checked as warnings).",
+      "properties": {
+        "signal_name": {
+          "default": "snake_case",
+          "enum": [
+            "snake_case",
+            "UPPER_SNAKE",
+            "camelCase",
+            "PascalCase",
+            "any"
+          ],
+          "title": "Signal Name",
+          "type": "string"
+        },
+        "frame_name": {
+          "default": "snake_case",
+          "enum": [
+            "snake_case",
+            "UPPER_SNAKE",
+            "camelCase",
+            "PascalCase",
+            "any"
+          ],
+          "title": "Frame Name",
+          "type": "string"
+        },
+        "device_name": {
+          "default": "snake_case",
+          "enum": [
+            "snake_case",
+            "UPPER_SNAKE",
+            "camelCase",
+            "PascalCase",
+            "any"
+          ],
+          "title": "Device Name",
+          "type": "string"
+        },
+        "value_name": {
+          "default": "UPPER_SNAKE",
+          "enum": [
+            "snake_case",
+            "UPPER_SNAKE",
+            "camelCase",
+            "PascalCase",
+            "any"
+          ],
+          "title": "Value Name",
+          "type": "string"
+        },
+        "disable": {
+          "description": "Codes of the rules to disable.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Disable",
+          "type": "array"
+        }
+      },
+      "title": "LintRules",
+      "type": "object"
+    },
+    "LocalizedText": {
+      "additionalProperties": true,
+      "description": "Text with translations: the key is an ISO 639-1 language code (ru, en, de…). A plain string instead\nof an object is text in the document language.",
+      "properties": {
+        "ru": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ru"
+        },
+        "en": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "En"
+        }
+      },
+      "title": "LocalizedText",
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": false,
+      "description": "An official for the \"APPROVED\" / \"AGREED\" blocks.",
+      "properties": {
+        "position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "title": "Person",
+      "type": "object"
+    },
+    "Print": {
+      "additionalProperties": false,
+      "description": "Details that PDF templates print on the title page and in the title block: not part of the network.",
+      "properties": {
+        "logo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Company logo: path to a PNG/JPG/SVG relative to the map file.",
+          "title": "Logo"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document designation, e.g. \"АБВГ.468332.001 Д1\" (ESKD).",
+          "title": "Designation"
+        },
+        "litera": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document letter (ESKD), e.g. \"О1\".",
+          "title": "Litera"
+        },
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "City for the title page.",
+          "title": "City"
+        },
+        "signatures": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signatures"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approve": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Person"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The \"APPROVED\" block of the title page."
+        },
+        "agree": {
+          "description": "The \"AGREED\" blocks.",
+          "items": {
+            "$ref": "#/$defs/Person"
+          },
+          "title": "Agree",
+          "type": "array"
+        }
+      },
+      "title": "Print",
+      "type": "object"
+    },
+    "SdoExchange": {
+      "additionalProperties": false,
+      "description": "One SDO transfer (expedited): command, index, subindex, value.",
+      "properties": {
+        "name": {
+          "description": "SDO exchange identifier: Latin letters, digits and _. Used in generated code. Required.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "command": {
+          "description": "SDO command byte (CCS/SCS), e.g. 0x2B — write 2 bytes, 0x23 — write 4 bytes, 0x40 — read.",
+          "maximum": 255,
+          "minimum": 0,
+          "title": "Command",
+          "type": "integer"
+        },
+        "index": {
+          "description": "CANopen object dictionary index, 0x0000..0xFFFF.",
+          "maximum": 65535,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "subindex": {
+          "default": 0,
+          "description": "Object dictionary subindex, 0x00..0xFF.",
+          "maximum": 255,
+          "minimum": 0,
+          "title": "Subindex",
+          "type": "integer"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SdoValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "command",
+        "index"
+      ],
+      "title": "SdoExchange",
+      "type": "object"
+    },
+    "SdoValue": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "encoding": {
+          "description": "Value encoding: enum, scaled, raw.",
+          "enum": [
+            "enum",
+            "scaled",
+            "raw"
+          ],
+          "title": "Encoding",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "bit_length": {
+          "enum": [
+            8,
+            16,
+            24,
+            32
+          ],
+          "title": "Bit Length",
+          "type": "integer"
+        },
+        "representation": {
+          "default": "unsigned",
+          "description": "unsigned or twos_complement (a signed integer). Formerly signed: true.",
+          "enum": [
+            "unsigned",
+            "twos_complement"
+          ],
+          "title": "Representation",
+          "type": "string"
+        },
+        "factor": {
+          "default": 1.0,
+          "title": "Factor",
+          "type": "number"
+        },
+        "offset": {
+          "default": 0.0,
+          "title": "Offset",
+          "type": "number"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/EnumValue"
+                  }
+                ]
+              },
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+              }
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value table (value → name) or the name of a table in value_tables.",
+          "title": "Values"
+        }
+      },
+      "required": [
+        "name",
+        "encoding",
+        "bit_length"
+      ],
+      "title": "SdoValue",
+      "type": "object"
+    },
+    "Signal": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Signal identifier: Latin letters, digits and _. Used in generated code and DBC. Required, unique within the frame.",
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable signal name, e.g. “Battery voltage”: its label in the map tree. Optional; without it, the tree shows the identifier.",
+          "title": "Title"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "encoding": {
+          "description": "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array; string — text (VIN, software version).",
+          "enum": [
+            "enum",
+            "flag",
+            "bitfield",
+            "scaled",
+            "raw",
+            "bytes",
+            "string",
+            "float"
+          ],
+          "title": "Encoding",
+          "type": "string"
+        },
+        "charset": {
+          "anyOf": [
+            {
+              "enum": [
+                "ascii",
+                "utf-8",
+                "latin-1"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "String: character encoding of the text, ascii (default), utf-8 or latin-1.",
+          "title": "Charset"
+        },
+        "terminator": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "String: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or \"*\" (as in J1939 text parameters). Without it the text fills the field and unused bytes are 0x00.",
+          "title": "Terminator"
+        },
+        "start_bit": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Position of the signal's least significant bit (LSB) in the frame, counting from 0. Bit N is in byte N div 8 at position N mod 8.",
+          "title": "Start Bit"
+        },
+        "bit_length": {
+          "anyOf": [
+            {
+              "maximum": 14280,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Signal width in bits: 1..64; longer only for a byte array (encoding: bytes).",
+          "title": "Bit Length"
+        },
+        "byte": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "First byte of the signal.",
+          "title": "Byte"
+        },
+        "bit": {
+          "anyOf": [
+            {
+              "maximum": 7,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bit offset within the byte.",
+          "title": "Bit"
+        },
+        "byte_length": {
+          "anyOf": [
+            {
+              "maximum": 1785,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Signal length in bytes, instead of bit_length.",
+          "title": "Byte Length"
+        },
+        "byte_order": {
+          "default": "little_endian",
+          "description": "Byte order of a multi-byte signal. little-endian (Intel): least significant byte first, typical for CANopen and J1939. big-endian (Motorola): most significant byte first.",
+          "enum": [
+            "little_endian",
+            "big_endian"
+          ],
+          "title": "Byte Order",
+          "type": "string"
+        },
+        "representation": {
+          "default": "unsigned",
+          "description": "How the raw value is read as a number. unsigned — no negative values (default). twos_complement — the usual signed integer (−1 = all ones). ones_complement — a negative value is its magnitude with all bits inverted (−1 = 1…10). sign_magnitude — the top bit is the sign, the rest the magnitude (−1 = 10…01). Generated C and Python code use this representation; DBC stores two's complement only, so the export warns about the other two. Formerly signed and signed_code.",
+          "enum": [
+            "unsigned",
+            "twos_complement",
+            "ones_complement",
+            "sign_magnitude"
+          ],
+          "title": "Representation",
+          "type": "string"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/EnumValue"
+                  }
+                ]
+              },
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+              }
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value table (value → name) or the name of a table in value_tables.",
+          "title": "Values"
+        },
+        "flags": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Flag"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flags"
+        },
+        "factor": {
+          "default": 1.0,
+          "description": "Multiplier: physical value = raw × factor + offset. E.g. 0.1 for voltage in 0.1 V steps.",
+          "title": "Factor",
+          "type": "number"
+        },
+        "offset": {
+          "default": 0.0,
+          "description": "Offset: physical value = raw × factor + offset. E.g. −40 for temperature.",
+          "title": "Offset",
+          "type": "number"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit of the physical quantity: a standard unit or your own text. Standard units appear in documents in the document language (V ↔ В).",
+          "title": "Unit"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed minimum in physical units. Leave empty to use the limit of the signal width.",
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed maximum in physical units. Leave empty to use the limit of the signal width.",
+          "title": "Max"
+        },
+        "value_format": {
+          "default": "dec",
+          "description": "How enum table values are shown in documents: decimal or hex.",
+          "enum": [
+            "dec",
+            "hex"
+          ],
+          "title": "Value Format",
+          "type": "string"
+        },
+        "multiplexer": {
+          "default": false,
+          "description": "Multiplexer selector signal. Multiplexing lets one frame carry different sets of signals: the selector value tells which signals the frame currently contains. A frame can have only one selector.",
+          "title": "Multiplexer",
+          "type": "boolean"
+        },
+        "mux": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Selector values for which this signal is in the frame, e.g. 0 or 1, 2. Leave empty if the signal is always present. Requires a selector signal in the frame.",
+          "title": "Mux"
+        },
+        "initial": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value after power-up or before the first message is received, in physical units. In C: …_INITIAL_RAW; in DBC: GenSigStartValue.",
+          "title": "Initial"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "enum": [
+                "map_version.major",
+                "map_version.minor",
+                "map_version.patch",
+                "layout_crc32"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The signal always carries a value taken from the map: map_version.major, .minor or .patch (document.version) or layout_crc32 (the fingerprint of the frame layouts). The value is written to code as the signal's initial value, so a device sends the map it was built from.",
+          "title": "Source"
+        },
+        "invalid_raw": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/$defs/InvalidRaw"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Raw values that carry no value: one value, a list, ranges such as \"0xFF00..0xFFFF\", or by meaning: {not_available: …, error: …}. A plain value or list means “not available”. In C: …_is_not_available() and …_is_error(). Formerly invalid.",
+          "title": "Invalid Raw"
+        },
+        "comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A note or caveat: \"Note:\" in documents, after the description in DBC.",
+          "title": "Comment"
+        },
+        "spn": {
+          "anyOf": [
+            {
+              "maximum": 524287,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "J1939: suspect parameter number (SPN) per SAE J1939-71.",
+          "title": "Spn"
+        },
+        "index": {
+          "anyOf": [
+            {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CANopen: index of the dictionary object mapped into the PDO.",
+          "title": "Index"
+        },
+        "subindex": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CANopen: subindex of the dictionary object (0 by default).",
+          "title": "Subindex"
+        }
+      },
+      "required": [
+        "name",
+        "encoding"
+      ],
+      "title": "Signal",
+      "type": "object"
+    },
+    "Signatures": {
+      "additionalProperties": false,
+      "description": "Signatures for the ESKD title block (GOST 2.104) and approval sheets.",
+      "properties": {
+        "developed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Developed by (Разраб.)",
+          "title": "Developed"
+        },
+        "checked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Checked by (Пров.)",
+          "title": "Checked"
+        },
+        "tech_control": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Technical control (Т. контр.)",
+          "title": "Tech Control"
+        },
+        "norm_control": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Standards control (Н. контр.)",
+          "title": "Norm Control"
+        },
+        "approved": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Approved by (Утв.)",
+          "title": "Approved"
+        }
+      },
+      "title": "Signatures",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "mapcan": {
+      "const": 1,
+      "description": "File format version.",
+      "title": "mapcan",
+      "type": "integer"
+    },
+    "include": {
+      "description": "Included files (paths relative to the map file): their buses, devices, frames and value_tables are added to the map.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Include",
+      "type": "array"
+    },
+    "document": {
+      "$ref": "#/$defs/Document"
+    },
+    "lint": {
+      "$ref": "#/$defs/LintRules"
+    },
+    "value_tables": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/EnumValue"
+            }
+          ]
+        },
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+        }
+      },
+      "description": "Named value tables: in a signal, values: <name>.",
+      "title": "Value Tables",
+      "type": "object"
+    },
+    "buses": {
+      "items": {
+        "$ref": "#/$defs/Bus"
+      },
+      "minItems": 1,
+      "title": "Buses",
+      "type": "array"
+    }
+  },
+  "required": [
+    "mapcan",
+    "document",
+    "buses"
+  ],
+  "title": "mapcan — CAN signal map (format v1)",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordu1453.github.io/mapcan/schema/v1.json"
+}

@@ -1,11 +1,11 @@
-# Signal map format (mapcan, v1)
+# Signal map format (mapcan, v2)
 
 A signal map is a single YAML file, and every document and code artifact is generated from it.
 The format is defined by the JSON Schema in
 [`schema/mapcan.schema.json`](../schema/mapcan.schema.json), published with each release at
-`https://ordu1453.github.io/mapcan/schema/v1.json` (a file included by a map:
-`https://ordu1453.github.io/mapcan/schema/part-v1.json`). An editor with a YAML language server
-(VS Code with the Red Hat *YAML* extension, JetBrains IDEs, Neovim, Zed, Helix) completes field
+`https://ordu1453.github.io/mapcan/schema/v2.json` (a file included by a map:
+`https://ordu1453.github.io/mapcan/schema/part-v2.json`; format version 1: `…/v1.json`,
+`…/part-v1.json`). An editor with a YAML language server (VS Code with the Red Hat *YAML* extension, JetBrains IDEs, Neovim, Zed, Helix) completes field
 names and underlines errors as you type when it knows the schema of a file:
 
 - **The mapcan extension for VS Code** gives it to every map and included file by itself.
@@ -14,7 +14,7 @@ names and underlines errors as you type when it knows the schema of a file:
 - **Any file** gets it from this line at its top, which new maps and copies of the examples have:
 
   ```yaml
-  # yaml-language-server: $schema=https://ordu1453.github.io/mapcan/schema/v1.json
+  # yaml-language-server: $schema=https://ordu1453.github.io/mapcan/schema/v2.json
   ```
 
 `mapcan schema -o schema.json` writes the schema anywhere you need it, for an editor with no network.
@@ -38,7 +38,7 @@ document.
 ## File structure
 
 ```yaml
-mapcan: 1                 # format version (required)
+mapcan: 2                 # format version (required; see Versioning and compatibility)
 document: {...}           # metadata and revision history
 include: [common.yaml]    # included files (optional, see below)
 lint: {...}               # style rules (optional)
@@ -175,13 +175,13 @@ CANopen ID computation:
 | `name` | Identifier (unique within the frame, together with flag names) |
 | `title` | Name for people ("Battery voltage") |
 | `description` | What the signal means |
-| `encoding` | Required: `enum`, `flag`, `bitfield`, `scaled`, `raw`, `float`, `bytes`, `string` |
-| `charset` | `string`: character encoding, `ascii` (default), `utf-8` or `latin-1` |
-| `terminator` | `string`: the byte that ends a shorter text and fills the rest of the field: a number (`0x00`) or one character (`"*"`, as in J1939 text parameters). Without it the text fills the field and unused bytes are 0x00 |
+| `encoding` | Required: `number`, `enum`, `bitfield` or `bytes` (see [Encodings](#encodings)) |
+| `charset` | `bytes`: the field is text in this character encoding, `ascii`, `utf-8` or `latin-1`. Without it the field is a byte array |
+| `terminator` | Text (`bytes` with `charset`): the byte that ends a shorter text and fills the rest of the field: a number (`0x00`) or one character (`"*"`, as in J1939 text parameters). Without it the text fills the field and unused bytes are 0x00 |
 | `start_bit` + `bit_length` | Canonical position |
 | `byte` [+ `bit`] + `byte_length` \| `bit_length` | Shorthand position (see below) |
 | `byte_order` | `little_endian` (default) or `big_endian`. CANopen and J1939 carry little-endian data, so the editors offer the field only on other buses (or when it is set), and validation warns about a big-endian signal there (`byte-order-protocol`) |
-| `representation` | How the raw value is read as a number: `unsigned` (default), `twos_complement` (the usual signed integer), `ones_complement` or `sign_magnitude`. Generated C and Python code packs and unpacks the value in this representation; the last two have a symmetric range (−127…127 for 8 bits). DBC stores two's complement only, so the export warns about the other two. Formerly `signed` + `signed_code` |
+| `representation` | `number`: how the raw value is read as a number: `unsigned` (default), `twos_complement` (the usual signed integer), `ones_complement`, `sign_magnitude`, or `float` (IEEE 754, see [Floating point](#floating-point)). Generated C and Python code packs and unpacks the value in this representation; ones' complement and sign-magnitude have a symmetric range (−127…127 for 8 bits). DBC stores two's complement only, so the export warns about those two. Formerly `signed` + `signed_code` |
 | `values` | Value table: `{0: NO_DATA, 1: {name: OK, description: "normal"}}` |
 | `value_format` | `dec` \| `hex`: how values are shown in documents |
 | `flags` | Bit field flags: `{bit, bit_length: 1, name, description, values}`; `bit` is the offset from the least significant bit of the field |
@@ -189,8 +189,8 @@ CANopen ID computation:
 | `multiplexer` | `true` for the multiplexer selector signal |
 | `mux` | Selector value (or list of values) for which the signal is present |
 | `initial` | Default value in physical units (`…_INITIAL_RAW` in C, `GenSigStartValue` in DBC) |
-| `source` | `raw`: the signal always carries a value from the map: `map_version.major`, `map_version.minor`, `map_version.patch` or `layout_crc32` (see [Map version in a frame](#map-version-in-a-frame)). Replaces `initial` |
-| `invalid_raw` | Raw values that carry no value (see [Values without a value](#values-without-a-value)): `0xFF`, a list, ranges `0xFF00..0xFFFF`, or `{not_available: …, error: …}`. Formerly `invalid` |
+| `source` | An integer `number`: the signal always carries a value from the map: `map_version.major`, `map_version.minor`, `map_version.patch` or `layout_crc32` (see [Map version in a frame](#map-version-in-a-frame)). Replaces `initial` |
+| `invalid_raw` | An integer `number`: raw values that carry no value (see [Values without a value](#values-without-a-value)): `0xFF`, a list, ranges `0xFF00..0xFFFF`, or `{not_available: …, error: …}`. Formerly `invalid` |
 | `index`, `subindex` | CANopen dictionary object mapped into the PDO (see [Object dictionary and EDS](#object-dictionary-and-eds)) |
 | `spn` | J1939 suspect parameter number (SAE J1939-71), 0..524287. Shown in documents, written to DBC as the `SPN` signal attribute and to code as `<FRAME>_<SIGNAL>_SPN` |
 | `comment` | A note or caveat (see [Text fields](#text-fields)) |
@@ -201,19 +201,16 @@ CANopen ID computation:
 
 | `encoding` | Meaning | Value fields |
 |---|---|---|
-| `raw` | Integer as is | `representation`, `unit`, `min`, `max`, `invalid_raw`, `initial`, `source` |
-| `scaled` | Scaled physical value: `raw * factor + offset` | `representation`, `factor`, `offset`, `unit`, `min`, `max`, `invalid_raw`, `initial` |
-| `enum` | Value from the `values` table | `values`, `value_format`, `representation`, `invalid_raw`, `initial` |
-| `flag` | One yes/no bit | `values`, `initial` |
+| `number` | A number. Without `factor` and `offset` it is the integer as is; with them a physical value `raw * factor + offset`, with `_phys` helpers in generated code. `representation: float` makes it IEEE 754 (see [Floating point](#floating-point)) | `representation`, `factor`, `offset`, `unit`, `min`, `max`, `invalid_raw`, `initial`, `source` |
+| `enum` | Value from the `values` table: unsigned values; a value that means "no data" is an entry of the table | `values`, `value_format`, `initial` |
 | `bitfield` | Set of flags | `flags` |
-| `float` | IEEE 754 | `factor`, `offset`, `unit`, `min`, `max`, `initial` |
-| `bytes` | Byte array | — |
-| `string` | Text (VIN, software identification): whole bytes from a byte boundary, like `bytes`. `str` in Python, a `char` array in C (not NUL-terminated when the text fills it); DBC has no text type and gets a byte array | `charset`, `terminator` |
+| `bytes` | Byte array; with `charset`, text (VIN, software identification): whole bytes from a byte boundary, `str` in Python, a `char` array in C (not NUL-terminated when the text fills it); DBC has no text type and gets a byte array | `charset`, `terminator` |
 
-A field that does not apply is an error (`encoding-field`).
+A field that does not apply is an error (`encoding-field`). So is `invalid_raw` or `source` on a floating-point
+number, and `terminator` on bytes without `charset`.
 
-The length (`bit_length` or `byte_length`) is required. Only two encodings set it
-themselves: a `flag` is 1 bit, and a `float` is 32 bits unless `bit_length: 64` is given.
+The length (`bit_length` or `byte_length`) is required, except for a floating-point number: 32 bits unless
+`bit_length: 64` is given.
 
 #### Values without a value
 
@@ -223,7 +220,7 @@ SAE J1939-71:
 
 ```yaml
 - name: engine_speed
-  encoding: scaled
+  encoding: number
   byte: 3
   byte_length: 2
   factor: 0.125
@@ -252,10 +249,10 @@ Give the signals of such a frame a `source` instead of a value:
   length: 7
   trigger: on_request
   signals:
-    - {name: map_major, encoding: raw, byte: 0, byte_length: 1, source: map_version.major}
-    - {name: map_minor, encoding: raw, byte: 1, byte_length: 1, source: map_version.minor}
-    - {name: map_patch, encoding: raw, byte: 2, byte_length: 1, source: map_version.patch}
-    - {name: map_layout_crc, encoding: raw, byte: 3, byte_length: 4, source: layout_crc32}
+    - {name: map_major, encoding: number, byte: 0, byte_length: 1, source: map_version.major}
+    - {name: map_minor, encoding: number, byte: 1, byte_length: 1, source: map_version.minor}
+    - {name: map_patch, encoding: number, byte: 2, byte_length: 1, source: map_version.patch}
+    - {name: map_layout_crc, encoding: number, byte: 3, byte_length: 4, source: layout_crc32}
 ```
 
 | `source` | Value |
@@ -280,13 +277,13 @@ A value that does not fit in the signal, a version that is not numeric, or `init
 
 #### Floating point
 
-`encoding: float` is IEEE 754, 32 bits (default) or 64 bits (`bit_length: 64`), in either byte order.
-`factor` and `offset` are allowed. In C the field is a `float` or `double`; in DBC the signal is
+`encoding: number` with `representation: float` is IEEE 754, 32 bits (default) or 64 bits
+(`bit_length: 64`), in either byte order. `factor` and `offset` are allowed. In C the field is a `float` or `double`; in DBC the signal is
 marked as float.
 
 ```yaml
-- {name: pack_voltage, byte: 0, encoding: float, unit: V}
-- {name: timestamp, byte: 0, encoding: float, bit_length: 64, unit: s}
+- {name: pack_voltage, byte: 0, encoding: number, representation: float, unit: V}
+- {name: timestamp, byte: 0, encoding: number, representation: float, bit_length: 64, unit: s}
 ```
 
 #### Shorthand position
@@ -306,7 +303,7 @@ Both notations are valid. The editors (the forms and bit layouts of the web edit
 `mapcan import dbc`) write one of them, whichever field or drag changed the position: the shorthand
 when the signal takes whole bytes from a byte boundary (`byte` + `byte_length`) or fits in one byte
 (`byte` + `bit` + `bit_length`), and `start_bit` + `bit_length` otherwise. A length the encoding
-implies (32 bits of a `float`, 1 bit of a `flag`) and `bit: 0` stay omitted where they were.
+implies (32 bits of a float) and `bit: 0` stay omitted where they were.
 `mapcan fmt --check` notes the positions written otherwise, without failing.
 
 #### Big-endian
@@ -360,7 +357,7 @@ buses:
             cycle_ms: 20
             receivers: [cluster]
             signals:
-              - {name: engine_speed, encoding: scaled, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid_raw: 0xFFFF}
+              - {name: engine_speed, encoding: number, byte: 3, byte_length: 2, factor: 0.125, unit: rpm, invalid_raw: 0xFFFF}
       - name: cluster
         address: 0x17
       - name: diag
@@ -386,11 +383,11 @@ and unpacks the whole payload; splitting it into packets is the job of the J1939
   length: 20                # 3 TP.DT packets + BAM
   trigger: on_request
   signals:
-    - {name: software_id, encoding: bytes, spn: 234, byte: 0, byte_length: 20}
+    - {name: software_id, encoding: bytes, charset: ascii, terminator: "*", spn: 234, byte: 0, byte_length: 20}
 ```
 
-A signal longer than 64 bits can only be a byte array (`encoding: bytes`, little-endian, starting
-at a byte boundary).
+A signal longer than 64 bits can only be bytes (`encoding: bytes`, a byte array or text,
+little-endian, starting at a byte boundary).
 
 ### Object dictionary and EDS
 
@@ -409,8 +406,8 @@ signals are filled with dummy objects.
   length: 6
   cycle_ms: 10
   signals:
-    - {name: statusword, encoding: raw, index: 0x6041, byte: 0, byte_length: 2}
-    - {name: actual_velocity, encoding: scaled, index: 0x606C, byte: 2, byte_length: 4, representation: twos_complement, unit: rpm}
+    - {name: statusword, encoding: number, index: 0x6041, byte: 0, byte_length: 2}
+    - {name: actual_velocity, encoding: number, index: 0x606C, byte: 2, byte_length: 4, representation: twos_complement, unit: rpm}
 ```
 
 The object's data type is the smallest standard type that holds the signal (`UNSIGNED16`,
@@ -430,10 +427,10 @@ For `sdo_rx`/`sdo_tx` frames you can describe expedited SDO exchanges instead of
       command: 0x2B          # CCS: write 2 bytes
       index: 0x4010
       subindex: 0x01
-      value: {name: alarm_resistance, encoding: scaled, bit_length: 16, unit: kOhm}
+      value: {name: alarm_resistance, encoding: number, bit_length: 16, unit: kOhm}
 ```
 
-The value's `encoding` (`enum`, `scaled` or `raw`) and `bit_length` (8, 16, 24 or 32) are required.
+The value's `encoding` (`number` or `enum`) and `bit_length` (8, 16, 24 or 32) are required.
 
 mapcan builds the frame layout itself: byte 0 is the command, bytes 1–2 the index
 (little-endian), byte 3 the subindex (the multiplexer selector when all exchanges share one
@@ -533,7 +530,7 @@ for example the buses and devices shared by several machines:
 
 ```yaml
 # vehicle.yaml
-mapcan: 1
+mapcan: 2
 include: [powertrain.yaml]
 document: {title: Vehicle, language: en}
 buses:
@@ -544,8 +541,8 @@ buses:
 
 ```yaml
 # powertrain.yaml
-# yaml-language-server: $schema=https://ordu1453.github.io/mapcan/schema/part-v1.json
-mapcan: 1
+# yaml-language-server: $schema=https://ordu1453.github.io/mapcan/schema/part-v2.json
+mapcan: 2
 part_of: vehicle.yaml   # the map that includes this file
 value_tables: {...}
 buses:
@@ -558,7 +555,7 @@ buses:
 
 See [examples/tractor/](../examples/tractor/tractor.yaml) for a complete map in two files.
 
-An included file starts with `mapcan: 1` (the same format version as the map) and `part_of`:
+An included file starts with `mapcan: 2` (the same format version as the map) and `part_of`:
 the path of the map that includes it, relative to the included file. A file that names another
 map, or another format version, is an error (`include`); a file without these two keys still
 loads, with the warning `include-part-of`. On the command line such a file is reported as a part
@@ -567,7 +564,7 @@ of its map: validate the map instead. In VS Code it is checked as a part of the 
 whole map, and Go to Definition leads to devices of the main file. Its nodes are edited as text for
 now; the forms show them read-only. Its schema is
 [`schema/mapcan-part.schema.json`](../schema/mapcan-part.schema.json)
-(`mapcan schema --part`), published at `https://ordu1453.github.io/mapcan/schema/part-v1.json`.
+(`mapcan schema --part`), published at `https://ordu1453.github.io/mapcan/schema/part-v2.json`.
 
 Besides them an included file may contain only `buses` and `value_tables`. A bus that the main
 file (or an earlier included file) already describes can only get more `devices` and `frames`;
@@ -590,22 +587,28 @@ Included devices can be chosen as senders and receivers of the main file's frame
 
 ## Versioning and compatibility
 
-`mapcan: 1` is the version of the format, not of the program. What it promises:
+`mapcan: 2` is the version of the format, not of the program. What it promises:
 
 - **Additions keep the version.** New optional fields, new values of an enumeration and new rules
-  keep `mapcan: 1`. Every map that was valid stays valid; a map that uses a new field needs a mapcan
+  keep `mapcan: 2`. Every map that was valid stays valid; a map that uses a new field needs a mapcan
   that knows it (see [the format changelog](format-changelog.md)).
 - **Renames keep the version too.** When a field gets a clearer name (or several fields become one, or
   fields move into a nested block),
-  the former spelling stays accepted for the whole of version 1. It is read as the current one with
+  the former spelling stays accepted for the whole of the version. It is read as the current one with
   the warning `deprecated-key`; messages about the field still point at what is written. The
   editors show and write the current name: editing such a field renames it in place, keeping its
   position and comment. A map that has both names is an error.
 - **`mapcan migrate FILE…`** rewrites the former names in the map and its included files, keeping
   comments and layout; `mapcan migrate --check` exits 1 if anything is left (for CI). In VS Code the
   quick fix of `deprecated-key` does the same.
-- **Removing a field or changing its meaning** would need `mapcan: 2`, read side by side with
-  version 1 and converted by `mapcan migrate`. None is planned.
+- **Removing a field or a value, or changing its meaning, needs a new version**, read side by side with
+  the previous one and converted by `mapcan migrate`. Version 2 removed the signal encodings `raw`,
+  `scaled`, `float`, `flag` and `string` (see the table below).
+- **Version 1 is still read.** A map with `mapcan: 1` (and its included files, also `mapcan: 1`) loads
+  as version 2 would read it, with the note `format-v1`: its encodings are converted as the table below
+  shows, and generated code, DBC and documents are those of the converted map. `mapcan migrate`
+  rewrites the files in version 2 (also the `$schema` line, to `v2.json`); in VS Code the quick fix of
+  `format-v1` rewrites the file open. Version 2 does not read the encodings of version 1.
 - **Rule codes do not change**, so `lint.disable` and `--disable` keep working: `dlc-range`, for
   example, keeps its code after `dlc` became `length`.
 
@@ -618,6 +621,19 @@ Included devices can be chosen as senders and receivers of the main file's frame
 | SDO value `signed` | `representation` | 0.21 |
 | frame `type` (`raw`: omitted) | `canopen` | 0.21 |
 | signal `invalid` | `invalid_raw` | 0.21 |
+
+Version 1 → version 2 (mapcan 0.24, #140):
+
+| Version 1 | Version 2 |
+|---|---|
+| `encoding: raw`, `encoding: scaled` (signal or SDO value) | `encoding: number` |
+| `encoding: float` | `encoding: number` + `representation: float` |
+| `encoding: flag` | `encoding: enum` + `bit_length: 1` when no length is written |
+| `encoding: string` | `encoding: bytes` + `charset: ascii` when no `charset` is written |
+
+An `enum` of version 1 with `representation` (signed values) or `invalid_raw` has no equivalent in version 2: it
+is read as an `enum` and reported (`encoding-field`), to be rewritten by hand (a `number`, or the "no data"
+values moved into the value table).
 
 ## Canonical layout
 
@@ -661,9 +677,10 @@ turned off with `--disable CODE` or `lint.disable`.
 | `number-comma` | error | Number written with a decimal comma (0,1 instead of 0.1) |
 | `number-cyrillic-x` | error | Cyrillic “х” in a hexadecimal number |
 | `number-quoted` | warning | Number written as a quoted string |
+| `format-v1` | info | A map of format version 1: still read, `mapcan migrate` rewrites it in version 2. See [Versioning and compatibility](#versioning-and-compatibility) |
 | `deprecated-key` | warning | A field under its former name: still read, `mapcan migrate` rewrites it (an error when the current name is set too). See [Versioning and compatibility](#versioning-and-compatibility) |
 | `include` | error | Included file not found, it has keys that cannot be included, or it names another map (`part_of`) or format version |
-| `include-part-of` | warning | Included file does not start with `mapcan: 1` and `part_of` |
+| `include-part-of` | warning | Included file does not start with `mapcan` and `part_of` |
 | `value-table` | error | `values` names a table that is not in `value_tables` |
 
 ### Names
@@ -742,9 +759,9 @@ turned off with `--disable CODE` or `lint.disable`.
 |---|---|---|
 | `signal-out-of-frame` | error | Signal extends beyond the frame length |
 | `bit-overlap` | error | Overlapping signals (multiplexing-aware) |
-| `float-length` | error | A float signal must be 32 or 64 bits |
-| `signal-length` | error | A signal longer than 64 bits that is not an aligned byte array |
-| `string-field` | error | A `string` that does not start at a byte boundary or take whole bytes, or a `terminator` that is not one byte |
+| `float-length` | error | A floating-point signal must be 32 or 64 bits |
+| `signal-length` | error | A signal longer than 64 bits that is not aligned bytes |
+| `string-field` | error | Text (`bytes` with `charset`) that does not start at a byte boundary or take whole bytes, or a `terminator` that is not one byte |
 
 ### Values and conversion
 
@@ -768,7 +785,6 @@ turned off with `--disable CODE` or `lint.disable`.
 | `encoding-field` | error | A field is set that does not apply to the signal's encoding (see [Encodings](#encodings)) |
 | `flag-out-of-field` | error | Flag extends beyond the bit field |
 | `flag-overlap` | error | Flags overlap inside the bit field |
-| `flag-length` | warning | Flag signal longer than 1 bit |
 
 ### Multiplexing
 

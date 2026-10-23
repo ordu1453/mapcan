@@ -17,7 +17,7 @@ from .conftest import codes, run
 # A bus of our own devices: the master sends a PDO RX to the node (ID from the node's node_id) and NMT, the node answers
 # with a PDO TX.
 CANOPEN = """
-mapcan: 1
+mapcan: 2
 document:
   title: Тест
   language: ru
@@ -56,7 +56,7 @@ def _can(frames_a: str, frames_b: str = "") -> str:
     def block(frames: str) -> str:
         return textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10) + "\n" if frames.strip() else ""
     return (
-        "mapcan: 1\ndocument:\n  title: Тест\n  language: ru\nbuses:\n  - name: bus\n    protocol: can\n    devices:\n"
+        "mapcan: 2\ndocument:\n  title: Тест\n  language: ru\nbuses:\n  - name: bus\n    protocol: can\n    devices:\n"
         "      - name: a\n        frames:\n" + block(frames_a)
         + "      - name: b\n        frames:" + ("\n" + block(frames_b) if frames_b.strip() else " []\n")
     )
@@ -217,7 +217,7 @@ def test_diff_reports_sender_change():
 
 def test_dbc_flags_of_a_signed_bitfield_are_unsigned():
     m = loads(textwrap.dedent("""
-        mapcan: 1
+        mapcan: 2
         document: {title: T, language: en}
         buses:
           - name: bus

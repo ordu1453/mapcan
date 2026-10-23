@@ -79,7 +79,7 @@ def test_cli_migrate_included_files(tmp_path):
     (tmp_path / "part.yaml").write_text("buses:\n  - name: b\n    frames:\n      - {name: f, id: 0x10, dlc: 1}\n",
                                         encoding="utf-8")
     main = tmp_path / "m.yaml"
-    main.write_text("mapcan: 1\ninclude: [part.yaml]\n", encoding="utf-8")
+    main.write_text("mapcan: 2\ninclude: [part.yaml]\n", encoding="utf-8")
     assert CliRunner().invoke(app, ["migrate", str(main)]).exit_code == 0
     assert "length: 1" in (tmp_path / "part.yaml").read_text(encoding="utf-8")
 
@@ -115,7 +115,7 @@ def test_web_editor_data_and_writes(tmp_path):
 
 
 def test_signed_and_signed_code_become_representation():
-    sig = "              - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1, %s}\n"
+    sig = "              - {name: a, encoding: number, description: x, byte: 0, byte_length: 1, %s}\n"
     base = MINIMAL.split("            signals:\n")[0] + "            signals:\n"
     cases = [("signed: true", "twos_complement"), ("signed: true, signed_code: sign_magnitude", "sign_magnitude"),
              ("signed: false", "unsigned"), ("signed_code: ones_complement", "unsigned")]
@@ -149,7 +149,7 @@ def test_migrate_keeps_line_breaks_of_flow_mappings():
     text = MINIMAL.replace(
         "            signals:\n",
         "            signals:\n"
-        "              - {name: wrapped, encoding: raw, description: x, byte: 7, byte_length: 1,\n"
+        "              - {name: wrapped, encoding: number, description: x, byte: 7, byte_length: 1,\n"
         "                 signed: true, invalid: 0x7F}\n", 1)
     out = migrate_text(text)
     assert "                 representation: twos_complement, invalid_raw: 0x7F}\n" in out
@@ -157,7 +157,7 @@ def test_migrate_keeps_line_breaks_of_flow_mappings():
 
 
 def test_invalid_raw_by_meaning_and_ranges():
-    sig = ("              - {name: t, encoding: scaled, description: x, byte: 6, byte_length: 2, factor: 0.1, "
+    sig = ("              - {name: t, encoding: number, description: x, byte: 6, byte_length: 2, factor: 0.1, "
            "unit: V, min: 0, max: 100, invalid_raw: %s}\n")
     base = MINIMAL.split("            signals:\n")[0] + "            signals:\n"
     res, report = run(base + sig % "{not_available: [0xFF00..0xFFFF], error: [0xFE00..0xFEFF]}")
@@ -177,7 +177,7 @@ def test_bus_interface_becomes_connector():
     assert "    connector: X3\n" in migrate_text(legacy)
 
 
-LEGACY_DOCUMENT = """mapcan: 1
+LEGACY_DOCUMENT = """mapcan: 2
 document:
   title: T   # title
   language: ru
@@ -195,7 +195,7 @@ buses: []
 
 def test_print_details_move_into_print():
     out = migrate_text(LEGACY_DOCUMENT)
-    assert out == """mapcan: 1
+    assert out == """mapcan: 2
 document:
   title: T   # title
   language: ru
@@ -212,7 +212,7 @@ buses: []
 """
     assert upgrade_tree({"document": {"title": "T", "city": "M", "language": "en", "litera": "O1"}}) == \
         {"document": {"title": "T", "print": {"city": "M", "litera": "O1"}, "language": "en"}}
-    flow = "mapcan: 1\ndocument: {title: T, language: en, city: Moscow, litera: O1}\nbuses: []\n"
+    flow = "mapcan: 2\ndocument: {title: T, language: en, city: Moscow, litera: O1}\nbuses: []\n"
     assert "document: {title: T, language: en, print: {city: Moscow, litera: O1}}" in migrate_text(flow)
 
 

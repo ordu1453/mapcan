@@ -1,0 +1,592 @@
+# yaml-language-server: $schema=../../../schema/mapcan-v1.schema.json
+# Format version 1, frozen (tests/test_format_v1.py): tests/data/reference.yaml as mapcan 0.23 had it.
+#
+# Тестовые данные mapcan (заморожены): по этой карте построены эталонные (golden) файлы.
+# Вымышленная система питания стенда — покрывает все возможности формата:
+# две шины, SDO, EMCY, мультиплексирование, битовые поля, якоря YAML.
+#
+# Соглашения:
+#   * байты и биты нумеруются с 0; бит 0 — младший бит байта 0 (lsb0);
+#   * start_bit — позиция младшего бита сигнала; byte/bit/byte_length — сокращения;
+#   * physical = raw * factor + offset.
+
+mapcan: 1
+
+document:
+  title: Эталонная карта CANopen
+  subtitle: Протокол обмена демонстрационной системы питания
+  language: ru
+  bit_numbering: lsb0
+  history:
+    - version: 1.0.0
+      date: 2026-10-05
+      changes:
+        - Карта описана в YAML (mapcan, формат v1).
+        - "0x1A3: байт 1 описан как битовое поле error_code."
+        - "0x2A2: описано мультиплексирование данных парсинга (напряжения / температуры)."
+        - "Нумерация бит в битовых полях приведена к счёту с 0."
+    - version: 0.1.0
+      changes:
+        - Первая версия карты.
+
+lint:
+  signal_name: snake_case
+  value_name: UPPER_SNAKE
+
+buses:
+  # ======================================================================= #
+  - name: bus1
+    title: Шина 1
+    connector: X1
+    bitrate: 500000
+    protocol: canopen
+    description: Внутренняя шина системы питания (CANopen, predefined connection set).
+
+    frames:
+      - name: sync
+        canopen: sync
+        title: SYNC
+        description: Синхронизация со всеми устройствами
+        length: 0
+        trigger: event
+
+      - name: time_stamp
+        canopen: time
+        title: TIME
+        description: Дата и время
+        length: 6
+        trigger: event
+        signals:
+          - name: ms_after_midnight
+            encoding: scaled
+            description: Миллисекунды с начала суток
+            start_bit: 0
+            bit_length: 28
+            unit: мс
+          - name: days_since_1984
+            encoding: scaled
+            description: Дни с 1 января 1984 г.
+            byte: 4
+            byte_length: 2
+            unit: сут
+
+    devices:
+      # --------------------------------------------------------------------- #
+      - name: imd
+        short: IMD
+        title: Монитор изоляции
+        node_id: 0x21
+        description: Контроль сопротивления изоляции шины питания относительно корпуса.
+        frames:
+          - name: imd_state
+            canopen: pdo_tx1
+            title: СОСТОЯНИЯ
+            description: Состояние изоляции
+            length: 3
+            cycle_ms: 100
+            signals:
+              - name: insulation_status
+                encoding: enum
+                description: Статус изоляции
+                byte: 0
+                byte_length: 1
+                values:
+                  0: {name: NO_DATA, description: нет данных о сопротивлении изоляции}
+                  1: {name: OK, description: сопротивление изоляции в норме}
+                  2:
+                    name: WARNING
+                    description: >-
+                      низкое сопротивление изоляции: меньше WARNING_RESISTANCE,
+                      но больше ALARM_RESISTANCE
+                  3:
+                    name: ALARM
+                    description: аварийно-низкое сопротивление изоляции, меньше ALARM_RESISTANCE
+
+              - name: internal_error
+                encoding: bitfield
+                description: Статус внутренней ошибки
+                byte: 1
+                byte_length: 1
+                flags:
+                  - {bit: 0, name: low_bus_voltage_error, description: низкое напряжение шины}
+                  - {bit: 1, name: timeout_error, description: тайм-аут измерения}
+                  - bit: 2
+                    name: anomaly_error
+                    description: >-
+                      аномальное состояние между шинами питания и корпусом
+                      — может указывать на периодический контакт шины с корпусом
+                  - {bit: 3, name: self_test_error, description: ошибка самопроверки}
+
+              - name: imd_state
+                encoding: enum
+                description: Состояние работы
+                byte: 2
+                byte_length: 1
+                values:
+                  0: {name: NOT_WORKING, description: устройство не работает}
+                  1: {name: WORKING, description: устройство работает}
+                  2: {name: CRITICAL_FAULT, description: критический сбой в работе устройства}
+
+          - name: imd_data
+            canopen: pdo_tx2
+            length: 8
+            title: ДАННЫЕ
+            description: Данные по изоляции
+            cycle_ms: 100
+            signals:
+              - name: resistance_calculated
+                encoding: enum
+                description: Флаг расчёта сопротивления изоляции
+                byte: 0
+                byte_length: 1
+                values:
+                  0: {name: NOT_CALCULATED, description: значения сопротивлений изоляции не рассчитаны}
+                  1: {name: CALCULATED, description: значения сопротивлений изоляции рассчитаны}
+              - name: resistance_plus
+                encoding: scaled
+                description: Изоляция между «плюсом» шины питания и корпусом
+                byte: 1
+                byte_length: 2
+                factor: 1
+                unit: кОм
+                min: 0
+                max: 10000
+              - name: resistance_minus
+                encoding: scaled
+                description: Изоляция между «минусом» шины питания и корпусом
+                byte: 3
+                byte_length: 2
+                factor: 1
+                unit: кОм
+                min: 0
+                max: 10000
+              - name: bus_voltage_calculated
+                encoding: enum
+                description: Флаг расчёта напряжения шины питания
+                byte: 5
+                byte_length: 1
+                values:
+                  0: {name: NOT_CALCULATED, description: значение напряжения не рассчитано}
+                  1: {name: CALCULATED, description: значение напряжения рассчитано}
+              - name: bus_voltage
+                encoding: scaled
+                description: Напряжение шины питания
+                byte: 6
+                byte_length: 2
+                factor: 0.1
+                unit: В
+
+          - name: imd_command
+            canopen: pdo_rx1
+            title: КОМАНДЫ
+            description: Команды монитору изоляции
+            length: 2
+            cycle_ms: 100
+            signals:
+              - name: allow_work
+                encoding: enum
+                description: Команда разрешения работы устройства
+                byte: 0
+                byte_length: 1
+                values:
+                  0: {name: FORBID, description: запрет работы}
+                  1: {name: ALLOW, description: разрешение работы}
+              - name: force_selftest
+                encoding: enum
+                description: Команда принудительной самодиагностики
+                byte: 1
+                byte_length: 1
+                values:
+                  0: {name: AUTO, description: запуск самодиагностики по внутреннему алгоритму}
+                  1:
+                    name: FORCE
+                    description: >-
+                      принудительный запуск самодиагностики
+                      (если активно, выполняется только самодиагностика)
+
+          - name: imd_sdo_request
+            canopen: sdo_rx
+            title: НАСТРОЙКА
+            description: Настройка граничных значений
+            trigger: on_request
+            sdo:
+              - name: set_alarm_resistance
+                description: Установка ALARM_RESISTANCE
+                command: 0x2B
+                index: 0x4010
+                subindex: 0x01
+                value: {name: alarm_resistance, encoding: scaled, bit_length: 16, unit: кОм,
+                        description: Порог аварийного сопротивления изоляции}
+              - name: set_warning_resistance
+                description: Установка WARNING_RESISTANCE
+                command: 0x2B
+                index: 0x4010
+                subindex: 0x02
+                value: {name: warning_resistance, encoding: scaled, bit_length: 16, unit: кОм,
+                        description: Порог предупредительного сопротивления изоляции}
+
+          - name: imd_sdo_response
+            canopen: sdo_tx
+            title: ОТВЕТ НА НАСТРОЙКУ
+            description: Обратная связь по принятой настройке
+            trigger: on_request
+            sdo:
+              - name: ack_alarm_resistance
+                description: Принят ALARM_RESISTANCE
+                command: 0x60
+                index: 0x4010
+                subindex: 0x01
+              - name: ack_warning_resistance
+                description: Принят WARNING_RESISTANCE
+                command: 0x60
+                index: 0x4010
+                subindex: 0x02
+
+      # --------------------------------------------------------------------- #
+      - name: cmu
+        short: CMU
+        title: Модуль контроля ячеек
+        node_id: 0x22
+        frames:
+          - name: cmu_state
+            canopen: pdo_tx1
+            title: СОСТОЯНИЯ
+            description: Состояние ячеек
+            length: 2
+            cycle_ms: 50
+            signals:
+              - name: cmu_status
+                encoding: enum
+                description: Состояние работы устройства
+                byte: 0
+                byte_length: 1
+                values:
+                  0: NO_DATA
+                  1: OK
+                  2: WARNING
+                  3: ALARM
+              - name: systems_status
+                encoding: bitfield
+                description: Код состояния систем
+                byte: 1
+                byte_length: 1
+                flags:
+                  - {bit: 0, name: cell_overvoltage, description: высокое напряжение на ячейке}
+                  - {bit: 1, name: cell_undervoltage, description: низкое напряжение на ячейке}
+                  - {bit: 2, name: cell_disbalance, description: разбалансировка ячеек}
+                  - {bit: 3, name: voltage_sensor_lost, description: нет связи с модулем измерения напряжения}
+                  - {bit: 4, name: cell_overheat, description: перегрев ячеек}
+                  - {bit: 5, name: cell_overcooling, description: переохлаждение ячеек}
+                  - {bit: 6, name: temperature_sensor_lost, description: нет связи с датчиком температуры}
+
+          - name: cmu_event
+            canopen: emcy
+            title: СОБЫТИЯ
+            description: Изменение состояния
+            length: 3
+            trigger: event
+            signals:
+              - name: event_type
+                encoding: enum
+                description: Код события
+                byte: 0
+                byte_length: 1
+                values:
+                  1: {name: CELL_OVERVOLTAGE, description: высокое напряжение на ячейке}
+                  2: {name: CELL_UNDERVOLTAGE, description: низкое напряжение на ячейке}
+                  3: {name: CELL_DISBALANCE, description: разбалансировка ячеек}
+                  4: {name: VOLTAGE_SENSOR_LOST, description: нет связи с модулем измерения напряжения}
+                  5: {name: CELL_OVERHEAT, description: перегрев ячеек}
+                  6: {name: CELL_OVERCOOLING, description: переохлаждение ячеек}
+                  7: {name: TEMPERATURE_SENSOR_LOST, description: нет связи с датчиком температуры}
+              - name: event_source
+                encoding: enum
+                description: Источник события
+                byte: 1
+                byte_length: 1
+                values:
+                  0: {name: VOLTAGE_MODULES, description: модули напряжения}
+                  1: {name: TEMPERATURE_SENSORS, description: датчики температур}
+              - name: event_object
+                encoding: raw
+                description: Объект события — номер модуля или датчика
+                byte: 2
+                byte_length: 1
+
+          - name: cmu_parse_data
+            canopen: pdo_tx2
+            length: 8
+            title: ДАННЫЕ ПО НАПРЯЖЕНИЮ
+            description: Парсинг данных (по запросу)
+            trigger: on_request
+            signals:
+              - name: parse_type
+                encoding: enum
+                description: Тип парсинга (селектор мультиплексора)
+                byte: 0
+                bit: 0
+                bit_length: 1
+                multiplexer: true
+                values:
+                  0: {name: VOLTAGES, description: парсинг напряжений}
+                  1: {name: TEMPERATURES, description: парсинг температур}
+              - name: parse_index
+                encoding: raw
+                description: Номер кадра парсинга
+                start_bit: 1
+                bit_length: 7
+              - name: voltage_data
+                description: Данные парсинга напряжений
+                byte: 1
+                byte_length: 7
+                encoding: bytes
+                mux: 0
+              - name: temperature_data
+                description: Данные парсинга температур
+                byte: 1
+                byte_length: 7
+                encoding: bytes
+                mux: 1
+
+          - name: cmu_request
+            canopen: pdo_rx1
+            title: ЗАПРОСЫ
+            description: Объём передаваемых данных
+            length: 2
+            trigger: event
+            signals:
+              - name: data_request
+                encoding: enum
+                description: Запрос на отправку данных
+                byte: 0
+                byte_length: 1
+                values:
+                  0: {name: STATES, description: запрос на отправку состояний}
+                  1: {name: FULL_PARSE, description: запрос на полный парсинг данных}
+                  2: {name: REPEAT_VOLTAGE_FRAME, description: повтор определённого кадра парсинга напряжения}
+                  3: {name: REPEAT_TEMPERATURE_FRAME, description: повтор определённого кадра парсинга температуры}
+              - name: frame_request
+                encoding: raw
+                description: Номер повторно запрашиваемого кадра
+                byte: 1
+                byte_length: 1
+
+      # --------------------------------------------------------------------- #
+      - name: pcu
+        short: PCU
+        title: Блок преобразователя
+        node_id: 0x23
+        frames:
+          - name: pcu_state
+            canopen: pdo_tx1
+            title: СОСТОЯНИЯ
+            description: Состояние преобразователя
+            length: 2
+            cycle_ms: 100
+            signals:
+              - name: dc_state
+                encoding: enum
+                description: Состояние работы
+                byte: 0
+                byte_length: 1
+                values: &dc_states
+                  0: {name: STATE_INIT, description: исходное состояние преобразователя}
+                  1: {name: STATE_PRECHARGE, description: предзаряд входного конденсатора}
+                  2:
+                    name: STATE_IDLE
+                    description: >-
+                      ключи закрыты, входной конденсатор предзаряжен, ошибок нет;
+                      ожидается команда заряда/разряда
+                  3: {name: STATE_CHARGE, description: заряд батареи}
+                  4: {name: STATE_DISCHARGE, description: разряд батареи}
+                  5: {name: STATE_DIRECT_CHARGE, description: батарея напрямую подключена к источнику для заряда}
+                  6: {name: STATE_DIRECT_DISCHARGE, description: батарея напрямую подключена к нагрузке}
+              - name: error_code
+                encoding: bitfield
+                description: Код ошибки преобразователя
+                byte: 1
+                byte_length: 1
+                flags:
+                  - {bit: 0, name: err_none, description: ошибок не обнаружено}
+                  - {bit: 1, name: err_overvoltage, description: превышение напряжения}
+                  - {bit: 2, name: err_undervoltage, description: недопустимо малое напряжение}
+                  - {bit: 3, name: err_overcurrent, description: превышение тока}
+                  - {bit: 4, name: err_igbt_driver, description: ошибка драйверов силовых ключей}
+
+          - name: pcu_data
+            canopen: pdo_tx2
+            length: 8
+            title: ДАННЫЕ
+            description: Данные о работе
+            cycle_ms: 100
+            signals:
+              - {name: dc_output_voltage, encoding: scaled, description: Выходное напряжение, byte: 0, byte_length: 2, factor: 10, unit: В}
+              - {name: dc_input_voltage, encoding: scaled, description: Входное напряжение, byte: 2, byte_length: 2, factor: 10, unit: В}
+              - {name: dc_output_current, encoding: scaled, description: Выходной ток, byte: 4, byte_length: 2, factor: 10, unit: А}
+              - {name: dc_input_current, encoding: scaled, description: Входной ток, byte: 6, byte_length: 2, factor: 10, unit: А}
+
+          - name: pcu_command
+            canopen: pdo_rx1
+            title: КОМАНДЫ
+            description: Установка режима работы преобразователя
+            length: 2
+            cycle_ms: 50
+            signals:
+              - name: requested_mode
+                encoding: enum
+                description: Запрашиваемый режим работы
+                byte: 0
+                byte_length: 1
+                values: *dc_states
+              - name: target_voltage
+                encoding: scaled
+                description: Целевое значение напряжения
+                byte: 1
+                byte_length: 1
+                factor: 10
+                unit: В
+                comment: Разрядность будет уточнена в следующей версии.
+
+      # --------------------------------------------------------------------- #
+      - name: bypass
+        short: BYP
+        title: Блок управления байпасом
+        node_id: 0x24
+        frames:
+          - name: bypass_command
+            canopen: pdo_rx1
+            length: 8
+            description: Установка режима работы байпаса
+          - name: bypass_state
+            canopen: pdo_tx2
+            length: 8
+            description: Текущий режим работы ключа и состояние ошибки
+
+      - name: cooling
+        short: COOL
+        title: Система охлаждения
+        node_id: 0x25
+        frames:
+          - name: cooling_command
+            canopen: pdo_rx1
+            length: 8
+            description: Установка скорости вентиляторов и положения заслонок
+          - name: cooling_state
+            canopen: pdo_tx2
+            length: 8
+            description: Скорость вентиляторов и положение заслонок
+
+  # ======================================================================= #
+  - name: bus2
+    title: Шина 2
+    connector: X2
+    bitrate: 250000
+    protocol: can
+    description: Шина обмена с контроллером верхнего уровня (произвольные ID).
+
+    devices:
+      - name: host
+        short: HOST
+        title: Контроллер верхнего уровня
+        frames:
+          - name: host_data
+            id: 0x001
+            title: Данные верхнего уровня
+            description: Режим питания и режим работы установки
+            length: 5
+            cycle_ms: 100
+            signals:
+              - name: power_mode
+                encoding: enum
+                description: Режим системы питания
+                byte: 0
+                byte_length: 1
+                values:
+                  1: {name: BATTERY, description: питание от батареи}
+                  2: {name: COMBINED, description: совместное питание}
+                  3: {name: BATTERY_BOOST, description: питание от батареи с форсированием}
+              - name: site_location
+                encoding: enum
+                description: Место установки
+                byte: 1
+                byte_length: 1
+                values:
+                  1: {name: LAB, description: лаборатория}
+                  2: {name: INDOOR, description: в помещении}
+                  3: {name: OUTDOOR, description: на улице}
+              - name: run_mode
+                encoding: enum
+                description: Режим работы установки
+                byte: 3
+                byte_length: 1
+                comment: Байт 2 зарезервирован.
+                values:
+                  1: {name: RUN, description: работа}
+                  2: {name: COAST, description: холостой режим}
+                  3: {name: BRAKE, description: торможение}
+                  4: {name: EMERGENCY_STOP, description: аварийный останов}
+              - name: load_setpoint
+                encoding: raw
+                description: Уставка нагрузки (0 — ноль, 255 — максимум)
+                byte: 4
+                byte_length: 1
+                min: 0
+                max: 255
+
+      - name: psm
+        short: PSM
+        title: Модуль управления системой питания
+        frames:
+          - name: system_state
+            id: 0x002
+            title: Состояние системы
+            description: Состояние системы питания
+            length: 5
+            cycle_ms: 250
+            signals:
+              - name: system_status
+                encoding: enum
+                description: Статус всей системы
+                byte: 0
+                byte_length: 1
+                values:
+                  0: SYS_NO_DATA
+                  1: SYS_OK
+                  2: SYS_WARNING
+                  3: SYS_ALARM
+              - name: subsystems_states
+                encoding: bitfield
+                description: Состояния подсистем
+                byte: 1
+                byte_length: 4
+                flags:
+                  - {bit: 0, name: cmu_no_data}
+                  - {bit: 1, name: cmu_warning}
+                  - {bit: 2, name: cmu_alarm}
+                  - {bit: 3, name: cmu_high_volt}
+                  - {bit: 4, name: cmu_low_volt}
+                  - {bit: 5, name: cmu_disbalance}
+                  - {bit: 6, name: cmu_no_volt_data}
+                  - {bit: 7, name: cmu_high_temp}
+                  - {bit: 8, name: cmu_low_temp}
+                  - {bit: 9, name: cmu_no_temp_data}
+                  - {bit: 10, name: cmu_link_lost}
+                  - {bit: 11, name: imd_no_data}
+                  - {bit: 12, name: imd_warning}
+                  - {bit: 13, name: imd_alarm}
+                  - {bit: 14, name: imd_low_bus_voltage_error}
+                  - {bit: 15, name: imd_timeout_error}
+                  - {bit: 16, name: imd_anomaly_error}
+                  - {bit: 17, name: imd_self_test_error}
+                  - {bit: 18, name: imd_not_working}
+                  - {bit: 19, name: imd_critical_fault}
+                  - {bit: 20, name: imd_link_lost}
+                  - {bit: 21, name: pcu_no_data}
+                  - {bit: 22, name: pcu_overvoltage}
+                  - {bit: 23, name: pcu_undervoltage}
+                  - {bit: 24, name: pcu_overcurrent}
+                  - {bit: 25, name: pcu_igbt_driver_error}
+                  - {bit: 26, name: pcu_link_lost}
+                  - {bit: 27, name: run_mode_no_data}
+                  - {bit: 28, name: host_link_lost}
+                  # биты 29..31 — резерв

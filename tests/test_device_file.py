@@ -53,8 +53,8 @@ def test_session_adds_a_device_in_a_new_file(drive):
 
     s.save()
     assert new.read_text(encoding="utf-8") == (
-        "# yaml-language-server: $schema=https://ordu1453.github.io/mapcan/schema/part-v1.json\n\n"
-        "mapcan: 1\npart_of: ../drive.yaml\n\nbuses:\n  - name: drive_bus\n    devices:\n"
+        "# yaml-language-server: $schema=https://ordu1453.github.io/mapcan/schema/part-v2.json\n\n"
+        "mapcan: 2\npart_of: ../drive.yaml\n\nbuses:\n  - name: drive_bus\n    devices:\n"
         "      - name: node_c\n        title: Device 3\n        node_id: 0x03\n        frames: []\n")
     m = load(drive)
     assert "node_c" in [d.name for d in m.map.buses[0].devices]
@@ -188,12 +188,12 @@ def test_a_device_added_to_the_bus_file_keeps_its_fields():
 
 
 @pytest.mark.parametrize(("text", "empty"), [
-    ("mapcan: 1\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: []\n", True),
-    ("mapcan: 1\npart_of: m.yaml\n", True),
-    ("mapcan: 1\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: [{name: b}]\n", False),
-    ("mapcan: 1\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: []\n    frames: [{name: f}]\n", False),
-    ("mapcan: 1\npart_of: m.yaml\nbuses:\n  - name: can2\n    protocol: can\n    devices: []\n", False),
-    ("mapcan: 1\npart_of: m.yaml\nvalue_tables: {t: {0: OFF}}\n", False),
+    ("mapcan: 2\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: []\n", True),
+    ("mapcan: 2\npart_of: m.yaml\n", True),
+    ("mapcan: 2\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: [{name: b}]\n", False),
+    ("mapcan: 2\npart_of: m.yaml\nbuses:\n  - name: can1\n    devices: []\n    frames: [{name: f}]\n", False),
+    ("mapcan: 2\npart_of: m.yaml\nbuses:\n  - name: can2\n    protocol: can\n    devices: []\n", False),
+    ("mapcan: 2\npart_of: m.yaml\nvalue_tables: {t: {0: OFF}}\n", False),
     ("mapcan: [", False),
 ])
 def test_part_is_empty(text, empty):

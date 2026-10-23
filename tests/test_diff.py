@@ -45,7 +45,7 @@ def test_enum_value_added_and_renamed():
 
 def test_signal_added_removed():
     new = BASE.replace("              - name: frame_request\n"
-                       "                encoding: raw\n"
+                       "                encoding: number\n"
                        "                description: Номер повторно запрашиваемого кадра\n"
                        "                byte: 1\n"
                        "                byte_length: 1\n", "")
@@ -141,7 +141,7 @@ def test_changed_paths():
                            _path_of(m, "cmu_state", "cmu_status"): "modified"}
     # A removed signal marks its frame
     new = BASE.replace("              - name: frame_request\n"
-                       "                encoding: raw\n"
+                       "                encoding: number\n"
                        "                description: Номер повторно запрашиваемого кадра\n"
                        "                byte: 1\n"
                        "                byte_length: 1\n", "")

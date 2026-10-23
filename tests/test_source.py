@@ -17,10 +17,10 @@ VERSION_FRAME = """
             description: Map version
             trigger: on_request
             signals:
-              - {name: major, encoding: raw, description: x, byte: 0, byte_length: 1, source: map_version.major}
-              - {name: minor, encoding: raw, description: x, byte: 1, byte_length: 1, source: map_version.minor}
-              - {name: patch, encoding: raw, description: x, byte: 2, byte_length: 1, source: map_version.patch}
-              - {name: crc, encoding: raw, description: x, byte: 3, byte_length: 4, source: layout_crc32}
+              - {name: major, encoding: number, description: x, byte: 0, byte_length: 1, source: map_version.major}
+              - {name: minor, encoding: number, description: x, byte: 1, byte_length: 1, source: map_version.minor}
+              - {name: patch, encoding: number, description: x, byte: 2, byte_length: 1, source: map_version.patch}
+              - {name: crc, encoding: number, description: x, byte: 3, byte_length: 4, source: layout_crc32}
 """
 
 
@@ -83,7 +83,8 @@ def test_source_errors():
     text = with_version_frame().replace("source: map_version.major}", "source: map_version.major, initial: 1}")
     _, report = run(text)
     assert "source-value" in report.codes()
-    text = with_version_frame().replace("encoding: raw, description: x, byte: 0", "encoding: scaled, description: x, "
-                                        "byte: 0", 1)
+    # a floating-point number has no source
+    text = with_version_frame().replace("encoding: number, description: x, byte: 0",
+                                        "encoding: number, description: x, representation: float, byte: 0", 1)
     _, report = run(text)
     assert "encoding-field" in report.codes()

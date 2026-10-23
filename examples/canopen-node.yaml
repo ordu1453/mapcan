@@ -2,7 +2,7 @@
 # CANopen drive: PDO signals mapped to dictionary objects (CiA 402 and manufacturer),
 # enough for `mapcan export eds` to write the drive's EDS file.
 
-mapcan: 1
+mapcan: 2
 
 document:
   title: CANopen drive
@@ -33,14 +33,14 @@ buses:
               - name: statusword
                 title: Statusword
                 description: CiA 402 statusword
-                encoding: raw
+                encoding: number
                 byte: 0
                 byte_length: 2
                 index: 0x6041
               - name: actual_velocity
                 title: Velocity actual value
                 description: Motor speed
-                encoding: scaled
+                encoding: number
                 byte: 2
                 byte_length: 4
                 representation: twos_complement
@@ -56,7 +56,7 @@ buses:
               - name: motor_temp
                 title: Motor temperature
                 description: Motor winding temperature
-                encoding: scaled
+                encoding: number
                 byte: 0
                 byte_length: 1
                 offset: -40
@@ -66,7 +66,7 @@ buses:
               - name: inverter_temp
                 title: Inverter temperature
                 description: Power stage temperature
-                encoding: scaled
+                encoding: number
                 byte: 1
                 byte_length: 1
                 offset: -40
@@ -76,7 +76,7 @@ buses:
               - name: dc_voltage
                 title: DC link voltage
                 description: DC link voltage
-                encoding: scaled
+                encoding: number
                 byte: 2
                 byte_length: 2
                 factor: 0.1
@@ -93,14 +93,14 @@ buses:
               - name: controlword
                 title: Controlword
                 description: CiA 402 controlword
-                encoding: raw
+                encoding: number
                 byte: 0
                 byte_length: 2
                 index: 0x6040
               - name: target_velocity
                 title: Target velocity
                 description: Requested motor speed
-                encoding: scaled
+                encoding: number
                 byte: 2
                 byte_length: 4
                 representation: twos_complement

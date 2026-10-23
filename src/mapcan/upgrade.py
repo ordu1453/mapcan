@@ -157,3 +157,68 @@ def upgrade_tree(data: Any, on_found: Callable[[Upgraded], None] | None = None) 
         return node
 
     return walk(data, ())
+
+
+# --------------------------------------------------------------------------- format version 1
+
+# Version 2 of the format (#140) has four signal encodings; version 1 had eight. A map of version 1 is read with
+# its encodings converted, and mapcan migrate rewrites it. Version 2 itself does not read them.
+V1_ENCODINGS = {"raw": "number", "scaled": "number", "float": "number", "flag": "enum", "string": "bytes"}
+V1_KINDS = ("signal", "sdo_value")
+
+
+def v1_encoding(node: dict) -> tuple[str, dict] | None:
+    """The version 2 encoding of a signal (or SDO value) of version 1 and the keys to add after it, which keep its
+    meaning: a float's representation, a flag's length, a string's charset. None: nothing to change."""
+    old = node.get("encoding")
+    if not isinstance(old, str) or old not in V1_ENCODINGS:
+        return None
+    add: dict = {}
+    if old == "float" and "representation" not in node:
+        add["representation"] = "float"
+    elif old == "flag" and "bit_length" not in node and "byte_length" not in node:
+        add["bit_length"] = 1
+    elif old == "string" and "charset" not in node:
+        add["charset"] = "ascii"         # the default of version 1
+    return V1_ENCODINGS[old], add
+
+
+def upgrade_v1_node(kind: str | None, node: dict) -> dict:
+    """A node of a version 1 map as version 2 reads it (``node`` itself is not changed)."""
+    change = v1_encoding(node) if kind in V1_KINDS else None
+    if change is None:
+        return node
+    new, add = change
+    items = []
+    for k, v in node.items():
+        items.append((k, new if k == "encoding" else v))
+        if k == "encoding":
+            items += list(add.items())
+    return dict(items)
+
+
+def upgrade_v1(data: Any, on_found: Callable[[Path_], None] | None = None) -> Any:
+    """Plain data of a version 1 map as version 2 (a new structure; ``data`` is not changed). ``on_found`` gets the
+    path of each converted node."""
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            new = upgrade_v1_node(node_kind(path), node)
+            if new is not node and on_found:
+                on_found(path)
+            return {k: walk(v, path + (k,)) for k, v in new.items()}
+        if isinstance(node, list):
+            return [walk(v, path + (i,)) for i, v in enumerate(node)]
+        return node
+
+    out = walk(data, ())
+    if isinstance(out, dict) and out.get("mapcan") == 1:
+        out["mapcan"] = 2
+    return out
+
+
+def upgrade_data(data: Any) -> Any:
+    """Plain data of a map with the current names and, for a map of version 1, the encodings of version 2: what the
+    editors show."""
+    data = upgrade_tree(data)
+    return upgrade_v1(data) if isinstance(data, dict) and data.get("mapcan") == 1 else data

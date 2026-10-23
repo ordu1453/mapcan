@@ -15,7 +15,7 @@ OK_SIGNAL = """
           length: 8
           cycle_ms: 100
           signals:
-            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1}
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 1}
 """
 
 
@@ -34,7 +34,7 @@ def test_minimal_ok():
 
 
 def test_yaml_syntax_error_has_line():
-    _, rep = run("mapcan: 1\ndocument: [\n")
+    _, rep = run("mapcan: 2\ndocument: [\n")
     d = rep.diagnostics[0]
     assert d.code == "yaml" and d.line is not None
 
@@ -70,7 +70,7 @@ def test_yaml_dash_without_space_points_to_culprit():
           signals:
             -ndsj:
               fdjopskd
-            - {name: a, encoding: raw, byte: 0, byte_length: 1}
+            - {name: a, encoding: number, byte: 0, byte_length: 1}
     """))
     assert d.code == "yaml" and "space after '-'" in d.message and "- ndsj:" in d.message
     assert d.line == 18
@@ -103,7 +103,7 @@ def test_schema_dash_hints():
           length: 8
           signals:
             - name: a
-              encoding: raw
+              encoding: number
               byte: 0
               byte_length: 1
               -ndsj: x
@@ -137,7 +137,7 @@ def test_number_comma():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: v, encoding: scaled, description: x, byte: 0, byte_length: 1, factor: "0,1"}
+            - {name: v, encoding: number, description: x, byte: 0, byte_length: 1, factor: "0,1"}
     """)
     _, rep = run(text)
     d = next(d for d in rep.diagnostics if d.code == "number-comma")
@@ -191,7 +191,7 @@ def test_name_style_configurable():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: BadName, encoding: raw, description: x, byte: 0, byte_length: 1}
+            - {name: BadName, encoding: number, description: x, byte: 0, byte_length: 1}
     """, lint="lint:\n  signal_name: PascalCase\n")
     assert "name-style" not in codes(text)
 
@@ -202,7 +202,7 @@ def test_rule_can_be_disabled():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: BadName, encoding: raw, description: x, byte: 0, byte_length: 1}
+            - {name: BadName, encoding: number, description: x, byte: 0, byte_length: 1}
     """, lint="lint:\n  disable: [name-style]\n")
     assert "name-style" not in codes(text)
 
@@ -226,8 +226,8 @@ def test_duplicate_signal_name():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1}
-            - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1}
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 1}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 1}
     """))
 
 
@@ -238,7 +238,7 @@ def test_duplicate_flag_vs_signal_name():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: dc_status, encoding: raw, description: x, byte: 0, byte_length: 1}
+            - {name: dc_status, encoding: number, description: x, byte: 0, byte_length: 1}
             - name: errors
               encoding: bitfield
               description: x
@@ -381,7 +381,7 @@ def test_signal_out_of_frame():
           canopen: pdo_tx1
           length: 2
           signals:
-            - {name: a, encoding: raw, description: x, byte: 1, byte_length: 2}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 2}
     """))
 
 
@@ -391,7 +391,7 @@ def test_big_endian_out_of_frame_start():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: a, encoding: raw, description: x, start_bit: 0, bit_length: 16, byte_order: big_endian}
+            - {name: a, encoding: number, description: x, start_bit: 0, bit_length: 16, byte_order: big_endian}
     """))
 
 
@@ -401,8 +401,8 @@ def test_bit_overlap():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1}
-            - {name: b, encoding: raw, description: x, start_bit: 4, bit_length: 8}
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 1}
+            - {name: b, encoding: number, description: x, start_bit: 4, bit_length: 8}
     """))
     d = next(d for d in rep.diagnostics if d.code == "bit-overlap")
     assert "bits 4..7" in d.message
@@ -416,8 +416,8 @@ def test_mux_signals_do_not_overlap():
           signals:
             - {name: sel, encoding: enum, description: x, byte: 0, byte_length: 1, multiplexer: true,
                values: {0: A, 1: B}}
-            - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 0}
-            - {name: b, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 1}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 1, mux: 0}
+            - {name: b, encoding: number, description: x, byte: 1, byte_length: 1, mux: 1}
     """))
     assert "bit-overlap" not in c
 
@@ -428,9 +428,9 @@ def test_mux_overlap_same_value():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: sel, encoding: raw, description: x, byte: 0, byte_length: 1, multiplexer: true}
-            - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1, mux: [0, 1]}
-            - {name: b, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 1}
+            - {name: sel, encoding: number, description: x, byte: 0, byte_length: 1, multiplexer: true}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 1, mux: [0, 1]}
+            - {name: b, encoding: number, description: x, byte: 1, byte_length: 1, mux: 1}
     """))
 
 
@@ -440,9 +440,9 @@ def test_mux_overlap_with_plain_signal():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: sel, encoding: raw, description: x, byte: 0, byte_length: 1, multiplexer: true}
-            - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 0}
-            - {name: b, encoding: raw, description: x, byte: 1, byte_length: 1}
+            - {name: sel, encoding: number, description: x, byte: 0, byte_length: 1, multiplexer: true}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 1, mux: 0}
+            - {name: b, encoding: number, description: x, byte: 1, byte_length: 1}
     """))
 
 
@@ -452,7 +452,7 @@ def test_mux_rules():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 0}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 1, mux: 0}
     """))
     c = codes(one_bus("""
         - name: f
@@ -461,9 +461,9 @@ def test_mux_rules():
           signals:
             - {name: sel, encoding: enum, description: x, start_bit: 0, bit_length: 1, multiplexer: true,
                values: {0: A, 1: B}}
-            - {name: sel2, encoding: raw, description: x, byte: 2, byte_length: 1, multiplexer: true, mux: 1}
-            - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 2}
-            - {name: b, encoding: raw, description: x, byte: 3, byte_length: 1, mux: 1}
+            - {name: sel2, encoding: number, description: x, byte: 2, byte_length: 1, multiplexer: true, mux: 1}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 1, mux: 2}
+            - {name: b, encoding: number, description: x, byte: 3, byte_length: 1, mux: 1}
     """))
     assert {"mux-multiple-selectors", "mux-value-overflow", "mux-selector-muxed"} <= c
     assert "mux-value-unknown" in codes(one_bus("""
@@ -472,7 +472,7 @@ def test_mux_rules():
           length: 8
           signals:
             - {name: sel, encoding: enum, description: x, byte: 0, byte_length: 1, multiplexer: true, values: {0: A}}
-            - {name: a, encoding: raw, description: x, byte: 1, byte_length: 1, mux: 5}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 1, mux: 5}
     """))
 
 
@@ -490,14 +490,6 @@ def test_enum_overflow():
           length: 8
           signals:
             - {name: a, encoding: enum, description: x, byte: 0, byte_length: 1, values: {-1: NEG}}
-    """))
-    assert "enum-overflow" not in codes(one_bus("""
-        - name: f
-          canopen: pdo_tx1
-          length: 8
-          signals:
-            - {name: a, encoding: enum, description: x, byte: 0, byte_length: 1, representation: twos_complement,
-               values: {-1: NEG}}
     """))
 
 
@@ -525,13 +517,6 @@ def test_flags_rules():
           signals:
             - {name: a, description: x, byte: 0, byte_length: 1, encoding: enum, flags: [{bit: 0, name: f0}]}
     """))
-    assert "flag-length" in codes(one_bus("""
-        - name: f
-          canopen: pdo_tx1
-          length: 8
-          signals:
-            - {name: a, description: x, start_bit: 0, bit_length: 2, encoding: flag}
-    """))
 
 
 def test_scaled_rules():
@@ -540,10 +525,10 @@ def test_scaled_rules():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: a, encoding: scaled, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: В,
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: В,
                min: 0, max: 100}
-            - {name: b, encoding: scaled, description: x, byte: 1, byte_length: 1, factor: 0}
-            - {name: c, encoding: scaled, description: x, byte: 2, byte_length: 1, unit: В, min: 10, max: 5}
+            - {name: b, encoding: number, description: x, byte: 1, byte_length: 1, factor: 0}
+            - {name: c, encoding: number, description: x, byte: 2, byte_length: 1, unit: В, min: 10, max: 5}
     """))
     assert {"range-overflow", "zero-factor", "min-max"} <= c
 
@@ -560,9 +545,9 @@ def test_sdo_rules():
     assert {"sdo-frame-type", "sdo-duplicate"} <= c
 
 
-def _sig(extra: str, encoding: str = "raw") -> str:
+def _sig(extra: str, encoding: str = "number") -> str:
     text = OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, " + extra + "}")
-    return one_bus(text.replace("encoding: raw", f"encoding: {encoding}"))
+    return one_bus(text.replace("encoding: number", f"encoding: {encoding}"))
 
 
 @pytest.mark.parametrize("name", ["default", "class", "unsigned", "pack", "DLC"])
@@ -581,16 +566,16 @@ def test_name_collision():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: speed, encoding: raw, description: x, byte: 0, byte_length: 1}
-            - {name: Speed, encoding: raw, description: x, byte: 1, byte_length: 1}
+            - {name: speed, encoding: number, description: x, byte: 0, byte_length: 1}
+            - {name: Speed, encoding: number, description: x, byte: 1, byte_length: 1}
     """, lint="lint:\n  signal_name: any\n"))
     assert "name-collision" in codes(one_bus("""
         - name: f
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: speed, encoding: scaled, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: km/h}
-            - {name: speed_phys, encoding: raw, description: x, byte: 1, byte_length: 1}
+            - {name: speed, encoding: number, description: x, byte: 0, byte_length: 1, factor: 0.1, unit: km/h}
+            - {name: speed_phys, encoding: number, description: x, byte: 1, byte_length: 1}
     """))
     assert "name-collision" in codes(_sig("values: {0: OK, 1: Ok}", "enum"))
     assert "name-collision" in codes(one_bus(OK_SIGNAL + OK_SIGNAL.replace("name: f", "name: F")
@@ -673,27 +658,30 @@ def test_bus_load_note():
 
 
 def test_invalid_in_range():
-    assert "invalid-in-range" in codes(_sig("factor: 0.5, unit: V, min: 0, max: 200, invalid_raw: 0xFF", "scaled"))
-    assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid_raw: 0xFF", "scaled"))
+    assert "invalid-in-range" in codes(_sig("factor: 0.5, unit: V, min: 0, max: 200, invalid_raw: 0xFF", "number"))
+    assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid_raw: 0xFF", "number"))
 
 
 def test_missing_unit():
-    assert "missing-unit" in codes(_sig("factor: 0.1", "scaled"))
-    assert "missing-unit" not in codes(_sig("factor: 0.1, unit: V", "scaled"))
+    assert "missing-unit" in codes(_sig("factor: 0.1", "number"))
+    assert "missing-unit" not in codes(_sig("factor: 0.1, unit: V", "number"))
 
 
 @pytest.mark.parametrize(("extra", "encoding"), [
-    ("factor: 0.1", "raw"), ("offset: -40", "enum"), ("unit: V", "enum"), ("min: 0", "bitfield"),
-    ("values: {0: OFF}", "raw"), ("representation: twos_complement", "float"), ("invalid_raw: 0xFF", "bytes"),
-    ("initial: 1", "bitfield"),
+    ("factor: 0.1", "enum"), ("offset: -40", "enum"), ("unit: V", "enum"), ("min: 0", "bitfield"),
+    ("values: {0: OFF}", "number"), ("representation: float", "enum"), ("invalid_raw: 0xFF", "bytes"),
+    ("initial: 1", "bitfield"), ("charset: ascii", "number"), ("representation: float, invalid_raw: 0xFF", "number"),
+    ("terminator: 0", "bytes"), ("representation: twos_complement, values: {-1: NEG}", "enum"),
+    ("invalid_raw: 0xFF", "enum"),
 ])
 def test_encoding_field_rejected(extra, encoding):
     assert "encoding-field" in codes(_sig(extra, encoding))
 
 
 @pytest.mark.parametrize(("extra", "encoding"), [
-    ("unit: ms, min: 0, max: 100", "raw"), ("values: {0: OFF, 1: ON}", "flag"), ("factor: 0.5", "float"),
-    ("representation: twos_complement, values: {-1: NEG}", "enum"), ("invalid_raw: 0xFF", "scaled"),
+    ("unit: ms, min: 0, max: 100", "number"), ("values: {0: OFF, 1: ON}", "enum"),
+    ("factor: 0.5, representation: float", "number"), ("values: {0: OFF, 0xFF: NO_DATA}, value_format: hex", "enum"),
+    ("invalid_raw: 0xFF", "number"), ("charset: ascii, terminator: 0", "bytes"),
 ])
 def test_encoding_field_allowed(extra, encoding):
     assert "encoding-field" not in codes(_sig(extra, encoding))
@@ -751,7 +739,7 @@ def test_info_rules():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: a, encoding: raw, byte: 0, byte_length: 1}
+            - {name: a, encoding: number, byte: 0, byte_length: 1}
         - name: g
           canopen: pdo_tx2
           length: 8
@@ -810,7 +798,7 @@ def test_examples_are_clean(path):
 
 def test_format_key_required():
     """The format version key is required; the former key canmap is no longer accepted."""
-    res, _ = run(REFERENCE.read_text(encoding="utf-8").replace("mapcan: 1", "canmap: 1"))
+    res, _ = run(REFERENCE.read_text(encoding="utf-8").replace("mapcan: 2", "canmap: 1"))
     assert res.map is None
 
 
@@ -830,7 +818,7 @@ def test_missing_title():
 def test_signed_code_range():
     # In ones' complement and sign-magnitude zero has two forms: −128 cannot be expressed in 8 bits
     text = one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, representation: CODE,"
-                                     " values: {-128: MIN}}").replace("encoding: raw", "encoding: enum"))
+                                     " values: {-128: MIN}}").replace("encoding: number", "encoding: enum"))
     assert "enum-overflow" in codes(text.replace("CODE", "ones_complement"))
     assert "enum-overflow" in codes(text.replace("CODE", "sign_magnitude"))
     assert "enum-overflow" not in codes(text.replace("CODE", "twos_complement"))
@@ -880,14 +868,28 @@ def test_receive_timeout():
     assert frame["period"] == "цикл 100 мс, тайм-аут 300 мс" and frame["timeout_ms"] == 300
 
 
-def test_string_signals():
-    def sig(extra: str) -> str:
-        return one_bus(OK_SIGNAL.replace("encoding: raw, description: x, byte: 0, byte_length: 1",
-                                         "encoding: string, description: x, " + extra))
+def test_text_signals():
+    def sig(extra: str, charset: str = "charset: ascii, ") -> str:
+        return one_bus(OK_SIGNAL.replace("encoding: number, description: x, byte: 0, byte_length: 1",
+                                         "encoding: bytes, " + charset + "description: x, " + extra))
     assert not {"string-field", "encoding-field", "schema"} & codes(sig("byte: 0, byte_length: 8, terminator: '*'"))
     assert "string-field" in codes(sig("start_bit: 4, bit_length: 16"))
     assert "string-field" in codes(sig("byte: 0, byte_length: 8, terminator: '**'"))
+    # a byte array (no charset) is not text: any position, no terminator
+    assert "string-field" not in codes(sig("start_bit: 4, bit_length: 16", charset=""))
+    assert "encoding-field" in codes(sig("byte: 0, byte_length: 8, terminator: 0", charset=""))
     assert "encoding-field" in codes(one_bus(OK_SIGNAL.replace("byte_length: 1}", "byte_length: 1, charset: ascii}")))
+
+
+def test_float_numbers():
+    def sig(extra: str, encoding: str = "number") -> set[str]:
+        return codes(one_bus(OK_SIGNAL.replace("encoding: number, description: x, byte: 0, byte_length: 1",
+                                               f"encoding: {encoding}, description: x, byte: 0, " + extra)))
+    assert not {"encoding-field", "float-length", "schema"} & sig("representation: float, factor: 0.5, unit: V")
+    assert "float-length" in sig("representation: float, bit_length: 16")
+    assert "encoding-field" in sig("representation: float, invalid_raw: 0xFF")
+    assert "encoding-field" in sig("representation: float, source: map_version.major")
+    assert "encoding-field" in sig("representation: float, byte_length: 4", encoding="enum")
 
 
 def test_inhibit_rules():
@@ -909,9 +911,9 @@ def test_big_endian_on_little_endian_protocols(protocol, warns):
           id: 0x300
           length: 8
           signals:
-            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 2, byte_order: big_endian}
-            - {name: b, encoding: raw, description: x, byte: 2, byte_length: 1, byte_order: big_endian}
-            - {name: c, encoding: raw, description: x, byte: 3, byte_length: 2}
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 2, byte_order: big_endian}
+            - {name: b, encoding: number, description: x, byte: 2, byte_length: 1, byte_order: big_endian}
+            - {name: c, encoding: number, description: x, byte: 3, byte_length: 2}
     """
     _, report = run(one_bus(frame, protocol=protocol))
     found = [tuple(d.node) for d in report.diagnostics if d.code == "byte-order-protocol"]

@@ -90,15 +90,27 @@ def test_import_details(tmp_path):
     names = {k: (v if isinstance(v, str) else v.name) for k, v in sig["Mode"].values.items()}
     assert names == {0: "OFF", 1: "NOT_AVAILABLE", 2: "V_3RD_STATE"}
     assert sig["Mode"].values[1].description == "Not available"
-    assert sig["Ready"].encoding == "flag" and sig["Ready"].bit_length == 1
+    assert sig["Ready"].encoding == "number" and sig["Ready"].bit_length == 1
     speed = sig["Speed"]
-    assert (speed.encoding, speed.byte_order, speed.factor, speed.unit) == ("scaled", "big_endian", 0.5, "km/h")
+    assert (speed.encoding, speed.byte_order, speed.factor, speed.unit) == ("number", "big_endian", 0.5, "km/h")
     assert (speed.start_bit, speed.bit_length) == (24, 16)      # MSB in bit 23, bytes 2..3
     command = tester.frames[0]
     assert command.extended and command.can_id == 0x18FEF100 and command.trigger == "event"
     assert command.signals[0].signed
     # A frame without a known sender: on the bus, with a warning
     assert [f.name for f in bus.frames] == ["Unknown"] and any("OTHER" in w for w in warnings)
+
+
+def test_signed_value_table_is_not_imported(tmp_path):
+    """An enum has unsigned values only: a signed signal with a value table is a number, with a warning."""
+    p = tmp_path / "car.dbc"
+    p.write_text(DBC + 'VAL_ 2566844672 Value -1 "Negative" 0 "Zero";\n', encoding="utf-8")
+    text, warnings = import_dbc(p, title="Car")
+    res = loads(text, "car.yaml")
+    assert res.map is not None and not check(res).errors, text
+    value = res.map.buses[0].devices[1].frames[0].signals[0]
+    assert (value.encoding, value.representation, value.values) == ("number", "twos_complement", None)
+    assert any("Value" in w and "value table" in w for w in warnings)
 
 
 def test_import_cli(tmp_path):
@@ -113,7 +125,7 @@ def test_import_cli(tmp_path):
     assert "language: de" in out.read_text(encoding="utf-8")
 
 
-FD_MAP = """mapcan: 1
+FD_MAP = """mapcan: 2
 document: {title: FD, language: en}
 buses:
   - name: fd
@@ -175,7 +187,7 @@ def test_brs_frame_type_in_documents():
 
 
 TIMING_MAP = """
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus

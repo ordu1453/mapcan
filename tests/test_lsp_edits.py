@@ -83,7 +83,7 @@ def test_move_to_free_bits():
 def test_extended_and_style_fixes():
     text = MINIMAL.replace("          - name: pump_state", (
         "          - name: Big_Frame\n            id: 0x900\n"
-        "            signals: [{name: s, encoding: raw, byte: 0, byte_length: 1}]\n"
+        "            signals: [{name: s, encoding: number, byte: 0, byte_length: 1}]\n"
         "          - name: pump_state"))
     out = fixed(fixed(text, "can-id-range"), "name-style")
     assert "extended: true" in out and "- name: big_frame" in out
@@ -217,7 +217,8 @@ def test_apply_ops():
     assert "                  5: {name: FAULT, description: fault}\n                  3: SERVICE\n" in out
     # A new signal dragged on the grid: the insert and the position in one edit, the rest as it was
     n = len(E.raw_at(a, FRAME + ("signals",)))
-    out = E.apply_ops(a, [{"op": "insert", "path": [*FRAME, "signals"], "value": {"name": "extra", "encoding": "raw"}},
+    new = {"name": "extra", "encoding": "number"}
+    out = E.apply_ops(a, [{"op": "insert", "path": [*FRAME, "signals"], "value": new},
                           {"op": "set_layout", "path": [*FRAME, "signals", n], "start_bit": 60, "bit_length": 4}])
     assert out.startswith(MINIMAL) and "              - name: extra\n" in out
     b = A.analyze(out, "m.yaml")
@@ -245,7 +246,7 @@ def test_sdo_value_fields():
     # No value yet: the mapping is added together with the first field
     bare = next(p for p in a.nodes if E.node_kind(p) == "sdo" and E.raw_at(a, p + ("value",)) is None)
     out = apply(text, E.set_field(a, bare + ("value", "name"), "ack"))
-    assert "value: {name: ack, encoding: raw, bit_length: 32}" in out
+    assert "value: {name: ack, encoding: number, bit_length: 32}" in out
     assert errors(out) == errors(text)
     assert E.set_field(a, bare + ("value", "name"), None) == []
     # The last field of the value is removed together with the mapping
@@ -286,15 +287,15 @@ def test_set_field():
 def test_add_signal_to_flow_list_and_empty_frame():
     text = MINIMAL.replace("          - name: pump_state", (
         "          - name: f2\n            id: 0x300\n"
-        "            signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}]\n"
+        "            signals: [{name: a, encoding: number, byte: 0, byte_length: 1}]\n"
         "          - name: f3\n            id: 0x301\n            signals: []\n"
         "          - name: pump_state"))
     a = A.analyze(text, "m.yaml")
     out = _change(text, E.add_node(a, DEV + ("frames", 0), "signal"))
-    assert ("signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}, "
-            "{name: signal, encoding: raw, byte: 1, byte_length: 1}]") in out
+    assert ("signals: [{name: a, encoding: number, byte: 0, byte_length: 1}, "
+            "{name: signal, encoding: number, byte: 1, byte_length: 1}]") in out
     out = _change(text, E.add_node(a, DEV + ("frames", 1), "signal"))
-    assert ("            signals:\n              - name: signal\n                encoding: raw\n"
+    assert ("            signals:\n              - name: signal\n                encoding: number\n"
             "                byte: 0\n                byte_length: 1\n") in out
     assert "empty-frame" not in [d.code for d in A.analyze(out, "m.yaml").diagnostics]
 
@@ -303,7 +304,7 @@ def test_add_signal_in_the_last_free_bits_by_bytes():
     """#117: a new signal within one byte is written by bytes, as the other editors write it."""
     a = A.analyze(MINIMAL, "m.yaml")
     out = _change(MINIMAL, E.add_node(a, FRAME, "signal"))
-    assert ("              - name: signal\n                encoding: raw\n"
+    assert ("              - name: signal\n                encoding: number\n"
             "                byte: 7\n                bit: 4\n                bit_length: 4\n") in out
 
 
@@ -421,7 +422,7 @@ def test_duplicate_pdo_type_quick_fix():
     assert titles and all("pdo_tx" in t for t in titles)
 
 
-INCLUDING_MAIN = """mapcan: 1
+INCLUDING_MAIN = """mapcan: 2
 document: {title: Example, language: en}
 include: [devices/node.yaml]
 buses:
@@ -431,7 +432,7 @@ buses:
     bitrate: 500000
     devices: []
 """
-INCLUDED_NODE = """mapcan: 1
+INCLUDED_NODE = """mapcan: 2
 part_of: ../main.yaml
 buses:
   - name: can1

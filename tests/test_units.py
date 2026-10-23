@@ -48,7 +48,7 @@ def _signal_view(lang: str) -> dict:
           length: 8
           signals:
             - name: voltage
-              encoding: scaled
+              encoding: number
               start_bit: 0
               bit_length: 16
               factor: 0.1
@@ -78,12 +78,12 @@ def test_dbc_export_writes_ascii_units(tmp_path):
           length: 8
           signals:
             - name: resistance
-              encoding: scaled
+              encoding: number
               start_bit: 0
               bit_length: 16
               unit: Ом
             - name: temperature
-              encoding: scaled
+              encoding: number
               start_bit: 16
               bit_length: 8
               unit: "\u2103"

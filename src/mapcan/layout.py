@@ -7,7 +7,8 @@ order, representation, encoding, factor, offset and multiplexing. Names, texts, 
 the order of buses, devices, frames and signals, and the values of ``source`` signals do not change it.
 
 The text it is computed from is fixed by this format (see docs/format.md): changing it changes the
-fingerprint of every map, so it is versioned by the ``v1`` line it starts with.
+fingerprint of every map, so it is versioned by the line it starts with (``v2``: the encodings number, enum,
+bitfield and bytes).
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ def layout_text(cmap: MapCan) -> str:
     """The canonical text of the layouts: one block per frame, in the order of the IDs."""
     frames = [f for bus in cmap.buses for f in bus.all_frames() if f.can_id is not None]
     blocks = sorted("\n".join(_frame_lines(f)) for f in frames)
-    return "v1\n" + "\n".join(blocks) + "\n"
+    return "v2\n" + "\n".join(blocks) + "\n"
 
 
 def layout_crc32(cmap: MapCan) -> int:

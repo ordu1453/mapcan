@@ -105,7 +105,7 @@ steps: `git log --grep "bit rate switch"`.
 
 ## Renaming a field
 
-A rename keeps format v1 (see "Versioning and compatibility" in [docs/format.md](docs/format.md)):
+A rename keeps the format version (see "Versioning and compatibility" in [docs/format.md](docs/format.md)):
 the former name stays readable. Add a `Rename` to `RENAMES` in [upgrade.py](src/mapcan/upgrade.py)
 (with a converter when the value changes too) and rename the field everywhere else as if it had always
 had the new name. The loader rewrites the former key before validation and reports
@@ -117,3 +117,14 @@ Keep the codes of validation rules, and keep former names in the context of cust
 templates and in generated code as deprecated aliases. Add a row to the table in
 [docs/format.md](docs/format.md#versioning-and-compatibility) and an entry to
 [docs/format-changelog.md](docs/format-changelog.md). `tests/test_upgrade.py` shows the checks.
+
+## A new format version
+
+Removing a field or a value needs a new `mapcan:` version, with the previous one still read. Version 2
+(#140) is the example: `FORMAT_VERSION` and the `mapcan` literal in [model.py](src/mapcan/model.py); the
+conversion of the previous version in [upgrade.py](src/mapcan/upgrade.py) (`upgrade_v1`), applied by the loader
+with the note `format-v1`, by the editors (`upgrade_data`, `node_fields`) and by `mapcan migrate`
+(`migrate_format` in [yamlops.py](src/mapcan/web/yamlops.py)); the schema URLs in
+[schema.py](src/mapcan/schema.py), with the previous schemas frozen in `schema/` and published by
+[pages.yml](.github/workflows/pages.yml); maps of the previous version frozen in `tests/data/v1`, checked in
+`tests/test_format_v1.py` to give the same outputs as the current ones.

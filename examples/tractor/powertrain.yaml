@@ -4,7 +4,7 @@
 # to and holds only buses and value tables: a bus the main file already describes (cab) gets more
 # devices and frames here, a new bus (powertrain) is described in full.
 
-mapcan: 1
+mapcan: 2
 part_of: tractor.yaml
 
 value_tables:
@@ -31,7 +31,7 @@ buses:
               - name: engine_speed
                 title: Engine speed
                 description: Engine speed from EEC1
-                encoding: scaled
+                encoding: number
                 byte: 0
                 byte_length: 2
                 factor: 0.125
@@ -69,7 +69,7 @@ buses:
               - name: engine_speed
                 title: Engine speed
                 description: Engine speed
-                encoding: scaled
+                encoding: number
                 byte: 3
                 byte_length: 2
                 factor: 0.125

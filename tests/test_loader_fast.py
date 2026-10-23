@@ -108,13 +108,13 @@ def test_a_large_map_is_read_fast():
 
 
 def _large_map(frames: int = 300) -> str:
-    lines = ["mapcan: 1", "document: {title: Big, language: en}", "buses:", "  - name: can1", "    protocol: can",
+    lines = ["mapcan: 2", "document: {title: Big, language: en}", "buses:", "  - name: can1", "    protocol: can",
              "    devices:", "      - name: dev", "        frames:"]
     for f in range(frames):
         lines += [f"          - name: frame_{f}", f"            id: 0x{0x100 + f:X}", "            length: 8",
                   "            signals:"]
         for s in range(8):
-            lines += [f"              - name: s_{f}_{s}", "                encoding: scaled",
+            lines += [f"              - name: s_{f}_{s}", "                encoding: number",
                       f"                byte: {s}", "                byte_length: 1", "                factor: 0.5"]
     return "\n".join(lines) + "\n"
 
@@ -151,7 +151,7 @@ def test_gc_is_paused_while_reading_and_restored():
     with L.paused_gc():
         seen.append(gc.isenabled())
         with L.paused_gc():                       # nested, and in another thread at the same time
-            t = threading.Thread(target=lambda: L.loads("mapcan: 1\n", "m.yaml"))
+            t = threading.Thread(target=lambda: L.loads("mapcan: 2\n", "m.yaml"))
             t.start()
             t.join()
         seen.append(gc.isenabled())

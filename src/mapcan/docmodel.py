@@ -40,8 +40,8 @@ LABELS = {
         "inhibit": "мин. интервал {ms} мс",
         "tx": "TX", "rx": "RX", "no_signals": "Сигналы не описаны.",
         "unused": "не используется", "little_endian": "little-endian", "big_endian": "big-endian",
-        "enum": "перечисление", "flag": "флаг", "bitfield": "битовое поле", "scaled": "масштабированное",
-        "raw": "целое", "bytes": "байт", "string": "строка", "terminator": "конец", "signed": "знаковое",
+        "enum": "перечисление", "bitfield": "битовое поле", "number": "число",
+        "bytes": "байт", "string": "строка", "terminator": "конец", "signed": "знаковое",
         "per_bit": "/бит",
         "ones_complement": "обратный код", "sign_magnitude": "прямой код",
         "range": "диапазон", "offset": "смещение", "phys": "физ. = raw × {f}{o}",
@@ -78,8 +78,8 @@ LABELS = {
         "inhibit": "min. interval {ms} ms",
         "tx": "TX", "rx": "RX", "no_signals": "No signals defined.",
         "unused": "unused", "little_endian": "little-endian", "big_endian": "big-endian",
-        "enum": "enum", "flag": "flag", "bitfield": "bit field", "scaled": "scaled",
-        "raw": "integer", "bytes": "bytes", "string": "string", "terminator": "terminator", "signed": "signed",
+        "enum": "enum", "bitfield": "bit field", "number": "number",
+        "bytes": "bytes", "string": "string", "terminator": "terminator", "signed": "signed",
         "per_bit": "/bit",
         "ones_complement": "ones' complement", "sign_magnitude": "sign-magnitude",
         "range": "range", "offset": "offset", "phys": "phys = raw × {f}{o}",
@@ -408,7 +408,9 @@ class ViewBuilder:
         bits_label = _range(lo, hi)
 
         enc = []
-        if s.encoding in ("enum", "raw", "scaled", "flag"):
+        if s.is_float:
+            enc.append(f"float{s.bit_length}" if s.bit_length in (32, 64) else f"{s.bit_length} {L['bit']}")
+        elif s.encoding in ("number", "enum"):
             if s.bit_length in (8, 16, 32, 64) and whole_bytes:
                 enc.append(("int" if s.signed else "uint") + str(s.bit_length))
             else:
@@ -417,28 +419,26 @@ class ViewBuilder:
                     enc[-1] += f", {L['signed']}"
             if s.signed and s.signed_code in ("ones_complement", "sign_magnitude"):
                 enc[-1] += f", {L[s.signed_code]}"
-        elif s.encoding == "float":
-            enc.append(f"float{s.bit_length}" if s.bit_length in (32, 64) else f"{s.bit_length} {L['bit']}")
         elif s.encoding == "bitfield":
             enc.append(L["bitfield"])
-        elif s.encoding == "bytes":
+        elif not s.is_text:
             enc.append(f"{s.bit_length // 8} {L['bytes']}" if whole_bytes else f"{s.bit_length} {L['bit']}")
-        elif s.encoding == "string":
+        else:
             # "string, 17 bytes, ASCII, terminator "*""
-            enc.append(f"{L['string']}, {s.bit_length // 8} {L['bytes']}, {(s.charset or 'ascii').upper()}")
+            enc.append(f"{L['string']}, {s.bit_length // 8} {L['bytes']}, {s.charset.upper()}")
             if s.terminator is not None:
                 t = s.terminator_byte
                 shown = f"\"{s.terminator}\"" if isinstance(s.terminator, str) else f"0x{t:02X}" if t is not None \
                     else str(s.terminator)
                 enc[-1] += f", {L['terminator']} {shown}"
         unit = self.unit(s.unit)
-        if s.encoding == "scaled" or s.factor != 1 or s.offset != 0:
+        if s.factor != 1 or s.offset != 0:
             enc.append(f"{fmt_num(s.factor)} {unit}{L['per_bit']}".replace(" /", "/"))
             if s.offset:
                 enc.append(f"{L['offset']} {fmt_num(s.offset)} {unit}".strip())
         elif unit:
             enc.append(unit)
-        if b1 > b0 and s.encoding not in ("bytes", "string"):
+        if b1 > b0 and s.encoding != "bytes":
             enc.append(L[s.byte_order])
         if s.multiplexer:
             enc.append(L["selector"])

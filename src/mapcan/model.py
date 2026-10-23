@@ -22,11 +22,12 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, create_model, mo
 
 from .i18n import N_
 
-FORMAT_VERSION = 1
+# Version 1 is still read: the loader converts it (upgrade.upgrade_v1)
+FORMAT_VERSION = 2
 
 ByteOrder = Literal["little_endian", "big_endian"]
-Representation = Literal["unsigned", "twos_complement", "ones_complement", "sign_magnitude"]
-SignalEncoding = Literal["enum", "flag", "bitfield", "scaled", "raw", "bytes", "string", "float"]
+Representation = Literal["unsigned", "twos_complement", "ones_complement", "sign_magnitude", "float"]
+SignalEncoding = Literal["number", "enum", "bitfield", "bytes"]
 Charset = Literal["ascii", "utf-8", "latin-1"]
 # A value the map gives a signal (see Signal.source); the bits each one needs
 SignalSource = Literal["map_version.major", "map_version.minor", "map_version.patch", "layout_crc32"]
@@ -307,15 +308,17 @@ class Signal(_Base):
                        "without it, the tree shows the identifier."))
     description: Text | None = Field(None, description=DESCRIPTION)
     encoding: SignalEncoding = Field(
-        description=N_("How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — "
-                       "a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; "
-                       "float — IEEE 754; bytes — a byte array; string — text (VIN, software version)."))
+        description=N_("How the value is interpreted. number — a number: the integer as is, or raw × factor + offset "
+                       "with factor and offset, or IEEE 754 with representation: float; enum — a value table; "
+                       "bitfield — a set of flags; bytes — a byte array, or text (VIN, software version) with a "
+                       "charset."))
     charset: Charset | None = Field(
         None,
-        description=N_("String: character encoding of the text, ascii (default), utf-8 or latin-1."))
+        description=N_("Bytes: the field holds text in this character encoding, ascii, utf-8 or latin-1. Without "
+                       "it the field is a byte array."))
     terminator: int | str | None = Field(
         None,
-        description=N_("String: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or "
+        description=N_("Text: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or "
                        "\"*\" (as in J1939 text parameters). Without it the text fills the field and unused bytes "
                        "are 0x00."))
 
@@ -324,10 +327,10 @@ class Signal(_Base):
         None, ge=0,
         description=N_("Position of the signal's least significant bit (LSB) in the frame, counting from 0. Bit N "
                        "is in byte N div 8 at position N mod 8."))
-    # Longer than 64 bits: only a byte array (encoding: bytes) in a CAN FD frame or a PGN with the transport protocol
+    # Longer than 64 bits: only bytes (a byte array or text) in a CAN FD frame or a PGN with the transport protocol
     bit_length: int | None = Field(
         None, ge=1, le=J1939_TP_MAX * 8,
-        description=N_("Signal width in bits: 1..64; longer only for a byte array (encoding: bytes)."))
+        description=N_("Signal width in bits: 1..64; longer only for encoding: bytes."))
     # Position: syntactic sugar
     byte: int | None = Field(None, ge=0, description=N_("First byte of the signal."))
     bit: int | None = Field(None, ge=0, le=7, description=N_("Bit offset within the byte."))
@@ -344,8 +347,9 @@ class Signal(_Base):
         description=N_("How the raw value is read as a number. unsigned — no negative values (default). "
                        "twos_complement — the usual signed integer (−1 = all ones). ones_complement — a negative "
                        "value is its magnitude with all bits inverted (−1 = 1…10). sign_magnitude — the top bit is "
-                       "the sign, the rest the magnitude (−1 = 10…01). Generated C and Python code use this "
-                       "representation; DBC stores two's complement only, so the export warns about the other two. "
+                       "the sign, the rest the magnitude (−1 = 10…01). float — IEEE 754 floating point, 32 bits "
+                       "(default) or 64. Generated C and Python code use this representation; DBC stores two's "
+                       "complement only, so the export warns about ones' complement and sign-magnitude. "
                        "Formerly signed and signed_code."))
 
     values: ValueTableRef | None = Field(None, description=VALUES)
@@ -421,8 +425,18 @@ class Signal(_Base):
 
     @property
     def signed(self) -> bool:
-        """The raw value can be negative."""
-        return self.representation != "unsigned"
+        """The raw value is a signed integer."""
+        return self.representation not in ("unsigned", "float")
+
+    @property
+    def is_float(self) -> bool:
+        """An IEEE 754 number (``representation: float``)."""
+        return self.representation == "float"
+
+    @property
+    def is_text(self) -> bool:
+        """Text: bytes with a character set."""
+        return self.encoding == "bytes" and self.charset is not None
 
     @property
     def signed_code(self) -> str | None:
@@ -451,13 +465,13 @@ class Signal(_Base):
 
     @property
     def initial_raw(self) -> int | float | None:
-        """Raw initial value (for float, the value itself); for a signal with ``source``, the value from the map."""
+        """Raw initial value (for a float, the value itself); for a signal with ``source``, the value from the map."""
         if self.source is not None:
             return self._source_value
         if self.initial is None or self.factor == 0:
             return None
         raw = (self.initial - self.offset) / self.factor
-        return raw if self.encoding == "float" else round(raw)
+        return raw if self.is_float else round(raw)
 
     @model_validator(mode="after")
     def _resolve_layout(self) -> Signal:
@@ -472,11 +486,9 @@ class Signal(_Base):
         if self.byte_length is not None:
             self.bit_length = self.byte_length * 8
         if self.bit_length is None:
-            # The length can be omitted only where the encoding sets it
-            if self.encoding == "float":
+            # The length can be omitted only for a float: 32 bits
+            if self.is_float:
                 self.bit_length = 32
-            elif self.encoding == "flag":
-                self.bit_length = 1
             else:
                 raise ValueError(N_("signal length is not set: bit_length or byte_length"))
 
@@ -507,7 +519,7 @@ class Signal(_Base):
 
 class SdoValue(_Base):
     name: str
-    encoding: Literal["enum", "scaled", "raw"] = Field(description=N_("Value encoding: enum, scaled, raw."))
+    encoding: Literal["number", "enum"] = Field(description=N_("Value encoding: number or enum."))
     description: Text | None = Field(None, description=DESCRIPTION)
     bit_length: Literal[8, 16, 24, 32]
     representation: Literal["unsigned", "twos_complement"] = Field(
@@ -774,7 +786,9 @@ class Bus(_Base):
 
 
 class MapCan(_Base):
-    mapcan: Literal[1] = Field(title="mapcan", description=N_("File format version."))
+    mapcan: Literal[2] = Field(
+        title="mapcan",
+        description=N_("File format version: 2. A map of version 1 is still read; mapcan migrate rewrites it."))
     include: list[str] = Field(
         default_factory=list,
         description=N_("Included files (paths relative to the map file): their buses, devices, frames and value_tables "
@@ -826,7 +840,7 @@ BusPart = _partial(Bus, "BusPart", keep=("name",))
 class MapPart(_Base):
     """A file of ``include``: buses and value tables added to the map named by ``part_of``."""
 
-    mapcan: Literal[1] = Field(title="mapcan", description=N_("File format version: the same as the map's."))
+    mapcan: Literal[2] = Field(title="mapcan", description=N_("File format version: the same as the map's."))
     part_of: str = Field(
         description=N_("The map this file belongs to: the path of its file, relative to this one. The map includes "
                        "this file in its include list."))

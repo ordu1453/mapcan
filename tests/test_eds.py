@@ -35,8 +35,8 @@ def test_od_rules():
           canopen: pdo_tx1
           length: 4
           signals:
-            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 2, index: INDEX}
-            - {name: b, encoding: raw, description: x, byte: 2, byte_length: 2, index: 0x2001}
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 2, index: INDEX}
+            - {name: b, encoding: number, description: x, byte: 2, byte_length: 2, index: 0x2001}
     """
     assert "canopen-od" not in codes(one_bus(frame.replace("INDEX", "0x2000")))
     assert "canopen-od" in codes(one_bus(frame.replace("INDEX", "0x1000")))         # communication area
@@ -80,8 +80,8 @@ def test_eds_dummies_fill_gaps():
           canopen: pdo_tx1
           length: 4
           signals:
-            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1, index: 0x2000}
-            - {name: b, encoding: raw, description: x, start_bit: 19, bit_length: 5, index: 0x2001}
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 1, index: 0x2000}
+            - {name: b, encoding: number, description: x, start_bit: 19, bit_length: 5, index: 0x2001}
     """)
     from mapcan.loader import loads
 

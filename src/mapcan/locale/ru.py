@@ -179,7 +179,6 @@ RU: dict[str, str] = {
     "Field does not apply to the signal encoding": "Поле не применимо к кодированию сигнала",
     "Flag extends beyond the bit field": "Флаг выходит за пределы битового поля",
     "Flags overlap inside the bit field": "Пересечение флагов внутри битового поля",
-    "Flag signal longer than 1 bit": "Сигнал типа flag длиной больше 1 бита",
     "Zero factor": "Нулевой масштаб",
     "min/max outside the range the field can represent": "min/max вне диапазона, представимого полем",
     "min is greater than max": "min больше max",
@@ -256,7 +255,7 @@ RU: dict[str, str] = {
     "RX frame duplicates another device's frame (describe the frame at its sender)":
         "RX-кадр повторяет кадр другого устройства (описывайте кадр у отправителя)",
     "RX frame without a sender": "RX-кадр без отправителя",
-    "A float signal must be 32 or 64 bits": "Сигнал float должен быть 32 или 64 бита",
+    "A floating-point signal must be 32 or 64 bits": "Сигнал с плавающей точкой должен быть 32 или 64 бита",
     "Default value outside the signal's range": "Значение по умолчанию вне диапазона сигнала",
     "Logo file not found": "Файл логотипа не найден",
     "Unsupported logo format": "Неподдерживаемый формат логотипа",
@@ -393,7 +392,6 @@ RU: dict[str, str] = {
     "physical quantity {name!r} has no unit": "у физической величины {name!r} не указана единица (unit)",
     "selector {name!r} cannot have mux": "селектор {name!r} не может иметь mux",
     "{key} does not apply to encoding: {encoding}": "{key} не применяется при encoding: {encoding}",
-    "flag signal {name!r} is {bits} bits long": "сигнал-флаг {name!r} длиной {bits} бит",
     "signal {name!r}: float must be 32 or 64 bits, got {bits}":
         "сигнал {name!r}: float — 32 или 64 бита, задано {bits}",
     "signal {name!r} has no description": "сигнал {name!r} без описания",
@@ -456,7 +454,7 @@ RU: dict[str, str] = {
     "{key} = {value:g} is outside the representable range {lo:g}..{hi:g} {unit}":
         "{key} = {value:g} вне представимого диапазона {lo:g}..{hi:g} {unit}",
     # ------------------------------------------------------------------ JSON Schema (подсказки в IDE)
-    "mapcan — CAN signal map (format v1)": "mapcan — карта сигналов CAN (формат v1)",
+    "mapcan — CAN signal map (format v2)": "mapcan — карта сигналов CAN (формат v2)",
     "Frames whose sender is outside the map, with the receiving devices in receivers; also CANopen broadcast frames "
     "(NMT, SYNC, TIME).":
         "Кадры, отправитель которых вне карты, с принимающими устройствами в receivers; а также широковещательные "
@@ -492,12 +490,11 @@ RU: dict[str, str] = {
         "CANopen: индекс объекта словаря, отображённого в PDO.",
     "CANopen: subindex of the dictionary object (0 by default).":
         "CANopen: субиндекс объекта словаря (по умолчанию 0).",
-    "Signal longer than 64 bits that is not an aligned byte array":
-        "Сигнал длиннее 64 бит, но не выровненный массив байт",
-    "signal {name!r} is {bits} bits long: only a byte array (encoding: bytes, little-endian, starting at a byte "
-    "boundary) can be longer than 64 bits":
-        "сигнал {name!r} длиной {bits} бит: длиннее 64 бит может быть только массив байт (encoding: bytes, "
-        "little-endian, с границы байта)",
+    "Signal longer than 64 bits that is not aligned bytes": "Сигнал длиннее 64 бит, но не выровненные байты",
+    "signal {name!r} is {bits} bits long: only bytes (encoding: bytes, little-endian, starting at a byte boundary) "
+    "can be longer than 64 bits":
+        "сигнал {name!r} длиной {bits} бит: длиннее 64 бит могут быть только байты (encoding: bytes, little-endian, с "
+        "границы байта)",
     "A PGN longer than 8 bytes is sent with the J1939-21 transport protocol":
         "PGN длиннее 8 байт передаётся транспортным протоколом J1939-21",
     "spn on a signal of a {protocol} bus": "spn у сигнала на шине {protocol}",
@@ -555,7 +552,7 @@ RU: dict[str, str] = {
         "Передача по событию (event; вместе с cycle_ms — ещё и каждый период) или по запросу (on_request).",
     "GitHub username of the change's author.": "Имя пользователя GitHub автора изменения.",
     "Codes of the rules to disable.": "Коды правил, которые нужно отключить.",
-    "Value encoding: enum, scaled, raw.": "Кодирование значения: enum, scaled, raw.",
+    "Value encoding: number or enum.": "Кодирование значения: number или enum.",
     "First byte of the signal.": "Первый байт сигнала.",
     "Bit offset within the byte.": "Смещение бита в байте.",
     "Developed by (Разраб.)": "Разраб.",
@@ -563,7 +560,8 @@ RU: dict[str, str] = {
     "Technical control (Т. контр.)": "Т. контр.",
     "Standards control (Н. контр.)": "Н. контр.",
     "Approved by (Утв.)": "Утв.",
-    "File format version.": "Версия формата файла.",
+    "File format version: 2. A map of version 1 is still read; mapcan migrate rewrites it.":
+        "Версия формата файла: 2. Карта версии 1 по-прежнему читается; mapcan migrate переписывает её.",
     # ------------------------------------------------------------------ веб-редактор
     "folder not found: {path}": "папка не найдена: {path}",
     "no map is open": "карта не открыта",
@@ -746,8 +744,8 @@ RU: dict[str, str] = {
     "Position of the signal's least significant bit (LSB) in the frame, counting from 0. Bit N is in byte N div 8 at "
     "position N mod 8.":
         "Номер младшего бита (LSB) сигнала в кадре, от 0. Бит N находится в байте N div 8 на позиции N mod 8.",
-    "Signal width in bits: 1..64; longer only for a byte array (encoding: bytes).":
-        "Длина сигнала в битах: 1..64; длиннее — только у массива байт (encoding: bytes).",
+    "Signal width in bits: 1..64; longer only for encoding: bytes.":
+        "Длина сигнала в битах: 1..64; длиннее — только у encoding: bytes.",
     "Byte order of a multi-byte signal. little-endian (Intel): least significant byte first, typical for CANopen and "
     "J1939. big-endian (Motorola): most significant byte first.":
         "Порядок байт многобайтового сигнала. little-endian (Intel) — младший байт первым, обычно для CANopen и "
@@ -877,10 +875,10 @@ RU: dict[str, str] = {
     "if the nodes or the wiring of the bus cannot handle the higher rate. A frame can set its own value.":
         "Переключение скорости (BRS) у кадров CAN FD по умолчанию: поле данных передаётся на скорости фазы данных. "
         "Выключите, если узлы или проводка шины не держат высокую скорость. Кадр может задать своё значение.",
-    "Rewrite the former names of fields (deprecated-key) to the current ones, keeping comments and layout. Included "
-    "files are rewritten too.":
-        "Заменить прежние имена полей (deprecated-key) текущими, сохраняя комментарии и оформление. Подключённые "
-        "файлы тоже обновляются.",
+    "Rewrite the former names of fields (deprecated-key) to the current ones, and a map of format version 1 in "
+    "version 2 (format-v1), keeping comments and layout. Included files are rewritten too.":
+        "Заменить прежние имена полей (deprecated-key) текущими, а карту формата версии 1 переписать в версии 2 "
+        "(format-v1), сохраняя комментарии и оформление. Подключённые файлы тоже обновляются.",
     "Map files.": "Файлы карт.",
     "Do not write; exit code 1 if a file has former names.":
         "Не записывать; код возврата 1, если в файле есть прежние имена.",
@@ -937,16 +935,16 @@ RU: dict[str, str] = {
     "Rename the former fields of the whole map (mapcan migrate)":
         "Переименовать прежние поля во всей карте (mapcan migrate)",
     "How the raw value is read as a number. unsigned — no negative values (default). twos_complement — the usual "
-    "signed integer (−1 = all ones). ones_complement — a negative value is its magnitude with all bits inverted (−1 "
-    "= 1…10). sign_magnitude — the top bit is the sign, the rest the magnitude (−1 = 10…01). Generated C and Python "
-    "code use this representation; DBC stores two's complement only, so the export warns about the other two. "
-    "Formerly signed and signed_code.":
-        "Как сырое значение читается как число. unsigned — без отрицательных значений (по умолчанию). "
-        "twos_complement — обычное знаковое целое, дополнительный код (−1 = все единицы). ones_complement — обратный "
-        "код: отрицательное значение — модуль с инвертированными битами (−1 = 1…10). sign_magnitude — прямой код: "
-        "старший бит — знак, остальные — модуль (−1 = 10…01). Сгенерированный код на C и Python использует это "
-        "представление; DBC хранит только дополнительный код, поэтому экспорт предупреждает о двух других. Прежде — "
-        "signed и signed_code.",
+    "signed integer (−1 = all ones). ones_complement — a negative value is its magnitude with all bits inverted (−1 = "
+    "1…10). sign_magnitude — the top bit is the sign, the rest the magnitude (−1 = 10…01). float — IEEE 754 floating "
+    "point, 32 bits (default) or 64. Generated C and Python code use this representation; DBC stores two's complement "
+    "only, so the export warns about ones' complement and sign-magnitude. Formerly signed and signed_code.":
+        "Как сырое значение читается как число. unsigned — без отрицательных значений (по умолчанию). twos_complement "
+        "— обычное знаковое целое, дополнительный код (−1 = все единицы). ones_complement — обратный код: "
+        "отрицательное значение — модуль с инвертированными битами (−1 = 1…10). sign_magnitude — прямой код: старший "
+        "бит — знак, остальные — модуль (−1 = 10…01). float — число с плавающей точкой IEEE 754, 32 бита (по "
+        "умолчанию) или 64. Сгенерированный код на C и Python использует это представление; DBC хранит только "
+        "дополнительный код, поэтому экспорт предупреждает об обратном и прямом коде. Прежде — signed и signed_code.",
     "unsigned or twos_complement (a signed integer). Formerly signed: true.":
         "unsigned или twos_complement (знаковое целое). Прежде — signed: true.",
     "Ones' complement or sign-magnitude signal: DBC stores two's complement only":
@@ -985,8 +983,14 @@ RU: dict[str, str] = {
     "Schema of a file included by a map (part_of).": "Схема файла, подключаемого картой (part_of).",
     "this file is a part of the map {map!r}: open or validate that map":
         "этот файл — часть карты {map!r}: откройте или проверьте эту карту",
-    "an included file starts with mapcan: 1 and part_of: {map} (the map it belongs to)":
-        "подключаемый файл начинается с mapcan: 1 и part_of: {map} (карта, к которой он относится)",
+    "an included file starts with mapcan: {version} and part_of: {map} (the map it belongs to)":
+        "подключаемый файл начинается с mapcan: {version} и part_of: {map} (карта, к которой он относится)",
+    "format version 1: mapcan migrate rewrites the map and its included files in version {v}":
+        "формат версии 1: mapcan migrate переписывает карту и подключённые файлы в версии {v}",
+    "Map of format version 1: still read, mapcan migrate rewrites it in version 2":
+        "Карта формата версии 1: читается, mapcan migrate переписывает её в версии 2",
+    "Rewrite this file in format version 2 (mapcan migrate)":
+        "Переписать этот файл в формате версии 2 (mapcan migrate)",
     "format version {part} differs from the map's {main}": "версия формата {part} отличается от версии карты {main}",
     "part_of is the path of the map file": "part_of — путь к файлу карты",
     "part_of names {named!r}, but the file is included by {map!r}":
@@ -998,7 +1002,7 @@ RU: dict[str, str] = {
         "include.",
     "New buses, or buses of the map (by name) that get more devices and frames.":
         "Новые шины или шины карты (по имени), в которые добавляются устройства и кадры.",
-    "mapcan — file included by a map (format v1)": "mapcan — файл, подключаемый картой (формат v1)",
+    "mapcan — file included by a map (format v2)": "mapcan — файл, подключаемый картой (формат v2)",
     "Included file is missing, has keys that cannot be included or belongs to another map":
         "Подключаемый файл не найден, содержит недопустимые ключи или относится к другой карте",
     "Included file does not start with mapcan and part_of": "Подключаемый файл не начинается с mapcan и part_of",
@@ -1029,22 +1033,27 @@ RU: dict[str, str] = {
     "timeout {timeout} ms is not longer than the period {cycle} ms: the frame would time out between two "
     "transmissions":
         "тайм-аут {timeout} мс не длиннее периода {cycle} мс: кадр будет считаться потерянным между двумя передачами",
-    "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; "
-    "scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array; "
-    "string — text (VIN, software version).":
-        "Как трактуется значение. enum — таблица значений; flag — один бит да/нет; bitfield — набор флагов; scaled — "
-        "масштабированное значение: raw × factor + offset; raw — целое как есть; float — IEEE 754; bytes — массив "
-        "байт; string — текст (VIN, версия ПО).",
-    "String: character encoding of the text, ascii (default), utf-8 or latin-1.":
-        "Строка: кодировка текста, ascii (по умолчанию), utf-8 или latin-1.",
-    "String: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or \"*\" (as in J1939 text "
+    "How the value is interpreted. number — a number: the integer as is, or raw × factor + offset with factor and "
+    "offset, or IEEE 754 with representation: float; enum — a value table; bitfield — a set of flags; bytes — a byte "
+    "array, or text (VIN, software version) with a charset.":
+        "Как трактуется значение. number — число: целое как есть, raw × factor + offset при factor и offset или IEEE "
+        "754 при representation: float; enum — таблица значений; bitfield — набор флагов; bytes — массив байт или, с "
+        "charset, текст (VIN, версия ПО).",
+    "Bytes: the field holds text in this character encoding, ascii, utf-8 or latin-1. Without it the field is a byte "
+    "array.":
+        "Байты: поле содержит текст в этой кодировке, ascii, utf-8 или latin-1. Без неё поле — массив байт.",
+    "Text: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or \"*\" (as in J1939 text "
     "parameters). Without it the text fills the field and unused bytes are 0x00.":
-        "Строка: байт, которым заканчивается более короткий текст и заполняется остаток поля, например 0x00 или \"*\" "
+        "Текст: байт, которым заканчивается более короткий текст и заполняется остаток поля, например 0x00 или \"*\" "
         "(как в текстовых параметрах J1939). Без него текст занимает поле, а неиспользованные байты — 0x00.",
-    "String not aligned to whole bytes, or a terminator that is not one byte":
-        "Строка не выровнена по целым байтам или признак конца — не один байт",
-    "string {name!r} must start at a byte boundary and take whole bytes (little-endian)":
-        "строка {name!r} должна начинаться с границы байта и занимать целые байты (little-endian)",
+    "Text not aligned to whole bytes, or a terminator that is not one byte":
+        "Текст не выровнен по целым байтам или признак конца — не один байт",
+    "text {name!r} must start at a byte boundary and take whole bytes (little-endian)":
+        "текст {name!r} должен начинаться с границы байта и занимать целые байты (little-endian)",
+    "{key} does not apply to a floating-point number": "{key} не применяется к числу с плавающей точкой",
+    "{where}: the value table of a signed or floating-point signal is not imported":
+        "{where}: таблица значений знакового сигнала или сигнала с плавающей точкой не импортирована",
+    "terminator applies to text: set charset": "terminator применяется к тексту: задайте charset",
     "terminator of {name!r} must be one byte: 0x00..0xFF or one character of the charset":
         "признак конца {name!r} должен быть одним байтом: 0x00..0xFF или одним символом кодировки",
 }

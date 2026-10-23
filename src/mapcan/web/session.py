@@ -18,7 +18,7 @@ from ..i18n import _
 from ..loader import LoadResult, loads, map_of
 from ..model import Frame, MapCan, enum_entries
 from ..units import UNITS
-from ..upgrade import upgrade_tree
+from ..upgrade import upgrade_data
 from ..validate import bus_load_note, bus_load_text, check
 from .devicefile import device_file_target, device_file_text, exclude_ops, include_ops, named_after_file, part_is_empty
 from .yamlops import OpError, apply_ops, device_rename_ops, dump, make_yaml, merge_text, plain
@@ -504,8 +504,9 @@ class EditorSession:
                 "can_redo": bool(self.redo_stack),
                 "disk_changed": self.disk_changed(),
                 "text": self.text,
-                # Deprecated keys under their current names: the editors know only those (see upgrade.py)
-                "data": upgrade_tree(plain(self.doc)) if self.doc is not None else None,
+                # Deprecated keys under their current names and the encodings of format version 2: the editors
+                # know only those (see upgrade.py)
+                "data": upgrade_data(plain(self.doc)) if self.doc is not None else None,
                 "resolved": resolved_view(self.map) if self.map else None,
                 **self._included(),
                 "diagnostics": self._diag_dicts(self._result, self._report),

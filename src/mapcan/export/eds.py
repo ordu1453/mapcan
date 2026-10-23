@@ -26,12 +26,10 @@ BAUD_RATES = (10, 20, 50, 125, 250, 500, 800, 1000)
 
 def data_type(s: Signal) -> int:
     """CiA 301 data type of a signal: the smallest standard one that holds its bits."""
-    if s.encoding == "float":
+    if s.is_float:
         return REAL[64 if s.bit_length > 32 else 32]
     if s.encoding == "bytes":
-        return OCTET_STRING
-    if s.encoding == "string":
-        return VISIBLE_STRING
+        return VISIBLE_STRING if s.is_text else OCTET_STRING
     if s.bit_length == 1 and not s.signed:
         return BOOLEAN
     size = next(n for n in sorted(UNSIGNED) if n >= s.bit_length)
@@ -188,7 +186,7 @@ def _object(w: _Writer, index: int, items: list[tuple[Signal, Frame]], lang: str
     def entry(name: str, s: Signal, f: Frame) -> None:
         access = "ro" if f.type.startswith("pdo_tx") else "rww"
         init = s.initial_raw
-        default = (init if s.encoding == "float" else int(init)) if init is not None else 0
+        default = (init if s.is_float else int(init)) if init is not None else 0
         w.var(name, _ascii(text(s.title, lang), s.name), data_type(s), access, default, mappable=True)
 
     if len(items) == 1 and (items[0][0].subindex or 0) == 0:

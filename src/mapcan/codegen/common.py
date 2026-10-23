@@ -125,8 +125,8 @@ def code_text(lang: str) -> dict[str, str]:
 
 
 def is_byte_array(s: Signal) -> bool:
-    """A byte-aligned signal with encoding bytes or string is represented as an array (of chars for a string)."""
-    return s.encoding in ("bytes", "string") and s.start_bit % 8 == 0 and s.bit_length % 8 == 0 \
+    """A byte-aligned signal with encoding bytes is represented as an array (of chars for text)."""
+    return s.encoding == "bytes" and s.start_bit % 8 == 0 and s.bit_length % 8 == 0 \
         and s.byte_order == "little_endian"
 
 
@@ -148,7 +148,7 @@ def selector_of(frame: Frame) -> Signal | None:
 def raw_limits(s: Signal) -> tuple[int, int] | None:
     """The raw values of the map's min..max, within the field: (lo, hi), or None when the signal has neither, is
     a float or a byte array, or they do not narrow the field."""
-    if (s.min is None and s.max is None) or s.encoding == "float" or is_byte_array(s) or s.factor == 0:
+    if (s.min is None and s.max is None) or s.is_float or is_byte_array(s) or s.factor == 0:
         return None
     lo, hi = B.raw_range(s.bit_length, s.signed, s.signed_code if s.signed else None)
     bounds = [None if v is None else (v - s.offset) / s.factor for v in (s.min, s.max)]
@@ -160,7 +160,7 @@ def raw_limits(s: Signal) -> tuple[int, int] | None:
 
 
 def physical(s: Signal) -> bool:
-    return s.factor != 1 or s.offset != 0 or s.encoding == "scaled"
+    return s.factor != 1 or s.offset != 0
 
 
 def num(x: float) -> str:

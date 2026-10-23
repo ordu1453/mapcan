@@ -16,7 +16,7 @@ PROTOCOL_ID = {"can": "id: 0x7E0", "j1939": "id: 0x18FF20F9\n            extende
 
 def device_rx(protocol: str = "can", direction: str = "rx", extra: str = "") -> str:
     """A map whose device ecu has its own frame and a frame received from outside the map, with direction."""
-    return f"""mapcan: 1
+    return f"""mapcan: 2
 document: {{title: T, language: en}}
 buses:
   - name: b
@@ -30,13 +30,13 @@ buses:
             length: 8
             cycle_ms: 100
             receivers: [panel]
-            signals: [{{name: a, description: a, encoding: raw, byte: 0, byte_length: 1}}]
+            signals: [{{name: a, description: a, encoding: number, byte: 0, byte_length: 1}}]
           - name: from_tester   # the diagnostic tester
             direction: {direction}
             {PROTOCOL_ID[protocol]}
             length: 8
             trigger: event{extra}
-            signals: [{{name: b, description: b, encoding: raw, byte: 0, byte_length: 1}}]
+            signals: [{{name: b, description: b, encoding: number, byte: 0, byte_length: 1}}]
       - name: panel
         address: 0x11
 """

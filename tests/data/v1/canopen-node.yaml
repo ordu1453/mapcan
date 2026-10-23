@@ -1,0 +1,114 @@
+# yaml-language-server: $schema=../../../schema/mapcan-v1.schema.json
+# Format version 1, frozen (tests/test_format_v1.py): the example as mapcan 0.23 had it.
+# CANopen drive: PDO signals mapped to dictionary objects (CiA 402 and manufacturer),
+# enough for `mapcan export eds` to write the drive's EDS file.
+
+mapcan: 1
+
+document:
+  title: CANopen drive
+  version: 0.1.0
+  organization: Example Motors
+  language: en
+
+buses:
+  - name: drive_bus
+    title: Drive bus
+    protocol: canopen
+    bitrate: 500000
+    devices:
+      - name: controller
+        title: Vehicle controller
+        node_id: 0x01
+
+      - name: drive
+        title: Traction drive
+        node_id: 0x05
+        frames:
+          - name: drive_status            # TPDO1, ID 0x185
+            canopen: pdo_tx1
+            length: 6
+            cycle_ms: 10
+            receivers: [controller]
+            signals:
+              - name: statusword
+                title: Statusword
+                description: CiA 402 statusword
+                encoding: raw
+                byte: 0
+                byte_length: 2
+                index: 0x6041
+              - name: actual_velocity
+                title: Velocity actual value
+                description: Motor speed
+                encoding: scaled
+                byte: 2
+                byte_length: 4
+                representation: twos_complement
+                unit: rpm
+                index: 0x606C
+
+          - name: drive_measurements      # TPDO2, ID 0x285
+            canopen: pdo_tx2
+            length: 4
+            cycle_ms: 100
+            receivers: [controller]
+            signals:
+              - name: motor_temp
+                title: Motor temperature
+                description: Motor winding temperature
+                encoding: scaled
+                byte: 0
+                byte_length: 1
+                offset: -40
+                unit: °C
+                index: 0x2100
+                subindex: 1
+              - name: inverter_temp
+                title: Inverter temperature
+                description: Power stage temperature
+                encoding: scaled
+                byte: 1
+                byte_length: 1
+                offset: -40
+                unit: °C
+                index: 0x2100
+                subindex: 2
+              - name: dc_voltage
+                title: DC link voltage
+                description: DC link voltage
+                encoding: scaled
+                byte: 2
+                byte_length: 2
+                factor: 0.1
+                unit: V
+                index: 0x2100
+                subindex: 3
+
+          - name: drive_command           # RPDO1, ID 0x205, sent by the controller
+            canopen: pdo_rx1
+            length: 6
+            cycle_ms: 10
+            sender: controller
+            signals:
+              - name: controlword
+                title: Controlword
+                description: CiA 402 controlword
+                encoding: raw
+                byte: 0
+                byte_length: 2
+                index: 0x6040
+              - name: target_velocity
+                title: Target velocity
+                description: Requested motor speed
+                encoding: scaled
+                byte: 2
+                byte_length: 4
+                representation: twos_complement
+                unit: rpm
+                index: 0x60FF
+
+          - name: drive_heartbeat
+            canopen: heartbeat
+            cycle_ms: 500
+            receivers: [controller]

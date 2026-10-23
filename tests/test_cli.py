@@ -21,7 +21,7 @@ FRAME = """
       length: 1
       cycle_ms: 100
       signals:
-        - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1}
+        - {name: a, encoding: number, description: x, byte: 0, byte_length: 1}
 """
 
 

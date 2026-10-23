@@ -1,4 +1,4 @@
-mapcan: 1
+mapcan: 2
 document:
   title: Карта с ошибками
   language: ru
@@ -17,7 +17,7 @@ buses:
             cycle_ms: 100
             signals:
               - name: bus_voltage
-                encoding: scaled
+                encoding: number
                 description: Напряжение
                 byte: 6
                 byte_length: 2
@@ -39,7 +39,7 @@ buses:
                   1: OK
                   2: NO_DATA_X
               - name: wide
-                encoding: raw
+                encoding: number
                 description: Слишком широкий
                 byte: 1
                 byte_length: 2
@@ -80,7 +80,7 @@ buses:
             trigger: on_request
             signals:
               - name: muxed
-                encoding: raw
+                encoding: number
                 description: x
                 byte: 0
                 byte_length: 1

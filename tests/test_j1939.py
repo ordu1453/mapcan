@@ -42,7 +42,7 @@ def test_example_ids():
 
 def _bus(frames: str, devices: str = "", protocol: str = "j1939") -> str:
     frames = textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10)
-    return ("mapcan: 1\ndocument:\n  title: T\n  language: ru\nbuses:\n"
+    return ("mapcan: 2\ndocument:\n  title: T\n  language: ru\nbuses:\n"
             f"  - name: bus\n    protocol: {protocol}\n    devices:\n"
             "      - name: ecu\n        address: 0x10\n        frames:\n" + frames + "\n" + devices)
 
@@ -129,10 +129,10 @@ def test_float_initial_invalid_rules():
           pgn: 0xFEEE
           length: 8
           signals:
-            - {name: a, description: x, byte: 0, encoding: float, bit_length: 16}
-            - {name: b, encoding: raw, description: x, byte: 2, byte_length: 1, invalid_raw: 0x1FF}
-            - {name: c, encoding: scaled, description: x, byte: 3, byte_length: 1, factor: 0.5, initial: 200}
-            - {name: d, encoding: raw, description: x, byte: 4, byte_length: 1, min: 0, max: 10, initial: 20}
+            - {name: a, description: x, byte: 0, encoding: number, representation: float, bit_length: 16}
+            - {name: b, encoding: number, description: x, byte: 2, byte_length: 1, invalid_raw: 0x1FF}
+            - {name: c, encoding: number, description: x, byte: 3, byte_length: 1, factor: 0.5, initial: 200}
+            - {name: d, encoding: number, description: x, byte: 4, byte_length: 1, min: 0, max: 10, initial: 20}
     """))
     assert {"float-length", "invalid-overflow", "initial-range"} <= c
 
@@ -146,7 +146,7 @@ def test_diagnostics_point_to_fields():
           pgn: 0xFEEE
           length: 8
           signals:
-            - {name: a, byte: 0, encoding: float, bit_length: 16}
+            - {name: a, byte: 0, encoding: number, representation: float, bit_length: 16}
     """))
     node = {d.code: d.node for d in rep.diagnostics}
     assert node["frame-id-missing"][-1] == "pgn"
@@ -201,7 +201,7 @@ def _sig(extra: str, length: int = 8, frame_extra: str = "", protocol: str = "j1
           pgn: 0xFF10
           length: {length}{frame_extra}
           signals:
-            - {{name: a, encoding: raw, description: x, byte: 0, byte_length: 1, {extra}}}
+            - {{name: a, encoding: number, description: x, byte: 0, byte_length: 1, {extra}}}
     """, protocol=protocol)
 
 
@@ -213,8 +213,8 @@ def test_spn_rules():
           pgn: 0xFF10
           length: 2
           signals:
-            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1, spn: 190}
-            - {name: b, encoding: raw, description: x, byte: 1, byte_length: 1, spn: 190}
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 1, spn: 190}
+            - {name: b, encoding: number, description: x, byte: 1, byte_length: 1, spn: 190}
     """)
     assert "j1939-spn-duplicate" in codes(two)
     res, _ = run(_sig("spn: 600000"))     # more than 19 bits
@@ -285,4 +285,4 @@ def test_transport_protocol_bus_load():
 def test_long_signals_only_byte_arrays():
     raw = _sig("spn: 1", length=20).replace("byte_length: 1", "byte_length: 12")
     assert "signal-length" in codes(raw)
-    assert "signal-length" not in codes(raw.replace("encoding: raw", "encoding: bytes"))
+    assert "signal-length" not in codes(raw.replace("encoding: number", "encoding: bytes"))

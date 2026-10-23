@@ -869,11 +869,10 @@
           "type": "string"
         },
         "encoding": {
-          "description": "Value encoding: enum, scaled, raw.",
+          "description": "Value encoding: number or enum.",
           "enum": [
-            "enum",
-            "scaled",
-            "raw"
+            "number",
+            "enum"
           ],
           "title": "Encoding",
           "type": "string"
@@ -1039,16 +1038,12 @@
           "title": "Description"
         },
         "encoding": {
-          "description": "How the value is interpreted. enum — a value table; flag — a single yes/no bit; bitfield — a set of flags; scaled — a scaled value: raw × factor + offset; raw — an integer as is; float — IEEE 754; bytes — a byte array; string — text (VIN, software version).",
+          "description": "How the value is interpreted. number — a number: the integer as is, or raw × factor + offset with factor and offset, or IEEE 754 with representation: float; enum — a value table; bitfield — a set of flags; bytes — a byte array, or text (VIN, software version) with a charset.",
           "enum": [
+            "number",
             "enum",
-            "flag",
             "bitfield",
-            "scaled",
-            "raw",
-            "bytes",
-            "string",
-            "float"
+            "bytes"
           ],
           "title": "Encoding",
           "type": "string"
@@ -1068,7 +1063,7 @@
             }
           ],
           "default": null,
-          "description": "String: character encoding of the text, ascii (default), utf-8 or latin-1.",
+          "description": "Bytes: the field holds text in this character encoding, ascii, utf-8 or latin-1. Without it the field is a byte array.",
           "title": "Charset"
         },
         "terminator": {
@@ -1084,7 +1079,7 @@
             }
           ],
           "default": null,
-          "description": "String: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or \"*\" (as in J1939 text parameters). Without it the text fills the field and unused bytes are 0x00.",
+          "description": "Text: the byte that ends a shorter text and fills the rest of the field, e.g. 0x00 or \"*\" (as in J1939 text parameters). Without it the text fills the field and unused bytes are 0x00.",
           "title": "Terminator"
         },
         "start_bit": {
@@ -1113,7 +1108,7 @@
             }
           ],
           "default": null,
-          "description": "Signal width in bits: 1..64; longer only for a byte array (encoding: bytes).",
+          "description": "Signal width in bits: 1..64; longer only for encoding: bytes.",
           "title": "Bit Length"
         },
         "byte": {
@@ -1172,12 +1167,13 @@
         },
         "representation": {
           "default": "unsigned",
-          "description": "How the raw value is read as a number. unsigned — no negative values (default). twos_complement — the usual signed integer (−1 = all ones). ones_complement — a negative value is its magnitude with all bits inverted (−1 = 1…10). sign_magnitude — the top bit is the sign, the rest the magnitude (−1 = 10…01). Generated C and Python code use this representation; DBC stores two's complement only, so the export warns about the other two. Formerly signed and signed_code.",
+          "description": "How the raw value is read as a number. unsigned — no negative values (default). twos_complement — the usual signed integer (−1 = all ones). ones_complement — a negative value is its magnitude with all bits inverted (−1 = 1…10). sign_magnitude — the top bit is the sign, the rest the magnitude (−1 = 10…01). float — IEEE 754 floating point, 32 bits (default) or 64. Generated C and Python code use this representation; DBC stores two's complement only, so the export warns about ones' complement and sign-magnitude. Formerly signed and signed_code.",
           "enum": [
             "unsigned",
             "twos_complement",
             "ones_complement",
-            "sign_magnitude"
+            "sign_magnitude",
+            "float"
           ],
           "title": "Representation",
           "type": "string"
@@ -1447,7 +1443,7 @@
   "description": "A file of ``include``: buses and value tables added to the map named by ``part_of``.",
   "properties": {
     "mapcan": {
-      "const": 1,
+      "const": 2,
       "description": "File format version: the same as the map's.",
       "title": "mapcan",
       "type": "integer"
@@ -1491,8 +1487,8 @@
     "mapcan",
     "part_of"
   ],
-  "title": "mapcan — file included by a map (format v1)",
+  "title": "mapcan — file included by a map (format v2)",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ordu1453.github.io/mapcan/schema/part-v1.json"
+  "$id": "https://ordu1453.github.io/mapcan/schema/part-v2.json"
 }

@@ -239,6 +239,12 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
         return [Action(_("Rename the former fields of the whole map (mapcan migrate)"),
                        [minimal_edit(a.text, new)], preferred=True)] if new != a.text else []
 
+    if code == "format-v1":
+        from ..web.yamlops import migrate_format_text
+        new = migrate_format_text(a.text)
+        return [Action(_("Rewrite this file in format version 2 (mapcan migrate)"),
+                       [minimal_edit(a.text, new)], preferred=True)] if new != a.text else []
+
     if code == "direction-deprecated":
         from ..web.yamlops import migrate_directions_text
         new = migrate_directions_text(a.text)
@@ -837,11 +843,11 @@ def _add_signal(a: Analysis, path: Path_) -> TextChange | None:
         raise EditRefused(_("No free bits left in the frame. Free up space or increase the frame length"))
     start, length, grown = place
     signals = raw_at(a, path + ("signals",)) or []
-    fields = [("name", _unique("signal", _names(signals))), ("encoding", "raw")]
+    fields = [("name", _unique("signal", _names(signals))), ("encoding", "number")]
     # The position in the notation the other editors write (#117)
     from ..web.yamlops import layout_keys
 
-    fields +=[(k, str(v)) for k, v in layout_keys(start, length, False, "raw").items()]
+    fields += [(k, str(v)) for k, v in layout_keys(start, length, False).items()]
     change = append_item(a, path, "signals", fields)
     if change is None or grown is None:
         return change
@@ -1049,6 +1055,11 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     raw, _found = upgrade_node(U.node_kind(path), dict(raw), path)
     if kind == "sdo" and isinstance(raw.get("value"), dict):
         raw["value"] = upgrade_node("sdo_value", dict(raw["value"]))[0]
+    # A map of format version 1: its encodings as version 2 has them
+    if isinstance(a.data, dict) and a.data.get("mapcan") == 1:
+        raw = U.upgrade_v1_node(U.node_kind(path), raw)
+        if kind == "sdo" and isinstance(raw.get("value"), dict):
+            raw["value"] = U.upgrade_v1_node("sdo_value", raw["value"])
     lang = doc_language(a)
     bus = raw_at_path(a.data, path[:2]) if path[:1] == ("buses",) else None
     bus = bus if isinstance(bus, dict) else {}
@@ -1253,8 +1264,8 @@ def set_field(a: Analysis, path: Path_, value) -> list[Edit]:
         if (value is None or value == "" or len(parent) < 2 or not isinstance(parent[-1], str)
                 or raw_at(a, parent) is not None or not isinstance(raw_at(a, parent[:-1]), dict)):
             return []
-        # encoding is required for an SDO value: the new mapping gets encoding: raw right away
-        extra = ", encoding: raw, bit_length: 32" if parent[-1] == "value" and key == "name" else ""
+        # encoding is required for an SDO value: the new mapping gets encoding: number right away
+        extra = ", encoding: number, bit_length: 32" if parent[-1] == "value" and key == "name" else ""
         return _insert_field(a, parent[:-1], parent[-1], f"{{{key}: {format_value(key, value)}{extra}}}")
     current = raw_at(a, path)
     if value is None or value == "":

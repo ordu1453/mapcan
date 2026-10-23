@@ -105,7 +105,7 @@ installer is not code-signed, so SmartScreen may warn: **More info → Run anywa
 
 **From canmap.** The tool used to be called canmap. The Windows installer upgrades it by itself; with
 uv or pipx, `uv tool uninstall canmap` and install again. Settings move from `~/.canmap` to `~/.mapcan`;
-maps need the key `mapcan: 1`.
+maps need the key `mapcan: 1` in place of `canmap: 1` (`mapcan migrate` then rewrites them in version 2).
 </details>
 
 ## Quick start
@@ -176,7 +176,7 @@ language server completes keys from the [JSON Schema](docs/format.md).
 ## A map
 
 ```yaml
-mapcan: 1
+mapcan: 2
 
 document:
   title: Electric vehicle example map
@@ -196,8 +196,8 @@ buses:
             cycle_ms: 100
             receivers: [vcu]
             signals:
-              - {name: pack_voltage, byte: 0, encoding: float, unit: V, min: 0, max: 1000}
-              - {name: pack_current, byte: 4, encoding: float, unit: A, initial: 0}
+              - {name: pack_voltage, byte: 0, encoding: number, representation: float, unit: V, min: 0, max: 1000}
+              - {name: pack_current, byte: 4, encoding: number, representation: float, unit: A, initial: 0}
       - name: vcu
 ```
 

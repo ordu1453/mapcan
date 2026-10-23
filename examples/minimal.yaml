@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../schema/mapcan.schema.json
 # Minimal example: every kind of signal in one frame.
 
-mapcan: 1
+mapcan: 2
 
 document:
   title: Example map
@@ -48,7 +48,7 @@ buses:
 
               - name: pressure        # quantity, bytes 2..3, little-endian
                 description: Pressure
-                encoding: scaled
+                encoding: number
                 byte: 2
                 byte_length: 2
                 factor: 0.01
@@ -58,7 +58,7 @@ buses:
 
               - name: temperature     # signed quantity with an offset
                 description: Temperature
-                encoding: scaled
+                encoding: number
                 byte: 4
                 byte_length: 1
                 representation: twos_complement
@@ -68,13 +68,13 @@ buses:
 
               - name: speed           # two bytes, little-endian (CANopen): byte 5 is the low byte
                 description: Speed
-                encoding: scaled
+                encoding: number
                 byte: 5
                 byte_length: 2
                 unit: rpm
 
               - name: counter         # arbitrary position: bits 56..59
                 description: Message counter
-                encoding: raw
+                encoding: number
                 start_bit: 56
                 bit_length: 4

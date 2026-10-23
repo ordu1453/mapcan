@@ -18,6 +18,7 @@ from ruamel.yaml.scalarint import HexCapsInt
 
 from .. import bits as B
 from ..i18n import _
+from ..model import FORMAT_VERSION
 from ..web.yamlops import layout_keys
 
 # GenMsgSendType (Vector templates) → transmission mode of the map
@@ -74,43 +75,41 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
     scaled = s.scale != 1 or s.offset != 0
     if s.length > 64:
         encoding = "bytes"            # longer than 64 bits: only a byte array (DBC has no such kind)
-    elif s.is_float:
-        encoding = "float"
-    elif choices:
+    elif choices and not s.is_float and not s.is_signed:
         encoding = "enum"
-    elif scaled:
-        encoding = "scaled"
-    elif s.length == 1 and not s.is_signed:
-        encoding = "flag"
     else:
-        encoding = "raw"
+        encoding = "number"
     big = s.byte_order == "big_endian"
     start = B.lsb_from_msb(s.start, s.length) if big else s.start
     out: dict = {"name": s.name, "encoding": encoding}
     if _text(s.comment):
         out["description"] = _text(s.comment)
-    out.update(layout_keys(start, s.length, big, encoding))
-    if encoding == "flag":
-        out.pop("bit_length", None)       # a flag is always 1 bit long
+    out.update(layout_keys(start, s.length, big))
     if big:
         out["byte_order"] = "big_endian"
-    if s.is_signed and encoding in ("raw", "scaled", "enum"):
+    if encoding == "number" and s.is_float:
+        out["representation"] = "float"
+    elif s.is_signed and encoding != "bytes":
         out["representation"] = "twos_complement"
-    if encoding in ("scaled", "float") and scaled:
+    if encoding == "number" and scaled:
         if s.scale != 1:
             out["factor"] = _num(s.scale)
         if s.offset != 0:
             out["offset"] = _num(s.offset)
     elif encoding == "enum" and scaled:
         warnings.append(_("{where}: the scale and offset of a signal with a value table are not imported", where=where))
-    if s.unit and encoding in ("raw", "scaled", "float"):
+    if choices and encoding == "number":
+        # An enum has unsigned values only
+        warnings.append(_("{where}: the value table of a signed or floating-point signal is not imported",
+                          where=where))
+    if s.unit and encoding == "number":
         out["unit"] = s.unit
-    if encoding in ("raw", "scaled", "float") and not (s.minimum in (None, 0) and s.maximum in (None, 0)):
+    if encoding == "number" and not (s.minimum in (None, 0) and s.maximum in (None, 0)):
         if s.minimum is not None:
             out["min"] = _num(s.minimum)
         if s.maximum is not None:
             out["max"] = _num(s.maximum)
-    if choices:
+    if choices and encoding == "enum":
         values = CommentedMap()
         for k, v in sorted(choices.items()):
             name = str(getattr(v, "name", v))
@@ -120,7 +119,7 @@ def _signal(s, warnings: list[str], where: str) -> CommentedMap:
     if s.raw_initial is not None and encoding != "bytes":
         # initial in the map is a physical value (for a signal with a table cantools gives the value's name)
         raw = float(s.raw_initial)
-        out["initial"] = _num(raw if encoding in ("enum", "flag", "raw") else raw * s.scale + s.offset)
+        out["initial"] = _num(raw if encoding == "enum" else raw * s.scale + s.offset)
     spn = _attr(s, "SPN")
     if spn:
         out["spn"] = int(spn)
@@ -241,7 +240,7 @@ def import_dbc(path: str | Path, title: str | None = None, lang: str = "en") -> 
     bus["devices"] = CommentedSeq(devices.values())
 
     doc = CommentedMap()
-    doc["mapcan"] = 1
+    doc["mapcan"] = FORMAT_VERSION
     doc["document"] = CommentedMap(title=title or path.stem, language=lang)
     # Names in DBC come in any style: the name style check is disabled
     doc["lint"] = _flow({"signal_name": "any", "frame_name": "any", "device_name": "any", "value_name": "any"})

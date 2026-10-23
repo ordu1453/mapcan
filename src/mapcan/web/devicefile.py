@@ -62,7 +62,7 @@ def _scalar(key: str, value: Any) -> str:
 def device_file_text(map_path: Path, target: Path, bus: str, device: dict[str, Any]) -> str:
     """Text of an included file with one device on the bus ``bus`` (described by the map)."""
     part_of = Path(os.path.relpath(map_path.resolve(), target.parent)).as_posix()
-    lines = [schema_line(part=True), "", "mapcan: 1", f"part_of: {part_of}", "", "buses:",
+    lines = [schema_line(part=True), "", "mapcan: 2", f"part_of: {part_of}", "", "buses:",
              f"  - name: {_scalar('name', bus)}", "    devices:"]
     for i, (key, value) in enumerate(device.items()):
         lines.append(("      - " if i == 0 else "        ") + f"{key}: {_scalar(key, value)}")

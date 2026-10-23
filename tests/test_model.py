@@ -8,7 +8,7 @@ from .conftest import one_bus, run
 
 
 def sig(**kw) -> Signal:
-    return Signal(name="s", **{"encoding": "raw", **kw})
+    return Signal(name="s", **{"encoding": "number", **kw})
 
 
 @pytest.mark.parametrize(
@@ -68,8 +68,9 @@ def test_length_required():
         sig(byte=0)
     with pytest.raises(ValueError):
         sig(byte=1, bit=3)
-    assert sig(byte=1, bit=3, encoding="flag").bit_length == 1
-    assert sig(byte=0, encoding="float").bit_length == 32
+    with pytest.raises(ValueError):
+        sig(byte=1, bit=3, encoding="enum")
+    assert sig(byte=0, representation="float").bit_length == 32
 
 
 def test_encoding_required():

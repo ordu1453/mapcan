@@ -1,10 +1,12 @@
 name: pages
 
 # The JSON Schemas of the format on GitHub Pages, at the URLs of their $id (src/mapcan/schema.py):
-#   https://ordu1453.github.io/mapcan/schema/v1.json        a map
-#   https://ordu1453.github.io/mapcan/schema/part-v1.json   a file included by a map
-# Published by each release (the tag vX.Y.Z), so the URLs give the schema of the released format; version 1
-# only grows, so one URL serves it all. A manual run publishes the schemas of the branch it runs on.
+#   https://ordu1453.github.io/mapcan/schema/v2.json        a map
+#   https://ordu1453.github.io/mapcan/schema/part-v2.json   a file included by a map
+#   https://ordu1453.github.io/mapcan/schema/v1.json, part-v1.json: format version 1, frozen
+#                                                           (schema/mapcan-v1.schema.json, mapcan-part-v1.schema.json)
+# Published by each release (the tag vX.Y.Z), so the URLs give the schema of the released format; a version only
+# grows, so one URL serves it all. A manual run publishes the schemas of the branch it runs on.
 # SchemaStore points at v1.json for files named *.mapcan.yaml.
 
 on:
@@ -27,18 +29,22 @@ jobs:
       - name: Site
         run: |
           mkdir -p _site/schema
-          cp schema/mapcan.schema.json _site/schema/v1.json
-          cp schema/mapcan-part.schema.json _site/schema/part-v1.json
+          cp schema/mapcan.schema.json _site/schema/v2.json
+          cp schema/mapcan-part.schema.json _site/schema/part-v2.json
+          cp schema/mapcan-v1.schema.json _site/schema/v1.json
+          cp schema/mapcan-part-v1.schema.json _site/schema/part-v1.json
           # The $id of each schema is its URL here
-          grep -q '"\$id": "https://ordu1453.github.io/mapcan/schema/v1.json"' _site/schema/v1.json
-          grep -q '"\$id": "https://ordu1453.github.io/mapcan/schema/part-v1.json"' _site/schema/part-v1.json
+          for s in v1 part-v1 v2 part-v2; do
+            grep -qF "\"\$id\": \"https://ordu1453.github.io/mapcan/schema/$s.json\"" "_site/schema/$s.json"
+          done
           cat > _site/index.html <<'EOF'
           <!doctype html>
           <meta charset="utf-8">
           <title>mapcan</title>
           <meta http-equiv="refresh" content="0; url=https://github.com/ordu1453/mapcan">
           <p>JSON Schemas of the <a href="https://github.com/ordu1453/mapcan">mapcan</a> format:
-          <a href="schema/v1.json">a map</a>, <a href="schema/part-v1.json">a file included by a map</a>.</p>
+          <a href="schema/v2.json">a map</a>, <a href="schema/part-v2.json">a file included by a map</a>
+          (format version 1: <a href="schema/v1.json">a map</a>, <a href="schema/part-v1.json">an included file</a>).</p>
           EOF
       - uses: actions/upload-pages-artifact@v4
 

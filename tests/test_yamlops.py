@@ -24,13 +24,13 @@ def test_noop_roundtrip_is_identical(path):
 @pytest.mark.parametrize("document", ["document:\n  title: T\n", "document: {title: T}\n"])
 def test_new_top_level_key_is_separated_as_the_others(document):
     """#136: include added to a map whose keys are separated by empty lines, after a block or a "{…}" mapping."""
-    text = f"mapcan: 1\n\n{document}\nbuses: []\n"
+    text = f"mapcan: 2\n\n{document}\nbuses: []\n"
     out = _edit(text, [{"op": "set", "path": ["include"], "value": ["devices/a.yaml"]}])
-    assert out == f"mapcan: 1\n\n{document}\ninclude: [devices/a.yaml]\n\nbuses: []\n"
+    assert out == f"mapcan: 2\n\n{document}\ninclude: [devices/a.yaml]\n\nbuses: []\n"
     # Keys not separated stay so
-    text = f"mapcan: 1\n{document}buses: []\n"
+    text = f"mapcan: 2\n{document}buses: []\n"
     assert _edit(text, [{"op": "set", "path": ["include"], "value": ["a.yaml"]}]) == (
-        f"mapcan: 1\n{document}include: [a.yaml]\nbuses: []\n")
+        f"mapcan: 2\n{document}include: [a.yaml]\nbuses: []\n")
 
 
 def test_multiline_flow_map_survives_unrelated_edit():
@@ -64,22 +64,16 @@ def test_values_keys_become_ints():
     (19, 4, True, {"byte": 2, "bit": 3, "bit_length": 4}),
 ])
 def test_layout_keys(start, length, be, expected):
-    assert layout_keys(start, length, be, None) == expected
+    assert layout_keys(start, length, be) == expected
 
 
-def test_layout_keys_flag_encoding_needs_explicit_length():
-    # for encoding: flag, `byte: 1` would mean 1 bit: an explicit length is needed
-    assert layout_keys(8, 8, False, "flag") != {"byte": 1}
-    assert layout_keys(11, 1, False, "flag") == {"byte": 1, "bit": 3}
-
-
-SIGNAL_DOC = "signals:\n  - name: s\n    encoding: raw\n{layout}    unit: V\n"
+SIGNAL_DOC = "signals:\n  - name: s\n    encoding: number\n{layout}    unit: V\n"
 SIGNAL = ["signals", 0]
 
 
 def _layout(layout: str, ops: list[dict]) -> str:
     out = _edit(SIGNAL_DOC.format(layout=layout), ops)
-    return out.split("encoding: raw\n", 1)[1].split("    unit: V\n", 1)[0]
+    return out.split("encoding: number\n", 1)[1].split("    unit: V\n", 1)[0]
 
 
 @pytest.mark.parametrize("layout, ops, expected", [
@@ -111,7 +105,7 @@ def test_position_that_does_not_parse_is_left_as_typed():
 
 
 def test_position_keeps_the_length_the_encoding_implies():
-    text = "signals:\n  - name: s\n    encoding: float\n    byte: 0\n"
+    text = "signals:\n  - name: s\n    encoding: number\n    representation: float\n    byte: 0\n"
     assert _edit(text, [{"op": "set", "path": [*SIGNAL, "byte"], "value": 4}]).endswith("    byte: 4\n")
     out = _edit(text, [{"op": "set_layout", "path": SIGNAL, "start_bit": 3, "bit_length": 32}])
     assert out.endswith("    start_bit: 3\n    bit_length: 32\n")

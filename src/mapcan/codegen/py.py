@@ -218,11 +218,11 @@ class PyGen:
                 f"    BITRATE_SWITCH = {bool(f.bit_rate_switch)}", ""]
         for s in f.layout:
             init = s.initial_raw
-            if is_byte_array(s) and s.encoding == "string":
+            if is_byte_array(s) and s.is_text:
                 out.append(f"    {s.name}: str = \"\"")
             elif is_byte_array(s):
                 out.append(f"    {s.name}: bytes = field(default=bytes({s.bit_length // 8}))")
-            elif s.encoding == "float":
+            elif s.is_float:
                 out.append(f"    {s.name}: float = {num(init if init is not None else 0.0)}")
             elif self._enum_cls(f, s):
                 E = self._enum_cls(f, s)
@@ -265,7 +265,7 @@ class PyGen:
                     "",
                     f"    @{s.name}_phys.setter",
                     f"    def {s.name}_phys(self, value: float) -> None:",
-                    (f"        self.{s.name} = (value - {num(s.offset)}) / {num(s.factor)}" if s.encoding == "float"
+                    (f"        self.{s.name} = (value - {num(s.offset)}) / {num(s.factor)}" if s.is_float
                      else f"        self.{s.name} = min(max(_round((value - {num(s.offset)}) / {num(s.factor)}), "
                           f"{lo}), {hi})"),
                 ]
@@ -281,7 +281,7 @@ class PyGen:
 
     @staticmethod
     def _pack_stmt(f: Frame, s) -> list[str]:
-        if is_byte_array(s) and s.encoding == "string":
+        if is_byte_array(s) and s.is_text:
             # The text in its charset, cut to the field; the rest is the terminator (or 0x00)
             n, b0, pad = s.bit_length // 8, s.start_bit // 8, s.terminator_byte or 0
             return [f"        buf[{b0}:{b0 + n}] = self.{s.name}.encode({s.charset or 'ascii'!r}, 'replace')[:{n}]"
@@ -290,7 +290,7 @@ class PyGen:
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        buf[{b0}:{b0 + n}] = bytes(self.{s.name})[:{n}].ljust({n}, b'\\0')"]
         be = s.byte_order == "big_endian"
-        if s.encoding == "float":
+        if s.is_float:
             value = f"_f2b(self.{s.name}, {s.bit_length})"
         else:
             # A value outside the field is an error, not cut to its low bits
@@ -304,13 +304,13 @@ class PyGen:
     @staticmethod
     def _enum_cls(f: Frame, s) -> str | None:
         """The IntEnum of an integer signal with named values."""
-        if s.encoding == "float" or is_byte_array(s) or not enum_entries(s.values):
+        if s.is_float or is_byte_array(s) or not enum_entries(s.values):
             return None
         return f"{_cls(f.name)}{_cls(s.name)}"
 
     @staticmethod
     def _unpack_stmt(s, enum: str | None = None) -> list[str]:
-        if is_byte_array(s) and s.encoding == "string":
+        if is_byte_array(s) and s.is_text:
             # The text ends at the terminator, or before the trailing 0x00 bytes
             n, b0, end = s.bit_length // 8, s.start_bit // 8, s.terminator_byte
             raw = f"bytes(data[{b0}:{b0 + n}])"
@@ -320,7 +320,7 @@ class PyGen:
             n, b0 = s.bit_length // 8, s.start_bit // 8
             return [f"        msg.{s.name} = bytes(data[{b0}:{b0 + n}])"]
         be = s.byte_order == "big_endian"
-        if s.encoding == "float":
+        if s.is_float:
             return [f"        msg.{s.name} = _b2f(_get(data, {s.start_bit}, {s.bit_length}, {be}), {s.bit_length})"]
         signed = repr(s.signed_code) if s.signed and s.signed_code in _SIGNED_ENCODERS else s.signed
         value = f"_get(data, {s.start_bit}, {s.bit_length}, {be}, {signed})"

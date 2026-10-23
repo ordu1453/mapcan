@@ -94,7 +94,7 @@ def test_flow_mapping_untouched_when_neighbour_changes(client):
     st = ops(client, {"op": "set", "path": ["buses", 0, "devices", 0, "frames", 3, "description"],
                       "value": "Настройка"})
     assert len(_changed_lines(before, st["text"])) == 2
-    line = "                value: {name: alarm_resistance, encoding: scaled, bit_length: 16, unit: кОм,\n"
+    line = "                value: {name: alarm_resistance, encoding: number, bit_length: 16, unit: кОм,\n"
     assert line in st["text"]
 
 
@@ -131,7 +131,7 @@ def test_set_layout_rejects_bad_position(client, start, length):
 def test_insert_signal_and_remove(client):
     path = ["buses", 0, "devices", 1, "frames", 0, "signals"]
     st = ops(client,
-             {"op": "insert", "path": path, "value": {"name": "spare", "encoding": "raw", "description": "Резерв",
+             {"op": "insert", "path": path, "value": {"name": "spare", "encoding": "number", "description": "Резерв",
                                                       "byte": 2, "byte_length": 1}},
              {"op": "set", "path": ["buses", 0, "devices", 1, "frames", 0, "length"], "value": 3})
     assert "- name: spare" in st["text"]
@@ -142,7 +142,7 @@ def test_insert_signal_and_remove(client):
 
 def test_insert_into_missing_list(client):
     st = ops(client, {"op": "insert", "path": ["buses", 0, "devices", 3, "frames", 0, "signals"],
-                      "value": {"name": "mode", "encoding": "raw", "description": "Режим", "byte": 0,
+                      "value": {"name": "mode", "encoding": "number", "description": "Режим", "byte": 0,
                                 "byte_length": 1}})
     f = next(f for f in st["resolved"]["frames"] if f["name"] == "bypass_command")
     assert f["signals"][0]["name"] == "mode"
@@ -198,7 +198,7 @@ def test_undo_redo(client):
 
 
 def test_text_with_errors(client):
-    st = client.post("/api/text", json={"text": "mapcan: 1\ndocument: [\n"}).json()
+    st = client.post("/api/text", json={"text": "mapcan: 2\ndocument: [\n"}).json()
     assert st["data"] is None
     assert st["diagnostics"][0]["code"] == "yaml" and st["diagnostics"][0]["line"]
     r = client.post("/api/ops", json={"ops": [{"op": "set", "path": ["mapcan"], "value": 1}]})
@@ -574,11 +574,11 @@ def test_appended_item_goes_before_blank_separator(client):
 
 def test_appended_key_goes_before_blank_separator(tmp_path):
     p = tmp_path / "m.yaml"
-    p.write_text("mapcan: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n\nbuses: []\n", encoding="utf-8")
+    p.write_text("mapcan: 2\n\ndocument:\n  title: T\n  version: 0.1.0\n\nbuses: []\n", encoding="utf-8")
     s = EditorSession(p)
     s.apply([{"op": "insert", "path": ["document", "history"], "index": 0,
               "value": {"version": "0.1.0", "changes": ["first"]}}])
-    assert s.text == ("mapcan: 1\n\ndocument:\n  title: T\n  version: 0.1.0\n"
+    assert s.text == ("mapcan: 2\n\ndocument:\n  title: T\n  version: 0.1.0\n"
                       "  history:\n    - version: 0.1.0\n      changes:\n        - first\n\nbuses: []\n")
 
 

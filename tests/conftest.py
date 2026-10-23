@@ -25,7 +25,7 @@ def one_bus(frames: str, protocol: str = "canopen", devices_extra: str = "", lin
     """A YAML map with one device (node_id 0x10) and the given frames."""
     frames = textwrap.indent(textwrap.dedent(frames).strip("\n"), " " * 10)
     return (
-        "mapcan: 1\n"
+        "mapcan: 2\n"
         "document:\n  title: Тест\n  language: ru\n"
         + (lint or "")
         + "buses:\n"

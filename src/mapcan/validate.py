@@ -59,6 +59,7 @@ RULES = {
     "number-cyrillic-x": ("error", N_("Cyrillic “х” in a hexadecimal number")),
     "number-quoted": ("warning", N_("Number written as a quoted string")),
     "deprecated-key": ("warning", N_("Former name of a field: still read, mapcan migrate rewrites it")),
+    "format-v1": ("info", N_("Map of format version 1: still read, mapcan migrate rewrites it in version 2")),
     "invalid-identifier": ("error", N_("Name cannot be used as a C/Python identifier")),
     "duplicate-device-name": ("error", N_("Duplicate device name on the bus")),
     "duplicate-node-id": ("error", N_("Duplicate node_id on the bus")),
@@ -89,7 +90,6 @@ RULES = {
     "encoding-field": ("error", N_("Field does not apply to the signal encoding")),
     "flag-out-of-field": ("error", N_("Flag extends beyond the bit field")),
     "flag-overlap": ("error", N_("Flags overlap inside the bit field")),
-    "flag-length": ("warning", N_("Flag signal longer than 1 bit")),
     "zero-factor": ("error", N_("Zero factor")),
     "range-overflow": ("warning", N_("min/max outside the range the field can represent")),
     "min-max": ("error", N_("min is greater than max")),
@@ -134,9 +134,9 @@ RULES = {
     "version-format": ("warning", N_("Map version is not MAJOR.MINOR or MAJOR.MINOR.PATCH")),
     "source-value": ("error", N_("A signal's source value cannot be sent: the map version is not numeric, the "
                                  "value does not fit, or initial is set too")),
-    "float-length": ("error", N_("A float signal must be 32 or 64 bits")),
-    "signal-length": ("error", N_("Signal longer than 64 bits that is not an aligned byte array")),
-    "string-field": ("error", N_("String not aligned to whole bytes, or a terminator that is not one byte")),
+    "float-length": ("error", N_("A floating-point signal must be 32 or 64 bits")),
+    "signal-length": ("error", N_("Signal longer than 64 bits that is not aligned bytes")),
+    "string-field": ("error", N_("Text not aligned to whole bytes, or a terminator that is not one byte")),
     "initial-range": ("warning", N_("Default value outside the signal's range")),
     "invalid-overflow": ("error", N_("A raw value of invalid_raw does not fit in the signal width")),
     "logo-missing": ("warning", N_("Logo file not found")),
@@ -398,7 +398,7 @@ def _check_byte_order(ctx: _Ctx, bus) -> None:
         return
     for frame in bus.all_frames():
         for s in frame.signals:
-            if s.byte_order != "big_endian" or s.encoding in ("bytes", "string"):
+            if s.byte_order != "big_endian" or s.encoding == "bytes":
                 continue
             if len({b // 8 for b in B.occupied_bits(s.start_bit, s.bit_length, True)}) > 1:
                 ctx.emit("byte-order-protocol", _("{name!r}: {protocol} carries little-endian data",
@@ -707,7 +707,7 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
     # Names
     names: dict[str, tuple] = {}
     upper: dict[str, str] = {}
-    phys = {s.name + "_phys": s.name for s in sigs if s.factor != 1 or s.offset != 0 or s.encoding == "scaled"}
+    phys = {s.name + "_phys": s.name for s in sigs if s.factor != 1 or s.offset != 0}
     for s in sigs:
         if s.name in C_KEYWORDS or s.name in PY_KEYWORDS:
             ctx.emit("reserved-identifier", _("signal name {name!r} is a C/Python keyword: the generated code will not "
@@ -773,14 +773,15 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
         for key in _misplaced_fields(s):
             ctx.emit("encoding-field", _("{key} does not apply to encoding: {encoding}", key=key, encoding=s.encoding),
                      sp + (key,))
-        if s.encoding == "flag" and s.bit_length != 1:
-            ctx.emit("flag-length", _("flag signal {name!r} is {bits} bits long", name=s.name, bits=s.bit_length),
-                     sp + ("bit_length",))
+        for key in _misplaced_float_fields(s):
+            ctx.emit("encoding-field", _("{key} does not apply to a floating-point number", key=key), sp + (key,))
+        if s.terminator is not None and s.encoding == "bytes" and not s.is_text:
+            ctx.emit("encoding-field", _("terminator applies to text: set charset"), sp + ("terminator",))
         _check_flags(ctx, s)
 
         if s.factor == 0:
             ctx.emit("zero-factor", "factor = 0", sp + ("factor",))
-        elif s.encoding == "scaled":
+        elif s.encoding == "number" and not s.is_float:
             phys = sorted((lo * s.factor + s.offset, hi * s.factor + s.offset))
             if s.min is not None and s.max is not None and s.min > s.max:
                 ctx.emit("min-max", _("min {min} > max {max}", min=s.min, max=s.max), sp + ("min",))
@@ -792,24 +793,24 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                                key=k, value=val, lo=phys[0], hi=phys[1], unit=s.unit or "").rstrip(), sp + (k,))
 
         aligned = s.start_bit % 8 == 0 and s.bit_length % 8 == 0 and s.byte_order == "little_endian"
-        if s.encoding == "string":
+        if s.is_text:
             if not aligned:
-                ctx.emit("string-field", _("string {name!r} must start at a byte boundary and take whole bytes "
+                ctx.emit("string-field", _("text {name!r} must start at a byte boundary and take whole bytes "
                                            "(little-endian)", name=s.name), sp + ("bit_length",))
             if s.terminator is not None and s.terminator_byte is None:
                 ctx.emit("string-field", _("terminator of {name!r} must be one byte: 0x00..0xFF or one character of "
                                            "the charset", name=s.name), sp + ("terminator",))
         elif s.bit_length > 64 and not (s.encoding == "bytes" and aligned):
-            ctx.emit("signal-length", _("signal {name!r} is {bits} bits long: only a byte array (encoding: bytes, "
+            ctx.emit("signal-length", _("signal {name!r} is {bits} bits long: only bytes (encoding: bytes, "
                                         "little-endian, starting at a byte boundary) can be longer than 64 bits",
                                         name=s.name, bits=s.bit_length), sp + ("bit_length",))
-        if s.encoding == "float" and s.bit_length not in (32, 64):
+        if s.is_float and s.bit_length not in (32, 64):
             ctx.emit("float-length", _("signal {name!r}: float must be 32 or 64 bits, got {bits}",
                                        name=s.name, bits=s.bit_length), sp + ("bit_length",))
-        if s.encoding == "scaled" and not s.unit and (s.factor != 1 or s.offset != 0):
+        if s.encoding == "number" and not s.unit and (s.factor != 1 or s.offset != 0):
             ctx.emit("missing-unit", _("physical quantity {name!r} has no unit", name=s.name),
                      sp + ("unit",))
-        raw_lo, raw_hi = (lo, hi) if s.encoding != "float" else (None, None)
+        raw_lo, raw_hi = (lo, hi) if not s.is_float else (None, None)
         for lo_v, hi_v in (r for ranges in s.invalid_ranges.values() for r in ranges):
             shown = str(lo_v) if lo_v == hi_v else f"{lo_v}..{hi_v}"
             if raw_lo is not None and not (raw_lo <= lo_v and hi_v <= raw_hi):
@@ -894,27 +895,36 @@ def _dup_enum_names(ctx: _Ctx, values, path) -> None:
 
 # Encodings a signal field applies to (a field is set if it differs from its default)
 ENCODING_FIELDS = {
-    "factor": ("scaled", "float"),
-    "offset": ("scaled", "float"),
-    "unit": ("raw", "scaled", "float"),
-    "min": ("raw", "scaled", "float"),
-    "max": ("raw", "scaled", "float"),
-    "values": ("enum", "flag"),
+    "factor": ("number",),
+    "offset": ("number",),
+    "unit": ("number",),
+    "min": ("number",),
+    "max": ("number",),
+    "values": ("enum",),
     "flags": ("bitfield",),
-    "representation": ("raw", "scaled", "enum"),
-    "invalid_raw": ("raw", "scaled", "enum"),
-    "charset": ("string",),
-    "terminator": ("string",),
-    "initial": ("raw", "scaled", "enum", "flag", "float"),
-    "source": ("raw",),
+    "representation": ("number",),
+    "invalid_raw": ("number",),
+    "charset": ("bytes",),
+    "terminator": ("bytes",),
+    "initial": ("number", "enum"),
+    "source": ("number",),
 }
+# Fields of an integer that a floating-point number does not have
+NOT_FLOAT_FIELDS = ("invalid_raw", "source")
+
+
+def _is_set(s: Signal, key: str) -> bool:
+    return getattr(s, key) not in (Signal.model_fields[key].default, None, [], {})
 
 
 def _misplaced_fields(s: Signal) -> list[str]:
     """Fields of a signal that are set but do not apply to its encoding."""
-    defaults = {k: Signal.model_fields[k].default for k in ENCODING_FIELDS}
-    return [k for k, allowed in ENCODING_FIELDS.items()
-            if s.encoding not in allowed and getattr(s, k) not in (defaults[k], None, [], {})]
+    return [k for k, allowed in ENCODING_FIELDS.items() if s.encoding not in allowed and _is_set(s, k)]
+
+
+def _misplaced_float_fields(s: Signal) -> list[str]:
+    """Fields of a floating-point number that only an integer has."""
+    return [k for k in NOT_FLOAT_FIELDS if s.encoding == "number" and s.is_float and _is_set(s, k)]
 
 
 def _check_flags(ctx: _Ctx, s: Signal) -> None:

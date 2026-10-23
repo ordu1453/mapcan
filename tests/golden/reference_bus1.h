@@ -209,12 +209,12 @@ typedef struct {
 #define BUS1_MAP_VERSION_MAJOR 1u
 #define BUS1_MAP_VERSION_MINOR 0u
 #define BUS1_MAP_VERSION_PATCH 0u
-#define BUS1_MAP_LAYOUT_CRC32 0x32019DD4u
+#define BUS1_MAP_LAYOUT_CRC32 0x0B220862u
 #ifndef MAPCAN_NO_DEPRECATED
 #define MAP_VERSION_MAJOR 1u /* устарело: используйте BUS1_MAP_VERSION_MAJOR */
 #define MAP_VERSION_MINOR 0u /* устарело: используйте BUS1_MAP_VERSION_MINOR */
 #define MAP_VERSION_PATCH 0u /* устарело: используйте BUS1_MAP_VERSION_PATCH */
-#define MAP_LAYOUT_CRC32 0x32019DD4u /* устарело: используйте BUS1_MAP_LAYOUT_CRC32 */
+#define MAP_LAYOUT_CRC32 0x0B220862u /* устарело: используйте BUS1_MAP_LAYOUT_CRC32 */
 #endif
 #define BUS1_BITRATE 500000u
 #define IMD_NODE_ID 0x21u
@@ -248,36 +248,6 @@ int sync_unpack(sync_t *msg, const uint8_t *data, size_t size);
 #define TIME_STAMP_LENGTH 6u
 #define TIME_STAMP_DLC TIME_STAMP_LENGTH /* устарело: используйте TIME_STAMP_LENGTH */
 #define TIME_STAMP_ON_EVENT 1
-
-#define TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR (1.0)
-#define TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET (0.0)
-/* ms_after_midnight: единица измерения — мс */
-static inline double time_stamp_ms_after_midnight_to_phys(uint32_t raw)
-{
-    return ((double)raw * TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR) + TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET;
-}
-static inline uint32_t time_stamp_ms_after_midnight_from_phys(double phys)
-{
-    double r = mapcan_round_d((phys - TIME_STAMP_MS_AFTER_MIDNIGHT_OFFSET) / TIME_STAMP_MS_AFTER_MIDNIGHT_FACTOR);
-    if (r < 0.0) { return 0u; }
-    if (r >= 268435456.0) { return 268435455u; }
-    return (uint32_t)r;
-}
-
-#define TIME_STAMP_DAYS_SINCE_1984_FACTOR (1.0F)
-#define TIME_STAMP_DAYS_SINCE_1984_OFFSET (0.0F)
-/* days_since_1984: единица измерения — сут */
-static inline float time_stamp_days_since_1984_to_phys(uint16_t raw)
-{
-    return ((float)raw * TIME_STAMP_DAYS_SINCE_1984_FACTOR) + TIME_STAMP_DAYS_SINCE_1984_OFFSET;
-}
-static inline uint16_t time_stamp_days_since_1984_from_phys(float phys)
-{
-    float r = mapcan_round_f((phys - TIME_STAMP_DAYS_SINCE_1984_OFFSET) / TIME_STAMP_DAYS_SINCE_1984_FACTOR);
-    if (r < 0.0F) { return 0u; }
-    if (r >= 65536.0F) { return 65535u; }
-    return (uint16_t)r;
-}
 
 typedef struct {
     uint32_t ms_after_midnight; /* Миллисекунды с начала суток [мс] */
@@ -352,37 +322,7 @@ typedef enum {
 
 static inline int imd_data_resistance_plus_in_range(uint16_t raw) { return raw <= 10000u; }
 
-#define IMD_DATA_RESISTANCE_PLUS_FACTOR (1.0F)
-#define IMD_DATA_RESISTANCE_PLUS_OFFSET (0.0F)
-/* resistance_plus: единица измерения — кОм */
-static inline float imd_data_resistance_plus_to_phys(uint16_t raw)
-{
-    return ((float)raw * IMD_DATA_RESISTANCE_PLUS_FACTOR) + IMD_DATA_RESISTANCE_PLUS_OFFSET;
-}
-static inline uint16_t imd_data_resistance_plus_from_phys(float phys)
-{
-    float r = mapcan_round_f((phys - IMD_DATA_RESISTANCE_PLUS_OFFSET) / IMD_DATA_RESISTANCE_PLUS_FACTOR);
-    if (r < 0.0F) { return 0u; }
-    if (r >= 65536.0F) { return 65535u; }
-    return (uint16_t)r;
-}
-
 static inline int imd_data_resistance_minus_in_range(uint16_t raw) { return raw <= 10000u; }
-
-#define IMD_DATA_RESISTANCE_MINUS_FACTOR (1.0F)
-#define IMD_DATA_RESISTANCE_MINUS_OFFSET (0.0F)
-/* resistance_minus: единица измерения — кОм */
-static inline float imd_data_resistance_minus_to_phys(uint16_t raw)
-{
-    return ((float)raw * IMD_DATA_RESISTANCE_MINUS_FACTOR) + IMD_DATA_RESISTANCE_MINUS_OFFSET;
-}
-static inline uint16_t imd_data_resistance_minus_from_phys(float phys)
-{
-    float r = mapcan_round_f((phys - IMD_DATA_RESISTANCE_MINUS_OFFSET) / IMD_DATA_RESISTANCE_MINUS_FACTOR);
-    if (r < 0.0F) { return 0u; }
-    if (r >= 65536.0F) { return 65535u; }
-    return (uint16_t)r;
-}
 
 /* bus_voltage_calculated: Флаг расчёта напряжения шины питания */
 typedef enum {
@@ -474,36 +414,6 @@ typedef enum {
     IMD_SDO_REQUEST_SDO_SUBINDEX_SET_ALARM_RESISTANCE = 1, /* Установка ALARM_RESISTANCE */
     IMD_SDO_REQUEST_SDO_SUBINDEX_SET_WARNING_RESISTANCE = 2, /* Установка WARNING_RESISTANCE */
 } imd_sdo_request_sdo_subindex_t;
-
-#define IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR (1.0F)
-#define IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET (0.0F)
-/* alarm_resistance: единица измерения — кОм */
-static inline float imd_sdo_request_alarm_resistance_to_phys(uint16_t raw)
-{
-    return ((float)raw * IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR) + IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET;
-}
-static inline uint16_t imd_sdo_request_alarm_resistance_from_phys(float phys)
-{
-    float r = mapcan_round_f((phys - IMD_SDO_REQUEST_ALARM_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_ALARM_RESISTANCE_FACTOR);
-    if (r < 0.0F) { return 0u; }
-    if (r >= 65536.0F) { return 65535u; }
-    return (uint16_t)r;
-}
-
-#define IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR (1.0F)
-#define IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET (0.0F)
-/* warning_resistance: единица измерения — кОм */
-static inline float imd_sdo_request_warning_resistance_to_phys(uint16_t raw)
-{
-    return ((float)raw * IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR) + IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET;
-}
-static inline uint16_t imd_sdo_request_warning_resistance_from_phys(float phys)
-{
-    float r = mapcan_round_f((phys - IMD_SDO_REQUEST_WARNING_RESISTANCE_OFFSET) / IMD_SDO_REQUEST_WARNING_RESISTANCE_FACTOR);
-    if (r < 0.0F) { return 0u; }
-    if (r >= 65536.0F) { return 65535u; }
-    return (uint16_t)r;
-}
 
 typedef struct {
     uint8_t sdo_command; /* Команда SDO */

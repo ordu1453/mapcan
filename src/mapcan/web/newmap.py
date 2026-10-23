@@ -49,7 +49,7 @@ def _map_text(_: Callable[..., str], doc_lang: str, template: str, title: str, a
     lines = [
         schema_line(),
         "",
-        "mapcan: 1",
+        "mapcan: 2",
         "",
         "document:",
         f"  title: {_q(title or _('New map'))}",

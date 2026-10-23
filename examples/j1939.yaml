@@ -4,7 +4,7 @@
 # The 29-bit CAN ID is computed: priority | PGN (for PDU1 — with the destination address) | source address.
 # J1939 "not available" values: 0xFF (1 byte), 0xFFFF (2 bytes).
 
-mapcan: 1
+mapcan: 2
 
 document:
   title: J1939 example map
@@ -46,7 +46,7 @@ buses:
                 spn: 899
               - name: demand_torque
                 description: Driver's demand torque
-                encoding: scaled
+                encoding: number
                 byte: 1
                 byte_length: 1
                 offset: -125
@@ -57,7 +57,7 @@ buses:
                 spn: 512
               - name: actual_torque
                 description: Actual engine torque
-                encoding: scaled
+                encoding: number
                 byte: 2
                 byte_length: 1
                 offset: -125
@@ -68,7 +68,7 @@ buses:
                 spn: 513
               - name: engine_speed
                 description: Engine speed
-                encoding: scaled
+                encoding: number
                 byte: 3
                 byte_length: 2
                 factor: 0.125
@@ -81,7 +81,7 @@ buses:
                 spn: 190
               - name: controlling_address
                 description: Address of the device controlling the engine
-                encoding: raw
+                encoding: number
                 byte: 5
                 byte_length: 1
                 value_format: hex
@@ -97,7 +97,7 @@ buses:
             signals:
               - name: coolant_temp
                 description: Coolant temperature
-                encoding: scaled
+                encoding: number
                 byte: 0
                 byte_length: 1
                 offset: -40
@@ -108,7 +108,7 @@ buses:
                 spn: 110
               - name: fuel_temp
                 description: Fuel temperature
-                encoding: scaled
+                encoding: number
                 byte: 1
                 byte_length: 1
                 offset: -40
@@ -117,7 +117,7 @@ buses:
                 spn: 174
               - name: oil_temp
                 description: Oil temperature
-                encoding: scaled
+                encoding: number
                 byte: 2
                 byte_length: 2
                 factor: 0.03125
@@ -136,9 +136,10 @@ buses:
             signals:
               - name: software_id
                 description: Software identification fields, separated by '*'
-                encoding: string
+                encoding: bytes
                 byte: 0
                 byte_length: 20
+                charset: ascii
                 terminator: "*"
                 spn: 234
 
@@ -157,7 +158,7 @@ buses:
             signals:
               - name: fuel_level
                 description: Fuel level
-                encoding: scaled
+                encoding: number
                 byte: 1
                 byte_length: 1
                 factor: 0.4

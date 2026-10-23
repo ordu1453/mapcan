@@ -88,8 +88,8 @@ _Сигналы не описаны._
 
 | Байт | Биты | Сигнал | Описание | Кодирование | Значения |
 |---|---|---|---|---|---|
-| 0–3 | 0–27 | `ms_after_midnight` | Миллисекунды с начала суток | 28 бит<br>1 мс/бит<br>little-endian |  |
-| 4–5 | 32–47 | `days_since_1984` | Дни с 1 января 1984 г. | uint16<br>1 сут/бит<br>little-endian |  |
+| 0–3 | 0–27 | `ms_after_midnight` | Миллисекунды с начала суток | 28 бит<br>мс<br>little-endian |  |
+| 4–5 | 32–47 | `days_since_1984` | Дни с 1 января 1984 г. | uint16<br>сут<br>little-endian |  |
 
 <a id="bus1-imd"></a>
 
@@ -148,8 +148,8 @@ _Сигналы не описаны._
 | Байт | Биты | Сигнал | Описание | Кодирование | Значения |
 |---|---|---|---|---|---|
 | 0 | 0–7 | `resistance_calculated` | Флаг расчёта сопротивления изоляции | uint8 | 0 – NOT_CALCULATED (значения сопротивлений изоляции не рассчитаны)<br>1 – CALCULATED (значения сопротивлений изоляции рассчитаны) |
-| 1–2 | 8–23 | `resistance_plus` | Изоляция между «плюсом» шины питания и корпусом | uint16<br>1 кОм/бит<br>little-endian | диапазон: 0 … 10000 кОм |
-| 3–4 | 24–39 | `resistance_minus` | Изоляция между «минусом» шины питания и корпусом | uint16<br>1 кОм/бит<br>little-endian | диапазон: 0 … 10000 кОм |
+| 1–2 | 8–23 | `resistance_plus` | Изоляция между «плюсом» шины питания и корпусом | uint16<br>кОм<br>little-endian | диапазон: 0 … 10000 кОм |
+| 3–4 | 24–39 | `resistance_minus` | Изоляция между «минусом» шины питания и корпусом | uint16<br>кОм<br>little-endian | диапазон: 0 … 10000 кОм |
 | 5 | 40–47 | `bus_voltage_calculated` | Флаг расчёта напряжения шины питания | uint8 | 0 – NOT_CALCULATED (значение напряжения не рассчитано)<br>1 – CALCULATED (значение напряжения рассчитано) |
 | 6–7 | 48–63 | `bus_voltage` | Напряжение шины питания | uint16<br>0.1 В/бит<br>little-endian |  |
 
@@ -197,8 +197,8 @@ _Сигналы не описаны._
 | 0 | 0–7 | `sdo_command` | Команда SDO | uint8 | 0x2B – WRITE_2_BYTES |
 | 1–2 | 8–23 | `sdo_index` | Индекс объекта | uint16<br>little-endian | 0x4010 – INDEX_4010 |
 | 3 | 24–31 | `sdo_subindex` | Субиндекс объекта | uint8<br>селектор mux | 0x01 – SET_ALARM_RESISTANCE (Установка ALARM_RESISTANCE)<br>0x02 – SET_WARNING_RESISTANCE (Установка WARNING_RESISTANCE) |
-| 4–5 | 32–47 | `alarm_resistance` | Порог аварийного сопротивления изоляции<br>_при sdo_subindex = 0x01 (SET_ALARM_RESISTANCE)_ | uint16<br>1 кОм/бит<br>little-endian |  |
-| 4–5 | 32–47 | `warning_resistance` | Порог предупредительного сопротивления изоляции<br>_при sdo_subindex = 0x02 (SET_WARNING_RESISTANCE)_ | uint16<br>1 кОм/бит<br>little-endian |  |
+| 4–5 | 32–47 | `alarm_resistance` | Порог аварийного сопротивления изоляции<br>_при sdo_subindex = 0x01 (SET_ALARM_RESISTANCE)_ | uint16<br>кОм<br>little-endian |  |
+| 4–5 | 32–47 | `warning_resistance` | Порог предупредительного сопротивления изоляции<br>_при sdo_subindex = 0x02 (SET_WARNING_RESISTANCE)_ | uint16<br>кОм<br>little-endian |  |
 
 **SDO-обмены**
 

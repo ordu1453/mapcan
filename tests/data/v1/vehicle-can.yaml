@@ -1,0 +1,164 @@
+# yaml-language-server: $schema=../../../schema/mapcan-v1.schema.json
+# Format version 1, frozen (tests/test_format_v1.py): the example as mapcan 0.23 had it.
+#
+# Example map without CANopen: CAN 2.0A/B with explicit IDs and a CAN FD bus.
+# Shows float32/float64, big-endian, 29-bit IDs, a multiplexer, frame receivers,
+# default values (initial) and "not available" values (invalid).
+
+mapcan: 1
+
+document:
+  title: Electric vehicle example map
+  version: 0.1.0
+  language: en
+
+buses:
+  - name: powertrain
+    title: Powertrain bus
+    protocol: can
+    bitrate: 500000
+    devices:
+      - name: bms
+        short: BMS
+        title: Battery management system
+        frames:
+          - name: bms_status
+            description: Battery state
+            id: 0x100
+            length: 8
+            cycle_ms: 100
+            receivers: [vcu, dashboard]
+            signals:
+              - name: pack_voltage
+                description: Pack voltage
+                encoding: float
+                byte: 0
+                unit: V
+                min: 0
+                max: 1000
+              - name: pack_current
+                description: Pack current (negative while charging)
+                encoding: float
+                byte: 4
+                unit: A
+                initial: 0
+
+          - name: bms_cells
+            description: Cell voltages, three per frame
+            id: 0x18FF5001
+            extended: true
+            length: 8
+            cycle_ms: 500
+            receivers: [vcu]
+            signals:
+              - name: cell_group
+                description: Cell group
+                encoding: enum
+                byte: 0
+                byte_length: 1
+                values:
+                  0: {name: CELLS_1_3, description: cells 1–3}
+                  1: {name: CELLS_4_6, description: cells 4–6}
+                multiplexer: true
+              - {name: cell_1, description: Cell 1, encoding: scaled, byte: 1, byte_length: 2, byte_order: big_endian,
+                 factor: 0.001, unit: V, mux: 0, invalid_raw: 0xFFFF}
+              - {name: cell_2, description: Cell 2, encoding: scaled, byte: 3, byte_length: 2, byte_order: big_endian,
+                 factor: 0.001, unit: V, mux: 0, invalid_raw: 0xFFFF}
+              - {name: cell_3, description: Cell 3, encoding: scaled, byte: 5, byte_length: 2, byte_order: big_endian,
+                 factor: 0.001, unit: V, mux: 0, invalid_raw: 0xFFFF}
+              - {name: cell_4, description: Cell 4, encoding: scaled, byte: 1, byte_length: 2, byte_order: big_endian,
+                 factor: 0.001, unit: V, mux: 1, invalid_raw: 0xFFFF}
+              - {name: cell_5, description: Cell 5, encoding: scaled, byte: 3, byte_length: 2, byte_order: big_endian,
+                 factor: 0.001, unit: V, mux: 1, invalid_raw: 0xFFFF}
+              - {name: cell_6, description: Cell 6, encoding: scaled, byte: 5, byte_length: 2, byte_order: big_endian,
+                 factor: 0.001, unit: V, mux: 1, invalid_raw: 0xFFFF}
+
+      - name: vcu
+        short: VCU
+        title: Vehicle control unit
+        frames:
+          - name: vcu_command
+            description: Commands to the battery and the inverter
+            id: 0x200
+            length: 8
+            cycle_ms: 20
+            receivers: [bms]
+            signals:
+              - name: contactor_request
+                description: Requested contactor state
+                encoding: enum
+                byte: 0
+                byte_length: 1
+                values:
+                  0: {name: OPEN, description: open}
+                  1: {name: PRECHARGE, description: precharge}
+                  2: {name: CLOSE, description: close}
+                initial: 0
+              - name: torque_request
+                description: Torque request
+                encoding: scaled
+                byte: 1
+                byte_length: 2
+                representation: twos_complement
+                factor: 0.1
+                unit: N·m
+                min: -500
+                max: 500
+                initial: 0
+              - name: max_charge_current
+                description: Maximum charge current
+                encoding: float
+                byte: 3
+                byte_order: big_endian
+                unit: A
+          - name: vcu_map_info
+            description: The map the VCU software was built from, sent on request
+            id: 0x7F0
+            length: 7
+            trigger: on_request
+            receivers: [dashboard]
+            signals:
+              - {name: map_major, description: "Map version, major", encoding: raw, byte: 0, byte_length: 1,
+                 source: map_version.major}
+              - {name: map_minor, description: "Map version, minor", encoding: raw, byte: 1, byte_length: 1,
+                 source: map_version.minor}
+              - {name: map_patch, description: "Map version, patch", encoding: raw, byte: 2, byte_length: 1,
+                 source: map_version.patch}
+              - {name: map_layout_crc, encoding: raw, description: CRC32 of the map's frame layouts, byte: 3,
+                 byte_length: 4, source: layout_crc32}
+
+      - name: dashboard
+        short: IC
+        title: Instrument cluster
+        frames: []
+
+  - name: logger
+    title: Data logger bus (CAN FD)
+    protocol: can
+    bitrate: 500000
+    sample_point: 80
+    fd: true
+    data_bitrate: 2000000     # the data field of frames with the bit rate switch (BRS)
+    data_sample_point: 75
+    devices:
+      - name: datalogger
+        short: LOG
+        title: Data logger
+        frames:
+          - name: log_record
+            description: Log record
+            id: 0x300
+            length: 64
+            trigger: event
+            signals:
+              - name: timestamp
+                description: Record time
+                encoding: float
+                byte: 0
+                bit_length: 64
+                unit: s
+              - name: payload
+                description: Record data
+                encoding: bytes
+                byte: 8
+                byte_length: 8

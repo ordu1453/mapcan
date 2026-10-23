@@ -11,7 +11,7 @@ FRAME = ("buses", 0, "devices", 0, "frames", 0)
 
 
 def frame_map(signals: str, length: str = "length: 8", fd: bool = False) -> str:
-    return f"""mapcan: 1
+    return f"""mapcan: 2
 document: {{title: T, language: en}}
 buses:
   - name: b
@@ -29,7 +29,7 @@ buses:
 
 
 def sig(name: str, place: str) -> str:
-    return f"              - {{name: {name}, description: {name}, encoding: raw, {place}}}"
+    return f"              - {{name: {name}, description: {name}, encoding: number, {place}}}"
 
 
 def bits(text: str) -> dict[str, set[int]]:

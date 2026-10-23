@@ -92,8 +92,8 @@ def test_english_validation_messages():
           id: 0x100
           length: 1
           signals:
-            - {name: a, encoding: raw, byte: 0, byte_length: 1}
-            - {name: b, encoding: raw, byte: 0, byte_length: 1, description: x}
+            - {name: a, encoding: number, byte: 0, byte_length: 1}
+            - {name: b, encoding: number, byte: 0, byte_length: 1, description: x}
     """))
     msgs = {d.code: d.message for d in report.diagnostics}
     assert msgs["bit-overlap"] == "signal 'b' overlaps 'a': bits 0..7 (byte 0)"
@@ -166,7 +166,7 @@ def test_any_iso_language():
           length: 1
           title: {de: Zustand, en: State}
           signals:
-            - {name: a, encoding: raw, description: x, byte: 0, byte_length: 1}
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 1}
     """
     res, rep = run(one_bus(frame).replace("  language: ru", "  language: de"))
     assert res.map is not None and not rep.errors and res.map.document.language == "de"

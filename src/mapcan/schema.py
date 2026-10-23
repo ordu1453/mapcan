@@ -8,9 +8,10 @@ from .i18n import _
 from .model import MapCan, MapPart
 
 # Published on GitHub Pages by each release (.github/workflows/pages.yml): the schema of the released format, at
-# a URL that stays for the whole of version 1 of the format
-SCHEMA_ID = "https://ordu1453.github.io/mapcan/schema/v1.json"
-PART_SCHEMA_ID = "https://ordu1453.github.io/mapcan/schema/part-v1.json"
+# a URL that stays for the whole of version 2 of the format. The schemas of version 1 stay at …/v1.json and
+# …/part-v1.json (schema/mapcan-v1.schema.json, frozen).
+SCHEMA_ID = "https://ordu1453.github.io/mapcan/schema/v2.json"
+PART_SCHEMA_ID = "https://ordu1453.github.io/mapcan/schema/part-v2.json"
 
 
 def schema_line(part: bool = False) -> str:
@@ -23,8 +24,8 @@ def json_schema(part: bool = False) -> dict[str, Any]:
     schema = (MapPart if part else MapCan).model_json_schema(mode="validation")
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
     schema["$id"] = PART_SCHEMA_ID if part else SCHEMA_ID
-    schema["title"] = (_("mapcan — file included by a map (format v1)") if part
-                       else _("mapcan — CAN signal map (format v1)"))
+    schema["title"] = (_("mapcan — file included by a map (format v2)") if part
+                       else _("mapcan — CAN signal map (format v2)"))
     _allow_int_keys(schema)
     return schema
 

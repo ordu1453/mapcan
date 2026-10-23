@@ -18,7 +18,7 @@ mapcan gen py      FILE [-o DIR] [--bus NAME]
 mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,eds,c,py] [--pdf-template NAME]
 mapcan diff        OLD NEW [--format text|md|json] [--fail-on breaking|any]
 mapcan import dbc  FILE.dbc [-o FILE.yaml] [--title TEXT] [--lang en] [--force]
-mapcan migrate     FILE… [--check]      # former field names → current ones
+mapcan migrate     FILE… [--check]      # former field names → current ones, format v1 → v2
 mapcan fmt         FILE… [--check]      # keys in one order, comments and layout kept
 mapcan schema      [-o schema.json] [--part]   # --part: schema of an included file
 mapcan template    --list | pdf [--name gost-2.105] -o FILE | md|html|xlsx-style -o FILE
@@ -97,7 +97,7 @@ is defined. `--prefix` puts one more prefix in front of every name and file.
 
 Each signal is read and written with the shifts and masks of the bytes it touches, worked out from the
 map, in an unsigned type of its width: no loop over bits and no 64-bit arithmetic for a short field, which
-matters on Cortex-M0 and 8/16-bit MCUs. Physical values of scaled signals are `float` (`double` only where
+matters on Cortex-M0 and 8/16-bit MCUs. Physical values of signals with `factor` or `offset` are `float` (`double` only where
 `float` cannot hold the raw values exactly, fields longer than 24 bits); `--phys-type double` makes them all
 `double`. On an MCU without an FPU, `--phys-type int` computes them in integers: the physical value is an
 integer in units of the decimals of the factor and offset (`0.125` and `-40` give thousandths:

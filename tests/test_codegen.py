@@ -39,13 +39,13 @@ def sample(frame) -> dict:
     vals = {}
     sel = selector_of(frame)
     for i, s in enumerate(frame.layout):
-        if is_byte_array(s) and s.encoding == "string":
+        if is_byte_array(s) and s.is_text:
             # Text that fills the field: no terminator, so it reads back the same
             vals[s.name] = "".join(chr(ord("A") + (k + i) % 26) for k in range(s.bit_length // 8))
         elif is_byte_array(s):
             vals[s.name] = bytes((0x11 * (k + 1) + i) & 0xFF for k in range(s.bit_length // 8))
         else:
-            vals[s.name] = 1.5 + 0.25 * i if s.encoding == "float" else _value(s, i)
+            vals[s.name] = 1.5 + 0.25 * i if s.is_float else _value(s, i)
     if sel is not None:
         muxed = [s for s in frame.layout if s.mux is not None]
         if muxed:
@@ -110,7 +110,7 @@ def test_python_decode_standard_and_extended(tmp_path):
     from mapcan.loader import loads
 
     m = loads("""
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus
@@ -118,9 +118,9 @@ buses:
     devices:
       - name: a
         frames:
-          - {name: std, id: 0x100, length: 1, signals: [{name: s, encoding: raw, byte: 0, byte_length: 1}]}
+          - {name: std, id: 0x100, length: 1, signals: [{name: s, encoding: number, byte: 0, byte_length: 1}]}
           - {name: ext, id: 0x100, extended: true, length: 1,
-             signals: [{name: e, encoding: raw, byte: 0, byte_length: 1}]}
+             signals: [{name: e, encoding: number, byte: 0, byte_length: 1}]}
 """, "t.yaml").map
     [path] = generate_py(m, tmp_path)
     mod = _import(path)
@@ -192,7 +192,7 @@ GCC = shutil.which("gcc") or shutil.which("cc")
 def _c_lit(s, v) -> str:
     if isinstance(v, bytes):
         return "{" + ", ".join(f"0x{b:02X}" for b in v) + "}"
-    if s.encoding == "float":
+    if s.is_float:
         return repr(float(v)) + ("" if s.bit_length == 64 else "f")
     if s.signed:
         return f"({v}LL)"
@@ -235,7 +235,7 @@ def test_c_matches_python(cmap, py_modules, tmp_path):
                     main.append(f'        hex("{f.name}.{s.name}", (const uint8_t *)u.{s.name}, {s.bit_length // 8});')
                     data = vals[s.name].encode("ascii") if isinstance(vals[s.name], str) else vals[s.name]
                     expected.append(f"{f.name}.{s.name}" + "".join(f" {b:02X}" for b in data))
-                elif s.encoding == "float":
+                elif s.is_float:
                     # Compared by the exact IEEE 754 bits.
                     w = 64 if s.bit_length == 64 else 32
                     main.append(f'        printf("{f.name}.{s.name} %" PRIu64 "\\n", '
@@ -307,7 +307,7 @@ def test_c_compiles_for_cortex_m(cmap, tmp_path):
 
 
 BOUNDS_MAP = """\
-mapcan: 1
+mapcan: 2
 document:
   title: Test
   language: ru
@@ -321,24 +321,24 @@ buses:
             id: 0x101
             length: 8
             signals:
-              - {name: u28, encoding: scaled, start_bit: 0, bit_length: 28, unit: ms}
-              - {name: s32, encoding: scaled, start_bit: 28, bit_length: 32, factor: 0.5,
+              - {name: u28, encoding: number, start_bit: 0, bit_length: 28, unit: ms}
+              - {name: s32, encoding: number, start_bit: 28, bit_length: 32, factor: 0.5,
                  representation: twos_complement}
           - name: f2
             id: 0x102
             length: 8
             signals:
-              - {name: u64, encoding: scaled, start_bit: 0, bit_length: 64, factor: 2}
+              - {name: u64, encoding: number, start_bit: 0, bit_length: 64, factor: 2}
           - name: f3
             id: 0x103
             length: 8
             signals:
-              - {name: s64, encoding: scaled, start_bit: 0, bit_length: 64, representation: twos_complement, factor: 2}
+              - {name: s64, encoding: number, start_bit: 0, bit_length: 64, representation: twos_complement, factor: 2}
           - name: f4
             id: 0x104
             length: 8
             signals:
-              - {name: s8, encoding: scaled, start_bit: 0, bit_length: 8, representation: twos_complement, factor: 0.5}
+              - {name: s8, encoding: number, start_bit: 0, bit_length: 8, representation: twos_complement, factor: 0.5}
 """
 
 
@@ -433,7 +433,7 @@ def test_dbc_warns_about_unencodable_chars(tmp_path):
 
 
 SIGNED_CODES_MAP = """\
-mapcan: 1
+mapcan: 2
 document: {title: Test, language: en}
 buses:
   - name: bus
@@ -443,10 +443,10 @@ buses:
         id: 0x100
         length: 8
         signals:
-          - {name: o8, encoding: raw, byte: 0, byte_length: 1, representation: ones_complement}
-          - {name: s8, encoding: raw, byte: 1, byte_length: 1, representation: sign_magnitude}
-          - {name: o12, encoding: raw, start_bit: 16, bit_length: 12, representation: ones_complement}
-          - {name: s16, encoding: raw, byte: 4, byte_length: 2, byte_order: big_endian,
+          - {name: o8, encoding: number, byte: 0, byte_length: 1, representation: ones_complement}
+          - {name: s8, encoding: number, byte: 1, byte_length: 1, representation: sign_magnitude}
+          - {name: o12, encoding: number, start_bit: 16, bit_length: 12, representation: ones_complement}
+          - {name: s16, encoding: number, byte: 4, byte_length: 2, byte_order: big_endian,
              representation: sign_magnitude}
 """
 # Bytes computed by hand: ones' complement −5 = 0xFA, sign-magnitude −5 = 0x85, 12 bits −100 = 0xF9B, −300 = 0x812C
@@ -524,7 +524,7 @@ def test_classic_can_has_no_fd_flags(ref_map, tmp_path):
 
 
 GATEWAY_MAP = """
-mapcan: 1
+mapcan: 2
 document: {{title: {title}, version: "{version}", language: en}}
 buses:
 {buses}
@@ -540,12 +540,12 @@ GATEWAY_BUS = """
             canopen: pdo_tx1
             length: 1
             signals:
-              - {{name: s, encoding: raw, byte: 0, byte_length: 1}}
+              - {{name: s, encoding: number, byte: 0, byte_length: 1}}
           - name: {bus}_only
             canopen: pdo_tx2
             length: 1
             signals:
-              - {{name: s, encoding: raw, byte: 0, byte_length: 1}}
+              - {{name: s, encoding: number, byte: 0, byte_length: 1}}
 """
 
 
@@ -593,7 +593,7 @@ def test_headers_of_buses_and_maps_build_together(tmp_path):
 
 
 INVALID_MAP = """
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus
@@ -603,9 +603,9 @@ buses:
         id: 0x100
         length: 8
         signals:
-          - {name: speed, encoding: scaled, byte: 0, byte_length: 2, factor: 0.125, unit: rpm,
+          - {name: speed, encoding: number, byte: 0, byte_length: 2, factor: 0.125, unit: rpm,
              invalid_raw: {not_available: [0xFF00..0xFFFF], error: [0xFE00..0xFEFF, 7]}}
-          - {name: temp, encoding: scaled, byte: 2, byte_length: 1, representation: twos_complement, unit: C,
+          - {name: temp, encoding: number, byte: 2, byte_length: 1, representation: twos_complement, unit: C,
              invalid_raw: [-128, -127..-120]}
 """
 # raw value → (not available, error) for speed
@@ -640,7 +640,7 @@ def test_invalid_helpers_c(tmp_path):
 
 
 STRING_MAP = """
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus
@@ -650,8 +650,8 @@ buses:
         id: 0x100
         length: 8
         signals:
-          - {name: code, encoding: string, byte: 0, byte_length: 5, terminator: "*"}
-          - {name: tag, encoding: string, byte: 5, byte_length: 3}
+          - {name: code, encoding: bytes, charset: ascii, byte: 0, byte_length: 5, terminator: "*"}
+          - {name: tag, encoding: bytes, charset: ascii, byte: 5, byte_length: 3}
 """
 
 
@@ -687,7 +687,7 @@ def test_strings_c(tmp_path):
 
 
 RANGE_MAP = """
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus
@@ -697,14 +697,15 @@ buses:
         id: 0x100
         length: 4
         signals:
-          - {name: u5, encoding: scaled, start_bit: 0, bit_length: 5, factor: 0.5}
-          - {name: s6, encoding: scaled, start_bit: 8, bit_length: 6, representation: twos_complement}
-          - {name: o8, encoding: raw, byte: 2, byte_length: 1, representation: ones_complement}
-          - {name: u8, encoding: raw, byte: 3, byte_length: 1}
+          - {name: u5, encoding: number, start_bit: 0, bit_length: 5, factor: 0.5}
+          - {name: s6, encoding: number, start_bit: 8, bit_length: 6, representation: twos_complement,
+             factor: 0.5}
+          - {name: o8, encoding: number, byte: 2, byte_length: 1, representation: ones_complement}
+          - {name: u8, encoding: number, byte: 3, byte_length: 1}
 """
 # Physical value → raw, the same in C and Python: rounded half away from zero, saturated to the field
 RANGE_PHYS = [("u5", 1000.0, 31), ("u5", -3.0, 0), ("u5", 0.25, 1), ("u5", 1.25, 3),
-              ("s6", 100.0, 31), ("s6", -100.0, -32), ("s6", -2.5, -3)]
+              ("s6", 100.0, 31), ("s6", -100.0, -32), ("s6", -1.25, -3)]
 # Raw values outside the field: C saturates them in pack()
 RANGE_RAW = {"u5": 40, "s6": -40, "o8": -128, "u8": 200}
 RANGE_SATURATED = {"u5": 31, "s6": -32, "o8": -127, "u8": 200}
@@ -749,7 +750,7 @@ def test_out_of_range_c_matches_python(tmp_path):
 
 
 ENUM_MAP = """
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus
@@ -809,7 +810,7 @@ def test_c_init_matches_python(cmap, py_modules, tmp_path):
 
 
 MUX_MAP = """
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus
@@ -819,10 +820,10 @@ buses:
         id: 0x100
         length: 3
         signals:
-          - {name: sel, encoding: raw, byte: 0, byte_length: 1, multiplexer: true}
-          - {name: a, encoding: raw, byte: 1, byte_length: 1, mux: 0, initial: 9}
-          - {name: b, encoding: raw, byte: 1, byte_length: 1, mux: 1}
-          - {name: tag, encoding: string, byte: 2, byte_length: 1, mux: 1, terminator: "*"}
+          - {name: sel, encoding: number, byte: 0, byte_length: 1, multiplexer: true}
+          - {name: a, encoding: number, byte: 1, byte_length: 1, mux: 0, initial: 9}
+          - {name: b, encoding: number, byte: 1, byte_length: 1, mux: 1}
+          - {name: tag, encoding: bytes, charset: ascii, byte: 2, byte_length: 1, mux: 1, terminator: "*"}
 """
 
 
@@ -872,14 +873,14 @@ def test_random_layouts_c_matches_python(tmp_path):
         length = rnd.choice([32, 64]) if kind == "float" else rnd.randint(1 if kind == "raw" else 2, 64)
         order = rnd.choice(["little_endian", "big_endian"])
         start = rnd.randint(0, 16 * 8 - 1)
-        sig = Signal(name="s", encoding="float" if kind == "float" else "raw", start_bit=start, bit_length=length,
-                     byte_order=order, representation="unsigned" if kind in ("raw", "float") else kind)
+        sig = Signal(name="s", encoding="number", start_bit=start, bit_length=length,
+                     byte_order=order, representation="unsigned" if kind == "raw" else kind)
         if any(not 0 <= b < 16 for b, *_ in CGen._chunks(sig)):
             continue
         name = f"f{len(frames)}"
-        rep = f", representation: {kind}" if kind not in ("raw", "float") else ""
+        rep = f", representation: {kind}" if kind != "raw" else ""
         frames.append(f"      - {{name: {name}, id: {0x100 + len(frames)}, length: 16, signals: [{{name: s, "
-                      f"encoding: {'float' if kind == 'float' else 'raw'}, start_bit: {start}, bit_length: {length}, "
+                      f"encoding: number, start_bit: {start}, bit_length: {length}, "
                       f"byte_order: {order}{rep}}}]}}")
         if kind == "float":
             values[name] = rnd.uniform(-1e6, 1e6) if length == 64 else struct.unpack("<f", struct.pack(
@@ -887,7 +888,7 @@ def test_random_layouts_c_matches_python(tmp_path):
         else:
             lo, hi = B.raw_range(length, kind != "raw", None if kind == "raw" else kind)
             values[name] = rnd.choice([lo, hi, 0, rnd.randint(lo, hi)])
-    text = ("mapcan: 1\ndocument: {title: T, language: en}\nbuses:\n  - name: bus\n    protocol: can\n"
+    text = ("mapcan: 2\ndocument: {title: T, language: en}\nbuses:\n  - name: bus\n    protocol: can\n"
             "    fd: true\n    frames:\n" + "\n".join(frames) + "\n")
     res = loads(text, "t.yaml")
     assert res.map is not None, res.report.sorted()[:3]
@@ -905,7 +906,7 @@ def test_random_layouts_c_matches_python(tmp_path):
                  f"        {f.name}_pack(buf, sizeof buf, &m);",
                  '        for (int i = 0; i < 16; i++) printf("%02X", buf[i]);',
                  f"        {f.name}_unpack(&u, buf, sizeof buf);"]
-        if s.encoding == "float":
+        if s.is_float:
             w = 64 if s.bit_length == 64 else 32
             main.append(f'        printf(" %" PRIu64 "\\n", (uint64_t)mapcan_f{w}_to_bits(u.s));')
             fmt, ufmt = ("<d", "<Q") if w == 64 else ("<f", "<I")
@@ -1004,7 +1005,7 @@ def test_device_code(cmap, py_modules, tmp_path):
                              f"{out_fn}(&rx, {idx}, {1001 + timeout}u));"]
                     expected.append(f"{f.name} {int(bool(timeout))} {i} 0 {int(bool(timeout))}")
                     for s in present(f, vals):
-                        if is_byte_array(s) or s.encoding == "float":
+                        if is_byte_array(s) or s.is_float:
                             continue
                         main.append(f'        printf("{f.name}.{s.name} %" PRId64 "\\n", '
                                     f"(int64_t)rx.{g.frame_name(f)}.{s.name});")
@@ -1056,7 +1057,7 @@ def test_gen_c_device_cli(tmp_path):
 
 
 LIMITS_MAP = """
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus
@@ -1067,12 +1068,12 @@ buses:
         length: 4
         trigger: event
         signals:
-          - {name: sel, encoding: raw, byte: 0, byte_length: 1, multiplexer: true}
-          - {name: temp, encoding: scaled, byte: 1, byte_length: 1, factor: 0.5, offset: -10, unit: C,
+          - {name: sel, encoding: number, byte: 0, byte_length: 1, multiplexer: true}
+          - {name: temp, encoding: number, byte: 1, byte_length: 1, factor: 0.5, offset: -10, unit: C,
              min: -5, max: 20, initial: 0, mux: 1}
-          - {name: neg, encoding: scaled, byte: 2, byte_length: 1, factor: -2, unit: V, min: -100, max: 10,
+          - {name: neg, encoding: number, byte: 2, byte_length: 1, factor: -2, unit: V, min: -100, max: 10,
              representation: twos_complement, mux: [1, 2]}
-          - {name: full, encoding: scaled, byte: 3, byte_length: 1, factor: 1, unit: A, min: 0, max: 255}
+          - {name: full, encoding: number, byte: 3, byte_length: 1, factor: 1, unit: A, min: 0, max: 255}
 """
 # temp: raw (min + 10) / 0.5 = 10 .. 60; neg (factor < 0): raw -5 .. 50; full: min..max is the whole field
 LIMITS = {"temp": (10, 60), "neg": (-5, 50)}
@@ -1185,7 +1186,7 @@ def test_cppcheck_and_misra(cmap, kind, tmp_path):
 
 
 INT_MAP = """
-mapcan: 1
+mapcan: 2
 document: {title: T, language: en}
 buses:
   - name: bus
@@ -1195,12 +1196,12 @@ buses:
         id: 0x100
         length: 8
         signals:
-          - {name: temp, encoding: scaled, byte: 0, byte_length: 1, factor: 0.125, offset: -40, unit: C}
-          - {name: neg, encoding: scaled, byte: 1, byte_length: 1, factor: -2, representation: twos_complement,
+          - {name: temp, encoding: number, byte: 0, byte_length: 1, factor: 0.125, offset: -40, unit: C}
+          - {name: neg, encoding: number, byte: 1, byte_length: 1, factor: -2, representation: twos_complement,
              unit: V}
-          - {name: third, encoding: scaled, byte: 2, byte_length: 1, factor: 0.3333333, offset: 0.1234567891234,
+          - {name: third, encoding: number, byte: 2, byte_length: 1, factor: 0.3333333, offset: 0.1234567891234,
              unit: A}
-          - {name: big, encoding: scaled, start_bit: 24, bit_length: 32, factor: 0.001, unit: V}
+          - {name: big, encoding: number, start_bit: 24, bit_length: 32, factor: 0.001, unit: V}
 """
 
 

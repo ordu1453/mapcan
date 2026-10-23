@@ -40,7 +40,7 @@ def test_diagnostics_have_ranges():
           canopen: pdo_tx1
           length: 8
           signals:
-            - {name: a, encoding: raw, byte: 0, bit_length: 99999}
+            - {name: a, encoding: number, byte: 0, bit_length: 99999}
     """)
     a = A.analyze(text, "t.yaml")
     d = next(d for d in a.diagnostics if d.code == "schema")
@@ -59,7 +59,7 @@ def test_symbols(minimal):
     assert (bus.kind, bus.name, bus.detail) == ("bus", "demo", "canopen")
     frame = bus.children[0].children[0]
     assert (frame.kind, frame.name, frame.detail) == ("frame", "pump_state", "0x1A1")
-    assert frame.children[2].detail == "scaled · bits 16–31"
+    assert frame.children[2].detail == "number · bits 16–31"
     assert [s.name for s in frame.children] == ["mode", "alarms", "pressure", "temperature", "speed", "counter"]
     assert [f.name for f in frame.children[1].children] == ["overheat", "dry_run", "sensor_state"]
     sel = frame.selection
@@ -113,8 +113,8 @@ def test_map_tree_selects_whole_blocks():
         "          # next frame\n"
         "          - name: f2\n"
         "            id: 0x300\n"
-        "            signals: [{name: a, encoding: raw, byte: 0, byte_length: 1},\n"
-        "                      {name: b, encoding: raw, byte: 1, byte_length: 1}]\n"
+        "            signals: [{name: a, encoding: number, byte: 0, byte_length: 1},\n"
+        "                      {name: b, encoding: number, byte: 1, byte_length: 1}]\n"
         "            sdo:\n"
         "              - {name: x, command: 0x40, index: 0x1000}\n"))
     a = A.analyze(text, "t.yaml")
@@ -128,7 +128,7 @@ def test_map_tree_selects_whole_blocks():
     assert _selected(a, flag) == ("{name: sensor_state, bit: 4, bit_length: 2,\n"
                                   "                     values: {0: OK, 1: OPEN, 2: SHORT}}")
     assert [_selected(a, s) for s in f2["children"]] == [
-        "{name: a, encoding: raw, byte: 0, byte_length: 1}", "{name: b, encoding: raw, byte: 1, byte_length: 1}",
+        "{name: a, encoding: number, byte: 0, byte_length: 1}", "{name: b, encoding: number, byte: 1, byte_length: 1}",
         "{name: x, command: 0x40, index: 0x1000}"]
     assert frame["range"][1] == 0   # the cursor on the "- " before the frame is inside the node too
 
@@ -157,7 +157,7 @@ def test_hover_field_description(minimal):
 
 def test_hover_signal_and_frame(minimal):
     sig = A.hover(minimal, at("name: pressure", 8))
-    assert sig.startswith("**pressure** · `scaled` · bits 16–31 · 16 bit")
+    assert sig.startswith("**pressure** · `number` · bits 16–31 · 16 bit")
     assert "phys = raw × 0.01 + 0" in sig and "unit: bar" in sig
     frame = A.hover(minimal, at("name: pump_state", 8))
     assert frame.startswith("**pump_state** · `0x1A1` · length 8")
@@ -185,7 +185,7 @@ def test_inlay_hint_skips_explicit_id():
         - name: st
           id: 0x123
           length: 8
-          signals: [{name: a, encoding: raw, byte: 0, byte_length: 1}]
+          signals: [{name: a, encoding: number, byte: 0, byte_length: 1}]
     """), "t.yaml")
     assert [h.label for h in A.inlay_hints(a)] == ["bits 0–7"]
 
@@ -193,7 +193,7 @@ def test_inlay_hint_skips_explicit_id():
 @pytest.mark.parametrize(("line", "key", "expected"), [
     ("    encoding: ", "encoding", "bitfield"),
     ("    byte_order: b", "byte_order", "big_endian"),
-    ("    - {name: a, encoding: ", "encoding", "float"),
+    ("    - {name: a, encoding: ", "encoding", "number"),
     ("    protocol: ", "protocol", "j1939"),
     ("    receivers: [pump, ", "receivers", "pump"),
     ("    sender: ", "sender", "pump"),
@@ -227,9 +227,9 @@ def test_export_from_an_included_file(tmp_path):
     """#135: Export in an included file exports the map it is a part of, next to that map."""
     from mapcan.lsp.exports import export
 
-    main = ("mapcan: 1\ndocument: {title: Example, language: en}\ninclude: [devices/node.yaml]\nbuses:\n"
+    main = ("mapcan: 2\ndocument: {title: Example, language: en}\ninclude: [devices/node.yaml]\nbuses:\n"
             "  - name: can1\n    title: CAN 1\n    protocol: canopen\n    bitrate: 500000\n    devices: []\n")
-    node = ("mapcan: 1\npart_of: ../main.yaml\nbuses:\n  - name: can1\n    devices:\n      - name: node\n"
+    node = ("mapcan: 2\npart_of: ../main.yaml\nbuses:\n  - name: can1\n    devices:\n      - name: node\n"
             "        title: Node\n        node_id: 0x10\n        frames: []\n")
     (tmp_path / "devices").mkdir()
     (tmp_path / "main.yaml").write_text(main, encoding="utf-8")
@@ -358,7 +358,7 @@ def test_definition_goes_to_the_main_file():
 
 def test_included_file_without_its_map(tmp_path):
     p = tmp_path / "part.yaml"
-    a = A.analyze_part("mapcan: 1\npart_of: nope.yaml\nbuses: []\n", str(p))
+    a = A.analyze_part("mapcan: 2\npart_of: nope.yaml\nbuses: []\n", str(p))
     assert a.diagnostics[0].code == "include" and "not found" in a.diagnostics[0].message
 
 

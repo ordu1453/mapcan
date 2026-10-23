@@ -1,8 +1,42 @@
 # Format changelog
 
-Changes of the map format by mapcan version. All of them keep `mapcan: 1`: see
+Changes of the map format by mapcan version. Up to 0.23 they keep `mapcan: 1`; 0.24 introduces
+`mapcan: 2`, and version 1 stays readable: see
 [Versioning and compatibility](format.md#versioning-and-compatibility). A map that uses a field
 needs at least the version of mapcan that introduced it; former names stay readable.
+
+## 0.24
+
+- **Format version 2** (`mapcan: 2`): a signal has four encodings instead of eight (#140), `number`, `enum`,
+  `bitfield` and `bytes`. Version 2 does not read the former values. A map of version 1 (`mapcan: 1`) is still
+  read, converted as below, with the note `format-v1`; `mapcan migrate` (or the quick fix in VS Code) rewrites
+  it and its included files in version 2, keeping comments and layout. New maps, device files and DBC imports
+  are written in version 2. The schemas move to `…/schema/v2.json` and `…/schema/part-v2.json`; those of
+  version 1 stay published at `…/v1.json` and `…/part-v1.json`.
+
+  | Version 1 | Version 2 |
+  |---|---|
+  | `raw`, `scaled` | `number`; `factor` and `offset` make it a physical value |
+  | `float` | `number` with `representation: float` (32 bits unless `bit_length: 64`) |
+  | `flag` | `enum` with `bit_length: 1` (the length is no longer implied) |
+  | `string` | `bytes` with `charset` (`ascii` was the default; now a byte array has no `charset`) |
+  | SDO value `raw`, `scaled` | `number` |
+
+- `representation` has the value `float` (IEEE 754), and applies to `number` only. `invalid_raw` and `source` do
+  not apply to a float, nor `terminator` to bytes without `charset` (`encoding-field`). The rule `flag-length` is
+  gone.
+- An `enum` has unsigned values only and no `invalid_raw`: a value that means "no data" is an entry of its table.
+  A version 1 enum with `representation` or `invalid_raw` is reported (`encoding-field`) and rewritten by hand.
+  DBC import writes a signed signal with a value table as a `number`, with a warning that the table is not
+  imported.
+- Generated C and Python have the physical-value helpers (`_to_phys`, `_from_phys`, `_phys`) of a signal only when
+  its `factor` or `offset` differs from 1 and 0: a former `scaled` signal without them has none, and documents
+  show its unit without "1 … /bit". The `min`/`max` range checks (`range-overflow`, `min-max`) cover every integer
+  `number`, not only scaled ones.
+- The layout fingerprint (`layout_crc32`, `<BUS>_MAP_LAYOUT_CRC32`) is computed from text `v2`, which names the new
+  encodings: it changes for every map, so firmware that sends it has to be rebuilt.
+- DBC import writes `number` (with `representation: float` for a float signal) and `enum`; a 1-bit signal without
+  a value table is a `number`.
 
 ## 0.23
 

@@ -244,8 +244,9 @@ def diff(
         raise typer.Exit(1)
 
 
-@app.command(help=_("Rewrite the former names of fields (deprecated-key) to the current ones, keeping comments and "
-                    "layout. Included files are rewritten too."))
+@app.command(help=_("Rewrite the former names of fields (deprecated-key) to the current ones, and a map of format "
+                    "version 1 in version 2 (format-v1), keeping comments and layout. Included files are rewritten "
+                    "too."))
 def migrate(
     paths: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help=_("Map files.")),
     check: bool = typer.Option(False, "--check", help=_("Do not write; exit code 1 if a file has former names.")),

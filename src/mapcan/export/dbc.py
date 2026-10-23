@@ -56,9 +56,9 @@ def _signal(name: str, s: Signal, start: int, length: int, lang: str, comment: s
         start=dbc_start,
         length=length,
         byte_order="big_endian" if be else "little_endian",
-        is_signed=s.signed and s.encoding != "float",
+        is_signed=s.signed and not s.is_float,
         conversion=BaseConversion.factory(scale=s.factor, offset=s.offset, choices=choices,
-                                          is_float=s.encoding == "float"),
+                                          is_float=s.is_float),
         raw_initial=s.initial_raw,
         # DBC has one "invalid" value: the first one meaning "not available"
         raw_invalid=next(iter(s.invalid_ranges.get("not_available", [])), (None,))[0],

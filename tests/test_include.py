@@ -10,7 +10,7 @@ from mapcan.loader import load
 from mapcan.validate import check
 
 MAIN = """\
-mapcan: 1
+mapcan: 2
 include: [common.yaml]
 document: {title: Test, language: en}
 value_tables:
@@ -223,7 +223,7 @@ def test_rename_and_references_span_the_files_of_the_map(tmp_path):
     assert rename_edits(a, ("buses", 0, "devices", 0, "frames", 0, "receivers", 0), "x")[0].start[0] == line
     assert [f for f, _r in reference_locations(a, pos)] == [common, None]
     # From common.yaml opened on its own: the device here, the receiver in the main file
-    part_text = f"mapcan: 1\npart_of: {main.name}\n" + read(common)
+    part_text = f"mapcan: 2\npart_of: {main.name}\n" + read(common)
     (tmp_path / "common.yaml").write_text(part_text, encoding="utf-8")
     b = analyze_part(part_text, common, read)
     files = rename_files(b, ("buses", 0, "devices", 1, "name"), "battery")
@@ -257,7 +257,7 @@ def test_tree_edits_of_included_nodes_go_to_their_file(tmp_path):
     part = analyze_part(f"part_of: {main.name}\n" + v.text, common, lambda p: open(p, encoding="utf-8").read())
     assert part.view_of(()).own_file is None and part.view_of(("buses", 0, "devices", 0)) is part.view_of(())
     assert part.view_of(bms) is part
-    assert add_node(part.view_of(()), (), "bus").text.startswith("mapcan: 1\ninclude: [common.yaml]\n")
+    assert add_node(part.view_of(()), (), "bus").text.startswith("mapcan: 2\ninclude: [common.yaml]\n")
 
 
 def test_web_editor_opens_the_map_of_an_included_file(tmp_path):
@@ -266,7 +266,7 @@ def test_web_editor_opens_the_map_of_an_included_file(tmp_path):
 
     main = write(tmp_path)
     common = tmp_path / "common.yaml"
-    common.write_text(f"mapcan: 1\npart_of: {main.name}\n" + common.read_text(encoding="utf-8"), encoding="utf-8")
+    common.write_text(f"mapcan: 2\npart_of: {main.name}\n" + common.read_text(encoding="utf-8"), encoding="utf-8")
     assert map_of(common) == main.resolve() and map_of(main) == main.resolve()
     s = EditorSession(common)
     st = s.state()
@@ -274,7 +274,7 @@ def test_web_editor_opens_the_map_of_an_included_file(tmp_path):
     assert EditorSession(main).state()["opened_part"] is None
     # A file that names a map which does not include it opens on its own
     stray = tmp_path / "stray.yaml"
-    stray.write_text(f"mapcan: 1\npart_of: {main.name}\nbuses: []\n", encoding="utf-8")
+    stray.write_text(f"mapcan: 2\npart_of: {main.name}\nbuses: []\n", encoding="utf-8")
     assert map_of(stray) == stray.resolve()
 
 
@@ -355,7 +355,7 @@ def test_web_save_checks_included_files_on_disk(tmp_path):
         s.save()
 
 
-HEADER = "mapcan: 1\npart_of: main.yaml\n"
+HEADER = "mapcan: 2\npart_of: main.yaml\n"
 
 
 def test_included_file_names_its_map(tmp_path):
@@ -371,7 +371,7 @@ def test_included_file_names_its_map(tmp_path):
     d = next(d for d in rep.diagnostics if d.code == "include")
     assert "'other.yaml'" in d.message and d.line == 2
     # A different format version is an error
-    _, rep = run(write(tmp_path, common=HEADER.replace("mapcan: 1", "mapcan: 2") + COMMON))
+    _, rep = run(write(tmp_path, common=HEADER.replace("mapcan: 2", "mapcan: 1") + COMMON))
     assert any(d.code == "include" and "version" in d.message for d in rep.diagnostics)
 
 

@@ -21,8 +21,8 @@ from ruamel.yaml.scalarint import HexCapsInt, HexInt
 from ruamel.yaml.util import load_yaml_guess_indent
 
 from ..i18n import _
-from ..model import Signal
-from ..upgrade import DROP, node_kind, renamed_along, renames, upgrade_tree
+from ..model import FORMAT_VERSION, Signal
+from ..upgrade import DROP, V1_KINDS, node_kind, renamed_along, renames, upgrade_tree, v1_encoding
 
 # Keys whose numbers are usually written in hex.
 HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
@@ -380,9 +380,53 @@ def migrate_doc(doc) -> int:
 
 
 def migrate_text(text: str) -> str:
-    """The map's text with every deprecated key rewritten and the frames' deprecated direction removed
-    (migrate_directions); the rest of the text stays as it was."""
-    return migrate_version_text(migrate_directions_text(migrate_renames_text(text)))
+    """The map's text with every deprecated key rewritten, the frames' deprecated direction removed
+    (migrate_directions) and a map of format version 1 rewritten in version 2 (migrate_format); the rest of the
+    text stays as it was."""
+    return migrate_format_text(migrate_version_text(migrate_directions_text(migrate_renames_text(text))))
+
+
+# The schema of each format version (schema.py), as written in the first line of a map
+_SCHEMA_V1 = re.compile(r"^(# yaml-language-server: \$schema=\S*?)(part-)?v1\.json\s*$", re.M)
+
+
+def migrate_format_text(text: str) -> str:
+    """The text of a map (or of a file it includes) of format version 1 in version 2 (migrate_format); other text
+    as it is."""
+    y = make_yaml(text)
+    doc = y.load(text)
+    if not isinstance(doc, dict) or doc.get("mapcan") != 1:
+        return text
+    canon_old = dump(y, doc)
+    migrate_format(doc)
+    return _SCHEMA_V1.sub(lambda m: f"{m.group(1)}{m.group(2) or ''}v{FORMAT_VERSION}.json",
+                          merge_text(text, canon_old, dump(y, doc)))
+
+
+def migrate_format(doc) -> bool:
+    """A map document of format version 1 in version 2 (upgrade.v1_encoding): the encodings of its signals and SDO
+    values, with the keys that keep their meaning added after them. True if it was version 1."""
+    if doc.get("mapcan") != 1:
+        return False
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            change = v1_encoding(node) if node_kind(_kind_path(path)) in V1_KINDS else None
+            if change is not None and isinstance(node, CommentedMap):
+                new, add = change
+                node["encoding"] = new
+                pos = list(node.keys()).index("encoding")
+                for i, (k, v) in enumerate(add.items()):
+                    node.insert(pos + 1 + i, k, v)
+            for k in list(node.keys()):
+                walk(node[k], path + [k])
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, path + [i])
+
+    walk(doc, [])
+    doc["mapcan"] = FORMAT_VERSION
+    return True
 
 
 def migrate_renames_text(text: str) -> str:
@@ -777,7 +821,7 @@ def op_rename_key(doc, path: list, new_key: Any) -> None:
     parent.insert(pos, new, value)
 
 
-def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None) -> dict:
+def layout_keys(start: int, length: int, big_endian: bool) -> dict:
     """The canonical notation of a position (#117), which parses back to the same start/length: by bytes when the
     signal takes whole bytes from a byte boundary (``byte`` + ``byte_length``) or fits in one byte (``byte`` + ``bit``
     + ``bit_length``), else ``start_bit`` + ``bit_length``."""
@@ -794,14 +838,12 @@ def layout_keys(start: int, length: int, big_endian: bool, encoding: str | None)
     else:
         if bit == 0 and length % 8 == 0:
             candidates.append({"byte": byte, "byte_length": length // 8})
-        if length == 1 and encoding == "flag":
-            candidates.append({"byte": byte, "bit": bit})
         if bit + length <= 8:
             candidates.append({"byte": byte, "bit": bit, "bit_length": length})
     candidates.append({"start_bit": start, "bit_length": length})
     for c in candidates:
         try:
-            s = Signal(name="x", encoding=encoding or "raw",
+            s = Signal(name="x", encoding="number",
                        byte_order="big_endian" if big_endian else "little_endian", **c)
         except ValueError:
             continue
@@ -824,8 +866,11 @@ def _signal_of(sig: CommentedMap, keys: dict) -> Signal | None:
     """The signal's position with ``keys`` as its layout keys; None when it does not parse."""
     encoding = sig.get("encoding")
     order = sig.get("byte_order")
+    # A float without a length is 32 bits long
+    rep = "float" if sig.get("representation") == "float" else "unsigned"
     try:
-        return Signal(name="x", encoding=encoding if isinstance(encoding, str) else "raw",
+        return Signal(name="x", encoding=encoding if encoding in ("number", "enum", "bitfield", "bytes") else "number",
+                      representation=rep,
                       byte_order=order if order in ("big_endian", "little_endian") else "little_endian", **keys)
     except (ValueError, TypeError):
         return None
@@ -833,10 +878,10 @@ def _signal_of(sig: CommentedMap, keys: dict) -> Signal | None:
 
 def _canonical_keys(sig: CommentedMap, start_bit: int, bit_length: int) -> dict | None:
     """The layout keys of the position in the canonical notation; None when the signal has them already. In the
-    notation by bytes, a length the encoding implies (a float's 32 bits, a flag's bit) and ``bit: 0`` stay implicit
+    notation by bytes, a length the signal implies (a float's 32 bits) and ``bit: 0`` stay implicit
     when they are."""
     current = {k: sig[k] for k in LAYOUT_KEYS if k in sig}
-    new = layout_keys(start_bit, bit_length, sig.get("byte_order") == "big_endian", sig.get("encoding"))
+    new = layout_keys(start_bit, bit_length, sig.get("byte_order") == "big_endian")
     if "byte" in new:
         drop = set()
         if "bit_length" not in current and "byte_length" not in current:
