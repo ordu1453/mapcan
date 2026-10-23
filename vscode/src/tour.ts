@@ -8,7 +8,7 @@ import * as vscode from "vscode";
 import { isMap, MapTree } from "./tree";
 
 /** Two signals in the same byte: one error, which the quick fix moves to free bits. */
-const TOUR_MAP = `mapcan: 1
+const TOUR_MAP = `mapcan: 2
 
 document:
   title: Battery
@@ -33,14 +33,14 @@ buses:
             signals:
               - name: pack_voltage
                 title: Pack voltage
-                encoding: scaled
+                encoding: number
                 byte: 0
                 byte_length: 2
                 factor: 0.1
                 unit: V
               - name: pack_current
                 title: Pack current
-                encoding: scaled
+                encoding: number
                 byte: 1
                 byte_length: 2
                 representation: twos_complement
@@ -48,7 +48,7 @@ buses:
                 unit: A
               - name: state_of_charge
                 title: State of charge
-                encoding: scaled
+                encoding: number
                 byte: 4
                 byte_length: 1
                 factor: 0.5

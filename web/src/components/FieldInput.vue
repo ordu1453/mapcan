@@ -22,7 +22,8 @@ const props = defineProps<{
   path?: Path;
   required?: boolean;
 }>();
-const emit = defineEmits<{ commit: [value: unknown] }>();
+// The field's own path goes with the value: the node shown may have changed by the time a field loses focus
+const emit = defineEmits<{ commit: [value: unknown, at: Path | undefined] }>();
 
 const error = ref("");
 const draft = ref("");
@@ -54,12 +55,12 @@ function commit() {
         const rest = Object.fromEntries(Object.entries(locMap.value).filter(([k, x]) => k !== docLang.value && x));
         next = Object.keys(rest).length ? (text ? { ...locMap.value, [docLang.value]: text } : rest) : next;
       }
-      if (JSON.stringify(next ?? null) !== JSON.stringify(old ?? null)) emit("commit", next);
+      if (JSON.stringify(next ?? null) !== JSON.stringify(old ?? null)) emit("commit", next, props.path);
       return;
     }
     const next = parseInput(props.def.type, draft.value);
     const old = props.value ?? null;
-    if (JSON.stringify(next) !== JSON.stringify(old)) emit("commit", next);
+    if (JSON.stringify(next) !== JSON.stringify(old)) emit("commit", next, props.path);
     // Normalize the input right away ("1,5" → "1.5"): if the value did not change, no update comes from the server
     draft.value = formatValue(props.def.type, next);
     error.value = "";
@@ -69,7 +70,7 @@ function commit() {
 }
 
 function onSelect(e: Event) {
-  emit("commit", selectValue((e.target as HTMLSelectElement).value, props.def.numeric));
+  emit("commit", selectValue((e.target as HTMLSelectElement).value, props.def.numeric), props.path);
 }
 
 // Set of devices: the options in their order, unknown names from the map at the end (they can be unset)
@@ -85,11 +86,11 @@ function toggle(v: string) {
   const set = new Set(chosen.value);
   if (set.has(v)) set.delete(v); else set.add(v);
   const next = chips.value.map(([x]) => x).filter((x) => set.has(x));
-  emit("commit", next.length ? next : null);
+  emit("commit", next.length ? next : null, props.path);
 }
 
 function onBool(e: Event) {
-  emit("commit", (e.target as HTMLInputElement).checked ? true : null);
+  emit("commit", (e.target as HTMLInputElement).checked ? true : null, props.path);
 }
 
 // Unit suggestions: the symbol in the map's document language, the translation in the tooltip.
@@ -128,6 +129,13 @@ function onBlur() {
   listOpen.value = false;
 }
 
+// Esc closes the list of units first (and does not also leave the node)
+function onEsc(e: KeyboardEvent) {
+  if (!listOpen.value) return;
+  listOpen.value = false;
+  e.preventDefault();
+}
+
 const empty = computed(() => {
   const v = props.value;
   if (v == null || v === "") return true;
@@ -161,7 +169,7 @@ watch(() => store.focusPath, async (fp) => {
 
 <template>
   <!-- Toggles are not inside a label: a click on the label would press the first button -->
-  <component :is="def.type === 'devices' ? 'div' : 'label'" ref="root" class="field" :class="[{ wide: def.wide, flash }, level]">
+  <component :is="def.type === 'devices' ? 'div' : 'label'" ref="root" class="field" :class="[{ wide: def.wide, half: def.half, bool: def.type === 'bool', flash }, level]">
     <span class="field-label"><HelpTip v-if="def.help" :text="def.help" />{{ t(def.label) }}<span
       v-if="required" class="req" :title="t('Required field')">*</span></span>
 
@@ -188,7 +196,7 @@ watch(() => store.focusPath, async (fp) => {
 
     <span v-else-if="suggestions.length" class="suggest">
       <input v-model="draft" :readonly="readonly" :placeholder="placeholder"
-             @change="commit" @input="onType" @blur="onBlur" @keydown.esc="listOpen = false" />
+             @change="commit" @input="onType" @blur="onBlur" @keydown.esc="onEsc" />
       <button v-if="!readonly" type="button" class="suggest-toggle" :title="t('Pick from the list')"
               @mousedown.prevent @click.prevent="toggleList">▾</button>
       <span v-if="listOpen && shown.length" class="suggest-list" @mousedown.prevent>

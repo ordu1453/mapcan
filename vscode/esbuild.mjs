@@ -8,7 +8,7 @@ const watch = process.argv.includes("--watch");
 
 // The JSON Schemas of the format for the YAML extension (src/schema.ts)
 mkdirSync(new URL("dist/schema/", import.meta.url), { recursive: true });
-for (const file of ["mapcan.schema.json", "mapcan-part.schema.json"]) {
+for (const file of ["mapcan.schema.json", "mapcan-part.schema.json", "mapcan-v1.schema.json", "mapcan-part-v1.schema.json"]) {
   cpSync(new URL(`../schema/${file}`, import.meta.url), new URL(`dist/schema/${file}`, import.meta.url));
 }
 

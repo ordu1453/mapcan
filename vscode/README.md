@@ -1,7 +1,7 @@
 # mapcan for VS Code
 
 Language support for [mapcan](https://github.com/ordu1453/mapcan) CAN signal maps. A map is a YAML
-file with a top-level `mapcan: 1` key. Other YAML files are left alone: the language server starts
+file with a top-level `mapcan` key. Other YAML files are left alone: the language server starts
 when the first map is opened and never sees other files.
 
 ![A signal drawn on free bits of the layout appears in the YAML, gets a name and an encoding, is made longer by its edge, and dragged over another signal the overlap is marked at once](https://raw.githubusercontent.com/ordu1453/mapcan/main/docs/images/vscode-demo-dark.gif)

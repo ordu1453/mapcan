@@ -9,7 +9,12 @@ import * as vscode from "vscode";
 import { isMap, isPart } from "./tree";
 
 const SCHEME = "mapcan-schema";
-const FILES: Record<string, string> = { "v1.json": "mapcan.schema.json", "part-v1.json": "mapcan-part.schema.json" };
+const FILES: Record<string, string> = {
+  "v2.json": "mapcan.schema.json", "part-v2.json": "mapcan-part.schema.json",
+  // Format version 1, still read by the server
+  "v1.json": "mapcan-v1.schema.json", "part-v1.json": "mapcan-part-v1.schema.json",
+};
+const VERSION_1 = /^mapcan\s*:\s*1\s*(#.*)?$/m;
 
 /** The part of the YAML extension's API used here. */
 interface YamlApi {
@@ -24,7 +29,8 @@ interface YamlApi {
 export function schemaOf(resource: string): string | undefined {
   const doc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === resource);
   if (!isMap(doc)) return undefined;
-  return `${SCHEME}://schema/${isPart(doc) ? "part-v1.json" : "v1.json"}`;
+  const version = VERSION_1.test(doc.getText()) ? "v1" : "v2";
+  return `${SCHEME}://schema/${isPart(doc) ? "part-" : ""}${version}.json`;
 }
 
 export function registerSchemas(context: vscode.ExtensionContext): void {

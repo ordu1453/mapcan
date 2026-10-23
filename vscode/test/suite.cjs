@@ -58,7 +58,7 @@ const tests = {
     assert.ok(starters.examples.some((e) => e.name === "vehicle-can"));
     // An example in several files comes with its included file, which names the copy of the map
     const tractor = await vscode.commands.executeCommand("mapcan.lsp.example", { name: "tractor", mapFile: "tractor.yaml" });
-    assert.match(tractor.text, /^mapcan: 1/m);
+    assert.match(tractor.text, /^mapcan: 2/m);
     assert.match(tractor.includes["powertrain.yaml"], /^part_of: tractor\.yaml/m);
     const created = await vscode.commands.executeCommand("mapcan.lsp.newMap", { template: "j1939", title: "Truck", language: "en" });
     assert.match(created.text, /title: "Truck"/);
@@ -111,7 +111,7 @@ const tests = {
   },
 
   async "completion offers enum values"(ctx) {
-    const pos = positionOf(ctx.doc, "encoding: scaled", "encoding: ".length);
+    const pos = positionOf(ctx.doc, "encoding: number", "encoding: ".length);
     const list = await vscode.commands.executeCommand("vscode.executeCompletionItemProvider", ctx.doc.uri, pos);
     const labels = list.items.map((i) => (typeof i.label === "string" ? i.label : i.label.label));
     assert.ok(labels.includes("bitfield"), labels.slice(0, 20).join(", "));
@@ -148,7 +148,7 @@ const tests = {
     const frame = () => tree.getChildren(tree.getChildren(tree.getChildren()[0])[0])[0];
     const before = ctx.doc.getText();
     await vscode.commands.executeCommand("mapcan.addSignal", frame());
-    assert.match(ctx.doc.getText(), /\n {14}- name: signal\n {16}encoding: raw\n {16}byte: 7\n {16}bit: 4\n {16}bit_length: 4\n/);
+    assert.match(ctx.doc.getText(), /\n {14}- name: signal\n {16}encoding: number\n {16}byte: 7\n {16}bit: 4\n {16}bit_length: 4\n/);
     assert.equal(vscode.window.activeTextEditor.document.getText(vscode.window.activeTextEditor.selection), "signal");
     await until("tree with the new signal", () => frame().children.some((s) => s.raw.label === "signal"));
     // The frame is full now: one more signal would lie over another one, so none is added
@@ -198,7 +198,7 @@ const tests = {
     for (const e of result.edits) edit.replace(ctx.doc.uri, new vscode.Range(...e.range), e.text);
     await vscode.workspace.applyEdit(edit);
     // The title goes to its place in the canonical order (mapcan fmt): after the name
-    assert.match(ctx.doc.getText(), /- name: signal\n {16}title: Battery voltage\n {16}encoding: raw\n {16}byte: 7\n {16}bit: 4\n {16}bit_length: 4\n/);
+    assert.match(ctx.doc.getText(), /- name: signal\n {16}title: Battery voltage\n {16}encoding: number\n {16}byte: 7\n {16}bit: 4\n {16}bit_length: 4\n/);
     await until("tree with the title", () => frame().children.some((s) => s.raw.label === "Battery voltage"));
     await vscode.commands.executeCommand("mapcan.deleteNode", frame().children.find((s) => s.raw.ident === "signal"));
     assert.equal(form.openPath, undefined);
@@ -501,7 +501,7 @@ const tests = {
     fs.writeFileSync(path.join(workspace, "extra.yaml"),
       "buses:\n  - name: aux\n    title: Aux bus\n    protocol: can\n    devices:\n      - name: valve\n");
     const main = path.join(workspace, "with-include.yaml");
-    fs.writeFileSync(main, "mapcan: 1\ninclude: [extra.yaml]\ndocument: {title: T, language: en}\n"
+    fs.writeFileSync(main, "mapcan: 2\ninclude: [extra.yaml]\ndocument: {title: T, language: en}\n"
       + "buses:\n  - name: can1\n    title: Main bus\n    protocol: can\n");
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(main));
     const roots = await until("tree with the included bus", () => {
@@ -564,7 +564,7 @@ const tests = {
     const dir = path.join(workspace, "own-files");
     fs.mkdirSync(dir, { recursive: true });
     const main = path.join(dir, "main.yaml");
-    fs.writeFileSync(main, "mapcan: 1\n\ndocument: {title: T, language: en}\n\n"
+    fs.writeFileSync(main, "mapcan: 2\n\ndocument: {title: T, language: en}\n\n"
       + "buses:\n  - name: can1\n    title: Main bus\n    protocol: canopen\n    devices:\n"
       + "      - {name: node_a, title: Device 1, node_id: 0x01}\n");
     const doc = await vscode.workspace.openTextDocument(main);
@@ -613,11 +613,11 @@ const tests = {
   async "an included file open on its own: its device's address, its frame's functions, Export of its map"(ctx) {
     const dir = path.join(workspace, "split");
     fs.mkdirSync(path.join(dir, "devices"), { recursive: true });
-    fs.writeFileSync(path.join(dir, "main.yaml"), "mapcan: 1\ndocument: {title: Example, language: en}\n"
+    fs.writeFileSync(path.join(dir, "main.yaml"), "mapcan: 2\ndocument: {title: Example, language: en}\n"
       + "include: [devices/node.yaml]\nbuses:\n  - name: can1\n    title: CAN 1\n    protocol: canopen\n"
       + "    bitrate: 500000\n    devices: []\n");
     const node = path.join(dir, "devices", "node.yaml");
-    fs.writeFileSync(node, "mapcan: 1\npart_of: ../main.yaml\nbuses:\n  - name: can1\n    devices:\n"
+    fs.writeFileSync(node, "mapcan: 2\npart_of: ../main.yaml\nbuses:\n  - name: can1\n    devices:\n"
       + "      - name: node\n        title: A rather long device title that does not fit in the side bar\n"
       + "        node_id: 0x10\n        frames:\n          - name: state\n            canopen: pdo_tx1\n"
       + "            length: 8\n            signals: []\n");
@@ -659,7 +659,7 @@ const tests = {
     const extra = path.join(workspace, "pumps.yaml");
     fs.writeFileSync(extra, "buses:\n  - name: can1\n    devices:\n      - name: pump\n");
     const main = path.join(workspace, "with-pump.yaml");
-    fs.writeFileSync(main, "mapcan: 1\ninclude: [pumps.yaml]\ndocument: {title: T, language: en}\n"
+    fs.writeFileSync(main, "mapcan: 2\ninclude: [pumps.yaml]\ndocument: {title: T, language: en}\n"
       + "buses:\n  - name: can1\n    protocol: can\n    frames:\n"
       + "      - {name: cmd, id: 0x100, length: 1, receivers: [pump]}\n");
     const doc = await vscode.workspace.openTextDocument(main);
@@ -717,16 +717,20 @@ const tests = {
   },
 
   async "maps and the files they include get the format's schema for the YAML extension"(ctx) {
-    assert.equal(ctx.api.schemaOf(ctx.doc.uri.toString()), "mapcan-schema://schema/v1.json");
-    const part = await vscode.workspace.openTextDocument({ language: "yaml", content: "mapcan: 1\npart_of: m.yaml\n" });
-    assert.equal(ctx.api.schemaOf(part.uri.toString()), "mapcan-schema://schema/part-v1.json");
+    assert.equal(ctx.api.schemaOf(ctx.doc.uri.toString()), "mapcan-schema://schema/v2.json");
+    const part = await vscode.workspace.openTextDocument({ language: "yaml", content: "mapcan: 2\npart_of: m.yaml\n" });
+    assert.equal(ctx.api.schemaOf(part.uri.toString()), "mapcan-schema://schema/part-v2.json");
+    // A map of format version 1 gets the schema of version 1
+    const v1 = await vscode.workspace.openTextDocument({ language: "yaml", content: "mapcan: 1\ndocument: {}\n" });
+    assert.equal(ctx.api.schemaOf(v1.uri.toString()), "mapcan-schema://schema/v1.json");
     const other = await vscode.workspace.openTextDocument({ language: "yaml", content: "services: {}\n" });
     assert.equal(ctx.api.schemaOf(other.uri.toString()), undefined);
     // The schemas come with the extension
     const ext = vscode.extensions.getExtension("ordu1453.mapcan");
-    for (const f of ["mapcan.schema.json", "mapcan-part.schema.json"]) {
+    for (const [f, v] of [["mapcan.schema.json", 2], ["mapcan-part.schema.json", 2], ["mapcan-v1.schema.json", 1],
+      ["mapcan-part-v1.schema.json", 1]]) {
       const schema = JSON.parse(fs.readFileSync(path.join(ext.extensionPath, "dist", "schema", f), "utf8"));
-      assert.match(schema.$id, /^https:\/\/ordu1453\.github\.io\/mapcan\/schema\/(part-)?v1\.json$/);
+      assert.match(schema.$id, new RegExp(`^https://ordu1453\\.github\\.io/mapcan/schema/(part-)?v${v}\\.json$`));
     }
   },
 

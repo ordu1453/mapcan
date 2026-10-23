@@ -142,7 +142,7 @@ export function addSignal(framePath: Path, layout?: { start_bit: number; bit_len
     names.add(s.name);
     for (const f of s.flags ?? []) names.add(f.name);
   }
-  const value = { name: uniqueName(name || "signal", names), encoding: "raw" };
+  const value = { name: uniqueName(name || "signal", names), encoding: "number" };
   const extra: Op[] = [];
   let pos = layout;
   if (!pos) {

@@ -191,11 +191,30 @@ input[readonly], textarea[readonly] { background: var(--bg); }
 .banner .fix { margin-left: 8px; }
 .banner.info { background: var(--info-soft); border-color: var(--info); }
 
-.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; }
-.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.field.wide { grid-column: 1 / -1; }
-.form-section { grid-column: 1 / -1; margin: 6px 0 -4px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+/* Properties: a row per section, its name on the left and its fields on the right */
+.form-rows { display: flex; flex-direction: column; }
+.form-row { display: grid; grid-template-columns: 112px 1fr; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); }
+.form-row:first-child { border-top: 0; padding-top: 0; }
+.form-row:last-child { padding-bottom: 0; }
+.form-section { margin: 0; padding-top: 2px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
   text-transform: uppercase; color: var(--muted); }
+/* Short fields (numbers, units) take one column, the others two, texts the whole row */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px 12px; }
+.form-grid > .field { grid-column: span 2; }
+.form-grid > .field.half, .form-grid > .field.bool { grid-column: span 1; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.form-grid > .field.wide { grid-column: 1 / -1; }
+/* Two texts of a section (description and note) side by side */
+.form-grid.pair { grid-template-columns: 1fr 1fr; }
+.form-grid.pair > .field.wide { grid-column: span 1; }
+/* A toggle: the box before its label, on the line of the inputs */
+.field.bool { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 6px; align-self: end; min-height: 30px; }
+/* Bytes and bits of the signal's position, next to its fields */
+.field.position-hint { justify-content: flex-end; padding-bottom: 7px; }
+@media (max-width: 760px) {
+  .form-row { grid-template-columns: 1fr; gap: 6px; }
+  .form-grid > .field, .form-grid.pair > .field.wide { grid-column: 1 / -1; }
+}
 .field-label { font-size: 11px; color: var(--muted); }
 .field input, .field select, .field textarea { width: 100%; }
 .field.error input, .field.error select { border-color: var(--error); background: var(--error-soft); }
@@ -258,11 +277,25 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
   display: grid; grid-template-columns: 52px repeat(8, minmax(58px, 1fr)); gap: 0; position: relative;
   user-select: none; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden;
 }
-.bg-head { background: var(--accent); color: var(--accent-fg); text-align: center; font-weight: 600; line-height: 26px; grid-row: 1; }
-.bg-head.corner { grid-column: 1; }
-.bg-byte {
+/* Byte numbers: the whole left column in the accent colour, "Byte" at its top */
+.bg-byte, .bg-head.corner {
   grid-column: 1; display: flex; align-items: center; justify-content: center; font-weight: 600;
-  background: var(--hover); border-top: 1px solid var(--line);
+  background: var(--accent); color: var(--accent-fg);
+}
+.bg-byte { border-top: 1px solid color-mix(in srgb, var(--accent-fg) 25%, transparent); }
+/* Bit numbers: a light row under the "Bits" tab */
+.bg-head {
+  grid-row: 1; text-align: center; font-weight: 600; line-height: 26px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.bg-head.corner { font-size: 11px; line-height: 1; }
+/* The heading of the layout ends in the "Bits" tab, joined to the row of bit numbers like the tab of a folder */
+.card > h3.layout-head { align-items: center; margin-bottom: 0; }
+.card > h3.layout-head + .bitgrid-wrap > .bitgrid { border-top-right-radius: 0; }
+.bitgrid-tab {
+  margin-left: auto; margin-bottom: -1px; position: relative; z-index: 1;
+  align-self: flex-end; padding: 6px 16px 5px; font-size: 11px; font-weight: 600; color: var(--accent);
+  background: var(--accent-soft); border: 1px solid var(--line-strong); border-bottom: 0; border-radius: 6px 6px 0 0;
 }
 .bg-cell {
   position: relative; border-top: 1px solid rgba(0, 0, 0, 0.08); border-left: 1px solid rgba(0, 0, 0, 0.08);
@@ -271,7 +304,19 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .bg-cell.empty { background: var(--grid-empty); }
 .bg-cell:not(.empty) { cursor: grab; }
 .bg-cell:hover { filter: brightness(0.94); }
-.bg-cell.selected { filter: saturate(1.6) brightness(0.9); }
+/* The selected signal: one contour around all its bits (a side is drawn where the neighbour is not one of them),
+   the other signals dimmed */
+.bg-cell::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  border: 0 solid color-mix(in srgb, var(--sig, var(--accent)) 55%, #000);
+}
+.bg-cell.sel-t::after { border-top-width: 2px; }
+.bg-cell.sel-b::after { border-bottom-width: 2px; }
+.bg-cell.sel-l::after { border-left-width: 2px; }
+.bg-cell.sel-r::after { border-right-width: 2px; }
+.bitgrid.has-selection .bg-cell:not(.empty):not(.selected),
+.bitgrid.has-selection .bg-label:not(.mine),
+.bitgrid.has-selection .bg-field-label:not(.mine) { opacity: 0.55; }
 .bg-cell.flag-selected { box-shadow: inset 0 0 0 2px var(--accent); }
 .bg-cell.synthetic { cursor: pointer; }
 .bg-cell.conflict { background-image: repeating-linear-gradient(45deg, rgba(198, 40, 40, 0.35) 0 6px, transparent 6px 12px); }
@@ -300,15 +345,16 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 }
 .bg-field-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bg-label.on-pill { padding-top: 11px; padding-bottom: 3px; border-top: 0; }
-.grip { position: absolute; top: 4px; bottom: 4px; width: 5px; background: var(--accent); border-radius: 2px; cursor: ew-resize; }
-.grip.lo { right: 2px; }
-.grip.hi { left: 2px; }
+/* Length handles: the edge of the end bit, without a visible bar; the cursor shows them */
+.grip { position: absolute; top: 0; bottom: 0; width: 8px; background: transparent; cursor: ew-resize; z-index: 3; }
+.grip.lo { right: 0; }
+.grip.hi { left: 0; }
 .bg-label {
   position: relative; z-index: 1; pointer-events: none; display: flex; align-items: center; justify-content: center; padding: 0 4px;
   font-size: 11px; color: #1d2329; overflow: hidden; border-top: 1px solid var(--line);
 }
 .bg-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bg-label.selected { font-weight: 700; outline: 2px solid var(--accent); outline-offset: -2px; }
+.bg-label.selected { font-weight: 700; }
 .bg-label.conflict { color: #b71c1c; font-weight: 700; outline: 2px solid var(--error); outline-offset: -2px; }
 .bitgrid-status { font-size: 12px; min-height: 18px; }
 

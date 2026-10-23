@@ -483,9 +483,26 @@ a:hover {
 }
 
 .bg-bar.selected {
-  border-color: var(--vscode-focusBorder);
-  background: color-mix(in srgb, var(--sig) 65%, var(--bg));
   font-weight: 600;
+}
+
+/* The selected signal: one contour around all its bits, drawn by the cells over the bars (a side where the
+   neighbour is not one of its bits); the other signals dimmed */
+.bg-cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 0 solid color-mix(in srgb, var(--sig, var(--vscode-focusBorder)) 55%, #000);
+}
+
+.bg-cell.sel-t::after { border-top-width: 2px; }
+.bg-cell.sel-b::after { border-bottom-width: 2px; }
+.bg-cell.sel-l::after { border-left-width: 2px; }
+.bg-cell.sel-r::after { border-right-width: 2px; }
+
+.bitgrid.has-selection .bg-bar:not(.selected) {
+  opacity: 0.55;
 }
 
 /* The shown bit field: the field is a frame, its flags are bars inside it */
@@ -551,23 +568,23 @@ a:hover {
   background: color-mix(in srgb, var(--vscode-errorForeground) 45%, transparent);
 }
 
+/* Length handles: the edge of the end bit, without a visible bar; the cursor shows them */
 .grip {
   position: absolute;
-  top: 6px;
-  bottom: 6px;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--vscode-focusBorder);
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  background: transparent;
   cursor: ew-resize;
 }
 
 /* Bit 7 is on the left: the LSB handle is on the right edge of its cell */
 .grip.lo {
-  right: 2px;
+  right: 0;
 }
 
 .grip.hi {
-  left: 2px;
+  left: 0;
 }
 
 .bitgrid-status {

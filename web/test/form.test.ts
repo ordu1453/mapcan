@@ -5,7 +5,8 @@ import { describe as group, expect, it } from "vitest";
 import formatDoc from "../../docs/format.md?raw";
 import { describe, fieldHelp, schemaFields } from "../src/form/help";
 import { formatValue, parseInput, parseInteger, ParseError, selectValue } from "../src/form/input";
-import { applies, FORMS, formFields, isRequired, NOT_IN_FORM, optionsOf, type FormContext, type FormKind } from "../src/form/spec";
+import { applies, encodingChangeOps, FORMS, formFields, isRequired, NOT_IN_FORM, optionsOf, type FormContext,
+  type FormKind } from "../src/form/spec";
 
 const ctx = (extra: Partial<FormContext> = {}): FormContext => ({
   values: {}, protocol: "canopen", fd: false, busBrs: null, owner: "pump",
@@ -135,24 +136,38 @@ group("other nodes", () => {
 
   it("signal fields by its encoding and length", () => {
     const sig = (extra: Partial<FormContext>) => visible("signal", ctx({ protocol: "can", ...extra }));
-    expect(sig({ signalEncoding: "scaled" })).toEqual(expect.arrayContaining(["factor", "unit"]));
+    expect(sig({ signalEncoding: "number" })).toEqual(expect.arrayContaining(["factor", "unit", "invalid_raw"]));
     expect(sig({ signalEncoding: "enum" })).not.toContain("factor");
-    expect(sig({ signalEncoding: "raw", bitLength: 16 })).toContain("byte_order");
-    expect(sig({ signalEncoding: "raw", bitLength: 8 })).not.toContain("byte_order");
+    // Each encoding has only its own value fields
+    const own = (enc: string) => sig({ signalEncoding: enc }).filter((k) =>
+      ["unit", "representation", "factor", "offset", "min", "max", "initial", "source", "invalid_raw", "value_format",
+        "charset", "terminator", "multiplexer"].includes(k)).sort();
+    expect(own("number")).toEqual(["factor", "initial", "invalid_raw", "max", "min", "multiplexer", "offset",
+      "representation", "source", "unit"]);
+    expect(own("enum")).toEqual(["initial", "multiplexer", "value_format"]);
+    expect(own("bitfield")).toEqual([]);
+    expect(own("bytes")).toEqual(["charset"]);
+    // Floating point: no raw-value fields of an integer
+    expect(sig({ signalEncoding: "number", values: { representation: "float" } })).not.toContain("invalid_raw");
+    // Bytes: a terminator only for text
+    expect(sig({ signalEncoding: "bytes" })).not.toContain("terminator");
+    expect(sig({ signalEncoding: "bytes", values: { charset: "ascii" } })).toContain("terminator");
+    expect(sig({ signalEncoding: "number", bitLength: 16 })).toContain("byte_order");
+    expect(sig({ signalEncoding: "number", bitLength: 8 })).not.toContain("byte_order");
     expect(sig({ signalEncoding: "bytes", bitLength: 16 })).not.toContain("byte_order");
     // A multi-byte bit field: the order decides which byte holds its bit 0
     expect(sig({ signalEncoding: "bitfield", bitLength: 16 })).toContain("byte_order");
     // Fewer than 8 bits across a byte boundary: the order matters too
-    expect(sig({ signalEncoding: "raw", bitLength: 6, values: { start_bit: 4, bit_length: 6 } })).toContain("byte_order");
-    expect(sig({ signalEncoding: "raw", bitLength: 6, values: { byte: 1, bit: 2, bit_length: 6 } })).not.toContain("byte_order");
+    expect(sig({ signalEncoding: "number", bitLength: 6, values: { start_bit: 4, bit_length: 6 } })).toContain("byte_order");
+    expect(sig({ signalEncoding: "number", bitLength: 6, values: { byte: 1, bit: 2, bit_length: 6 } })).not.toContain("byte_order");
   });
 
   it("CANopen and J1939 carry little-endian data: no byte order unless it is set", () => {
     for (const protocol of ["canopen", "j1939"]) {
-      expect(visible("signal", ctx({ protocol, signalEncoding: "raw", bitLength: 16 }))).not.toContain("byte_order");
+      expect(visible("signal", ctx({ protocol, signalEncoding: "number", bitLength: 16 }))).not.toContain("byte_order");
       expect(visible("signal", ctx({ protocol, signalEncoding: "bitfield", bitLength: 16 }))).not.toContain("byte_order");
       // Set in the YAML: shown, to see and fix it
-      expect(visible("signal", ctx({ protocol, signalEncoding: "raw", bitLength: 16, values: { byte_order: "big_endian" } })))
+      expect(visible("signal", ctx({ protocol, signalEncoding: "number", bitLength: 16, values: { byte_order: "big_endian" } })))
         .toContain("byte_order");
     }
   });
@@ -188,7 +203,9 @@ group("forms and the format", () => {
     const fields = formFields("signal").filter((f) => keys.has(f.key));
     expect(fields.length).toBeGreaterThan(5);
     for (const [enc, own] of allowed) {
-      const shown = fields.filter((f) => applies(f, ctx({ protocol: "can", signalEncoding: enc }))).map((f) => f.key);
+      // With a charset, so that the terminator of a text shows too
+      const shown = fields.filter((f) => applies(f, ctx({ protocol: "can", signalEncoding: enc, values: { charset: "ascii" } })))
+        .map((f) => f.key);
       expect(shown.sort(), enc).toEqual(fields.map((f) => f.key).filter((k) => own.has(k)).sort());
     }
   });
@@ -228,5 +245,35 @@ group("input", () => {
       .toBe("not_available: 0xFF00..0xFFFF; error: 7");
     expect(parseInput("text", "  ")).toBeNull();
     expect(() => parseInteger("1.5")).toThrow(ParseError);
+  });
+});
+
+group("encoding change", () => {
+  const path = ["buses", 0, "frames", 0, "signals", 1];
+
+  it("the list offers the four encodings without explanations", () => {
+    const opts = optionsOf(field("signal", "encoding"), ctx({ values: { encoding: "number" } }));
+    expect(opts.map(([v, label]) => [v, label])).toEqual(
+      [["number", "number"], ["enum", "enum"], ["bitfield", "bitfield"], ["bytes", "bytes"]]);
+  });
+
+  it("removes the fields of the former encoding in one step", () => {
+    const node = { name: "s", encoding: "number", byte: 2, byte_length: 2, unit: "V", factor: 0.1, min: 0,
+      description: "x", mux: 1, multiplexer: true };
+    expect(encodingChangeOps(path, node, "enum")).toEqual([
+      { op: "set", path: [...path, "encoding"], value: "enum" },
+      { op: "remove", path: [...path, "factor"] }, { op: "remove", path: [...path, "unit"] },
+      { op: "remove", path: [...path, "min"] },
+    ]);
+    // A bit field cannot be a selector; its tables go with the encoding
+    const ops = encodingChangeOps(path, { encoding: "enum", values: { 0: "OFF" }, multiplexer: true }, "bitfield");
+    expect(ops.map((o) => o.path.at(-1))).toEqual(["encoding", "values", "multiplexer"]);
+  });
+
+  it("keeps the length a float implied, so the position stays", () => {
+    const float = { encoding: "number", byte: 0, representation: "float", unit: "V" };
+    expect(encodingChangeOps(path, float, "enum")).toContainEqual({ op: "set", path: [...path, "bit_length"], value: 32 });
+    const written = encodingChangeOps(path, { ...float, bit_length: 64 }, "enum");
+    expect(written.filter((o) => o.op === "set").map((o) => o.path.at(-1))).toEqual(["encoding"]);
   });
 });

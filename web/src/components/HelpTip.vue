@@ -15,7 +15,11 @@ function place() {
 }
 
 function onDoc(e: Event) {
-  if (e instanceof KeyboardEvent ? e.key === "Escape" : !root.value?.contains(e.target as Node)) open.value = false;
+  if (e instanceof KeyboardEvent ? e.key === "Escape" : !root.value?.contains(e.target as Node)) {
+    open.value = false;
+    // Esc closed the help: it does not also leave the node
+    if (e instanceof KeyboardEvent) e.preventDefault();
+  }
 }
 watch(open, (v) => {
   const fn = v ? document.addEventListener : document.removeEventListener;

@@ -5,7 +5,8 @@
 // @ts-check
 import { fieldHelp } from "../../web/src/form/help";
 import { formatValue, parseInput, parseInteger, selectValue } from "../../web/src/form/input";
-import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } from "../../web/src/form/spec";
+import { applies, encodingChangeOps, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding }
+  from "../../web/src/form/spec";
 
 (function () {
   const vscode = acquireVsCodeApi();
@@ -62,6 +63,19 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
   const CHEVRON = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.15 5.65a.5.5 0 0 1 .7 0L8 9.79l4.15-4.14a.5.5 0 1 1 .7.7l-4.5 4.5a.5.5 0 0 1-.7 0l-4.5-4.5a.5.5 0 0 1 0-.7z"/></svg>';
 
   function send(/** @type {string} */ key, /** @type {any} */ value) {
+    // A new encoding starts with its defaults: the fields of the former one are removed in the same step
+    if (node.kind === "signal" && key === "encoding" && value && value !== node.values.encoding) {
+      const tables = { values: node.valueTable ?? node.valueTableRef ?? undefined, flags: node.flags ?? undefined };
+      const ops = encodingChangeOps(node.path, { ...node.values, ...tables }, value);
+      vscode.postMessage({ type: "ops", ops });
+      for (const op of ops) {
+        const k = String(op.path[op.path.length - 1]);
+        if (op.op === "set") node.values[k] = op.value;
+        else delete node.values[k];
+      }
+      updateVisibility();
+      return;
+    }
     node.values[key] = value;
     // The node the value belongs to: the extension may have moved the form to another node meanwhile
     vscode.postMessage({ type: "set", path: node.path, key, value });
@@ -337,7 +351,10 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     const p = preview();
     const cs = cells();
     const isSel = (/** @type {any} */ s) => !!sel && samePath(s.path, sel.path);
-    const grid = el("div", { class: "bitgrid", style: `grid-template-rows: 16px repeat(${f.length}, 24px)` });
+    // The selected signal: one contour around its bits (a side where the neighbour is not one of them), the rest dimmed
+    const selBits = new Set(sel ? sel.occupied : []);
+    const grid = el("div", { class: "bitgrid" + (selBits.size ? " has-selection" : ""),
+      style: `grid-template-rows: 16px repeat(${f.length}, 24px)` });
     for (let b = 7; b >= 0; b--) grid.append(el("div", { class: "bg-head", style: `grid-column: ${9 - b}` }, String(b)));
     for (let row = 0; row < f.length; row++) {
       grid.append(el("div", { class: "bg-byte", style: `grid-row: ${row + 2}`, title: `Byte ${row}` }, String(row)));
@@ -385,10 +402,18 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
       if (!c.owners.length) cls.push("free");
       else if (c.owners.every((s) => s.synthetic)) cls.push("synthetic");
       if (p && p.bits.has(c.bit)) cls.push(c.owners.length ? "preview-bad" : "preview");
+      if (selBits.has(c.bit)) {
+        // Left in the grid is the higher bit of the same byte
+        if (!selBits.has(c.bit - 8)) cls.push("sel-t");
+        if (!selBits.has(c.bit + 8)) cls.push("sel-b");
+        if (c.bit % 8 === 7 || !selBits.has(c.bit + 1)) cls.push("sel-l");
+        if (c.bit % 8 === 0 || !selBits.has(c.bit - 1)) cls.push("sel-r");
+      }
       const who = c.owners.map((s) => s.name).join(", ");
       const cell = el("div", {
         class: cls.join(" "),
-        style: `grid-row: ${Math.floor(c.bit / 8) + 2}; grid-column: ${9 - (c.bit % 8)}`,
+        style: `grid-row: ${Math.floor(c.bit / 8) + 2}; grid-column: ${9 - (c.bit % 8)}`
+          + (sel && selBits.has(c.bit) ? `; --sig: ${colorOf(sel)}` : ""),
         title: `Bit ${c.bit}` + (who ? ` · ${who}` : "") + (c.flag ? ` · ${c.flag}` : ""),
         onmousedown: (/** @type {MouseEvent} */ e) => onDown(c, e),
         onmouseenter: () => onEnter(c.bit),
@@ -458,17 +483,21 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
       return `Bit ${b} (byte ${Math.floor(b / 8)}, bit ${b % 8})` + (who ? ` · ${who}` : " · free") + (c?.flag ? ` · ${c.flag}` : "");
     }
     return node.kind === "signal" ? "Drag the signal to move it, its edge to change the length."
-      : "Drag over free bits to add a signal.";
+      : "Drag over two or more free bits to add a signal (double-click: one bit).";
   }
 
   function onDown(/** @type {any} */ c, /** @type {MouseEvent} */ e) {
     if (e.button !== 0) return;
+    // A field being typed in is written first, to the node it belongs to: preventDefault below would keep its
+    // focus while the click shows another node
+    const active = /** @type {HTMLElement | null} */ (document.activeElement);
+    if (active && active.matches("input, textarea, select")) active.blur();
     e.preventDefault();
     const sel = selectedSignal();
     const hs = handles(c.bit);
-    // The end cell of a longer signal is a handle as a whole; of a one-bit signal only the handle itself
+    // The length changes at the edge of an end bit (the handle, shown by the cursor); the rest of the signal moves it
     const grip = /** @type {HTMLElement} */ (e.target).dataset?.edge;
-    const h = hs.length === 1 ? hs[0] : grip && hs.includes(grip) ? grip : null;
+    const h = grip && hs.includes(grip) ? grip : null;
     if (h && sel) {
       drag = { mode: "resize", sig: sel, edge: /** @type {"lo"|"hi"} */ (h), cur: c.bit };
     } else {
@@ -507,7 +536,11 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     drag = null;
     if (p && node?.frame) {
       if (d.mode === "create") {
-        addSignal(p.start, p.length);
+        // A click on a free bit makes no signal; a second click on it soon after (a double click) makes a 1-bit one
+        const now = Date.now();
+        if (p.length >= 2) addSignal(p.start, p.length);
+        else if (lastClick && lastClick.bit === p.start && now - lastClick.at < 400) addSignal(p.start, 1);
+        lastClick = p.length === 1 ? { bit: p.start, at: now } : null;
       } else if ((d.mode === "move" && d.cur !== d.grab) || (d.mode === "resize"
           && (p.start !== d.sig.start_bit || p.length !== d.sig.bit_length))) {
         vscode.postMessage({ type: "ops", ops: [{ op: "set_layout", path: d.sig.path, start_bit: p.start, bit_length: p.length }] });
@@ -539,6 +572,8 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
     ] });
   }
 
+  /** @type {{ bit: number, at: number } | null} */
+  let lastClick = null;
   window.addEventListener("mouseup", onUp);
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && drag) {
@@ -584,7 +619,7 @@ import { applies, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding } 
           `Table "${node.valueTableRef}" from value_tables (edit it there).`)));
     }
     const rowsData = node.valueTable;
-    const show = rowsData != null || node.kind === "flag" || ["enum", "flag"].includes(signalEncoding(ctx()));
+    const show = rowsData != null || node.kind === "flag" || signalEncoding(ctx()) === "enum";
     if (!show || !["signal", "flag"].includes(node.kind)) return null;
     const p = node.path;
     const hex = node.values.value_format === "hex";

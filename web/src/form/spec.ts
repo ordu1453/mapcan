@@ -9,6 +9,7 @@
 // reason; test/form.test.ts fails until every field of the schema is in one of them.
 
 import { N_, t } from "../i18n";
+import type { Op, Path } from "../types";
 
 export type FieldType =
   | "text" | "int" | "hex" | "float" | "bool" | "select" | "date" | "intlist" | "strlist"
@@ -109,23 +110,43 @@ const FRAME_TYPES: Option[] = [
   ["sdo_tx", "SDO TX"], ["sdo_rx", "SDO RX"], ["heartbeat", "Heartbeat"],
 ];
 
-const ENCODINGS: Option[] = [
-  ["enum", N_("enum — enumeration")], ["flag", N_("flag — single flag")], ["bitfield", N_("bitfield — bit field")],
-  ["scaled", N_("scaled — scaled value")], ["raw", N_("raw — integer")], ["float", N_("float — IEEE 754 (32/64 bit)")],
-  ["bytes", N_("bytes — raw bytes")], ["string", N_("string — text")],
-];
-const SDO_ENCODINGS: Option[] = ENCODINGS.filter(([v]) => ["enum", "scaled", "raw"].includes(v));
+const ENCODINGS: Option[] = [["number", "number"], ["enum", "enum"], ["bitfield", "bitfield"], ["bytes", "bytes"]];
+const SDO_ENCODINGS: Option[] = ENCODINGS.filter(([v]) => ["number", "enum"].includes(v));
+const REPRESENTATIONS: Option[] = [["", N_("unsigned")], ["twos_complement", N_("two's complement")],
+  ["ones_complement", N_("ones' complement")], ["sign_magnitude", N_("sign-magnitude")]];
 
 const value = (c: FormContext, key: string): unknown => c.values[key];
 /** CANopen function of the frame; "raw" for a frame without one. */
 const frameType = (c: FormContext): string => String(value(c, "canopen") ?? "raw");
 /** Encoding of the signal: as set in the form, else as computed from the map. */
-export const signalEncoding = (c: FormContext): string => String(value(c, "encoding") ?? c.signalEncoding ?? "raw");
+export const signalEncoding = (c: FormContext): string => String(value(c, "encoding") ?? c.signalEncoding ?? "number");
 const encoding = signalEncoding;
 const encodingIn = (...encodings: string[]) => (c: FormContext) => encodings.includes(encoding(c));
-const numeric = encodingIn("scaled", "raw", "float");
-// A raw integer is the value as is: factor and offset apply to a physical quantity only
-const scaledLike = encodingIn("scaled", "float");
+const numeric = encodingIn("number");
+// IEEE 754: a number without the raw-value fields of an integer
+const isFloat = (c: FormContext) => value(c, "representation") === "float";
+const integer = (c: FormContext) => encoding(c) === "number" && !isFloat(c);
+// A multiplexer selector is an integer or an enum
+const selectorLike = (c: FormContext) => integer(c) || encoding(c) === "enum";
+
+/** Fields of a signal that belong to its encoding (the table of encodings in docs/format.md, the value tables and
+ * the flags): a new encoding starts without them. */
+export const ENCODING_KEYS = ["representation", "factor", "offset", "unit", "min", "max", "initial", "source",
+  "invalid_raw", "values", "value_format", "flags", "charset", "terminator"];
+
+/** Edits that change a signal's encoding: the fields of the former one are removed, so the signal starts with
+ * the defaults of the new one (and the validation has no conflicts to report). Position, names, texts and mux
+ * stay; the selector flag stays only on an encoding that can be one. One undo step. */
+export function encodingChangeOps(path: Path, node: Record<string, unknown>, encoding: string): Op[] {
+  const ops: Op[] = [{ op: "set", path: [...path, "encoding"], value: encoding }];
+  for (const k of ENCODING_KEYS) if (node[k] != null) ops.push({ op: "remove", path: [...path, k] });
+  // A float without a written length is 32 bits long: the length is written, so the position stays
+  if (node.representation === "float" && node.bit_length == null && node.byte_length == null) {
+    ops.push({ op: "set", path: [...path, "bit_length"], value: 32 });
+  }
+  if (node.multiplexer != null && !["number", "enum"].includes(encoding)) ops.push({ op: "remove", path: [...path, "multiplexer"] });
+  return ops;
+}
 /** An empty choice ("not set") is offered only while the field has no value. */
 const notSet = (c: FormContext, key: string): Option[] => (value(c, key) == null ? [["", N_("not set")]] : []);
 
@@ -176,10 +197,10 @@ const spansBytes = (c: FormContext): boolean => {
   return len > 8 || (len > 1 && (start % 8) + len > 8);
 };
 const LITTLE_ENDIAN_ONLY = ["canopen", "j1939"];
-const multiByte = (c: FormContext) => !["flag", "bytes", "string"].includes(encoding(c))
+const multiByte = (c: FormContext) => encoding(c) !== "bytes"
   && (value(c, "byte_order") != null || (spansBytes(c) && !LITTLE_ENDIAN_ONLY.includes(c.protocol)));
 // The bit in the byte matters only for a value shorter than a byte
-const subByte = (c: FormContext) => encoding(c) === "flag" || (bitLength(c) ?? 8) < 8;
+const subByte = (c: FormContext) => (bitLength(c) ?? 8) < 8;
 // The other fields of the SDO exchange's value appear once it has an identifier
 const hasValue = (c: FormContext) => value(c, "value.name") != null;
 
@@ -258,8 +279,6 @@ export const FORMS: Record<FormKind, Section[]> = {
     { fields: [
       NAME,
       { key: "title", label: N_("Title"), type: "loc", placeholder: N_("same as the identifier") },
-    ] },
-    { title: N_("Identification"), fields: [
       // Outside CANopen the type is not used (explicit ID or one from the PGN); a type written in the YAML is shown
       // so that it can be fixed. The VS Code form gets the types from the server, with the frames that took their IDs.
       { key: "canopen", label: N_("CANopen function"), type: "select", when: (c) => c.protocol === "canopen",
@@ -324,7 +343,7 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "start_bit", label: N_("Start bit (LSB)"), type: "int", half: true, layout: true,
         when: (c) => !byBytes(c) },
       { key: "bit_length", label: N_("Length, bits"), type: "int", half: true, layout: true,
-        when: (c) => value(c, "byte_length") == null && encoding(c) !== "flag" },
+        placeholder: (c) => (isFloat(c) ? "32" : ""), when: (c) => value(c, "byte_length") == null },
       { key: "byte_length", label: N_("Length, bytes"), type: "int", half: true, layout: true,
         when: (c) => value(c, "byte_length") != null },
       { key: "byte_order", label: N_("Byte order"), type: "select", when: multiByte,
@@ -333,26 +352,24 @@ export const FORMS: Record<FormKind, Section[]> = {
     { title: N_("Value"), fields: [
       { key: "unit", label: N_("Unit"), type: "unit", half: true, when: numeric },
       { key: "representation", label: N_("Number representation"), type: "select", half: true,
-        options: () => [["", N_("unsigned")], ["twos_complement", N_("two's complement")],
-          ["ones_complement", N_("ones' complement")], ["sign_magnitude", N_("sign-magnitude")]],
-        when: encodingIn("raw", "scaled", "enum") },
-      { key: "factor", label: N_("Factor (scale)"), type: "float", half: true, placeholder: "1", when: scaledLike },
-      { key: "offset", label: N_("Offset"), type: "float", half: true, placeholder: "0", when: scaledLike },
+        options: () => [...REPRESENTATIONS, ["float", N_("floating point (IEEE 754)")]], when: numeric },
+      { key: "factor", label: N_("Factor (scale)"), type: "float", half: true, placeholder: "1", when: numeric },
+      { key: "offset", label: N_("Offset"), type: "float", half: true, placeholder: "0", when: numeric },
       { key: "min", label: N_("Minimum (min)"), type: "float", half: true, when: numeric },
       { key: "max", label: N_("Maximum (max)"), type: "float", half: true, when: numeric },
       { key: "initial", label: N_("Initial value"), type: "float", half: true,
-        when: (c) => !["bitfield", "bytes", "string"].includes(encoding(c)) && !value(c, "source") },
-      { key: "source", label: N_("Value from the map"), type: "select", half: true, when: encodingIn("raw"),
+        when: (c) => ["number", "enum"].includes(encoding(c)) && !value(c, "source") },
+      { key: "source", label: N_("Value from the map"), type: "select", half: true, when: integer,
         options: () => [["", N_("none")], ["map_version.major", N_("map version: major")],
           ["map_version.minor", N_("map version: minor")], ["map_version.patch", N_("map version: patch")],
           ["layout_crc32", N_("layout CRC32")]] },
-      { key: "charset", label: N_("Charset"), type: "select", half: true, when: encodingIn("string"),
-        options: () => [["", "ASCII"], ["utf-8", "UTF-8"], ["latin-1", "Latin-1"]] },
+      { key: "charset", label: N_("Text"), type: "select", half: true, when: encodingIn("bytes"),
+        options: () => [["", N_("no — byte array")], ["ascii", "ASCII"], ["utf-8", "UTF-8"], ["latin-1", "Latin-1"]] },
+      // A terminator ends a text: it shows with a charset
       { key: "terminator", label: N_("Terminator"), type: "text", half: true, placeholder: "0x00, *",
-        when: encodingIn("string") },
+        when: (c) => encoding(c) === "bytes" && (value(c, "charset") != null || value(c, "terminator") != null) },
       { key: "invalid_raw", label: N_("Not available (raw)"), type: "rawlist", half: true, mono: true,
-        placeholder: "0xFF, 0xFF00..0xFFFF",
-        when: encodingIn("raw", "scaled", "enum") },
+        placeholder: "0xFF, 0xFF00..0xFFFF", when: integer },
       { key: "index", label: N_("Dictionary object: index"), type: "hex", half: true, placeholder: "0x2000",
         when: (c) => c.protocol === "canopen" },
       { key: "subindex", label: N_("Dictionary object: subindex"), type: "hex", half: true, placeholder: "0x00",
@@ -363,7 +380,7 @@ export const FORMS: Record<FormKind, Section[]> = {
     ] },
     { title: N_("Multiplexing"), fields: [
       { key: "multiplexer", label: N_("mux selector"), type: "bool",
-        when: (c) => ["raw", "enum"].includes(encoding(c)) && !c.hasSelector },
+        when: (c) => selectorLike(c) && !c.hasSelector },
       { key: "mux", label: N_("mux (selector values)"), type: "intlist", mono: true, placeholder: N_("0 or 1, 2"),
         when: (c) => c.hasSelector },
     ] },

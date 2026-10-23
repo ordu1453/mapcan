@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+* Needs mapcan 0.24 or newer: the signal form offers the four encodings of the format (#140): **number**
+  (an integer, a scaled value with factor and offset, or floating point chosen in **Number representation**),
+  **enum**, **bitfield** and **bytes** (a byte array, or text when **Text** names a character set; the
+  terminator shows with it). Each shows only its own fields, and changing the encoding removes the fields of the
+  former one in one undo step; a float's implied length is written then, so the signal keeps its place.
+* The bit layout: a click on a free bit adds no signal (drag over two or more bits, or double-click one);
+  the selected signal has one contour and the others are dimmed, the length handles are the edges of its end
+  bits (the ↔ cursor) instead of bars; a field being typed in is written before a click in the layout shows
+  another signal.
+* Maps of format version 2 (`mapcan: 2`). A map of version 1 is still shown, its encodings as version 2
+  has them, with the note `format-v1`; its quick fix rewrites the file in version 2.
+
 ## 0.6.7
 
 * Needs mapcan 0.23.3 or newer, which the extension offers to install or update.

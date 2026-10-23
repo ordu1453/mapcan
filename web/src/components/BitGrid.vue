@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Interactive bit map of a frame: DLC rows × 8 bits (bit 7 on the left, as in the documents).
-//  * dragging over free bits: a new signal;
+//  * dragging over two or more free bits, or a double click on one: a new signal (a click alone makes none);
 //  * dragging the selected signal: moving it;
 //  * handles on the least/most significant bit (little-endian): changing the length.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
@@ -171,8 +171,9 @@ const segments = computed<Segment[]>(() => {
 });
 
 /** Name of the bit field above the bars: consecutive bits of a row of one field. */
-const fieldSegments = computed<Array<{ row: number; col: number; span: number; label: string }>>(() => {
-  const out: Array<{ row: number; col: number; span: number; label: string }> = [];
+const fieldSegments = computed<Array<{ row: number; col: number; span: number; label: string; mine: boolean }>>(() => {
+  const out: Array<{ row: number; col: number; span: number; label: string; mine: boolean }> = [];
+  const sel = selectedSignal.value;
   for (let row = 0; row < props.frame.length; row++) {
     let col = 0;
     while (col < 8) {
@@ -180,7 +181,7 @@ const fieldSegments = computed<Array<{ row: number; col: number; span: number; l
       let span = 1;
       if (c.inField) {
         while (col + span < 8 && samePlace(c, cells.value[row * 8 + (7 - col - span)])) span++;
-        out.push({ row, col, span, label: c.owners[0].name });
+        out.push({ row, col, span, label: c.owners[0].name, mine: !!sel && samePath(c.owners[0].path, sel.path) });
       }
       col += span;
     }
@@ -200,6 +201,22 @@ function pillEdges(c: Cell) {
   return { "field-bit": true, "no-flag": c.flagIndex === null, "pill-l": !samePill(c, left), "pill-r": !samePill(c, right) };
 }
 
+/** Bits of the selected signal shown in the grid: its contour is drawn where a neighbour is not one of them. */
+const selectedBits = computed(() => {
+  const s = selectedSignal.value;
+  return new Set(s && visible(s) ? s.occupied : []);
+});
+
+function contour(bit: number) {
+  const bits = selectedBits.value;
+  if (!bits.has(bit)) return {};
+  return {
+    "sel-t": !bits.has(bit - 8), "sel-b": !bits.has(bit + 8),
+    // Left in the grid is the higher bit of the same byte
+    "sel-l": bit % 8 === 7 || !bits.has(bit + 1), "sel-r": bit % 8 === 0 || !bits.has(bit - 1),
+  };
+}
+
 function cellClass(c: Cell) {
   const sel = selectedSignal.value;
   const isSel = !!sel && c.owners.some((s) => samePath(s.path, sel.path));
@@ -214,13 +231,15 @@ function cellClass(c: Cell) {
     "preview-bad": !!p && p.bits.has(c.bit) && (c.owners.length > 0 || c.bit >= nbits.value),
     synthetic: c.owners.length > 0 && c.owners.every((s) => s.synthetic),
     ...pillEdges(c),
+    ...contour(c.bit),
   };
 }
 
 /** A plain signal fills the cell; a bit field gets bars of its flags (::before) in the signal's color. */
 function cellStyle(c: Cell) {
   if (!c.owners.length) return {};
-  return c.inField ? { "--sig": colorOf(c.owners[0]) } : { background: colorOf(c.owners[0]) };
+  const sig = colorOf(c.owners[0]);
+  return c.inField ? { "--sig": sig } : { "--sig": sig, background: sig };
 }
 
 /** Length handles in the cell; a one-bit signal has both in one cell. */
@@ -235,19 +254,27 @@ function handles(c: Cell): Array<"lo" | "hi"> {
 
 function onDown(c: Cell, e: MouseEvent) {
   if (e.button !== 0) return;
+  // A form field being typed in is committed first, to the node it belongs to: preventDefault below would keep
+  // its focus while the click selects another node
+  const active = document.activeElement as HTMLElement | null;
+  if (active && active.matches("input, textarea, select")) active.blur();
   e.preventDefault();
   const sel = selectedSignal.value;
   const hs = handles(c);
-  // The end cell of a multi-bit signal is a handle as a whole; of a one-bit one only the handle itself, otherwise moving
+  // The length changes at the edge of an end bit (the handle, shown by the cursor); the rest of the signal moves it
   const grip = (e.target as HTMLElement).dataset?.edge as "lo" | "hi" | undefined;
-  const h = hs.length === 1 ? hs[0] : grip && hs.includes(grip) ? grip : null;
+  const h = grip && hs.includes(grip) ? grip : null;
   if (h && sel) {
     drag.value = { mode: "resize", sig: sel, edge: h, cur: c.bit };
     return;
   }
   const own = c.owners.find((s) => sel && samePath(s.path, sel.path)) ?? c.owners[0];
   if (own) {
-    emit("select", own.synthetic ? props.frame.path : own.path);
+    // The first click only selects a signal; the selected one is moved by dragging (a stray click moves nothing)
+    if (!samePath(props.selected, own.path)) {
+      emit("select", own.synthetic ? props.frame.path : own.path);
+      return;
+    }
     if (!props.readonly && !own.synthetic) drag.value = { mode: "move", sig: own, grab: c.bit, cur: c.bit };
     return;
   }
@@ -265,7 +292,9 @@ function onUp() {
   drag.value = null;
   if (!d || !p) return;
   if (d.mode === "create") {
-    emit("create", p.start, p.length);
+    // A click on a free bit makes no signal (a double click does): it only leaves the selected one
+    if (p.length >= 2) emit("create", p.start, p.length);
+    else emit("select", props.frame.path);
   } else if (d.mode === "move") {
     if (d.cur !== d.grab) emit("layout", d.sig.path, p.start, p.length);
   } else if (p.start !== d.sig.start_bit || p.length !== d.sig.bit_length) {
@@ -273,8 +302,16 @@ function onUp() {
   }
 }
 
+function onDouble(c: Cell) {
+  if (!props.readonly && !c.owners.length) emit("create", c.bit, 1);
+}
+
 function onKey(e: KeyboardEvent) {
-  if (e.key === "Escape") drag.value = null;
+  // Esc cancels a drag (and does not also leave the node)
+  if (e.key === "Escape" && drag.value) {
+    drag.value = null;
+    e.preventDefault();
+  }
 }
 
 onMounted(() => {
@@ -302,20 +339,14 @@ const status = computed(() => {
   }
   return props.readonly
     ? t("View only")
-    : t("Drag across free bits to add a signal. Drag a signal to move it, drag its edge to resize.");
+    : t("Drag across two or more free bits to add a signal (double-click: one bit). Drag a signal to move it, its edge to resize.");
 });
 </script>
 
 <template>
   <div class="bitgrid-wrap">
-    <div v-if="muxOptions.length" class="mux-bar">
-      <span class="muted">{{ t("Selector") }} <b>{{ selector?.name }}</b>:</span>
-      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">{{ t("All") }}</button>
-      <button v-for="[v, n] in muxOptions" :key="v" :class="{ active: muxValue === v }"
-              @click="emit('update:muxValue', v)">{{ v }}{{ n ? " · " + n : "" }}</button>
-    </div>
-
-    <div class="bitgrid" :style="{ gridTemplateRows: `26px repeat(${frame.length}, 34px)` }" @mouseleave="hover = null">
+    <div class="bitgrid" :class="{ 'has-selection': selectedBits.size > 0 }"
+         :style="{ gridTemplateRows: `26px repeat(${frame.length}, 34px)` }" @mouseleave="hover = null">
       <div class="bg-head corner">{{ t("Byte") }}</div>
       <div v-for="b in 8" :key="'h' + b" class="bg-head" :style="{ gridColumn: b + 1, gridRow: 1 }">{{ 8 - b }}</div>
 
@@ -325,21 +356,28 @@ const status = computed(() => {
 
       <div v-for="c in cells" :key="c.bit" class="bg-cell" :class="cellClass(c)" :style="{
              ...cellStyle(c), gridRow: Math.floor(c.bit / 8) + 2, gridColumn: 9 - (c.bit % 8) }"
-           :title="t('bit {bit}', { bit: c.bit })" @mousedown="onDown(c, $event)" @mouseenter="onEnter(c)">
+           :title="t('bit {bit}', { bit: c.bit })" @mousedown="onDown(c, $event)" @dblclick="onDouble(c)" @mouseenter="onEnter(c)">
         <span v-for="h in handles(c)" :key="h" class="grip" :class="h" :data-edge="h" />
       </div>
 
-      <div v-for="(f, i) in fieldSegments" :key="'f' + i" class="bg-field-label"
+      <div v-for="(f, i) in fieldSegments" :key="'f' + i" class="bg-field-label" :class="{ mine: f.mine }"
            :style="{ gridRow: f.row + 2, gridColumn: `${f.col + 2} / span ${f.span}` }">
         <span>{{ f.label }}</span>
       </div>
 
       <div v-for="(s, i) in segments" :key="'s' + i" class="bg-label"
-           :class="{ conflict: s.conflict, selected: s.selected && !s.onPill, 'on-pill': s.onPill }"
+           :class="{ conflict: s.conflict, selected: s.selected && !s.onPill, mine: s.selected, 'on-pill': s.onPill }"
            :title="s.title" :style="{ gridRow: s.row + 2, gridColumn: `${s.col + 2} / span ${s.span}` }">
         <span>{{ s.label }}</span>
       </div>
     </div>
     <div class="bitgrid-status muted">{{ status }}</div>
+    <!-- Under the grid: the grid starts right under the heading's Bits tab -->
+    <div v-if="muxOptions.length" class="mux-bar">
+      <span class="muted">{{ t("Selector") }} <b>{{ selector?.name }}</b>:</span>
+      <button :class="{ active: muxValue === null }" @click="emit('update:muxValue', null)">{{ t("All") }}</button>
+      <button v-for="[v, n] in muxOptions" :key="v" :class="{ active: muxValue === v }"
+              @click="emit('update:muxValue', v)">{{ v }}{{ n ? " · " + n : "" }}</button>
+    </div>
   </div>
 </template>
