@@ -29,7 +29,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
@@ -53,7 +53,7 @@ jobs:
       matrix:
         python: ["3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python }}
@@ -66,7 +66,7 @@ jobs:
     if: ${{ !inputs.skip-linux }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
@@ -87,7 +87,7 @@ jobs:
     if: ${{ !inputs.skip-linux }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
@@ -113,8 +113,8 @@ jobs:
       ZEPHYR_VERSION: v4.1.0
       ZEPHYR_TOOLCHAIN_VARIANT: host     # native_sim builds with the host's gcc: no Zephyr SDK
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install the build tools, Zephyr and mapcan
@@ -142,7 +142,7 @@ jobs:
     if: ${{ !inputs.skip-linux }}    # in a release, release.yml builds and publishes the image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -156,8 +156,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -178,7 +178,7 @@ jobs:
       - name: Browser tests
         working-directory: web
         run: npx playwright install --with-deps chromium && npm run e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: web-e2e-report
@@ -191,12 +191,12 @@ jobs:
   vscode:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
       - run: uv sync --locked --extra lsp
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -219,7 +219,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\Git\bin"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
@@ -238,7 +238,7 @@ jobs:
             uv run mapcan build "$f" -o "build/$(basename "$(dirname "$f")")-$(basename "$f" .yaml)" \
               --pdf-template mapcan --pdf-template gost-2.105
           done
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: mapcan-build
           path: build/

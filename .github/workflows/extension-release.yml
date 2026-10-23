@@ -28,7 +28,7 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Version
         id: v
         shell: bash
@@ -50,7 +50,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --locked --extra lsp
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -64,7 +64,7 @@ jobs:
       - name: Integration tests
         working-directory: vscode
         run: xvfb-run -a npm test
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: vsix
           path: vscode/mapcan-${{ steps.v.outputs.version }}.vsix
@@ -76,8 +76,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v7
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: vsix
       - name: GitHub Release
@@ -98,7 +98,7 @@ jobs:
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: vsix
       - name: Publish to the Visual Studio Marketplace
@@ -115,7 +115,7 @@ jobs:
     env:
       OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: vsix
       - name: Publish to Open VSX
