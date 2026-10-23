@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
-* Needs mapcan 0.24 or newer: the signal form offers the four encodings of the format (#140): **number**
+* Needs mapcan 0.24.0 or newer, which the extension offers to install or update.
+* The signal form offers the four encodings of the format (#140): **number**
   (an integer, a scaled value with factor and offset, or floating point chosen in **Number representation**),
   **enum**, **bitfield** and **bytes** (a byte array, or text when **Text** names a character set; the
   terminator shows with it). Each shows only its own fields, and changing the encoding removes the fields of the
