@@ -321,7 +321,7 @@ buses:
             id: 0x101
             length: 8
             signals:
-              - {name: u28, encoding: number, start_bit: 0, bit_length: 28, unit: ms}
+              - {name: u28, encoding: number, start_bit: 0, bit_length: 28, factor: 0.5, unit: ms}
               - {name: s32, encoding: number, start_bit: 28, bit_length: 32, factor: 0.5,
                  representation: twos_complement}
           - name: f2
@@ -351,7 +351,7 @@ def test_c_from_phys_bounds(tmp_path):
     sources = [p for p in generate_c(cmap, tmp_path) if p.suffix == ".c"]
     checks = [
         ("f1_u28_from_phys(1e12)", 268435455),        # used to be 2^28: the top bit was lost when packing
-        ("f1_u28_from_phys(16777217.0)", 16777217),   # in float it would round to 16777216
+        ("f1_u28_from_phys(8388608.5)", 16777217),    # in float 8388608.5 is not exact (25 significant bits)
         ("f1_u28_from_phys(-5.0)", 0),
         ("f1_s32_from_phys(1e12)", 2**31 - 1),
         ("f1_s32_from_phys(-1e12)", -(2**31)),
@@ -388,7 +388,7 @@ def test_dbc_attributes_for_plain_can():
     db = _dbc(BOUNDS_MAP.replace("protocol: can", "protocol: can\n    bitrate: 250000").replace(
         "id: 0x101", "id: 0x101\n            cycle_ms: 50\n            comment: Note").replace(
         "id: 0x102", "id: 0x102\n            trigger: event").replace(
-        "unit: ms}", "unit: ms, initial: 7, description: Time, comment: Raw ms}"))
+        "unit: ms}", "unit: ms, initial: 3.5, description: Time, comment: Raw ms}"))
     f1, f2 = db.get_message_by_name("f1"), db.get_message_by_name("f2")
     assert db.buses[0].baudrate == 250000
     assert (f1.cycle_time, f1.send_type, f2.send_type) == (50, "Cyclic", "Spontaneous")
