@@ -3,6 +3,7 @@
 import { hex, rangeLabel } from "./bits";
 import type { Diagnostic, Included, Level, Path, ResolvedFrame, ResolvedSignal } from "./types";
 import { t } from "./i18n";
+import { nodeLines } from "./yamltext";
 
 export type NodeKind = "document" | "history" | "revision" | "bus" | "device" | "frame" | "signal" | "flag" | "sdo" | "unknown";
 
@@ -344,4 +345,43 @@ export function freeByte(rf: ResolvedFrame | undefined, dlc: number): number | n
 export function nextFreeKey(values: Record<string, unknown> | undefined): number {
   const keys = Object.keys(values ?? {}).map(Number).filter((x) => !Number.isNaN(x));
   return keys.length ? Math.max(...keys) + 1 : 0;
+}
+
+// ------------------------------------------------------------------ named value tables
+
+/** A table of value_tables that a signal or a flag refers to by name (#143). */
+export interface NamedTable {
+  /** Its rows as written, if the map itself has it (a table of an included file is not in the map's data). */
+  values: Record<string, unknown> | null;
+  /** The file it is written in, relative to the map (null: the map), and its line there, for the YAML tab. */
+  file: string | null;
+  line: number | null;
+  /** Signals and flags that use it. */
+  users: number;
+}
+
+export function namedTable(state: { data: Data; text: string; parts?: Record<string, string> }, view: Data,
+                           name: string): NamedTable {
+  const own = state.data?.value_tables?.[name];
+  let file: string | null = null;
+  let line = own != null ? nodeLines(state.text, ["value_tables", name])?.first ?? null : null;
+  if (own == null) {
+    for (const [f, text] of Object.entries(state.parts ?? {})) {
+      const r = nodeLines(text, ["value_tables", name]);
+      if (r) {
+        [file, line] = [f, r.first];
+        break;
+      }
+    }
+  }
+  let users = 0;
+  for (const bus of view?.buses ?? []) {
+    for (const frame of [...(bus?.frames ?? []), ...(bus?.devices ?? []).flatMap((d: Data) => d?.frames ?? [])]) {
+      for (const s of frame?.signals ?? []) {
+        if (s?.values === name) users++;
+        for (const f of s?.flags ?? []) if (f?.values === name) users++;
+      }
+    }
+  }
+  return { values: own && typeof own === "object" ? own : null, file, line, users };
 }

@@ -1,8 +1,8 @@
 // Labels of nodes in the tree: titles for people instead of identifiers, links to received frames.
 
 import { describe, expect, it } from "vitest";
-import { buildTree, deviceLabel, displayName, includedFile, isLink, localPath, mergedPath, pathKey, viewOf, type TreeNode }
-  from "../src/model";
+import { buildTree, deviceLabel, displayName, includedFile, isLink, localPath, mergedPath, namedTable, pathKey, viewOf,
+  type TreeNode } from "../src/model";
 import { issueUrl, ISSUES_URL } from "../src/links";
 import type { ResolvedFrame } from "../src/types";
 
@@ -145,5 +145,36 @@ describe("report an issue", () => {
     expect(body).toContain("Server: Windows 11, Python 3.12.8");
     expect(body).toContain("Browser: ");
     expect(issueUrl(null)).toBe(ISSUES_URL);
+  });
+});
+
+describe("named value tables (#143)", () => {
+  const text = [
+    "mapcan: 2",
+    "value_tables:",
+    "  states: {0: OFF, 1: ON}",
+    "buses: []",
+  ].join("\n");
+  const own = { value_tables: { states: { 0: "OFF", 1: "ON" } }, buses: [] };
+  const view = {
+    buses: [
+      { frames: [{ signals: [{ values: "states" }, { values: { 0: "A" } }] }],
+        devices: [{ frames: [{ signals: [{ values: "faults", flags: [{ values: "states" }] }] }] }, {}] },
+    ],
+  };
+
+  it("finds a table of the map with its rows, line and users", () => {
+    expect(namedTable({ data: own, text }, view, "states")).toEqual(
+      { values: { 0: "OFF", 1: "ON" }, file: null, line: 3, users: 2 });
+  });
+
+  it("finds a table of an included file by its text", () => {
+    const parts = { "common.yaml": "mapcan: 2\npart_of: m.yaml\nvalue_tables:\n  faults:\n    0: OK\n" };
+    expect(namedTable({ data: own, text, parts }, view, "faults")).toEqual(
+      { values: null, file: "common.yaml", line: 4, users: 1 });
+  });
+
+  it("answers without a place for a table that is nowhere", () => {
+    expect(namedTable({ data: null, text: "" }, null, "nope")).toEqual({ values: null, file: null, line: null, users: 0 });
   });
 });

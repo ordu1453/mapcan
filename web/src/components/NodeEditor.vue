@@ -7,7 +7,8 @@ import { describe, fieldHelp, UI_HELP } from "../form/help";
 import { parseInteger, ParseError } from "../form/input";
 import { applies, CANOPEN_DLC, encodingChangeOps, FORMS, isRequired, optionsOf, placeholderOf, type FieldDef,
   type FormContext, type FormKind } from "../form/spec";
-import { deviceLabel, displayName, getAt, HISTORY_PATH, nodeKind, ownerPath, pathKey, samePath, startsWith, txt } from "../model";
+import { deviceLabel, displayName, getAt, HISTORY_PATH, namedTable, nodeKind, ownerPath, pathKey, samePath, startsWith, txt }
+  from "../model";
 import { actions, includedPath, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast, viewData }
   from "../store";
 import type { Diagnostic, Path } from "../types";
@@ -340,6 +341,19 @@ const showValues = computed(() => {
   if (kind.value !== "signal") return false;
   return n.values != null || (rsignal.value?.encoding ?? n.encoding) === "enum";
 });
+// Values from a named table of value_tables (#143): shown read-only, the table is edited in the YAML tab. A table
+// of an included file is not in the map's data: its values come from the resolved signal then (without descriptions).
+const namedValues = computed(() => (typeof node.value?.values === "string" && store.state
+  ? namedTable(store.state, data.value, node.value.values) : null));
+const namedRows = computed(() => namedValues.value?.values
+  ?? (kind.value === "signal" && rsignal.value
+    ? Object.fromEntries(rsignal.value.values.map((v) => [String(v.value), v.name])) : undefined));
+
+function openNamedTable() {
+  const r = namedValues.value;
+  if (r) void actions.openYaml(r.file, r.line);
+}
+
 // The encoding as written counts too: a bit field without flags may not parse yet
 const showFlags = computed(() => kind.value === "signal"
   && (node.value?.flags != null || (rsignal.value?.encoding ?? node.value?.encoding) === "bitfield"));
@@ -580,9 +594,14 @@ function onLayout(p: Path, start: number, length: number) {
     <DocumentRequisites v-if="kind === 'document'" />
     <HistoryEditor v-if="kind === 'history' || kind === 'revision'" :path="path" />
 
-    <section v-if="typeof node?.values === 'string'" class="card">
-      <h3>{{ t("Values") }}</h3>
-      <p class="muted">{{ t("Table \"{name}\" from value_tables; edit it there.", { name: node.values }) }}</p>
+    <section v-if="namedValues" class="card">
+      <ValueTable :path="path" :values="namedRows" :hex="node?.value_format === 'hex'" readonly :diags="[]"
+                  :title="t('Values from table “{name}”', { name: node.values })" />
+      <p class="muted">
+        {{ t("A table of value_tables, used by signals and flags: {n}. It is edited in the YAML tab.",
+             { n: namedValues.users }) }}
+        <button v-if="namedValues.line !== null" class="small" @click="openNamedTable">{{ t("Open in YAML") }}</button>
+      </p>
     </section>
     <ValueTable v-else-if="showValues" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
                 :readonly="readonly" :diags="diags" />
