@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import socket
 import sys
@@ -207,6 +208,22 @@ def test_server_thread_wait_stops_on_ctrl_c():
     assert st.thread.joined == [0.5] and not st.server.should_exit
 
 
+class _Os:
+    """The os module as the launcher sees it, on another system: os.name itself stays, pathlib reads it too."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __getattr__(self, attr):
+        return getattr(os, attr)
+
+
+def _system(monkeypatch, name: str) -> _Os:
+    fake = _Os(name)
+    monkeypatch.setattr(launcher, "os", fake)
+    return fake
+
+
 @pytest.fixture
 def boxes(monkeypatch):
     """System message boxes: what was asked, and the answers to give (IDYES 6, IDNO 7, IDCANCEL 2)."""
@@ -216,7 +233,7 @@ def boxes(monkeypatch):
         seen["asked"].append((text, title, flags))
         return seen["answers"].pop(0) if seen["answers"] else 1
 
-    monkeypatch.setattr(launcher.os, "name", "nt")
+    _system(monkeypatch, "nt")
     monkeypatch.setattr(launcher, "ctypes", SimpleNamespace(windll=SimpleNamespace(
         user32=SimpleNamespace(MessageBoxW=box))))
     return seen
@@ -231,7 +248,7 @@ def test_message_boxes_on_windows(boxes):
 
 
 def test_message_boxes_elsewhere(monkeypatch, capsys):
-    monkeypatch.setattr(launcher.os, "name", "posix")
+    _system(monkeypatch, "posix")
     assert launcher._message_box("Broken", "Title") is True
     assert launcher._ask_save("Save?") is False
     assert capsys.readouterr().err == "Title: Broken\nmapcan: Save?\n"
@@ -242,10 +259,10 @@ def test_unblock_bundle(monkeypatch, tmp_path):
     for name in ("a.dll", "sub/b.dll", "c.txt"):
         (tmp_path / name).write_text("", encoding="utf-8")
     removed = []
-    monkeypatch.setattr(launcher.os, "remove", removed.append)
+    fake = _system(monkeypatch, "nt")
+    fake.remove = removed.append
     launcher._unblock_bundle()          # not a frozen build: nothing
     assert removed == []
-    monkeypatch.setattr(launcher.os, "name", "nt")
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
     launcher._unblock_bundle()
