@@ -68,7 +68,7 @@ test.describe("a map opened by mapcan serve", () => {
     await expect(page.getByText("✓ map is valid")).toBeVisible();
   });
 
-  test("the bit layout adds signals on purpose only, and outlines the selected one", async ({ page, editor }) => {
+  test("the bit layout adds signals on purpose only, and dims the others around the selected one", async ({ page, editor }) => {
     await openEditor(page, editor);
     await select(page, "PMP · Pump", "pump_state");
     const cell = (bit: number) => page.locator(`.bg-cell[title="bit ${bit}"]`);
@@ -94,11 +94,11 @@ test.describe("a map opened by mapcan serve", () => {
     await cell(60).dblclick();
     await expect.poll(async () => signals(await yamlText())).toBe(before + 2);
 
-    // The selected signal: a contour around its bits, the others dimmed, no visible handles
+    // The selected signal keeps its color without a contour, the others are dimmed, no visible handles
     await select(page, "pressure");
-    await expect(cell(16)).toHaveClass(/\bsel-r\b/);
-    await expect(cell(23)).toHaveClass(/\bsel-l\b/);
-    await expect(cell(24)).toHaveClass(/\bsel-r\b/);
+    await expect(cell(16)).toHaveClass(/\bselected\b/);
+    expect(await cell(16).evaluate((e) => getComputedStyle(e).opacity)).toBe("1");
+    expect(await cell(16).evaluate((e) => getComputedStyle(e, "::after").content)).toBe("none");
     await expect(cell(32)).not.toHaveClass(/\bselected\b/);
     expect(await cell(32).evaluate((e) => getComputedStyle(e).opacity)).toBe("0.55");
     expect(await cell(16).locator(".grip").evaluate((e) => getComputedStyle(e).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
@@ -175,6 +175,28 @@ test.describe("a map with floats of implied length", () => {
     await page.getByRole("combobox", { name: "Encoding" }).selectOption("number");
     await expect(page.getByLabel("Length, bits")).toHaveValue("32");
     await expect(page.getByText("✓ map is valid")).toBeVisible();
+  });
+});
+
+test.describe("a map with a table of value_tables in an included file", () => {
+  test.use({ files: { "tractor.yaml": "examples/tractor/tractor.yaml",
+                      "powertrain.yaml": "examples/tractor/powertrain.yaml" }, open: "tractor.yaml" });
+
+  test("a signal shows the values of its named table, which opens in the YAML tab (#143)", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await select(page, "CAB · Cab controller", "Cab controls", "PTO request");
+    const card = page.locator("section.card", { hasText: "Values from table “switch_states”" });
+    await expect(card).toBeVisible();
+    // The values come from powertrain.yaml, read-only
+    for (const name of ["OFF", "ON", "ERROR", "NOT_AVAILABLE"]) {
+      await expect(card.locator(`input[value="${name}"]`)).toBeVisible();
+    }
+    await expect(card.locator("input").first()).toHaveAttribute("readonly", "");
+    await expect(card.getByRole("button", { name: "+ Value" })).toHaveCount(0);
+    await expect(card).toContainText("used by signals and flags: 3");
+    await card.getByRole("button", { name: "Open in YAML" }).click();
+    await expect(page.locator(".gutter .in-node, textarea").first()).toBeVisible();
+    await expect(page.getByText("powertrain.yaml").first()).toBeVisible();
   });
 });
 

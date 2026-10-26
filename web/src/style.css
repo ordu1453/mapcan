@@ -304,16 +304,7 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .bg-cell.empty { background: var(--grid-empty); }
 .bg-cell:not(.empty) { cursor: grab; }
 .bg-cell:hover { filter: brightness(0.94); }
-/* The selected signal: one contour around all its bits (a side is drawn where the neighbour is not one of them),
-   the other signals dimmed */
-.bg-cell::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
-  border: 0 solid color-mix(in srgb, var(--sig, var(--accent)) 55%, #000);
-}
-.bg-cell.sel-t::after { border-top-width: 2px; }
-.bg-cell.sel-b::after { border-bottom-width: 2px; }
-.bg-cell.sel-l::after { border-left-width: 2px; }
-.bg-cell.sel-r::after { border-right-width: 2px; }
+/* The selected signal keeps its color, the other signals are dimmed */
 .bitgrid.has-selection .bg-cell:not(.empty):not(.selected),
 .bitgrid.has-selection .bg-label:not(.mine),
 .bitgrid.has-selection .bg-field-label:not(.mine) { opacity: 0.55; }

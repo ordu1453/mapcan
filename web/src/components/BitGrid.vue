@@ -201,21 +201,11 @@ function pillEdges(c: Cell) {
   return { "field-bit": true, "no-flag": c.flagIndex === null, "pill-l": !samePill(c, left), "pill-r": !samePill(c, right) };
 }
 
-/** Bits of the selected signal shown in the grid: its contour is drawn where a neighbour is not one of them. */
+/** Bits of the selected signal shown in the grid: with a selection, the other signals are dimmed. */
 const selectedBits = computed(() => {
   const s = selectedSignal.value;
   return new Set(s && visible(s) ? s.occupied : []);
 });
-
-function contour(bit: number) {
-  const bits = selectedBits.value;
-  if (!bits.has(bit)) return {};
-  return {
-    "sel-t": !bits.has(bit - 8), "sel-b": !bits.has(bit + 8),
-    // Left in the grid is the higher bit of the same byte
-    "sel-l": bit % 8 === 7 || !bits.has(bit + 1), "sel-r": bit % 8 === 0 || !bits.has(bit - 1),
-  };
-}
 
 function cellClass(c: Cell) {
   const sel = selectedSignal.value;
@@ -231,7 +221,6 @@ function cellClass(c: Cell) {
     "preview-bad": !!p && p.bits.has(c.bit) && (c.owners.length > 0 || c.bit >= nbits.value),
     synthetic: c.owners.length > 0 && c.owners.every((s) => s.synthetic),
     ...pillEdges(c),
-    ...contour(c.bit),
   };
 }
 
