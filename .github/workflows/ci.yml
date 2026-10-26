@@ -150,7 +150,9 @@ jobs:
           tags: mapcan:ci
 
   web:
-    runs-on: ubuntu-latest
+    # Playwright 1.56 cannot install its browsers on ubuntu-latest = 26.04 yet ("does not support chromium on
+    # ubuntu26.04-x64"): pinned until a Playwright release supports it
+    runs-on: ubuntu-24.04
     steps:
       - name: Use Git Bash
         if: runner.os == 'Windows'
@@ -189,7 +191,9 @@ jobs:
   # VS Code extension: types, build, .vsix package and integration tests in a real VS Code
   # (downloaded to vscode/.vscode-test/; the window is in an xvfb virtual display). The language server is from .venv.
   vscode:
-    runs-on: ubuntu-latest
+    # On ubuntu-latest = 26.04 VS Code cannot move a file to the trash, and the test of a device file emptied by a
+    # delete fails ("Failed to move 'node_b.yaml' to the trash"): pinned until the image or VS Code handles it
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
