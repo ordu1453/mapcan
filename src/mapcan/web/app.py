@@ -889,6 +889,8 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
         stem = s.path.stem
         try:
             data = await run_in_threadpool(build_export, cmap, fmt, stem, lang, template)
+        except AppError:
+            raise                # a missing extra: its code tells the UI what to install
         except Exception as e:  # noqa: BLE001 — show the cause in the UI
             raise HTTPException(500, _("{fmt} export error: {error}", fmt=fmt, error=e)) from e
         name = f"{stem}{ext}" if ext != ".zip" else f"{stem}-{fmt}.zip"

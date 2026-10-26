@@ -275,6 +275,8 @@ def _fixes_for(a: Analysis, code: str, path: Path_) -> list[Action]:
 
     if code == "name-style" and path:
         name = raw_at(a, path)
+        if isinstance(name, dict):      # an enum value written as {name: …, description: …}
+            name = name.get("name")
         style = _style_for(a, path)
         if isinstance(name, str) and style:
             new = to_style(name, style)

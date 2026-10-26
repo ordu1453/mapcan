@@ -209,7 +209,11 @@ class EditorSession:
             target = Path(path).resolve()
             if target.exists() and not overwrite and target != self.path:
                 raise FileExistsError(_("file already exists: {path}", path=target))
-            target.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+            except FileExistsError as e:
+                # A file stands where a folder of the path should be: not "the file already exists"
+                raise NotADirectoryError(e.errno, e.strerror, e.filename) from e
             target.write_bytes(self.text.replace("\n", self.newline).encode("utf-8"))
             # The included files stay where they are: their unsaved edits are written there
             for part in self.parts.values():

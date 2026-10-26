@@ -782,8 +782,10 @@ def op_insert(doc, path: list, value: Any, index: int | None = None) -> None:
     except (KeyError, IndexError, ValueError, TypeError) as e:
         raise OpError(_("path not found: {path}", path=path)) from e
     parent, last = _parent(doc, path)
-    if isinstance(parent, dict) and (last not in parent or parent[last] is None):
-        parent[last] = CommentedSeq()
+    if isinstance(parent, dict) and last not in parent and _key(last) not in parent:
+        op_set(doc, path, [])           # a new list goes to its place in the canonical order, as a new key does
+    elif isinstance(parent, dict) and parent[_find_key(parent, last)] is None:
+        parent[_find_key(parent, last)] = to_node([], last)
     seq = _get(doc, path)
     if not isinstance(seq, list):
         raise OpError(_("not a list: {path}", path=path))

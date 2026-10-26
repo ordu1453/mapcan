@@ -121,14 +121,32 @@ function blockEnd(lines: string[], from: number, end: number, col: number, item:
 }
 
 /** Trim trailing empty lines and comments. */
-function trimEnd(lines: string[], start: number, end: number): number {
-  while (end > start + 1 && !isContent(lines[end - 1])) end--;
+function trimEnd(lines: string[], start: number, end: number, text: Set<number>): number {
+  while (end > start + 1 && !isContent(lines[end - 1]) && !text.has(end - 1)) end--;
   return end;
+}
+
+/** Lines of the text of block scalars ("|", ">"): a "#" there is text, not a comment. */
+function scalarText(lines: string[]): Set<number> {
+  const out = new Set<number>();
+  let blockIndent = -1;
+  lines.forEach((line, i) => {
+    if (blockIndent >= 0) {
+      if (!line.trim()) return;
+      if (indentOf(line) > blockIndent) { out.add(i); return; }
+      blockIndent = -1;
+    }
+    const k = KEY_RE.exec(line);
+    const rest = k ? line.slice(k[0].length) : line.replace(/^\s*(?:-\s+)*/, "");
+    if (BLOCK_RE.test(rest.replace(/\s+#.*$/, "").trim())) blockIndent = k ? keyCol(line) : indentOf(line);
+  });
+  return out;
 }
 
 /** Lines of the node [first, last] (from 1), or null if the path is not found in the text. */
 export function nodeLines(text: string, path: Path): { first: number; last: number } | null {
   const lines = text.split("\n");
+  const scalars = scalarText(lines);
   let s = 0;                     // search area: [s, e)
   let e = lines.length;
   let firstOnS = false;          // line s is "- key: …" of an item, its key is searched too
@@ -153,7 +171,7 @@ export function nodeLines(text: string, path: Path): { first: number; last: numb
         if (++n === el) { hit = j; break; }
       }
       if (hit < 0) return null;
-      const end = trimEnd(lines, hit, blockEnd(lines, hit, e, ind, true));
+      const end = trimEnd(lines, hit, blockEnd(lines, hit, e, ind, true), scalars);
       found = [hit, end];
       s = hit; e = end; firstOnS = true;
       inline = /^\s*-\s+[{[]/.test(lines[hit]);
@@ -170,7 +188,7 @@ export function nodeLines(text: string, path: Path): { first: number; last: numb
       if (m && keyMatches(m[2], el)) { hit = j; break; }
     }
     if (hit < 0) return null;
-    const end = trimEnd(lines, hit, blockEnd(lines, hit, e, col, false));
+    const end = trimEnd(lines, hit, blockEnd(lines, hit, e, col, false), scalars);
     found = [hit, end];
     s = hit + 1; e = end; firstOnS = false;
     inline = /^\s*[{[]/.test(lines[hit].slice(KEY_RE.exec(lines[hit])![0].length));

@@ -528,6 +528,9 @@ RU: dict[str, str] = {
     "an included file must be a YAML mapping": "подключаемый файл должен быть словарём YAML",
     "key {key!r} cannot be included: only buses and value_tables":
         "ключ {key!r} нельзя подключать: допустимы buses и value_tables",
+    "value_tables must be a mapping of tables": "value_tables должен быть словарём таблиц",
+    "buses must be a list of buses": "buses должен быть списком шин",
+    "a bus must be a mapping with its name": "шина должна быть словарём с её именем",
     "the node is described in the included file {file}: edit it there":
         "узел описан в подключённом файле {file} — правьте его там",
     "value table {name!r} is already defined": "таблица значений {name!r} уже описана",

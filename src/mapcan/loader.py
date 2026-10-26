@@ -664,6 +664,9 @@ def _copy_positions(sub_src: SourceMap, src: SourceMap, remap) -> None:
 def _merge_tables(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, report: Report) -> None:
     tables = part.get("value_tables")
     if not isinstance(tables, dict):
+        if tables is not None:
+            report.add(sub_src.diag("error", "include", _("value_tables must be a mapping of tables"),
+                                    ("value_tables",)))
         return
     own = data.setdefault("value_tables", {})
     if not isinstance(own, dict):
@@ -684,12 +687,15 @@ def _merge_tables(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, re
 def _merge_buses(data: dict, part: dict, sub_src: SourceMap, src: SourceMap, report: Report) -> None:
     buses = part.get("buses")
     if not isinstance(buses, list):
+        if buses is not None:
+            report.add(sub_src.diag("error", "include", _("buses must be a list of buses"), ("buses",)))
         return
     own = data.setdefault("buses", [])
     if not isinstance(own, list):
         return
     for j, bus in enumerate(buses):
         if not isinstance(bus, dict):
+            report.add(sub_src.diag("error", "include", _("a bus must be a mapping with its name"), ("buses", j)))
             continue
         target = next((k for k, b in enumerate(own) if isinstance(b, dict) and b.get("name") == bus.get("name")),
                       None)
