@@ -9,6 +9,22 @@ import { t } from "./i18n";
 // to the file the node is described in (the paths are the map's)
 const data = (): Data => viewData.value;
 
+// One structural edit at a time: a new node takes a free name and place from the data, which a click made before
+// the previous edit came back would still read unchanged, and two equal nodes would be added (#145)
+let editing = false;
+
+function exclusive<A extends unknown[]>(fn: (...args: A) => Promise<boolean>): (...args: A) => Promise<boolean> {
+  return async (...args: A) => {
+    if (editing) return false;
+    editing = true;
+    try {
+      return await fn(...args);
+    } finally {
+      editing = false;
+    }
+  };
+}
+
 function busOf(path: Path): Data {
   return getAt(data(), path.slice(0, 2));
 }
@@ -46,12 +62,12 @@ function askTitle(ok: boolean): boolean {
   return ok;
 }
 
-export function addBus(): Promise<boolean> {
+export const addBus = exclusive(function addBus(): Promise<boolean> {
   const buses: Data[] = data()?.buses ?? [];
   const name = uniqueName("bus", buses.map((b) => b.name));
   return insertAndSelect(["buses"], { name, title: defaultTitle("Шина", "Bus", buses), protocol: "can", devices: [] })
     .then(askTitle);
-}
+});
 
 /** Fields of a new device of the bus: a free name, title and node ID or J1939 address. */
 function newDevice(busPath: Path): Record<string, unknown> {
@@ -75,15 +91,15 @@ function newDevice(busPath: Path): Record<string, unknown> {
   return value;
 }
 
-export function addDevice(busPath: Path): Promise<boolean> {
+export const addDevice = exclusive(function addDevice(busPath: Path): Promise<boolean> {
   return insertAndSelect([...busPath, "devices"], newDevice(busPath)).then(askTitle);
-}
+});
 
 /**
  * A new device in a file of its own (default devices/<name>.yaml), added to `include` of the map: a map edited by
  * several people keeps one file per device.
  */
-export async function addDeviceInFile(busPath: Path): Promise<boolean> {
+export const addDeviceInFile = exclusive(async function addDeviceInFile(busPath: Path): Promise<boolean> {
   const device = newDevice(busPath);
   const file = await askText(t("Device in a new file"),
     t("The file, relative to the map. The map includes it, and Save writes both."), `devices/${device.name}.yaml`,
@@ -94,10 +110,10 @@ export async function addDeviceInFile(busPath: Path): Promise<boolean> {
   const ok = await actions.addDeviceFile(busPath, device, file.trim());
   if (ok) actions.select([...busPath, "devices", index]);
   return askTitle(ok);
-}
+});
 
 /** A new frame is not selected: the bus/device stays selected, and the frame appears in the Frames list. */
-export function addFrame(ownerPath: Path): Promise<boolean> {
+export const addFrame = exclusive(function addFrame(ownerPath: Path): Promise<boolean> {
   const owner = getAt(data(), ownerPath);
   const bus = busOf(ownerPath);
   const isDevice = ownerPath.length === 4;
@@ -133,9 +149,9 @@ export function addFrame(ownerPath: Path): Promise<boolean> {
   value.cycle_ms = 100;
   value.signals = [];
   return insertAndSelect([...ownerPath, "frames"], value, [], false);
-}
+});
 
-export function addSignal(framePath: Path, layout?: { start_bit: number; bit_length: number }, name?: string): Promise<boolean> {
+export const addSignal = exclusive(function addSignal(framePath: Path, layout?: { start_bit: number; bit_length: number }, name?: string): Promise<boolean> {
   const frame = getAt(data(), framePath);
   const names = new Set<string>();
   for (const s of frame.signals ?? []) {
@@ -158,7 +174,7 @@ export function addSignal(framePath: Path, layout?: { start_bit: number; bit_len
     ...extra,
     { op: "set_layout", path: [...framePath, "signals", "$new"], ...pos },
   ]);
-}
+});
 
 const FD_DLC = [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64];
 
@@ -186,7 +202,7 @@ function placeNewSignal(framePath: Path): { pos: { start_bit: number; bit_length
   return null;
 }
 
-export function addFlag(signalPath: Path): Promise<boolean> {
+export const addFlag = exclusive(function addFlag(signalPath: Path): Promise<boolean> {
   const sig = getAt(data(), signalPath);
   const flags: Data[] = sig.flags ?? [];
   const used = new Set<number>();
@@ -197,9 +213,9 @@ export function addFlag(signalPath: Path): Promise<boolean> {
   const names = new Set<string>(frameSigs.flatMap((s: Data) => [s.name, ...(s.flags ?? []).map((f: Data) => f.name)]));
   // Flags are edited right in the signal's table: stay on the signal
   return insertAndSelect([...signalPath, "flags"], { bit, name: uniqueName("flag", names) }, [], false);
-}
+});
 
-export function addSdo(framePath: Path): Promise<boolean> {
+export const addSdo = exclusive(function addSdo(framePath: Path): Promise<boolean> {
   const frame = getAt(data(), framePath);
   const list: Data[] = frame.sdo ?? [];
   const last = list[list.length - 1];
@@ -209,7 +225,7 @@ export function addSdo(framePath: Path): Promise<boolean> {
     index: last?.index ?? 0x2000,
     subindex: (last?.subindex ?? 0) + 1,
   });
-}
+});
 
 function bumpVersion(v: string): string {
   const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(v ?? "");
@@ -228,7 +244,7 @@ export function removeDocumentVersion(doc: Data | undefined) {
 }
 
 /** A new history entry goes first (the history goes from new versions to old ones). */
-export async function addRevision(): Promise<boolean> {
+export const addRevision = exclusive(async function addRevision(): Promise<boolean> {
   const doc = data()?.document ?? {};
   const latest = (doc.history ?? [])[0]?.version;
   // A version written in the document ahead of the history is the one of the new entry
@@ -244,7 +260,7 @@ export async function addRevision(): Promise<boolean> {
     ...removeDocumentVersion(doc)]);
   if (ok) actions.select([...HISTORY_PATH, 0]);
   return ok;
-}
+});
 
 const RENAMABLE: NodeKind[] = ["bus", "device", "frame", "signal", "flag", "sdo"];
 
@@ -390,7 +406,7 @@ export function installDeleteShortcut(): void {
   });
 }
 
-export async function duplicateNode(path: Path): Promise<boolean> {
+export const duplicateNode = exclusive(async function duplicateNode(path: Path): Promise<boolean> {
   const node = getAt(data(), path);
   const listPath = path.slice(0, -1);
   const list = getAt(data(), listPath) as Data[];
@@ -409,4 +425,4 @@ export async function duplicateNode(path: Path): Promise<boolean> {
   const ok = await actions.apply([{ op: "insert", path: listPath, value: copy, index }]);
   if (ok) actions.select([...listPath, index]);
   return ok;
-}
+});

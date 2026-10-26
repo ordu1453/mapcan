@@ -182,6 +182,18 @@ describe("adding nodes", () => {
       value: { name: "exchange", command: 0x2f, index: 0x2001, subindex: 4 } });
   });
 
+  it("ignores a click made while the previous edit has not come back (#145)", async () => {
+    const sig = [...FRAME, "signals", 0];
+    const first = E.addFlag(sig);
+    const second = E.addFlag(sig);
+    const other = E.addSignal(FRAME, { start_bit: 8, bit_length: 1 });
+    expect(await Promise.all([first, second, other])).toEqual([true, false, false]);
+    expect(fake.applied).toHaveLength(1);
+    // Once it came back, the next click adds again
+    expect(await E.addFlag(sig)).toBe(true);
+    expect(fake.applied).toHaveLength(2);
+  });
+
   it("adds a revision first in the history, with the next version and the author", async () => {
     await E.addRevision();
     const [insert, ...rest] = fake.applied[0];
