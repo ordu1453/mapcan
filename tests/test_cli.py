@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import pytest
 from typer.testing import CliRunner
@@ -151,3 +152,124 @@ def test_build(tmp_path):
 def test_build_rejects_unknown_format(tmp_path):
     r = invoke("build", MINIMAL, "-o", tmp_path, "--formats", "md,doc")
     assert r.exit_code == 2 and "doc" in r.stderr
+
+
+@pytest.fixture
+def fake_server(monkeypatch):
+    """`mapcan serve` without a real server and browser: what it would serve, where, and the opened address."""
+    import webbrowser
+
+    from mapcan import launcher
+    from mapcan.web import app as web_app
+
+    seen = {"opened": []}
+
+    class Server:
+        def __init__(self, app, host, port):
+            seen.update(host=host, port=port)
+
+        def start(self):
+            if seen.get("fail"):
+                raise RuntimeError("port is busy")
+
+        def wait(self):
+            seen["waited"] = True
+
+    monkeypatch.setattr(launcher, "ServerThread", Server)
+    monkeypatch.setattr(launcher, "pick_port", lambda host, preferred: 9999)
+    monkeypatch.setattr(web_app, "create_app", lambda session, **kw: seen.update(session=session, **kw))
+    monkeypatch.setattr(webbrowser, "open", seen["opened"].append)
+    return seen
+
+
+def test_serve_local(fake_server, tmp_path):
+    r = invoke("serve", MINIMAL, "--readonly")
+    assert r.exit_code == 0, r.output
+    # A local address: a free port, no token, only local Host headers, update check on
+    assert (fake_server["host"], fake_server["port"]) == ("127.0.0.1", 9999)
+    assert fake_server["auth_token"] is None and fake_server["check_updates"]
+    assert fake_server["allowed_hosts"] == ("127.0.0.1", "localhost", "::1")
+    assert fake_server["readonly"] and fake_server["session"].path == MINIMAL
+    assert fake_server["opened"] == ["http://127.0.0.1:9999/"] and fake_server["waited"]
+    assert "http://127.0.0.1:9999/" in r.output
+
+    # A folder is the working folder of the start screen, without a session
+    r = invoke("serve", tmp_path, "--no-browser", "--port", 8000)
+    assert r.exit_code == 0 and fake_server["session"] is None and fake_server["cwd"] == tmp_path.resolve()
+    assert fake_server["port"] == 8000 and fake_server["opened"] == ["http://127.0.0.1:9999/"]
+
+
+def test_serve_network_needs_a_token(fake_server):
+    r = invoke("serve", "--host", "0.0.0.0", "--no-browser")
+    assert r.exit_code == 0, r.output
+    token = fake_server["auth_token"]
+    # A random token, on the default port, in the printed address; no update check, any Host header
+    assert token and len(token) >= 24 and fake_server["port"] == 8765
+    assert fake_server["allowed_hosts"] is None and not fake_server["check_updates"]
+    assert f"http://127.0.0.1:8765/?token={token}" in r.output
+
+    r = invoke("serve", "--host", "10.0.0.5", "--token", "a b", "--no-browser")
+    assert fake_server["auth_token"] == "a b" and "?token=a%20b" in r.output
+
+
+def test_serve_network_without_auth_warns(fake_server):
+    r = CliRunner().invoke(app, ["serve", "--host", "0.0.0.0", "--no-auth", "--no-browser"])
+    assert r.exit_code == 0 and fake_server["auth_token"] is None
+    assert "without authentication" in r.output or "без аутентификации" in r.output
+    assert "?token=" not in r.output
+
+
+def test_serve_start_error(fake_server):
+    fake_server["fail"] = True
+    r = CliRunner().invoke(app, ["serve", "--no-browser"])
+    assert r.exit_code == 1 and "port is busy" in r.output and "waited" not in fake_server
+
+
+def test_app_and_lsp_commands(monkeypatch):
+    from mapcan import launcher
+    from mapcan.lsp import server
+
+    calls = []
+    monkeypatch.setattr(launcher, "run", lambda path, **kw: calls.append((path, kw)) or 3)
+    monkeypatch.setattr(server, "main", lambda: calls.append("lsp"))
+    assert invoke("app", MINIMAL, "--browser", "--readonly").exit_code == 3
+    assert invoke("app").exit_code == 3
+    assert invoke("lsp").exit_code == 0
+    assert calls == [(MINIMAL, {"window": False, "readonly": True}), (None, {"window": True, "readonly": False}),
+                     "lsp"]
+
+
+def test_fmt_reports_a_broken_file(tmp_path):
+    broken = tmp_path / "broken.yaml"
+    broken.write_text("mapcan: [\n", encoding="utf-8")
+    r = CliRunner().invoke(app, ["fmt", str(broken)])
+    assert r.exit_code == 1 and "broken.yaml" in r.output
+    assert broken.read_text(encoding="utf-8") == "mapcan: [\n"
+
+
+def test_export_eds(tmp_path):
+    r = invoke("export", "eds", MINIMAL, "-o", tmp_path)
+    assert r.exit_code == 0, r.output
+    assert list(tmp_path.glob("*.eds"))
+
+
+def test_import_dbc_refuses(tmp_path, monkeypatch):
+    # Without -o the map is written to the current folder
+    monkeypatch.chdir(tmp_path)
+    dbc = tmp_path / "car.dbc"
+    dbc.write_text('VERSION ""\n', encoding="utf-8")
+    (tmp_path / "car.yaml").write_text("keep\n", encoding="utf-8")
+    r = CliRunner().invoke(app, ["import", "dbc", str(dbc)])
+    assert r.exit_code == 1 and "--force" in r.output
+    assert (tmp_path / "car.yaml").read_text(encoding="utf-8") == "keep\n"
+    r = CliRunner().invoke(app, ["import", "dbc", str(dbc), "-o", str(tmp_path / "new.yaml"), "--lang", "english"])
+    assert r.exit_code == 2 and "english" in r.output and not (tmp_path / "new.yaml").exists()
+
+
+def test_main(monkeypatch, capsys):
+    from mapcan import cli
+
+    monkeypatch.setattr(sys, "argv", ["mapcan", "--version"])
+    with pytest.raises(SystemExit) as e:
+        cli.main()
+    assert e.value.code == 0 and __version__ in capsys.readouterr().out

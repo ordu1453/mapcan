@@ -1,10 +1,12 @@
+import json
+
 import pytest
 
 from mapcan import bits as B
 from mapcan.canopen import compute_id
 from mapcan.model import Signal
 
-from .conftest import one_bus, run
+from .conftest import DATA, one_bus, run
 
 
 def sig(**kw) -> Signal:
@@ -56,6 +58,13 @@ def test_roundtrip_bits(start, length, be):
         B.insert(buf, value, start, length, be)
         assert B.extract(buf, start, length, be) == value
         assert sum(bin(b).count("1") for b in buf) == bin(value).count("1")
+
+
+@pytest.mark.parametrize("case", json.loads((DATA / "bit_layouts.json").read_text(encoding="utf-8")),
+                         ids=lambda c: f"{c['start']}+{c['length']}{'be' if c['big_endian'] else 'le'}")
+def test_bit_layouts_shared_with_the_web_editor(case):
+    """The same cases are checked against web/src/bits.ts (web/test/bits.test.ts)."""
+    assert B.occupied_bits(case["start"], case["length"], case["big_endian"]) == case["bits"]
 
 
 def test_signed_extract():

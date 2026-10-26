@@ -100,3 +100,31 @@ def test_cli_check_notes_positions_in_another_notation():
     assert r.exit_code == 0
     assert "minimal.yaml:76: note: signal 'counter': the editors write its position as byte: 7, bit: 0, " \
            "bit_length: 4" in r.output
+
+
+FLAG_HEAD = ("buses:\n  - name: b\n    protocol: can\n    devices:\n      - name: d\n        frames:\n"
+             "          - name: f\n            signals:\n              - name: s\n                flags:\n")
+
+
+def test_wrapped_flow_mapping_keeps_its_width():
+    text = FLAG_HEAD + ("                  - {bit: 4, description: some long description here, bit_length: 2,\n"
+                        "                     name: sensor_state}\n")
+    assert format_text(text) == FLAG_HEAD + ("                  - {name: sensor_state, bit: 4, bit_length: 2,\n"
+                                             "                     description: some long description here}\n")
+
+
+@pytest.mark.parametrize("text", [
+    "a:\n  - {bit: 1, name: x # a comment inside\n     }\n",      # a comment inside the braces
+    "buses:\n  - {protocol: can, name}\n",                       # an item without a value
+    "{mapcan: 2, buses: []}\n",                                  # the whole map in braces
+    "",
+    "buses:\n  - protocol: can\n    # the name\n    name: b\n",  # the new first key has a comment above it
+])
+def test_left_as_written(text):
+    assert format_text(text) == text
+
+
+def test_position_notes_of_text_that_is_not_yaml():
+    from mapcan.fmt import position_notes
+
+    assert position_notes("a: [\n") == []

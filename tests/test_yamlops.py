@@ -120,3 +120,67 @@ def test_errors():
         _edit("a: 1\n", [{"op": "frobnicate", "path": ["a"]}])
     with pytest.raises(OpError):
         _edit("v:\n  values: {0: A, 1: B}\n", [{"op": "rename_key", "path": ["v", "values", "0"], "new_key": "1"}])
+
+
+MINI = (ROOT / "examples" / "minimal.yaml").read_text(encoding="utf-8")
+SIG = ["buses", 0, "devices", 0, "frames", 0, "signals"]
+
+
+@pytest.mark.parametrize(("op", "message"), [
+    ({"op": "copy", "path": []}, "unknown operation"),
+    ({"op": "set", "path": "buses", "value": 1}, "path must be a list"),
+    ({"op": "set", "path": [], "value": 1}, "empty path"),
+    ({"op": "set", "path": ["buses", 5], "value": 1}, "index out of range"),
+    ({"op": "set", "path": ["mapcan", "x"], "value": 1}, "parent is not a mapping"),
+    ({"op": "set", "path": ["buses", "first", "x"], "value": 1}, "path not found"),
+    ({"op": "set", "path": ["document", "title", "x"], "value": None}, "parent is not a mapping"),
+    ({"op": "remove", "path": ["buses", 5]}, "index out of range"),
+    ({"op": "remove", "path": ["document", "nope"]}, "key not found"),
+    ({"op": "remove", "path": ["document", "title", "x"]}, "cannot remove"),
+    ({"op": "insert", "path": ["document", "title"], "value": 1}, "not a list"),
+    ({"op": "insert", "path": ["mapcan", "x", "y"], "value": 1}, "path not found"),
+    ({"op": "move", "path": ["document", "title"], "to": 0}, "only list items"),
+    ({"op": "move", "path": [*SIG, 0], "to": 9}, "index out of range"),
+    ({"op": "rename_key", "path": ["buses", 0], "new_key": "x"}, "not a mapping"),
+    ({"op": "rename_key", "path": ["document", "title"], "new_key": "version"}, "already exists"),
+    ({"op": "move", "path": [*SIG, 0]}, "move: "),
+])
+def test_operation_errors(op, message):
+    with pytest.raises(OpError, match=message):
+        _edit(MINI, [op])
+
+
+def test_operations_on_lists_and_keys():
+    # Insert at a position, move, rename a value key given as a string
+    out = _edit(MINI, [
+        {"op": "insert", "path": [*SIG, 1, "flags"], "index": 0, "value": {"name": "first", "bit": 7}},
+        {"op": "rename_key", "path": [*SIG, 0, "values", "2"], "new_key": "0x3"},
+        {"op": "rename_key", "path": ["document", "title"], "new_key": "title"},
+        {"op": "move", "path": [*SIG, 5], "to": 0},
+    ])
+    lines = out.splitlines()
+    assert lines.index("              - name: counter         # arbitrary position: bits 56..59") < \
+        lines.index("              - name: mode            # enum, byte 0")
+    assert "                  3: {name: FAULT, description: fault}" in lines
+    assert out.index("name: first") < out.index("name: overheat")
+    # A list that is not there yet is created; an item past the end is appended
+    out = _edit(MINI, [{"op": "insert", "path": ["buses", 0, "devices", 0, "frames", 0, "receivers"],
+                        "value": "x"},
+                       {"op": "insert", "path": [*SIG, 1, "flags"], "index": 99, "value": {"name": "z", "bit": 7}}])
+    # The new list goes to its place in the canonical order, as a key set with "set" does
+    assert "            cycle_ms: 100\n            receivers:\n              - x\n            signals:\n" in out
+    assert out.index("name: sensor_state") < out.index("name: z")
+    # Removing a key that is not there, with a value of None
+    assert _edit(MINI, [{"op": "set", "path": ["document", "nope"], "value": None}]) == MINI
+
+
+def test_values_keep_their_notation():
+    from mapcan.web.yamlops import _key, plain, to_node
+
+    out = _edit(MINI, [{"op": "set", "path": ["buses", 0, "devices", 0, "node_id"], "value": 0x22},
+                       {"op": "set", "path": [*SIG, 0, "byte"], "value": 0.0}])
+    assert "        node_id: 0x22\n" in out and "                byte: 0\n" in out
+    assert _key("0x10") == 16 and _key("-0x1") == -1 and _key(" 7 ") == 7 and _key("OFF") == "OFF"
+    assert to_node("2026-13-40", "date") == "2026-13-40"
+    assert str(to_node("2026-10-26", "date")) == "2026-10-26"
+    assert plain({"a": [True, 1, 1.5, "x"]}) == {"a": [True, 1, 1.5, "x"]}

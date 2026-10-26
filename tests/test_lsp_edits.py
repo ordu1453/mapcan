@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from mapcan.lsp import analysis as A
@@ -484,3 +486,205 @@ def test_set_sender_leaves_the_receivers():
     # Back to the device itself: the key goes
     c = A.analyze(out2, "t.yaml")
     assert "sender" not in apply(out2, E.set_field(c, frame + ("sender",), None))
+
+
+# --------------------------------------------------------------------------- more quick fixes
+
+J1939 = (ROOT / "examples" / "j1939.yaml").read_text(encoding="utf-8")
+FLAG = FRAME + ("signals", 1, "flags", 0)       # {name: overheat, bit: 0, description: overheating}
+
+
+def test_remove_destination_of_a_pdu2_pgn():
+    text = J1939.replace("pgn: 0xF004\n", "pgn: 0xF004\n            destination: 0x10\n", 1)
+    assert fixed(text, "j1939-destination", "Remove destination") == J1939
+
+
+def test_document_version_and_history_fixes():
+    hist = "  history:\n    - version: 0.2.0\n      date: 2026-10-01\n      changes: [First]\n"
+    text = MINIMAL.replace("  language: en\n", "  language: en\n" + hist)
+    # The version differs from the latest entry: take the entry's
+    out = fixed(text, "history-version")
+    assert "  version: 0.2.0\n" in out and "history-version" not in errors(out)
+    # Now it repeats the entry: remove it
+    out = fixed(out, "version-redundant")
+    assert "  version:" not in out.split("  history:")[0] and "version-redundant" not in errors(out)
+    # Without a written version there is nothing to change to
+    a = A.analyze(text.replace("  version: 0.1.0\n", ""), "m.yaml")
+    assert E._fixes_for(a, "history-version", ("document", "version")) == []
+
+
+def test_value_name_style_fixes():
+    # The name of a value written as {name: …} and as the value's string itself
+    assert fixed(MINIMAL.replace("name: RUN,", "name: Run,"), "name-style") == MINIMAL
+    assert fixed(MINIMAL.replace("1: OPEN,", "1: Open,"), "name-style") == MINIMAL
+    text = MINIMAL.replace("mapcan: 2\n", "mapcan: 2\nlint: {frame_name: PascalCase, signal_name: camelCase}\n")
+    out = fixed(fixed(text, "name-style", "Rename to 'PumpState'"), "name-style", "Rename to 'dryRun'")
+    assert "- name: PumpState" in out and "{name: dryRun," in out
+
+
+def test_to_style():
+    assert E.to_style("pumpState", "snake_case") == "pump_state"
+    assert E.to_style("pump state", "UPPER_SNAKE") == "PUMP_STATE"
+    assert E.to_style("Pump_State", "camelCase") == "pumpState"
+    assert E.to_style("pump_state", "PascalCase") == "PumpState"
+    assert E.to_style("---", "camelCase") == "---"
+    assert E.to_style("pump_state", "any") == "pump_state"
+
+
+def test_unknown_key_of_a_block_mapping():
+    # The value of the key starts on the next line: the key is found above it
+    assert fixed(MINIMAL.replace("                values:\n", "                valuez:\n"), "schema",
+                 "Change to 'values'") == MINIMAL
+
+
+def test_fixes_that_find_nothing_to_offer():
+    a = A.analyze(MINIMAL, "m.yaml")
+    sig = FRAME + ("signals", 0)
+    assert E._fixes_for(a, "number-comma", sig + ("byte",)) == []          # the number is fine
+    assert E._fixes_for(a, "unknown-receiver", sig) == []                 # not a name
+    assert E._fixes_for(a, "schema", sig + ("encoding",)) == []           # a valid value
+    assert E._fixes_for(a, "name-style", sig + ("name",)) == []           # already in style
+    assert E._fixes_for(a, "deprecated-key", ()) == []                    # nothing to migrate
+    assert E._fixes_for(a, "format-v1", ()) == []
+    assert E._fixes_for(a, "direction-deprecated", ()) == []
+    assert E._fixes_for(a, "version-redundant", ()) == []
+    assert E._fixes_for(a, "j1939-destination", sig) == []
+    assert E._fixes_for(a, "bit-overlap", sig + ("byte",)) == []           # not a signal
+    assert E._yaml_fixes(a, (0, 0)) == [] and E._yaml_fixes(a, (999, 0)) == []
+
+
+def test_move_to_free_bits_by_byte_and_bit():
+    # Written with byte and bit: moved to the free bits, both fields rewritten
+    text = MINIMAL.replace("                start_bit: 56\n", "                byte: 0\n                bit: 2\n")
+    out = fixed(text, "bit-overlap")
+    assert "                byte: 7\n                bit: 0\n" in out and "bit-overlap" not in errors(out)
+    # Written with byte only: moved by whole bytes
+    text = MINIMAL.replace("                byte: 5\n", "                byte: 4\n")
+    assert fixed(text, "bit-overlap", "Move to free bits: bits 40–55") == MINIMAL
+
+
+def test_free_start_with_multiplexed_signals():
+    a = A.analyze(MINIMAL, "m.yaml")
+    frame = E._find(a.map, FRAME)
+    assert E.free_start(frame, 4, 1) == 60
+    assert E.free_start(frame, 8, 8) is None
+    one, other = frame.signals[0].model_copy(update={"mux": 1}), frame.signals[1].model_copy(update={"mux": 2})
+    assert not E._coexist(one, other) and E._coexist(one, frame.signals[2])
+
+
+def test_insert_and_delete_keys_of_a_flow_mapping():
+    a = A.analyze(MINIMAL, "m.yaml")
+    line = MINIMAL.splitlines().index("                  - {name: overheat, bit: 0, description: overheating}")
+
+    def edited(edits):
+        return apply(MINIMAL, edits).splitlines()[line].strip()
+
+    # Before the key that follows it in the canonical order, or at the end of the braces
+    assert edited(E.insert_key(a, FLAG, "bit_length", "1")) == \
+        "- {name: overheat, bit: 0, bit_length: 1, description: overheating}"
+    assert edited(E.insert_key(a, FLAG, "zzz", "1")) == "- {name: overheat, bit: 0, description: overheating, zzz: 1}"
+    # The first key takes its comma with it, the last one the comma before it
+    assert edited(E.delete_key(a, FLAG + ("name",))) == "- {bit: 0, description: overheating}"
+    assert edited(E.delete_key(a, FLAG + ("description",))) == "- {name: overheat, bit: 0}"
+    # A key on a "- " line, or one that is not written, is not deleted
+    assert E.delete_key(a, FRAME + ("signals", 0, "name")) == []
+    assert E.delete_key(a, FLAG + ("nope",)) == []
+    assert E.insert_key(a, FRAME + ("nope",), "x", "1") == []
+
+
+def test_insert_key_keeps_the_comment_above_its_neighbour():
+    text = MINIMAL.replace("            canopen: pdo_tx1\n            length: 8\n",
+                           "            # the full frame\n            length: 8\n")
+    a = A.analyze(text, "m.yaml")
+    out = apply(text, E.insert_key(a, FRAME, "canopen", "pdo_tx1"))
+    assert out == MINIMAL.replace("            length: 8\n", "            # the full frame\n            length: 8\n")
+
+
+# --------------------------------------------------------------------------- more edits of the tree and the form
+
+FLOW = MINIMAL.replace("          - name: pump_state", (
+    "          - name: aux\n            canopen: pdo_tx2\n            length: 2\n"
+    "            signals: [{name: a, encoding: number, byte: 0, byte_length: 1},"
+    " {name: b, encoding: number, byte: 1, byte_length: 1}]\n"
+    "          - name: pump_state"))
+AUX = DEV + ("frames", 0)
+
+
+def _line_of(text: str, needle: str) -> str:
+    return next(line for line in text.splitlines() if needle in line).strip()
+
+
+def test_duplicate_and_delete_in_a_flow_list():
+    a = A.analyze(FLOW, "m.yaml")
+    copy = _change(FLOW, E.duplicate_node(a, AUX + ("signals", 0)))
+    assert _line_of(copy, "signals: [").startswith(
+        "signals: [{name: a, encoding: number, byte: 0, byte_length: 1}, {name: a_copy, ")
+    first = _change(FLOW, E.delete_node(a, AUX + ("signals", 0)))
+    assert _line_of(first, "signals: [") == "signals: [{name: b, encoding: number, byte: 1, byte_length: 1}]"
+    last = _change(FLOW, E.delete_node(a, AUX + ("signals", 1)))
+    assert _line_of(last, "signals: [") == "signals: [{name: a, encoding: number, byte: 0, byte_length: 1}]"
+
+
+def test_duplicates_get_free_numbers():
+    a = A.analyze(MINIMAL, "m.yaml")
+    copy = _change(MINIMAL, E.duplicate_node(a, DEV))
+    assert "      - name: pump_copy\n        short: PMP\n        title: Pump\n        node_id: 0x01\n" in copy
+    v = A.analyze(VEHICLE, "v.yaml")
+    copy = _change(VEHICLE, E.duplicate_node(v, ("buses", 0, "devices", 0, "frames", 0)))
+    # A frame with an explicit ID gets the next free one after the highest 11-bit ID of the bus
+    used = {f.can_id for f in v.map.buses[0].all_frames()}
+    new_id = int(_line_of(copy.split("_copy\n", 1)[1], "id: 0x").split()[1], 16)
+    assert new_id == max(i for i in used if i <= 0x7FF) + 1 and new_id not in used
+    # Not a list item, or not a node: nothing
+    assert E.duplicate_node(a, FRAME + ("name",)) is None and E.duplicate_node(a, ("buses", 9)) is None
+    assert E.delete_node(a, ("buses", 9)) is None
+
+
+def test_add_node_refuses_what_does_not_belong():
+    a = A.analyze(MINIMAL, "m.yaml")
+    assert E.add_node(a, FRAME, "bus") is None
+    assert E.add_node(a, FRAME, "device") is None
+    assert E.add_node(a, ("buses", 9), "device") is None
+
+
+def test_set_field_lists():
+    a = A.analyze(MINIMAL, "m.yaml")
+    out = apply(MINIMAL, E.set_field(a, FRAME + ("receivers",), ["x", "y"]))
+    assert "            cycle_ms: 100\n            receivers: [x, y]\n" in out
+    block = MINIMAL.replace("            cycle_ms: 100\n", "            cycle_ms: 100\n            receivers:\n"
+                                                          "              - x\n              - y\n")
+    a = A.analyze(block, "m.yaml")
+    out = apply(block, E.set_field(a, FRAME + ("receivers",), ["z"]))
+    assert "            receivers: [z]\n            signals:" in out
+    flow = MINIMAL.replace("            cycle_ms: 100\n", "            cycle_ms: 100\n            receivers: [x, y]\n")
+    a = A.analyze(flow, "m.yaml")
+    assert "            receivers: [z]\n" in apply(flow, E.set_field(a, FRAME + ("receivers",), ["z"]))
+
+
+def test_set_field_unchanged_and_texts_in_languages():
+    a = A.analyze(MINIMAL, "m.yaml")
+    assert E.set_field(a, FRAME + ("signals", 0, "name"), "mode") == []
+    assert E.set_field(a, FRAME + ("cycle_ms",), 100) == []
+    assert E.set_field(a, FRAME + ("signals", 0), "x") == []
+    assert E.set_field(a, FRAME + ("nope",), None) == []
+    text = MINIMAL.replace("        title: Pump\n", "        title: {en: Pump, ru: Насос}\n")
+    a = A.analyze(text, "m.yaml")
+    # Only the text in the document language changes or goes
+    assert "title: {en: Main pump, ru: Насос}" in apply(text, E.set_field(a, DEV + ("title",), "Main pump"))
+    assert "title: {ru: Насос}" in apply(text, E.set_field(a, DEV + ("title",), None))
+    assert E.set_field(a, DEV + ("title",), "Pump") == []
+
+
+def test_routed_ops_errors(tmp_path):
+    from mapcan.web.yamlops import OpError
+
+    a = A.analyze(MINIMAL, "m.yaml")
+    with pytest.raises(OpError):
+        E.routed_ops(a, [{"op": "set", "path": "buses.0", "value": 1}], A.read_disk)
+    main = ROOT / "examples" / "tractor" / "tractor.yaml"
+    a = A.analyze(main.read_text(encoding="utf-8"), str(main))
+    title = ["buses", 0, "devices", 1, "title"]        # the gateway, in powertrain.yaml
+    with pytest.raises(OpError, match="powertrain.yaml"):
+        E.routed_ops(a, [{"op": "set", "path": title, "value": "x"}], lambda f: None)
+    text, others = E.routed_ops(a, [{"op": "set", "path": title, "value": "x"}], A.read_disk)
+    assert text == a.text and [Path(f).name for f in others] == ["powertrain.yaml"]

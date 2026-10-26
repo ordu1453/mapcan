@@ -454,3 +454,124 @@ def test_ops_and_changes_commands():
 
     d = release_draft_command(ls, {"uri": "file:///m.yaml", "oldText": old, "tags": []})
     assert d["changes"] and d["date"] and not d["recorded"]
+
+
+# --------------------------------------------------------------------------- helpers of the analysis
+
+
+def test_positions_past_the_text(minimal):
+    end = (len(minimal.lines) + 3, 0)
+    assert minimal.token_end(end) == end
+    assert minimal.block(("buses", 9)) is None
+    assert A.hover(minimal, end) is None
+    assert A.completions(MINIMAL, (len(LINES) + 2, 0), minimal) is None
+
+
+def test_closing_bracket_minds_quotes_and_comments():
+    a = A.analyze('x: {a: "}\\"", b: \'}\'}\ny: [1, # ]\n  2]\nz: [1,\n', "t.yaml")
+    assert a._closing((0, 3)) == (0, len(a.lines[0]))
+    assert a._closing((1, 3)) == (2, 4)
+    assert a._closing((3, 3)) is None
+
+
+def test_diagnostic_without_a_place(minimal):
+    from mapcan.diagnostics import Diagnostic
+
+    assert A.diagnostic_range(minimal, Diagnostic("error", "x", "m", "minimal.yaml", None, None)) == ((0, 0), (0, 0))
+    assert A._part_of_pos(["mapcan: 2", "buses: []"]) == (1, 1)
+
+
+def test_symbols_and_tree_of_text_that_is_not_a_map():
+    for text in ("- a\n- b\n", "mapcan: 2\nbuses: 5\n"):
+        a = A.analyze(text, "t.yaml")
+        assert A.symbols(a) == [] and A.map_tree(a) == []
+
+
+def test_frame_details_in_the_outline():
+    text = (ROOT / "examples" / "j1939.yaml").read_text(encoding="utf-8")
+
+    def details(t: str) -> list[str]:
+        return [f.detail for b in A.symbols(A.analyze(t, "j.yaml")) for d in b.children for f in d.children]
+
+    # The computed ID while the map loads; the written PGN or ID when it does not
+    assert details(text)[0] == "0x0CF00400"
+    broken = text.replace("priority: 3", "priority: high", 1)
+    assert details(broken)[0] == "pgn 0xF004"
+    assert details(broken.replace("pgn: 0xF004", "id: 0x0CF00400", 1))[0] == "0xCF00400"
+
+
+def test_text_in_the_document_language():
+    assert A._txt({"ru": "", "en": "Pump"}, "ru") == "Pump"
+    assert A._txt({"ru": ""}, "ru") == ""
+    assert A._txt(None, "ru") == "" and A._txt(5, "ru") == "5"
+
+
+def test_model_for_unknown_paths():
+    from mapcan.model import Bus, Signal
+
+    assert A.model_for(("buses", 0)) is Bus
+    assert A.model_for(("buses", 0, "devices", 0, "frames", 0, "signals", 0)) is Signal
+    assert A.model_for(("buses", 0, "nope")) is None
+    assert A.model_for(("document", "title", "x")) is None
+
+
+def test_hover_markdown_of_signals_and_frames():
+    from mapcan.loader import loads
+
+    text = one_bus("""
+        - name: st
+          canopen: pdo_tx1
+          length: 8
+          cycle_ms: 100
+          inhibit_ms: 2.5
+          trigger: event
+          receivers: [other]
+          signals:
+            - {name: sel, encoding: number, byte: 0, byte_length: 1, multiplexer: true}
+            - {name: t, encoding: number, byte: 1, byte_length: 2, representation: twos_complement,
+               factor: 0.5, offset: -40, unit: C, min: -40, max: 125, mux: 1}
+            - {name: be, encoding: number, start_bit: 39, bit_length: 12, byte_order: big_endian, max: 100}
+            - {name: one, encoding: number, start_bit: 63, bit_length: 1}
+            - name: st
+              encoding: enum
+              byte: 6
+              byte_length: 1
+              value_format: hex
+              values: {0x10: LOW, 0x20: HIGH}
+            - name: fl
+              encoding: bitfield
+              start_bit: 56
+              bit_length: 4
+              flags: [{name: a, bit: 0}, {name: pair, bit: 1, bit_length: 2}]
+    """, devices_extra="      - name: other\n        title: Other\n        node_id: 0x11\n        frames: []\n")
+    res = loads(text, "t.yaml")
+    assert res.map is not None, [d.format() for d in res.report.diagnostics]
+    frame = res.map.buses[0].devices[0].frames[0]
+    sig = {s.name: s for s in frame.signals}
+    t = A.signal_markdown(sig["t"])
+    assert "signed" in t and "phys = raw × 0.5 + -40" in t and "mux = 1" in t and "-40 … 125" in t
+    assert "… … 100" in A.signal_markdown(sig["be"]) and "(BE)" in A.signal_bits(sig["be"])
+    assert A.signal_bits(sig["one"]) == "bit 63"
+    assert "| 0x10 | LOW |" in A.signal_markdown(sig["st"])
+    assert "| 1–2 | pair |" in A.signal_markdown(sig["fl"]) and "| 0 | a |" in A.signal_markdown(sig["fl"])
+    md = A.frame_markdown(frame)
+    assert "`0x190`" in md and "cycle 100 ms and on event" in md and "min. interval 2.5 ms" in md
+    assert "dev → other" in md
+
+
+def test_frame_layout_of_an_empty_frame():
+    from mapcan.loader import loads
+
+    res = loads(one_bus("""
+        - name: empty
+          canopen: pdo_tx1
+          length: 0
+    """), "t.yaml")
+    assert A.frame_layout(res.map.buses[0].devices[0].frames[0]) == ""
+
+
+def test_hover_of_a_map_that_does_not_load():
+    text = MINIMAL.replace("protocol: canopen", "protocol: [canopen")
+    a = A.analyze(text, "m.yaml")
+    assert a.map is None
+    assert A.hover(a, at("name: pump_state", 8)) is None

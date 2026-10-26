@@ -386,3 +386,69 @@ def test_included_file_is_not_a_map_for_the_editors():
     from mapcan.lsp.analysis import is_mapcan
 
     assert is_mapcan(MAIN) and not is_mapcan(HEADER + COMMON)
+
+
+def _include_messages(tmp_path, common: str, main: str = MAIN) -> list[str]:
+    _, rep = run(write(tmp_path, main=main, common=common))
+    return [d.message for d in rep.diagnostics if d.code in ("include", "yaml")]
+
+
+def test_included_files_that_cannot_be_read(tmp_path):
+    # Broken YAML is shown in the included file, and a list instead of a mapping is refused
+    _, rep = run(write(tmp_path, common="buses: [\n"))
+    assert any(d.code == "yaml" and d.file.endswith("common.yaml") for d in rep.diagnostics)
+    assert "an included file must be a YAML mapping" in _include_messages(tmp_path, "- a\n- b\n")
+    # An empty included file adds nothing
+    assert _include_messages(tmp_path, "") == []
+    # part_of that is not a path
+    assert "part_of is the path of the map file" in _include_messages(tmp_path, "part_of: 5\n" + COMMON)
+
+
+def test_include_field_of_another_type(tmp_path):
+    # Not a list: the schema reports it; an item that is not a file name is skipped
+    _, rep = run(write(tmp_path, main=MAIN.replace("include: [common.yaml]", "include: common.yaml")))
+    assert "include" not in rep.codes() and "schema" in rep.codes()
+    _, rep = run(write(tmp_path, main=MAIN.replace("[common.yaml]", "[5, common.yaml]")))
+    assert [d.code for d in rep.diagnostics if d.level == "error"] == ["schema"]
+    # common.yaml is still read
+    assert "include-part-of" in rep.codes()
+
+
+def test_include_without_a_folder_to_resolve_it():
+    from mapcan.loader import loads
+
+    res = loads(MAIN)
+    assert "include: the map has no path to resolve included files from" in [d.message for d in res.report.diagnostics]
+
+
+def test_included_parts_of_another_shape(tmp_path):
+    # Tables and buses that are not a mapping and a list, or a bus that is not a mapping, are not merged, and
+    # the included file says why
+    for common, message in (("value_tables: [a]\n", "value_tables must be a mapping of tables"),
+                            ("buses: {a: 1}\n", "buses must be a list of buses"),
+                            ("buses: [5]\n", "a bus must be a mapping with its name")):
+        res, rep = run(write(tmp_path, common=common))
+        assert [d.name for b in res.map.buses for d in b.devices] == ["vcu"], common
+        [d] = [d for d in rep.diagnostics if d.code == "include"]
+        assert d.message == message and d.file.endswith("common.yaml") and d.level == "error"
+    # The map's own tables of another shape: the included ones are not merged into them, the schema reports it
+    main = MAIN.replace("value_tables:\n  states: {0: OFF, 1: ON}\n", "value_tables: [x]\n")
+    _, rep = run(write(tmp_path, main=main))
+    assert "schema" in rep.codes()
+
+
+def test_map_of(tmp_path):
+    from mapcan.loader import map_of
+
+    main = write(tmp_path, common=HEADER + COMMON)
+    common = tmp_path / "common.yaml"
+    assert map_of(common) == main.resolve()
+    assert map_of(main) == main.resolve()                              # no part_of: the file itself
+    assert map_of(tmp_path / "missing.yaml") == (tmp_path / "missing.yaml").resolve()
+    # The map it names does not include it, or is not there
+    other = tmp_path / "other.yaml"
+    other.write_text(HEADER + COMMON, encoding="utf-8")
+    assert map_of(other) == other.resolve()
+    lost = tmp_path / "lost.yaml"
+    lost.write_text(HEADER.replace("main.yaml", "nope.yaml") + COMMON, encoding="utf-8")
+    assert map_of(lost) == lost.resolve()

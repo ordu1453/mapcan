@@ -3,8 +3,20 @@ import json
 from typer.testing import CliRunner
 
 from mapcan.cli import app
-from mapcan.diff import bump_version, changed_paths, changelog_lines, diff_maps, release_draft, release_message
+from mapcan.diff import (
+    _fmt,
+    _fmt_field,
+    _narrowed,
+    bump_version,
+    changed_paths,
+    changelog_lines,
+    diff_maps,
+    release_draft,
+    release_message,
+    render_diff,
+)
 from mapcan.loader import loads
+from mapcan.model import enum_entries
 
 from .conftest import REFERENCE
 
@@ -193,3 +205,135 @@ def test_release_draft():
                                                                                 "document:\n  version: 1.0.0\n", 1))
     assert release_draft(plain, None, lambda v: False)["version"] == "1.0.0"
     assert release_draft(plain, None, lambda v: v in ("1.0.0", "1.0.1"))["version"] == "1.0.2"
+
+
+# The map without its second bus, and without the cooling device of the first one
+NO_BUS2 = BASE[:BASE.index("  # =====", BASE.index("      - name: cooling\n"))]
+COOLING = BASE[BASE.index("      - name: cooling\n"):BASE.index("  # =====", BASE.index("      - name: cooling\n"))]
+NO_COOLING = BASE.replace(COOLING, "")
+
+
+def test_bus_added_and_removed():
+    added = diff_maps(_map(NO_BUS2), _map(BASE))
+    assert (added.changes[0].kind, added.changes[0].scope, added.changes[0].bus) == ("added", "bus", "bus2")
+    # The frames of a new bus are listed with it, as additions that break nothing
+    frames = [c for c in added.changes if c.scope == "frame"]
+    assert frames and all(c.kind == "added" and c.bus == "bus2" and not c.breaking for c in frames)
+    assert "Добавлен шина bus2" in changelog_lines(added)
+    assert any(line.startswith("Добавлен кадр 0x001 host_data (host)") for line in changelog_lines(added))
+
+    removed = diff_maps(_map(BASE), _map(NO_BUS2))
+    [c] = removed.changes
+    assert (c.kind, c.scope, c.bus, c.breaking) == ("removed", "bus", "bus2", True)
+    assert changelog_lines(removed, "en") == ["Removed bus bus2"]
+    # The removed bus is not in the new map: nothing to mark there
+    assert changed_paths(removed, _map(NO_BUS2)) == {}
+    new = _map(BASE)
+    bus2 = next(b for b in new.buses if b.name == "bus2")
+    assert changed_paths(added, new)[tuple(bus2._path)] == "added"
+
+
+def test_device_added_removed_changed():
+    removed = diff_maps(_map(BASE), _map(NO_COOLING))
+    kinds = {(c.kind, c.scope, c.frame or c.device) for c in removed.changes}
+    assert ("removed", "device", "cooling") in kinds
+    assert {("removed", "frame", "cooling_command"), ("removed", "frame", "cooling_state")} <= kinds
+    # A removed device is not breaking by itself, its removed frames are
+    assert not next(c for c in removed.changes if c.scope == "device").breaking
+    assert all(c.breaking for c in removed.changes if c.scope == "frame")
+    lines = changelog_lines(removed)
+    assert "Удалён устройство cooling" in lines
+    assert any(line.startswith("Удалён кадр") and line.endswith("cooling_state (cooling)") for line in lines)
+    # The device is gone: the removed device and its frames mark the bus
+    new = _map(NO_COOLING)
+    bus1 = next(b for b in new.buses if b.name == "bus1")
+    assert changed_paths(removed, new) == {tuple(bus1._path): "modified"}
+
+    added = diff_maps(_map(NO_COOLING), _map(BASE))
+    new = _map(BASE)
+    cooling = next(d for b in new.buses for d in b.devices if d.name == "cooling")
+    assert changed_paths(added, new)[tuple(cooling._path)] == "added"
+    assert "Added device cooling" in changelog_lines(added, "en")
+
+    changed = diff_maps(_map(BASE), _map(BASE.replace("short: COOL\n", "short: CLG\n").replace(
+        "title: Система охлаждения\n", "title: Охлаждение\n")))
+    assert [(c.field, c.old, c.new, c.breaking) for c in changed.changes] == [
+        ("short", "COOL", "CLG", False), ("title", "Система охлаждения", "Охлаждение", False)]
+    assert changelog_lines(changed)[0] == "cooling: short COOL → CLG"
+    assert changed_paths(changed, _map(BASE.replace("short: COOL\n", "short: CLG\n"))) == {
+        tuple(cooling._path): "modified"}
+
+
+def test_device_address_is_breaking():
+    d = diff_maps(_map(BASE), _map(BASE.replace("node_id: 0x25\n", "node_id: 0x2F\n")))
+    c = next(c for c in d.changes if c.scope == "device")
+    assert (c.field, c.old, c.new, c.breaking) == ("node_id", 0x25, 0x2F, True)
+    assert "cooling: node_id 0x25 → 0x2F" in changelog_lines(d)
+
+
+def test_removed_frame_marks_its_device():
+    new_text = BASE.replace("          - name: cooling_state\n"
+                            "            canopen: pdo_tx2\n"
+                            "            length: 8\n"
+                            "            description: Скорость вентиляторов и положение заслонок\n", "")
+    new = _map(new_text)
+    d = diff_maps(_map(BASE), new)
+    [c] = d.changes
+    assert (c.kind, c.scope, c.frame, c.device) == ("removed", "frame", "cooling_state", "cooling")
+    cooling = next(x for b in new.buses for x in b.devices if x.name == "cooling")
+    assert changed_paths(d, new) == {tuple(cooling._path): "modified"}
+
+
+def test_value_description_changed():
+    old = _map(BASE)
+    new = _map(BASE)
+    sig, v, ev = next((s, v, ev) for b in new.buses for f in b.all_frames() for s in f.layout
+                      for v, ev in enum_entries(s.values))
+    ev.description = "Новое описание"
+    d = diff_maps(old, new)
+    [c] = d.changes
+    assert (c.scope, c.signal, c.item, c.field, c.new, c.breaking) == \
+        ("value", sig.name, str(v), "description", "Новое описание", False)
+
+
+def test_narrowed_with_values_of_other_types():
+    # A limit that cannot be compared with the old one is counted as narrowed
+    assert _narrowed("min", "low", 1)
+    assert _narrowed("max", None, 1) and not _narrowed("max", 1, None)
+    assert _narrowed("min", 0, 1) and not _narrowed("min", 1, 0)
+    assert _narrowed("max", 10, 5) and not _narrowed("max", 5, 10)
+
+
+def test_value_formatting():
+    assert _fmt(None) == _fmt("") == "—"
+    assert (_fmt(True), _fmt(False)) == ("true", "false")
+    assert _fmt(0.5) == "0.5"
+    assert _fmt(["imd", "cmu"]) == "imd, cmu"
+    assert _fmt(7) == "7"
+    assert _fmt_field("can_id", 0x1A2) == "0x1A2"
+    assert _fmt_field("pgn", 0xF004) == "0xF004"
+    assert _fmt_field("node_id", 5) == _fmt_field("address", 5) == "0x05"
+    assert _fmt_field("can_id", None) == "—"
+    assert _fmt_field("cycle_ms", 100) == "100"
+
+
+def test_render_diff():
+    same = diff_maps(_map(BASE), _map(BASE))
+    assert render_diff(same) == "Изменений нет."
+    assert render_diff(same, lang="en") == "No changes."
+    d = diff_maps(_map(BASE), _map(BASE.replace("factor: 0.1\n", "factor: 0.01\n", 1).replace(
+        "short: COOL\n", "short: CLG\n")))
+    text = render_diff(d).splitlines()
+    assert text == ["cooling: short COOL → CLG", "[несовместимо] 0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01"]
+    md = render_diff(d, "md", "en")
+    assert md.startswith(f"## {d.old_version} → {d.new_version}\n\n- cooling: short COOL → CLG\n")
+    assert md.endswith("- **breaking:** 0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01")
+    assert json.loads(render_diff(d, "json"))["changes"][1]["breaking"] is True
+
+
+def test_release_draft_non_semantic_version():
+    # A version that cannot be bumped stays as it is, even when it already has a tag
+    start = BASE.index("  history:\n")
+    draft = _map((BASE[:start] + BASE[BASE.index("\n\n", start) + 1:]).replace("document:\n",
+                                                                                "document:\n  version: draft\n", 1))
+    assert release_draft(draft, None, lambda v: True)["version"] == "draft"
