@@ -7,7 +7,7 @@ authors:
     family-names: Ordu
 repository-code: "https://github.com/ordu1453/mapcan"
 license: Apache-2.0
-version: 0.24.1
+version: 0.24.2
 date-released: 2026-10-26
 keywords:
   - CAN
