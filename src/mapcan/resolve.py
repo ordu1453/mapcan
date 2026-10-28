@@ -97,7 +97,7 @@ def sdo_layout(frame: Frame) -> list[Signal]:
         mk(name="sdo_command", byte=0, byte_length=1, encoding="enum", value_format="hex",
            description={"ru": "Команда SDO", "en": "SDO command specifier"},
            values={c: EnumValue(name=SDO_COMMANDS.get(c, f"CMD_{c:02X}")) for c in commands}),
-        mk(name="sdo_index", byte=1, byte_length=2, encoding="enum" if single_index else "raw",
+        mk(name="sdo_index", byte=1, byte_length=2, encoding="enum" if single_index else "number",
            value_format="hex",
            description={"ru": "Индекс объекта", "en": "Object index"},
            values={i: EnumValue(name=f"INDEX_{i:04X}") for i in indices} if single_index else None),
@@ -118,6 +118,6 @@ def sdo_layout(frame: Frame) -> list[Signal]:
                 factor=v.factor, offset=v.offset, unit=v.unit, min=v.min, max=v.max,
                 values=v.values, description=v.description or e.description, mux=e.subindex))
     elif any(e.value for e in exs):
-        sigs.append(mk(name="sdo_data", byte=4, byte_length=4, encoding="raw",
+        sigs.append(mk(name="sdo_data", byte=4, byte_length=4, encoding="number",
                        description={"ru": "Данные", "en": "Data"}))
     return sigs

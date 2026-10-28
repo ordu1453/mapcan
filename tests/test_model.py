@@ -139,6 +139,21 @@ def test_sdo_layout(ref_map):
     assert (alarm.start_bit, alarm.bit_length, alarm.mux) == (32, 16, 1)
 
 
+def test_sdo_layout_several_indices():
+    # Exchanges with several objects: the index and the data are plain numbers (the map opened with an error, #147)
+    res, _ = run(one_bus("""
+        - name: f
+          canopen: sdo_rx
+          length: 8
+          sdo:
+            - {name: a, command: 0x2B, index: 0x4010, subindex: 1, value: {name: v, encoding: number, bit_length: 16}}
+            - {name: b, command: 0x2B, index: 0x4011, subindex: 1}
+    """))
+    layout = res.map.buses[0].devices[0].frames[0].layout
+    assert [(s.name, s.encoding) for s in layout] == [
+        ("sdo_command", "enum"), ("sdo_index", "number"), ("sdo_subindex", "enum"), ("sdo_data", "number")]
+
+
 def test_reference_ids(ref_map):
     ids = {f.name: f.can_id for b in ref_map.buses for f in b.all_frames()}
     assert ids["imd_state"] == 0x1A1
