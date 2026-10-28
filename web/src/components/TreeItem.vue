@@ -67,9 +67,18 @@ watch(() => store.renameRequest, (p) => {
   }
 }, { immediate: true });
 
-function click() {
+// A frame or a signal only gets selected by a click: going through them, the tree does not jump. Their children open
+// with the twisty or a click on the selected row; a bus or a device opens with a click.
+const browsed = computed(() => props.node.kind === "frame" || props.node.kind === "signal");
+
+function click(e: MouseEvent) {
+  if (e.detail > 1) return;                  // the second click of a double click (renaming)
+  const again = selected.value;
   actions.select(props.node.path, props.node.receiver ?? null, props.node.sender ?? null);
-  if (!props.expanded.has(props.node.key) && props.node.children.length) emit("toggle", props.node.key);
+  if (!props.node.children.length) return;
+  if (browsed.value) {
+    if (again) emit("toggle", props.node.key);
+  } else if (!props.expanded.has(props.node.key)) emit("toggle", props.node.key);
 }
 </script>
 

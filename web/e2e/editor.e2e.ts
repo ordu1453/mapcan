@@ -7,9 +7,14 @@ import { expect, mapcan, openEditor, repo, test } from "./fixtures";
 
 const tree = (page: Page) => page.locator("aside");
 
-/** Select a node in the tree by the texts of the nodes on the way to it (a node's children open with a click). */
+/** Select a node in the tree by the texts of the nodes on the way to it (a closed node on the way opens with its twisty). */
 async function select(page: Page, ...labels: string[]): Promise<void> {
-  for (const label of labels) await tree(page).getByText(label, { exact: false }).first().click();
+  for (const [i, label] of labels.entries()) {
+    const row = tree(page).locator(".tree-row").filter({ has: page.getByText(label, { exact: false }) }).first();
+    await row.click();
+    const twisty = row.locator(".twisty");
+    if (i < labels.length - 1 && (await twisty.textContent())?.includes("▸")) await twisty.click();
+  }
 }
 
 const field = (page: Page, label: string) => page.getByRole("textbox", { name: label });
@@ -43,6 +48,22 @@ test.describe("a map opened by mapcan serve", () => {
     await page.getByRole("button", { name: "↶" }).click();
     await expect(field(page, "Factor (scale)")).toHaveValue("0.01");
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+  });
+
+  test("a click selects a frame without opening it, a click on the selected frame or its twisty does", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await tree(page).getByText("PMP · Pump").click();
+    const frame = tree(page).locator(".tree-row").filter({ hasText: "pump_state" });
+    const pressure = tree(page).getByText("pressure", { exact: true });
+    await frame.click();
+    await expect(page.getByRole("heading", { name: /^Frame pump_state/ })).toBeVisible();
+    await expect(pressure).toHaveCount(0);
+    await frame.click();
+    await expect(pressure).toBeVisible();
+    await frame.locator(".twisty").click();
+    await expect(pressure).toHaveCount(0);
+    await frame.locator(".twisty").click();
+    await expect(pressure).toBeVisible();
   });
 
   test("a new encoding starts with its own fields, and a bit field gets flags", async ({ page, editor }) => {
