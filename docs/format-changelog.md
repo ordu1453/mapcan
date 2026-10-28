@@ -5,7 +5,7 @@ Changes of the map format by mapcan version. Up to 0.23 they keep `mapcan: 1`; 0
 [Versioning and compatibility](format.md#versioning-and-compatibility). A map that uses a field
 needs at least the version of mapcan that introduced it; former names stay readable.
 
-## Unreleased
+## 0.24.3
 
 - `invalid_raw` of a signed signal accepts the bits of a value (#148): of an 8-bit `twos_complement` signal
   `0xFF` means `-1`, as the code sent on the bus, instead of the error `invalid-overflow`. Values from 2^(n−1)
