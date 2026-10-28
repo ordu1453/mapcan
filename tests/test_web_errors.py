@@ -123,6 +123,17 @@ def test_file_requests_that_fail(client, mapfile, tmp_path):
     assert r.status_code == 200 and (tmp_path / "copy.yaml").is_file()
 
 
+def test_unexpected_error_says_what_failed(mapfile, monkeypatch):
+    # A bug of mapcan: the editor gets its message, not a bare "Internal Server Error" (#147)
+    def fail(*_a, **_k):
+        raise ValueError("boom")
+    with TestClient(create_app(EditorSession(mapfile), cwd=mapfile.parent), raise_server_exceptions=False) as c:
+        monkeypatch.setattr(web_app.Workspace, "open", fail)
+        r = c.post("/api/file/open", json={"path": str(mapfile)})
+    assert code(r) == (500, "internal")
+    assert "ValueError: boom" in r.json()["detail"]
+
+
 def test_create_file_that_cannot_be_written(client, tmp_path):
     (tmp_path / "taken").write_text("a file, not a folder", encoding="utf-8")
     assert code(client.post("/api/file/new", json={"path": str(tmp_path / "taken" / "n.yaml"), "force": True})) == \

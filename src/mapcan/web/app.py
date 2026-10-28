@@ -611,6 +611,13 @@ def create_app(session: EditorSession | None = None, poll_interval: float = 1.0,
     async def _readonly(_: Request, e: ReadOnlyError):
         return JSONResponse({"detail": str(e), "code": "readonly"}, status_code=403)
 
+    # An unexpected error: the editor shows what failed instead of a bare "Internal Server Error" (#147);
+    # the traceback still goes to the server's log
+    @app.exception_handler(Exception)
+    async def _internal(_request: Request, e: Exception):
+        return JSONResponse({"detail": _("internal error of mapcan: {error}", error=f"{type(e).__name__}: {e}"),
+                             "code": "internal"}, status_code=500)
+
     def state() -> dict:
         st = wsp.require().state()
         st["session_id"] = wsp.generation
