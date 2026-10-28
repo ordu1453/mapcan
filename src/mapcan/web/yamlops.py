@@ -25,7 +25,8 @@ from ..model import FORMAT_VERSION, Signal
 from ..upgrade import DROP, V1_KINDS, node_kind, renamed_along, renames, upgrade_tree, v1_encoding
 
 # Keys whose numbers are usually written in hex.
-HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex"}
+HEX_KEYS = {"id", "node_id", "address", "pgn", "destination", "command", "index", "subindex",
+            "invalid_raw", "not_available", "error"}
 LAYOUT_KEYS = ("start_bit", "bit_length", "byte", "bit", "byte_length")
 FLOW_LISTS = {"include"}     # a new list of these keys is written "[…]" on one line, as in the docs
 MAX_FRAME_BITS = 64 * 8     # a CAN FD frame is up to 64 bytes

@@ -233,6 +233,11 @@ SAE J1939-71:
 | `not_available` | The sender has no value (the parameter is not supported or not ready) |
 | `error` | The sender has the parameter but reports a fault in it |
 
+The values of a signed signal (`representation` other than `unsigned`) may be written either as
+signed numbers or as their bits: of an 8-bit `twos_complement` signal, `0xFF` is the same as `-1` and
+`0x80..0x8F` the same as `-128..-113`. Values from 2^(n−1) to 2^n−1 of an n-bit signal are read as
+bits in the signal's representation; documents and generated code show the signed values.
+
 Documents list both. Generated C has `<frame>_<signal>_is_not_available(raw)` and
 `<frame>_<signal>_is_error(raw)`, and a single "not available" value is also
 `<FRAME>_<SIGNAL>_INVALID_RAW`; the Python module has the same functions. DBC has one invalid value

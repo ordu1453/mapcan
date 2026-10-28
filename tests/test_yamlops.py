@@ -45,6 +45,14 @@ def test_hex_for_new_ids():
     assert "node_id: 0x1A" in out or "node_id: 0x1a" in out
 
 
+def test_hex_for_invalid_raw():
+    # Raw codes without a value are written in hex, a negative value of a signed signal as it is (#148)
+    out = _edit("s:\n  name: x\n", [{"op": "set", "path": ["s", "invalid_raw"], "value": [255, "0xFF00..0xFFFF", -1]}])
+    assert out.endswith("  invalid_raw:\n    - 0xFF\n    - 0xFF00..0xFFFF\n    - -1\n")
+    assert _edit("s:\n  name: x\n", [{"op": "set", "path": ["s", "invalid_raw"], "value": 255}]).endswith(
+        "  invalid_raw: 0xFF\n")
+
+
 def test_values_keys_become_ints():
     out = _edit("s:\n  name: x\n", [{"op": "set", "path": ["s", "values"], "value": {"0": "OFF", "0x1": "ON"}}])
     assert "values:\n    0: OFF\n    1: ON\n" in out

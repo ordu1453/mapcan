@@ -662,6 +662,13 @@ def test_invalid_in_range():
     assert "invalid-in-range" not in codes(_sig("factor: 0.5, unit: V, min: 0, max: 100, invalid_raw: 0xFF", "number"))
 
 
+def test_invalid_raw_as_bits_of_a_signed_signal():
+    # 0xFF of a signed byte is its bits, the value -1 (#148); a value wider than the signal is still an error
+    assert "invalid-overflow" not in codes(_sig("representation: twos_complement, invalid_raw: [0xFF, 0x80..0x8F]"))
+    assert "invalid-overflow" not in codes(_sig("representation: twos_complement, invalid_raw: -1"))
+    assert "invalid-overflow" in codes(_sig("representation: twos_complement, invalid_raw: 0x1FF"))
+
+
 def test_missing_unit():
     assert "missing-unit" in codes(_sig("factor: 0.1", "number"))
     assert "missing-unit" not in codes(_sig("factor: 0.1, unit: V", "number"))

@@ -62,14 +62,22 @@ export function parseInput(type: FieldType, raw: string): unknown {
   }
 }
 
+const hex = (v: number) => "0x" + v.toString(16).toUpperCase().padStart(2, "0");
+
 /** Value from the YAML → text of a field. */
 export function formatValue(type: FieldType, v: unknown): string {
   if (v === null || v === undefined) return "";
-  if (type === "hex" && typeof v === "number") return "0x" + v.toString(16).toUpperCase().padStart(2, "0");
-  // Values by meaning: shown as they are written, edited in the YAML
-  if (type === "rawlist" && typeof v === "object" && !Array.isArray(v)) {
-    return Object.entries(v as Record<string, unknown>).filter(([, x]) => x != null)
-      .map(([k, x]) => `${k}: ${Array.isArray(x) ? x.join(", ") : x}`).join("; ");
+  if (type === "hex" && typeof v === "number") return hex(v);
+  if (type === "rawlist") {
+    // Raw values are codes: shown in hex, as the YAML writes them (a negative value of a signed signal as it is)
+    const raw = (x: unknown) => (typeof x === "number" && x >= 0 ? hex(x) : String(x));
+    const items = (x: unknown) => (Array.isArray(x) ? x.map(raw).join(", ") : raw(x));
+    // Values by meaning: edited in the YAML
+    if (typeof v === "object" && !Array.isArray(v)) {
+      return Object.entries(v as Record<string, unknown>).filter(([, x]) => x != null)
+        .map(([k, x]) => `${k}: ${items(x)}`).join("; ");
+    }
+    return items(v);
   }
   if (Array.isArray(v)) return v.join(", ");
   return String(v);

@@ -242,7 +242,10 @@ group("input", () => {
     expect(() => parseInput("rawlist", "0xFF..0x10")).toThrow(ParseError);
     expect(() => parseInput("rawlist", "1..x")).toThrow(ParseError);
     expect(formatValue("rawlist", { not_available: ["0xFF00..0xFFFF"], error: 7 }))
-      .toBe("not_available: 0xFF00..0xFFFF; error: 7");
+      .toBe("not_available: 0xFF00..0xFFFF; error: 0x07");
+    // Raw codes are shown in hex as they are written; a negative value of a signed signal as it is (#148)
+    expect(formatValue("rawlist", 255)).toBe("0xFF");
+    expect(formatValue("rawlist", [254, "0xFF00..0xFFFF", -1])).toBe("0xFE, 0xFF00..0xFFFF, -1");
     expect(parseInput("text", "  ")).toBeNull();
     expect(() => parseInteger("1.5")).toThrow(ParseError);
   });

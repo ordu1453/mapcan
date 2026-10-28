@@ -445,7 +445,8 @@ class Signal(_Base):
 
     @property
     def invalid_ranges(self) -> dict[str, list[tuple[int, int]]]:
-        """Raw values without a value by meaning (not_available, error): ranges lo..hi, a single value as v..v."""
+        """Raw values without a value by meaning (not_available, error): ranges lo..hi, a single value as v..v.
+        Of a signed integer, a value written as its bits (0xFF of 8 bits) is the signed value they hold (#148)."""
         v = self.invalid_raw
         if v is None:
             return {}
@@ -453,9 +454,27 @@ class Signal(_Base):
             {"not_available": v.not_available, "error": v.error}
         out = {}
         for meaning, s in sets.items():
-            ranges = raw_set_ranges(s)
+            ranges = [r for lo, hi in raw_set_ranges(s) for r in self._signed_ranges(lo, hi)]
             if ranges:
                 out[meaning] = ranges
+        return out
+
+    def _signed_ranges(self, lo: int, hi: int) -> list[tuple[int, int]]:
+        """A range of raw values with its part written as bits of a signed integer turned into signed values."""
+        if not self.signed or self.is_float or not self.bit_length:
+            return [(lo, hi)]
+        n = self.bit_length
+        half, top = 1 << (n - 1), (1 << n) - 1
+        if hi < half or hi > top:
+            return [(lo, hi)]                       # signed values already, or too wide: invalid-overflow says so
+        out = [(lo, half - 1)] if lo < half else []
+        a, b = max(lo, half), hi
+        if self.representation == "twos_complement":
+            out.append((a - (1 << n), b - (1 << n)))
+        elif self.representation == "ones_complement":
+            out.append((a - top, b - top))
+        else:                                       # sign_magnitude: the larger the bits, the smaller the value
+            out.append((-(b - half), -(a - half)))
         return out
 
     @property

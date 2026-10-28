@@ -961,7 +961,7 @@ def _key_above(a: Analysis, key: str, line: int) -> tuple[Pos, Pos] | None:
 #: Texts that can be written in several languages ({ru, en}).
 TEXT_KEYS = {"title", "subtitle", "description", "comment"}
 #: Fields written in hexadecimal.
-HEX_KEYS = {"id", "pgn", "node_id", "address", "index", "subindex", "command", "destination"}
+HEX_KEYS = {"id", "pgn", "node_id", "address", "index", "subindex", "command", "destination", "invalid_raw"}
 
 
 def node_kind(path: Path_) -> str | None:

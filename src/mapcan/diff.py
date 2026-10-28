@@ -103,7 +103,9 @@ def is_breaking(c: Change) -> bool:
 
 def _invalid_text(s: Signal) -> str | None:
     """invalid_raw as one comparable text: "not_available 0xFF; error 0xFE00..0xFEFF"."""
-    parts = [f"{meaning} " + ", ".join(f"0x{lo:X}" if lo == hi else f"0x{lo:X}..0x{hi:X}" for lo, hi in ranges)
+    def lit(v: int) -> str:
+        return f"0x{v:X}" if v >= 0 else str(v)
+    parts = [f"{meaning} " + ", ".join(lit(lo) if lo == hi else f"{lit(lo)}..{lit(hi)}" for lo, hi in ranges)
              for meaning, ranges in s.invalid_ranges.items()]
     return "; ".join(parts) or None
 

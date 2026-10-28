@@ -233,6 +233,11 @@ def test_apply_ops():
         E.apply_ops(a, [{"op": "remove", "path": ["nope"]}])
 
 
+def test_invalid_raw_written_in_hex():
+    # Raw codes without a value, as the web editor writes them (#148)
+    assert (E.format_value("invalid_raw", 255), E.format_value("invalid_raw", -1)) == ("0xFF", "-1")
+
+
 def test_sdo_value_fields():
     text = (ROOT / "tests" / "data" / "reference.yaml").read_text(encoding="utf-8")
     a = A.analyze(text, "r.yaml")

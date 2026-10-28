@@ -130,6 +130,23 @@ def test_cycle_ms_means_cyclic():
     assert (f.mode, f.cycle_ms) == ("cyclic", 20)
 
 
+@pytest.mark.parametrize("representation, expected", [
+    # 8 bits: 0x7F stays, 0x80..0x81 and 0xFF are the bits of negative values (#148)
+    ("unsigned", [(0x7F, 0x81), (0xFF, 0xFF)]),
+    ("twos_complement", [(0x7F, 0x7F), (-128, -127), (-1, -1)]),
+    ("ones_complement", [(0x7F, 0x7F), (-127, -126), (0, 0)]),
+    ("sign_magnitude", [(0x7F, 0x7F), (-1, 0), (-127, -127)]),
+])
+def test_invalid_raw_written_as_bits(representation, expected):
+    s = sig(byte=0, byte_length=1, representation=representation, invalid_raw=["0x7F..0x81", 0xFF])
+    assert s.invalid_ranges == {"not_available": expected}
+
+
+def test_invalid_raw_of_signed_values_and_too_wide_ones_stays():
+    s = sig(byte=0, byte_length=1, representation="twos_complement", invalid_raw=[-1, "-8..-2", 0x1FF])
+    assert s.invalid_ranges == {"not_available": [(-1, -1), (-8, -2), (0x1FF, 0x1FF)]}
+
+
 def test_sdo_layout(ref_map):
     f = next(f for f in ref_map.buses[0].all_frames() if f.name == "imd_sdo_request")
     names = [s.name for s in f.layout]
