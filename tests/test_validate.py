@@ -290,6 +290,13 @@ def test_duplicate_device_and_node():
     assert {"duplicate-device-name", "duplicate-node-id"} <= c
 
 
+def test_duplicate_bus_name():
+    text = one_bus(OK_SIGNAL) + "  - name: bus\n    title: Вторая\n    protocol: can\n"
+    _, report = run(text)
+    d = next(d for d in report.diagnostics if d.code == "duplicate-bus-name")
+    assert d.node == ["buses", 1, "name"]
+
+
 def test_node_id_range():
     text = one_bus(OK_SIGNAL).replace("node_id: 0x10", "node_id: 0")
     assert "node-id-range" in codes(text)

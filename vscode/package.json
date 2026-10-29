@@ -356,6 +356,10 @@
           "when": "false"
         },
         {
+          "command": "mapcan.copyPath",
+          "when": "false"
+        },
+        {
           "command": "mapcan.openPreview",
           "when": "mapcan.mapOpen"
         },
@@ -500,6 +504,11 @@
           "command": "mapcan.deleteNode",
           "when": "view == mapcan.map && viewItem =~ /^(bus|device|frame|signal|flag|sdo)(\\.included)?$/",
           "group": "3_delete@1"
+        },
+        {
+          "command": "mapcan.copyPath",
+          "when": "view == mapcan.map && viewItem =~ /^(frame|signal|flag)(\\.included)?$|^frameLink$/",
+          "group": "4_copy@1"
         },
         {
           "command": "mapcan.history.openDiff",
@@ -806,6 +815,11 @@
         "title": "Delete",
         "category": "mapcan",
         "icon": "$(trash)"
+      },
+      {
+        "command": "mapcan.copyPath",
+        "title": "Copy Path",
+        "category": "mapcan"
       },
       {
         "command": "mapcan.closeForm",

@@ -165,6 +165,7 @@ RU: dict[str, str] = {
     "Cyrillic “х” in a hexadecimal number": "Кириллическая «х» в шестнадцатеричном числе",
     "Number written as a quoted string": "Число записано строкой в кавычках",
     "Name cannot be used as a C/Python identifier": "Имя нельзя использовать как идентификатор C/Python",
+    "Duplicate bus name in the map": "Повтор имени шины в карте",
     "Duplicate device name on the bus": "Повтор имени устройства на шине",
     "Duplicate node_id on the bus": "Повтор node_id на шине",
     "CANopen node_id outside 1..127": "node_id CANopen вне диапазона 1..127",
@@ -279,6 +280,7 @@ RU: dict[str, str] = {
         "кадр {type} обычно {expected} для устройства, указано {actual}",
     "second selector {name!r}": "второй селектор {name!r}",
     "logo {logo!r}: supported formats are {formats}": "логотип {logo!r}: поддерживаются {formats}",
+    "bus {name!r} is already defined": "шина {name!r} уже описана",
     "device {name!r} is already defined": "устройство {name!r} уже описано",
     "frame {name!r} is already defined on the bus": "кадр {name!r} уже описан на шине",
     "CAN ID {can_id:#05x} of frame {name!r} matches frame {other!r}":

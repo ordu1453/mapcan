@@ -200,7 +200,11 @@ break devices built against the old one (`[breaking]` in text, **breaking:** in 
 | a frame's ID, CANopen function, PGN, priority, length or IDE changed; a device's node ID or address | timing, transmission mode, sender and receivers |
 | a signal moved or resized; its byte order, representation, encoding, factor or offset changed | titles, descriptions, units of display, initial values |
 | a value renamed or renumbered; a flag moved; the multiplexer or a multiplexer value changed | limits widened or removed |
-| a limit narrowed or added | |
+| a limit narrowed or added | a frame, signal or flag renamed in its place (`renamed`, see below) |
+
+A frame, signal or flag that keeps its place and layout under a new name is listed as `renamed`, with its old
+and new [canonical path](format.md#paths-of-signals) (`old` and `new` in JSON), for tools that refer to
+signals by path. The bus does not change; the names in generated code and DBC do.
 
 `--fail-on breaking` exits with code 1 when a breaking change is found, `--fail-on any` on any change;
 [ci-example.md](ci-example.md#breaking-changes-in-pull-requests) uses it to check pull requests.

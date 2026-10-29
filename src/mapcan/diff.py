@@ -10,7 +10,9 @@ from typing import Any, Literal
 from .docmodel import fmt_num, hex_id
 from .model import Bus, Frame, MapCan, Signal, enum_entries, text
 
-ChangeKind = Literal["added", "removed", "changed"]
+# renamed: a frame, signal or flag with a new name and the same place and layout; old and new are its canonical
+# paths (bus.frame.signal.flag, docs/format.md), for references from outside the map
+ChangeKind = Literal["added", "removed", "changed", "renamed"]
 Scope = Literal["bus", "device", "frame", "signal", "flag", "value"]
 
 
@@ -175,28 +177,67 @@ def _diff_bus(d: MapDiff, old: Bus, new: Bus, langs: tuple[str, str]) -> None:
         for fld, a, b in _attrs_diff(oa, na, DEVICE_FIELDS):
             d.changes.append(Change("changed", "device", new.name, device=name, field=fld, old=a, new=b))
 
-    of = {f.name: f for f in old.all_frames()}
-    nf = {f.name: f for f in new.all_frames()}
+    of, renamed = _matched(old.all_frames(), new.all_frames(), _frame_key)
+    kept = {x.name for x in of.values()}
     for f in old.all_frames():
-        if f.name not in nf:
+        if f.name not in kept:
             d.changes.append(_frame_change("removed", new.name, f))
     for f in new.all_frames():
         if f.name not in of:
             d.changes.append(_frame_change("added", new.name, f))
             continue
         o = of[f.name]
+        if f.name in renamed:
+            d.changes.append(_frame_change("renamed", new.name, f, field="name", old=o._ref, new=f._ref))
         for fld, a, b in _attrs_diff(_frame_attrs(o, langs), _frame_attrs(f, langs), FRAME_FIELDS):
             d.changes.append(_frame_change("changed", new.name, f, field=fld, old=a, new=b))
         _diff_signals(d, new.name, o, f, langs)
 
 
+def _frame_key(f: Frame):
+    # A frame is the same when its identifier and the places of its signals are; names of signals may change too
+    if f._ref is None or f.can_id is None:
+        return None
+    return f.can_id, f.extended, f.length, sorted((s.start_bit, s.bit_length, s.byte_order) for s in f.layout)
+
+
+def _signal_key(s: Signal):
+    return None if s._ref is None else (s.start_bit, s.bit_length, s.byte_order, s.encoding)
+
+
+def _flag_key(fl):
+    return fl.bit, fl.bit_length
+
+
+def _matched(old: list, new: list, key) -> tuple[dict, set]:
+    """Old node of each new one, by name ({new name: old node}), and the names of the renamed ones.
+
+    A node of the old version whose name is gone is renamed to a new name when they are the only removed and the
+    only added node with the same key (place and layout); otherwise it stays removed and the other one added.
+    """
+    names_old = {x.name for x in old}
+    names_new = {x.name for x in new}
+    gone = [x for x in old if x.name not in names_new]
+    came = [x for x in new if x.name not in names_old]
+    keys_gone = [key(x) for x in gone]
+    keys_came = [key(x) for x in came]
+    out = {x.name: x for x in old if x.name in names_new}
+    renamed = set()
+    for x, k in zip(gone, keys_gone, strict=True):
+        if k is not None and keys_gone.count(k) == 1 and keys_came.count(k) == 1:
+            y = came[keys_came.index(k)]
+            out[y.name] = x
+            renamed.add(y.name)
+    return out, renamed
+
+
 def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, langs: tuple[str, str]) -> None:
     base = {"bus": bus, "frame": nf.name, "can_id": hex_id(nf.can_id, nf.extended),
             "device": nf.device.name if nf.device else ""}
-    os_ = {s.name: s for s in of.layout}
-    ns = {s.name: s for s in nf.layout}
+    os_, renamed = _matched(of.layout, nf.layout, _signal_key)
+    kept = {x.name for x in os_.values()}
     for s in of.layout:
-        if s.name not in ns:
+        if s.name not in kept:
             d.changes.append(Change("removed", "signal", signal=s.name, **base,
                                     old=(s.start_bit, s.bit_length)))
     for s in nf.layout:
@@ -204,6 +245,8 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, langs: tuple[str, 
             d.changes.append(Change("added", "signal", signal=s.name, **base, new=(s.start_bit, s.bit_length)))
             continue
         o = os_[s.name]
+        if s.name in renamed:
+            d.changes.append(Change("renamed", "signal", signal=s.name, field="name", old=o._ref, new=s._ref, **base))
         for fld, a, b in _attrs_diff(_signal_attrs(o, langs), _signal_attrs(s, langs), SIGNAL_FIELDS):
             d.changes.append(Change("changed", "signal", signal=s.name, field=fld, old=a, new=b, **base))
         # enum values
@@ -222,16 +265,19 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, langs: tuple[str, 
                                         old=text(ov[v].description, *langs),
                                         new=text(nv[v].description, *langs), **base))
         # flags
-        ofl = {x.name: x for x in o.flags or []}
-        nfl = {x.name: x for x in s.flags or []}
-        for n in [x.name for x in o.flags or []]:
-            if n not in nfl:
-                d.changes.append(Change("removed", "flag", signal=s.name, item=n, old=ofl[n].bit, **base))
+        ofl, renamed_fl = _matched(o.flags or [], s.flags or [], _flag_key)
+        kept_fl = {x.name for x in ofl.values()}
+        for y in o.flags or []:
+            if y.name not in kept_fl:
+                d.changes.append(Change("removed", "flag", signal=s.name, item=y.name, old=y.bit, **base))
         for x in s.flags or []:
             if x.name not in ofl:
                 d.changes.append(Change("added", "flag", signal=s.name, item=x.name, new=x.bit, **base))
                 continue
             y = ofl[x.name]
+            if x.name in renamed_fl:
+                d.changes.append(Change("renamed", "flag", signal=s.name, item=x.name, field="name", old=y._ref,
+                                        new=x._ref, **base))
             oa = {"bit": y.bit, "bit_length": y.bit_length, "multiplexer": y.multiplexer,
                   "description": text(y.description, *langs)}
             na = {"bit": x.bit, "bit_length": x.bit_length, "multiplexer": x.multiplexer,
@@ -300,14 +346,14 @@ def changed_paths(diff: MapDiff, new: MapCan) -> dict[tuple, NodeStatus]:
 
 _T = {
     "ru": {
-        "added": "добавлен", "removed": "удалён", "changed": "изменён",
+        "added": "добавлен", "removed": "удалён", "changed": "изменён", "renamed": "переименован",
         "bus": "шина", "device": "устройство", "frame": "кадр", "signal": "сигнал",
         "flag": "флаг", "value": "значение", "bits": "биты", "byte": "байт",
         "added_n": "добавлено", "removed_n": "удалено", "changed_n": "изменено",
         "none": "Изменений нет.", "breaking": "несовместимо",
     },
     "en": {
-        "added": "added", "removed": "removed", "changed": "changed",
+        "added": "added", "removed": "removed", "changed": "changed", "renamed": "renamed",
         "bus": "bus", "device": "device", "frame": "frame", "signal": "signal",
         "flag": "flag", "value": "value", "bits": "bits", "byte": "byte",
         "added_n": "added", "removed_n": "removed", "changed_n": "changed",
@@ -344,7 +390,16 @@ def changelog_lines(diff: MapDiff, lang: str = "ru") -> list[str]:
     lines = []
     for c in diff.changes:
         frame = f"{c.can_id} {c.frame}".strip()
-        if c.scope == "bus":
+        if c.kind == "renamed":
+            was = c.old.rsplit(".", 1)[-1]
+            if c.scope == "frame":
+                frame_was = f"{c.can_id} {was}".strip()
+                lines.append(f"{T['renamed'].capitalize()} {T['frame']} {frame_was} → {c.frame}")
+            elif c.scope == "signal":
+                lines.append(f"{frame}: {T['renamed']} {T['signal']} {was} → {c.signal}")
+            else:
+                lines.append(f"{frame}: {c.signal}: {T['renamed']} {T['flag']} {was} → {c.item}")
+        elif c.scope == "bus":
             lines.append(f"{T[c.kind].capitalize()} {T['bus']} {c.bus}")
         elif c.scope == "device":
             if c.kind == "changed":

@@ -87,6 +87,19 @@ export class MapNode {
     return this.raw.name ? new vscode.Position(this.raw.name[0], this.raw.name[1]) : undefined;
   }
 
+  /** How a frame, signal or flag is referred to from outside the map: bus.frame.signal.flag, without the device
+   * (docs/format.md); a link has the path of its frame. Undefined for other nodes and while a name is missing. */
+  get canonicalPath(): string | undefined {
+    if (!["frame", "signal", "flag"].includes(this.kind)) return undefined;
+    const names: string[] = [];
+    for (let n: MapNode | undefined = this; n; n = n.parent) {
+      if (n.kind === "device") continue;
+      if (n.raw.ident === undefined || n.raw.ident === "—") return undefined;
+      names.unshift(n.raw.ident);
+    }
+    return names.join(".");
+  }
+
   /** Links to frames of other devices are not part of this node's text. */
   get isLink(): boolean {
     return this.raw.from !== undefined || this.raw.to !== undefined;

@@ -530,13 +530,15 @@ def frame_view(f: Frame) -> dict:
         occ = B.occupied_bits(s.start_bit, s.bit_length, be)
         flags = []
         for fl in s.flags or []:
-            flags.append({"name": fl.name, "bit": fl.bit, "bit_length": fl.bit_length, "multiplexer": fl.multiplexer,
+            flags.append({"name": fl.name, "ref": fl._ref, "bit": fl.bit, "bit_length": fl.bit_length,
+                          "multiplexer": fl.multiplexer,
                           "occupied": occ[fl.bit: fl.bit + fl.bit_length],
                           "values": [{"value": v, "name": ev.name} for v, ev in enum_entries(fl.values)]})
         sigs.append({
             "index": i if explicit else None,
             "path": list(s._path),
             "name": s.name,
+            "ref": s._ref,
             "encoding": s.encoding,
             "start_bit": s.start_bit,
             "bit_length": s.bit_length,
@@ -552,6 +554,7 @@ def frame_view(f: Frame) -> dict:
     return {
         "path": list(f._path),
         "name": f.name,
+        "ref": f._ref,
         "can_id": f.can_id,
         "extended": f.extended,
         "length": f.length,

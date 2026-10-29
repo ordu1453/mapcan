@@ -55,10 +55,14 @@ def _resolve_frame(frame: Frame, bus, dev, path) -> None:
     if frame.direction is None and dev is not None:
         frame.direction = derived_direction(frame.type, frame.sender, dev.name)
     frame._can_id, frame.extended = frame_id(bus, _source_device(frame, bus, dev), frame)
+    # The device is not in the path: frame names are unique on the bus, wherever a frame is described
+    frame._ref = f"{bus.name}.{frame.name}"
     for si, sig in enumerate(frame.signals):
         sig._path = path + ("signals", si)
+        sig._ref = f"{frame._ref}.{sig.name}"
         for fi, fl in enumerate(sig.flags or []):
             fl._path = sig._path + ("flags", fi)
+            fl._ref = f"{sig._ref}.{fl.name}"
     if frame.sdo:
         for i, ex in enumerate(frame.sdo):
             ex._path = path + ("sdo", i)

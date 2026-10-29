@@ -390,5 +390,8 @@
   "bit +1": "бит +1",
   "Tick all flags": "Отметить все флаги",
   "Tick flag {name}": "Отметить флаг {name}",
-  "Subindex 0x00 of an array or a record holds the number of its entries: give the object a subindex from 0x01": "Субиндекс 0x00 массива или записи хранит число их элементов: задайте объекту субиндекс от 0x01"
+  "Subindex 0x00 of an array or a record holds the number of its entries: give the object a subindex from 0x01": "Субиндекс 0x00 массива или записи хранит число их элементов: задайте объекту субиндекс от 0x01",
+  "Copy path {path}": "Скопировать путь {path}",
+  "Copied {path}": "Скопировано: {path}",
+  "Could not copy to the clipboard": "Не удалось скопировать в буфер обмена"
 }

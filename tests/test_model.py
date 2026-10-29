@@ -183,3 +183,22 @@ def test_reference_ids(ref_map):
     assert ids["cmu_request"] == 0x222
     assert ids["pcu_command"] == 0x223
     assert ids["host_data"] == 0x001
+
+
+def test_canonical_paths():
+    """bus.frame.signal.flag (docs/format.md): the device is not in it, and the editors get it in the resolved view."""
+    from mapcan.web.session import resolved_view
+
+    from .conftest import REFERENCE
+
+    res, _ = run(REFERENCE.read_text(encoding="utf-8"))
+    bus = res.map.buses[0]
+    frame = next(f for f in bus.all_frames() if f.name == "imd_data")
+    assert frame.device is not None and frame._ref == "bus1.imd_data"
+    assert frame.signals[1]._ref == "bus1.imd_data.resistance_plus"
+    sig = next(s for f in bus.all_frames() for s in f.signals
+               if any(x.name == "err_igbt_driver" for x in s.flags or []))
+    fi = next(i for i, x in enumerate(sig.flags) if x.name == "err_igbt_driver")
+    assert sig.flags[fi]._ref == sig.flag_signal(fi)._ref == f"{sig._ref}.err_igbt_driver"
+    view = next(f for f in resolved_view(res.map)["frames"] if f["name"] == "imd_data")
+    assert view["ref"] == "bus1.imd_data" and view["signals"][1]["ref"] == "bus1.imd_data.resistance_plus"

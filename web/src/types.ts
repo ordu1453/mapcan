@@ -21,6 +21,8 @@ export interface Diagnostic {
 
 export interface ResolvedFlag {
   name: string;
+  /** Canonical path, bus.frame.signal.flag (docs/format.md); null for the signals of an SDO exchange. */
+  ref: string | null;
   bit: number;
   bit_length: number;
   /** The field is the frame's multiplexer selector (#149). */
@@ -38,6 +40,8 @@ export interface ResolvedSignal {
   index: number | null;
   path: Path;
   name: string;
+  /** Canonical path, bus.frame.signal.flag (docs/format.md); null for the signals of an SDO exchange. */
+  ref: string | null;
   encoding: string;
   start_bit: number;
   bit_length: number;
@@ -54,6 +58,8 @@ export interface ResolvedSignal {
 export interface ResolvedFrame {
   path: Path;
   name: string;
+  /** Canonical path, bus.frame.signal.flag (docs/format.md); null for the signals of an SDO exchange. */
+  ref: string | null;
   can_id: number | null;
   extended: boolean;
   length: number;

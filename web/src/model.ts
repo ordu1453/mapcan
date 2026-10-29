@@ -73,6 +73,22 @@ export function framePathOf(path: Path): Path | null {
   return null;
 }
 
+/** Canonical path of a frame, signal or flag, by which it is referred to from outside the map:
+ * "bus.frame.signal.flag" (docs/format.md, `ref` of the resolved frames). The device is not in it: frame names are
+ * unique on the bus. Null for other nodes and while a name is missing. */
+export function canonicalPath(data: Data, path: Path): string | null {
+  const kind = nodeKind(path);
+  if (kind !== "frame" && kind !== "signal" && kind !== "flag") return null;
+  const names: string[] = [];
+  for (let n = 2; n <= path.length; n += 2) {
+    if (path[n - 2] === "devices") continue;
+    const name = getAt(data, path.slice(0, n))?.name;
+    if (typeof name !== "string" || !name) return null;
+    names.push(name);
+  }
+  return names.join(".");
+}
+
 // ------------------------------------------------------------------ text
 
 export function txt(v: unknown, lang = "ru"): string {

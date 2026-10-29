@@ -11,6 +11,10 @@ needs at least the version of mapcan that introduced it; former names stay reada
   The bit field holding it has no `mux`. DBC export writes the field as the multiplexer signal; the generated
   C and Python code read the selector from the bit field. Maps without it are unchanged, and so is their
   `layout_crc32`.
+- The canonical path of a frame, signal or flag, `bus.frame.signal.flag`, names it for references from outside
+  the map (#100, [Paths of signals](format.md#paths-of-signals)). For it to be unique, a repeated bus name is
+  now the error `duplicate-bus-name`. `mapcan diff` reports a frame, signal or flag renamed in its place as
+  `renamed` with the old and the new path, instead of a removal and an addition (which were breaking).
 
 ## 0.24.3
 

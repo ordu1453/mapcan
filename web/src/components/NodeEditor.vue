@@ -5,7 +5,7 @@ import { addBus, addDevice, addDeviceInFile, addFrame, addSdo, addSignal, canRen
   renameNode, stopReceiving } from "../edit";
 import { applies, CANOPEN_DLC, describe, encodingChangeOps, fieldHelp, FORMS, isRequired, optionsOf, parseInteger, ParseError,
   placeholderOf, UI_HELP, type FieldDef, type FormContext, type FormKind } from "@mapcan/forms";
-import { deviceLabel, displayName, getAt, HISTORY_PATH, isCanopen, namedTable, nodeKind, OBJECTS, ownerPath, pathKey, samePath,
+import { canonicalPath, deviceLabel, displayName, getAt, HISTORY_PATH, isCanopen, namedTable, nodeKind, OBJECTS, ownerPath, pathKey, samePath,
   startsWith, txt } from "../model";
 import { actions, askUser, includedPath, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast,
   viewData } from "../store";
@@ -33,6 +33,17 @@ const kind = computed(() => nodeKind(path.value));
 const data = computed(() => viewData.value);
 const node = computed(() => getAt(data.value, kind.value === "document" ? ["document"] : path.value));
 const includedFile = computed(() => includedPath(path.value));
+// bus.frame.signal.flag: how dashboards, plots and logs refer to the node (docs/format.md)
+const refPath = computed(() => canonicalPath(data.value, path.value));
+
+async function copyRefPath() {
+  try {
+    await navigator.clipboard.writeText(refPath.value!);
+    toast(t("Copied {path}", { path: refPath.value }), "info");
+  } catch {
+    toast(t("Could not copy to the clipboard"));
+  }
+}
 const readonly = computed(() => !!store.state?.readonly);
 const diags = computed(() => store.state?.diagnostics ?? []);
 // A signal of a CANopen frame is a dictionary object (CiA 301): the editor calls it so (#151)
@@ -551,6 +562,8 @@ async function setSelector(e: Event) {
         </h2>
       </div>
       <div class="ne-actions">
+        <button v-if="refPath" class="icon" :title="t('Copy path {path}', { path: refPath })"
+                :aria-label="t('Copy path {path}', { path: refPath })" @click="copyRefPath">⎘</button>
         <template v-if="isListItem && !readonly && !store.selectedSender">
           <button class="icon" :title="t('Duplicate')" @click="duplicateNode(path)">⧉</button>
           <button class="icon danger" :title="store.selectedVia ? t('Stop receiving (remove from receivers)') : t('Delete (Del)')"

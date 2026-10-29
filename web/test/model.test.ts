@@ -1,7 +1,7 @@
 // Labels of nodes in the tree: titles for people instead of identifiers, links to received frames.
 
 import { describe, expect, it } from "vitest";
-import { buildTree, deviceLabel, deviceObjects, displayName, flagFits, includedFile, isLink, localPath, mergedPath,
+import { buildTree, canonicalPath, deviceLabel, deviceObjects, displayName, flagFits, includedFile, isLink, localPath, mergedPath,
   namedTable, nodeKind, pathKey, shiftedFlags, viewOf, type TreeNode } from "../src/model";
 import { issueUrl, ISSUES_URL } from "../src/links";
 import type { ResolvedFrame } from "../src/types";
@@ -21,7 +21,7 @@ const data = {
 };
 
 const frame = (path: Array<string | number>, extra: Partial<ResolvedFrame>): ResolvedFrame => ({
-  path, name: "", can_id: 0x181, extended: false, length: 8, type: "pdo_tx1", direction: "tx",
+  path, name: "", ref: null, can_id: 0x181, extended: false, length: 8, type: "pdo_tx1", direction: "tx",
   device: null, sender: null, receivers: [], signals: [], ...extra,
 });
 
@@ -71,6 +71,22 @@ describe("labels", () => {
     expect(link.receiver).toBe("panel");
     expect(link.dir).toBe("rx");
     expect(link.key).not.toBe(pathKey(status.path));
+  });
+});
+
+describe("canonical path (#100)", () => {
+  it("names the bus, frame, signal and flag, not the device", () => {
+    const flags = { buses: [{ name: "can1", frames: [{ name: "nmt" }],
+      devices: [{ name: "bms", frames: [{ name: "faults", signals: [{ name: "bits", flags: [{ name: "ov" }] }] }] }] }] };
+    expect(canonicalPath(flags, ["buses", 0, "frames", 0])).toBe("can1.nmt");
+    expect(canonicalPath(flags, ["buses", 0, "devices", 0, "frames", 0, "signals", 0, "flags", 0])).toBe("can1.faults.bits.ov");
+    expect(canonicalPath(data, ["buses", 0, "devices", 0, "frames", 0, "signals", 1])).toBe("can1.bms_status.temp");
+  });
+
+  it("is null for other nodes and while a name is missing", () => {
+    expect(canonicalPath(data, ["buses", 0])).toBeNull();
+    expect(canonicalPath(data, ["buses", 0, "devices", 0])).toBeNull();
+    expect(canonicalPath({ buses: [{ name: "can1", frames: [{}] }] }, ["buses", 0, "frames", 0])).toBeNull();
   });
 });
 

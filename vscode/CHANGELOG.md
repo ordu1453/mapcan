@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+* **Copy Path** in the context menu of a frame, signal or flag of the Map view copies its canonical path,
+  `bus.frame.signal.flag`, by which dashboards and logs refer to it (#100).
+
 ## 0.7.0
 
 * Needs mapcan 0.24.0 or newer, which the extension offers to install or update.

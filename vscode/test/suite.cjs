@@ -166,6 +166,15 @@ const tests = {
     assert.equal(ctx.doc.getText(), before);
   },
 
+  async "Copy Path copies bus.frame.signal without the device (#100)"(ctx) {
+    const tree = ctx.api.tree;
+    const bus = tree.getChildren()[0];
+    const frame = tree.getChildren(tree.getChildren(bus)[0])[0];
+    const signal = frame.children[0];
+    await vscode.commands.executeCommand("mapcan.copyPath", signal);
+    assert.equal(await vscode.env.clipboard.readText(), `${bus.raw.ident}.${frame.raw.ident}.${signal.raw.ident}`);
+  },
+
   async "a frame added to a CANopen device gets the first free PDO type"(ctx) {
     const tree = ctx.api.tree;
     const device = () => tree.getChildren(tree.getChildren()[0])[0];

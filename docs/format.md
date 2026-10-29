@@ -607,6 +607,31 @@ editors change the main file only), and clicking such a node in VS Code opens it
 Included devices can be chosen as senders and receivers of the main file's frames.
 
 ## Versioning and compatibility
+## Paths of signals
+
+A frame, signal or flag is referred to from outside the map (dashboard layouts, plots, alarm
+thresholds, columns of decoded logs) by its **canonical path**, its names joined with dots:
+
+| Node | Path | Example |
+|---|---|---|
+| Frame | `bus.frame` | `powertrain.eec1` |
+| Signal | `bus.frame.signal` | `powertrain.eec1.engine_speed` |
+| Field of a bit field | `bus.frame.signal.flag` | `can1.bms_faults.faults.overvoltage` |
+
+The path is unique: bus names are unique in the map (`duplicate-bus-name`), frame names on their bus
+wherever the frame is described (`duplicate-frame-name`), and signal and flag names in their frame
+(`duplicate-signal-name`). The device that describes a frame is not part of the path, so moving a frame
+from one device to another, or from a device to the bus, keeps it. Names are identifiers, so a path has
+no other dots. The signals of an SDO exchange have no path.
+
+Renaming a bus, frame, signal or flag changes the path. `mapcan diff` reports a frame, signal or flag
+that keeps its place under a new name as **renamed**, with the old and the new path (`old` and `new`
+in `--format json`), so that the references can be updated: a frame with the same ID, length and places
+of its signals, a signal with the same bits, byte order and encoding, a flag with the same bits. Only
+one candidate on each side counts; otherwise the change is a removal and an addition. In the editors,
+**Copy Path** (the tree's context menu in VS Code, the button next to the node's name in the web editor)
+copies the path of the selected node.
+
 
 `mapcan: 2` is the version of the format, not of the program. What it promises:
 
@@ -714,6 +739,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `name-style` | warning | Name does not match the style rule (lint) |
 | `name-inconsistent` | warning | The same value name is spelled differently |
 | `duplicate-device-name` | error | Duplicate device name on the bus |
+| `duplicate-bus-name` | error | Duplicate bus name in the map |
 | `duplicate-frame-name` | error | Duplicate frame name on the bus |
 | `duplicate-signal-name` | error | Duplicate signal/flag name in the frame |
 | `duplicate-enum-name` | warning | Same name for different enum values |

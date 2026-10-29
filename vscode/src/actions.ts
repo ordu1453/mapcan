@@ -206,5 +206,12 @@ export function registerTreeActions(
       await runEdit(client(), tree, { action: "delete", path: node.path });
     }),
     on("mapcan.renameNode", (node) => renameNode(tree, node, client())),
+    // Also of a link: it has the path of its frame
+    vscode.commands.registerCommand("mapcan.copyPath", async (node?: MapNode) => {
+      const path = tree.target(node)?.canonicalPath;
+      if (!path) return;
+      await vscode.env.clipboard.writeText(path);
+      vscode.window.setStatusBarMessage(`Copied ${path}`, 3000);
+    }),
   );
 }

@@ -47,6 +47,31 @@ def test_signal_field_changed():
     assert changelog_lines(d) == ["0x2A1 imd_data: bus_voltage.factor 0.1 → 0.01"]
 
 
+def test_renamed_frame_and_signal():
+    # Same identifier and layout under a new name: renamed, with the canonical paths, and not breaking
+    d = _diff(BASE.replace("name: imd_data", "name: imd_values", 1).replace("name: resistance_plus", "name: r_plus", 1))
+    assert [(c.kind, c.scope, c.old, c.new, c.breaking) for c in d.changes] == [
+        ("renamed", "frame", "bus1.imd_data", "bus1.imd_values", False),
+        ("renamed", "signal", "bus1.imd_data.resistance_plus", "bus1.imd_values.r_plus", False),
+    ]
+    assert changelog_lines(d, "en") == ["Renamed frame 0x2A1 imd_data → imd_values",
+                                        "0x2A1 imd_values: renamed signal resistance_plus → r_plus"]
+    # A renamed signal of another length is another signal: removed and added
+    plus = "корпусом\n                byte: 1\n                byte_length: 2\n"
+    resized = BASE.replace("name: resistance_plus", "name: r_plus", 1).replace(plus, plus.replace("2", "1"), 1)
+    assert [(c.kind, c.signal) for c in _diff(resized).changes] == [("removed", "resistance_plus"),
+                                                                    ("added", "r_plus")]
+
+
+def test_renamed_flag():
+    d = _diff(BASE.replace("{bit: 4, name: err_igbt_driver,", "{bit: 4, name: err_driver,", 1))
+    [c] = d.changes
+    assert (c.kind, c.scope, c.item, c.old.rsplit(".", 1)[1], c.new.rsplit(".", 1)[1]) == \
+        ("renamed", "flag", "err_driver", "err_igbt_driver", "err_driver")
+    assert c.new == f"{c.bus}.{c.frame}.{c.signal}.err_driver"
+    assert changelog_lines(d, "en")[0].endswith(f"{c.signal}: renamed flag err_igbt_driver → err_driver")
+
+
 def test_enum_value_added_and_renamed():
     new = BASE.replace("                  3: ALARM\n", "                  3: ALARM\n                  4: SERVICE\n", 1)
     new = new.replace("                  1: OK\n", "                  1: GOOD\n", 1)
@@ -173,7 +198,14 @@ def test_changed_paths_added():
     sig = next(s for b in m.buses for f in b.all_frames() for s in f.signals
                if any(x.name == "err_igbt_driver2" for x in s.flags or []))
     flag = next(x for x in sig.flags if x.name == "err_igbt_driver2")
-    # A renamed flag: the new one added, the old one removed, the signal changed
+    # A renamed flag (the same bits) is modified
+    assert _paths(new) == {flag._path: "modified"}
+    # A flag in other bits under a new name: the new one added, the old one removed, the signal changed
+    new = new.replace("{bit: 4, name: err_igbt_driver2,", "{bit: 7, name: err_igbt_driver2,", 1)
+    m = _map(new)
+    sig = next(s for b in m.buses for f in b.all_frames() for s in f.signals
+               if any(x.name == "err_igbt_driver2" for x in s.flags or []))
+    flag = next(x for x in sig.flags if x.name == "err_igbt_driver2")
     assert _paths(new) == {flag._path: "added", sig._path: "modified"}
 
 

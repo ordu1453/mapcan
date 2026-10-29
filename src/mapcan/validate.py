@@ -61,6 +61,7 @@ RULES = {
     "deprecated-key": ("warning", N_("Former name of a field: still read, mapcan migrate rewrites it")),
     "format-v1": ("info", N_("Map of format version 1: still read, mapcan migrate rewrites it in version 2")),
     "invalid-identifier": ("error", N_("Name cannot be used as a C/Python identifier")),
+    "duplicate-bus-name": ("error", N_("Duplicate bus name in the map")),
     "duplicate-device-name": ("error", N_("Duplicate device name on the bus")),
     "duplicate-node-id": ("error", N_("Duplicate node_id on the bus")),
     "node-id-range": ("error", N_("CANopen node_id outside 1..127")),
@@ -195,7 +196,12 @@ def validate_map(cmap: MapCan, src: SourceMap, disable: Iterable[str] = ()) -> R
         ctx.emit("version-format", _("map version {version!r} is not MAJOR.MINOR or MAJOR.MINOR.PATCH (e.g. 1.4.0)",
                                      version=cmap.document.version), ("document", "version"))
 
+    bus_names = set()
     for bus in cmap.buses:
+        # A bus is named in the paths of its signals (bus.frame.signal) and in the files of generated code
+        if bus.name in bus_names:
+            ctx.emit("duplicate-bus-name", _("bus {name!r} is already defined", name=bus.name), bus._path + ("name",))
+        bus_names.add(bus.name)
         _check_bus(ctx, bus)
         for frame in bus.all_frames():
             _check_frame(ctx, frame)

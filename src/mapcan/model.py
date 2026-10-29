@@ -55,6 +55,9 @@ class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     # Path of the node in the source YAML, e.g. ("buses", 0, "devices", 1).
     _path: tuple = PrivateAttr(default=())
+    # Canonical path of a frame, signal or flag for references from outside the map, "bus.frame.signal.flag"
+    # (docs/format.md); set by resolve(), None for other nodes and the signals of an SDO exchange.
+    _ref: str | None = PrivateAttr(default=None)
 
 
 class LocalizedText(_Base):
@@ -556,6 +559,7 @@ class Signal(_Base):
             "multiplexer": fl.multiplexer, "mux": None, "initial": None, "source": None, "invalid_raw": None,
             "spn": None, "index": None, "subindex": None})
         sig._path = self._path + ("flags", index)
+        sig._ref = fl._ref
         sig._selector_of = (self, fl)
         return sig
 
