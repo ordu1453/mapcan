@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
 
 * **Copy Path** in the context menu of a frame, signal or flag of the Map view copies its canonical path,
   `bus.frame.signal.flag`, by which dashboards and logs refer to it (#100).
