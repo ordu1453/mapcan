@@ -59,7 +59,7 @@ FRAME_FIELDS = ("can_id", "canopen", "length", "direction", "mode", "cycle_ms", 
 SIGNAL_FIELDS = ("start_bit", "bit_length", "byte_order", "representation", "encoding", "factor", "offset",
                  "unit",
                  "min", "max", "initial", "source", "invalid_raw", "multiplexer", "mux", "description")
-FLAG_FIELDS = ("bit", "bit_length", "description")
+FLAG_FIELDS = ("bit", "bit_length", "multiplexer", "description")
 
 # Fields whose change makes a device built against the old version send or read the bus differently
 BREAKING_FIELDS = {
@@ -67,7 +67,7 @@ BREAKING_FIELDS = {
     "frame": {"can_id", "canopen", "length", "extended", "pgn", "priority"},
     "signal": {"start_bit", "bit_length", "byte_order", "representation", "encoding", "factor", "offset",
                "multiplexer", "mux"},
-    "flag": {"bit", "bit_length"},
+    "flag": {"bit", "bit_length", "multiplexer"},
     "value": {"name"},
 }
 
@@ -232,8 +232,10 @@ def _diff_signals(d: MapDiff, bus: str, of: Frame, nf: Frame, langs: tuple[str, 
                 d.changes.append(Change("added", "flag", signal=s.name, item=x.name, new=x.bit, **base))
                 continue
             y = ofl[x.name]
-            oa = {"bit": y.bit, "bit_length": y.bit_length, "description": text(y.description, *langs)}
-            na = {"bit": x.bit, "bit_length": x.bit_length, "description": text(x.description, *langs)}
+            oa = {"bit": y.bit, "bit_length": y.bit_length, "multiplexer": y.multiplexer,
+                  "description": text(y.description, *langs)}
+            na = {"bit": x.bit, "bit_length": x.bit_length, "multiplexer": x.multiplexer,
+                  "description": text(x.description, *langs)}
             for fld, a, b in _attrs_diff(oa, na, FLAG_FIELDS):
                 d.changes.append(Change("changed", "flag", signal=s.name, item=x.name, field=fld,
                                         old=a, new=b, **base))

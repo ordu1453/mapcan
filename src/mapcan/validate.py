@@ -122,6 +122,8 @@ RULES = {
     "canopen-od": ("warning", N_(
         "CANopen dictionary object on a non-PDO signal, outside 0x2000..0x9FFF or big-endian")),
     "od-duplicate": ("warning", N_("The same dictionary object on several signals of a device")),
+    "od-subindex-zero": ("error", N_(
+        "A signal at subindex 0 of an array or a record: subindex 0 holds the number of its entries")),
     "unknown-receiver": ("error", N_("Frame receiver is not defined on the bus")),
     "unknown-sender": ("error", N_("Frame sender is not defined on the bus")),
     "sender-mismatch": ("warning", N_("sender conflicts with the frame direction or matches a receiver")),
@@ -389,6 +391,17 @@ def _check_od(ctx: _Ctx, bus) -> None:
                                                index=key[0], sub=key[1], other=seen[key]), s._path + ("index",))
                 else:
                     seen[key] = f"{frame.name}.{s.name}"
+        # An index with entries from subindex 1 is an array or a record (CiA 301): its subindex 0 is the number of
+        # entries, which no signal may take. An SDO exchange may read it.
+        structured = {idx for idx, sub in seen if sub > 0}
+        structured |= {ex.index for frame in dev.frames for ex in frame.sdo or [] if ex.subindex > 0}
+        for frame in dev.frames:
+            for s in frame.signals:
+                if s.index in structured and not s.subindex:
+                    ctx.emit("od-subindex-zero",
+                             _("{name!r}: subindex 0 of object {index:04X} holds the number of its entries "
+                               "(an array or a record): give the signal a subindex from 1", name=s.name, index=s.index),
+                             s._path + ("subindex",))
 
 
 def _check_byte_order(ctx: _Ctx, bus) -> None:
@@ -740,15 +753,17 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
                 upper.setdefault(name.upper(), name)
 
     # Multiplexing
-    selectors = [s for s in sigs if s.multiplexer]
+    # The selector is a signal or a field of a bit field (then the bit field is the one that must not have mux)
+    selectors = frame.selectors
     selector = selectors[0] if selectors else None
     for extra in selectors[1:]:
         ctx.emit("mux-multiple-selectors", _("second selector {name!r}", name=extra.name),
                  extra._path + ("multiplexer",))
     for sel in selectors:
-        if sel.mux is not None:
+        holder = sel._selector_of[0] if sel._selector_of else sel
+        if holder.mux is not None:
             ctx.emit("mux-selector-muxed", _("selector {name!r} cannot have mux", name=sel.name),
-                     sel._path + ("mux",))
+                     holder._path + ("mux",))
 
     for s in sigs:
         sp = s._path

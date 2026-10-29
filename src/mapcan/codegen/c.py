@@ -17,7 +17,17 @@ from ..i18n import _
 from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, Signal, enum_entries, text
 from ..units import translate_unit
-from .common import code_text, frames_with_layout, is_byte_array, num, physical, raw_limits, selector_of, storage_bits
+from .common import (
+    code_text,
+    frames_with_layout,
+    is_byte_array,
+    num,
+    physical,
+    raw_limits,
+    selector_field,
+    selector_of,
+    storage_bits,
+)
 
 HELPERS = r"""
 #ifndef MAPCAN_BITS_HELPERS
@@ -248,7 +258,9 @@ def _merge_guards(lines: list[str]) -> list[str]:
 
 def _mux_cond(sel: Signal, values: list[int]) -> str:
     """The condition of multiplexed signals: the selector equal to one of the values."""
-    conds = [f"msg->{sel.name} == {v if sel.signed else _c_int(v)}" for v in values]
+    field = selector_field(sel)
+    value = f"((msg->{field[0]} >> {field[1]}u) & 0x{field[2]:X}u)" if field else f"msg->{sel.name}"
+    conds = [f"{value} == {v if sel.signed else _c_int(v)}" for v in values]
     return conds[0] if len(conds) == 1 else " || ".join(f"({c})" for c in conds)
 
 
@@ -780,7 +792,7 @@ class CGen:
             # Signals of another selector value do not keep what the previous frame had
             unpack.append(f"    {name}_init(msg);")
         # The selector is unpacked first: the other signals depend on it.
-        order = sorted(f.layout, key=lambda s: not s.multiplexer)
+        order = sorted(f.layout, key=lambda s: not s.holds_selector)
         if not f.layout:
             unpack.append("    msg->reserved_ = 0u;")
         for s in order:

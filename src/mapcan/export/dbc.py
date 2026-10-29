@@ -86,7 +86,7 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
         if f.can_id is None:
             continue
         has_mux = any(s.mux is not None for s in f.layout)
-        sel = next((s for s in f.layout if s.multiplexer), None) if has_mux else None
+        sel = f.selector if has_mux else None
         sigs = []
         for s in f.layout:
             desc = _comment(t(s.description) or t(s.title), t(s.comment))
@@ -96,9 +96,10 @@ def bus_database(cmap: MapCan, bus: Bus, lang: str | None = None) -> cantools.da
                     if fl.bit + fl.bit_length > len(occ):
                         continue
                     choices = {v: ev.name for v, ev in enum_entries(fl.values)} or None
+                    # A field of the bit field may be the selector (#149)
                     flag_sig = s.model_copy(update={"factor": 1.0, "offset": 0.0, "min": None,
                                                     "max": None, "unit": None, "representation": "unsigned",
-                                                    "spn": None})
+                                                    "spn": None, "multiplexer": fl.multiplexer})
                     flag_sig._path = s._path
                     sigs.append(_signal(
                         fl.name, flag_sig, occ[fl.bit], fl.bit_length, lang,

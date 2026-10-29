@@ -142,7 +142,16 @@ def frames_with_layout(bus: Bus) -> list[Frame]:
 
 
 def selector_of(frame: Frame) -> Signal | None:
-    return next((s for s in frame.layout if s.multiplexer), None)
+    """The multiplexer selector; a field of a bit field comes as a signal of its own bits (Signal.flag_signal)."""
+    return frame.selector
+
+
+def selector_field(sel: Signal) -> tuple[str, int, int] | None:
+    """For a selector that is a field of a bit field: the bit field's name, the field's offset and its mask."""
+    if sel._selector_of is None:
+        return None
+    holder, fl = sel._selector_of
+    return holder.name, fl.bit, (1 << fl.bit_length) - 1
 
 
 def raw_limits(s: Signal) -> tuple[int, int] | None:

@@ -360,7 +360,7 @@ class ViewBuilder:
         formula = ""
         if fc and fc.per_node and f.device is not None and f.id is None and f.bus.protocol == "canopen":
             formula = f"0x{fc.base:03X} + node_id"
-        selector = next((s for s in sigs if s.multiplexer), None)
+        selector = f.selector
         return {
             "name": f.name,
             "title": self.t(f.title),
@@ -451,6 +451,8 @@ class ViewBuilder:
             d = self.t(fl.description)
             pos = _range(fl.bit, fl.bit + fl.bit_length - 1)
             line = f"{L['bit']} {pos} – {fl.name.upper()}" + (f" ({d})" if d else "")
+            if fl.multiplexer:
+                line += f", {L['selector']}"
             sub = [f"{v}={ev.name}" for v, ev in enum_entries(fl.values)]
             if sub:
                 line += " [" + ", ".join(sub) + "]"

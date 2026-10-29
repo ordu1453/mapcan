@@ -38,7 +38,7 @@ ORDER: dict[str, tuple[str, ...]] = {
                "byte_length", "byte_order", "representation", "charset", "terminator", "factor", "offset", "unit",
                "min", "max", "values", "value_format", "flags", "multiplexer", "mux", "initial", "source",
                "invalid_raw", "spn", "index", "subindex"),
-    "flag": ("name", "bit", "bit_length", "description", "values"),
+    "flag": ("name", "bit", "bit_length", "description", "values", "multiplexer"),
     "sdo": ("name", "description", "command", "index", "subindex", "value"),
     "sdo_value": ("name", "encoding", "description", "bit_length", "representation", "factor", "offset", "unit",
                   "min", "max", "values"),

@@ -940,3 +940,47 @@ def test_encoding_fields_match_the_format_description():
         listed[cells[0].strip("`")] = set(re.findall(r"`(\w+)`", cells[2]))
     for key, allowed in ENCODING_FIELDS.items():
         assert {e for e, fields in listed.items() if key in fields} == set(allowed), key
+
+
+FLAG_SELECTOR = """
+        - name: f
+          canopen: pdo_tx1
+          length: 8
+          signals:
+            - {name: status, encoding: bitfield, description: x, byte: 0, byte_length: 1,
+               flags: [{name: ok, bit: 0}, {name: mode, bit: 4, bit_length: 2, multiplexer: true,
+                        values: {0: IDLE, 1: RUN, 2: TEST}}]}
+            - {name: a, encoding: number, description: x, byte: 1, byte_length: 1, mux: 1}
+            - {name: b, encoding: number, description: x, byte: 1, byte_length: 1, mux: 2}
+"""
+
+
+def test_mux_selector_may_be_a_field_of_a_bit_field():
+    """#149: a field of a bit field is the selector; its values and its width are checked as a signal's."""
+    c = codes(one_bus(FLAG_SELECTOR))
+    assert not c & {"mux-no-selector", "bit-overlap", "mux-value-unknown", "mux-value-overflow"}
+    assert "mux-value-unknown" in codes(one_bus(FLAG_SELECTOR.replace("mux: 2}", "mux: 3}")))
+    # The bit field of the selector is not switched itself, and a frame has one selector
+    muxed = FLAG_SELECTOR.replace("byte_length: 1,\n", "byte_length: 1, mux: 1,\n", 1)
+    assert "mux-selector-muxed" in codes(one_bus(muxed))
+    assert "mux-multiple-selectors" in codes(one_bus(FLAG_SELECTOR.replace("mux: 2}", "mux: 2, multiplexer: true}")))
+
+
+def test_od_subindex_zero_of_an_array_or_record():
+    """Subindex 0 of an array or a record holds the number of its entries (CiA 301): no signal takes it, an SDO
+    exchange may read it."""
+    record = """
+        - name: tpdo1
+          canopen: pdo_tx1
+          length: 4
+          signals:
+            - {name: a, encoding: number, description: x, byte: 0, byte_length: 1, index: 0x2100, subindex: 1}
+            - {name: b, encoding: number, description: x, byte: 1, byte_length: 1, index: 0x2100%s}
+            - {name: v, encoding: number, description: x, byte: 2, byte_length: 1, index: 0x2200}
+    """
+    _, rep = run(one_bus(record % ""))
+    d = next(d for d in rep.diagnostics if d.code == "od-subindex-zero")
+    assert "'b'" in d.message and d.node[-1] == "subindex"
+    assert "od-subindex-zero" in codes(one_bus(record % ", subindex: 0"))
+    # From subindex 1 the record is right; a VAR keeps its value at subindex 0
+    assert "od-subindex-zero" not in codes(one_bus(record % ", subindex: 2"))

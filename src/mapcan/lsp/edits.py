@@ -1091,7 +1091,9 @@ def node_fields(a: Analysis, path: Path_) -> dict | None:
     signal = _find(a.map, path) if a.map is not None and kind == "signal" else None
     # Whether another signal of the frame is the multiplexer selector (then the signal can have mux)
     siblings = at(path[:-1]) if kind == "signal" else None
-    has_selector = any(isinstance(s, dict) and s.get("multiplexer") and s is not node for s in siblings or [])
+    # The selector may also be a field of a bit field (#149)
+    has_selector = any(isinstance(s, dict) and s is not node and (s.get("multiplexer") or any(
+        isinstance(fl, dict) and fl.get("multiplexer") for fl in s.get("flags") or [])) for s in siblings or [])
     return {"kind": kind, "path": list(path), "file": file, "lang": lang,
             "protocol": bus.get("protocol") or "canopen",
             # CAN FD bus and its BRS default: the frame's BRS field shows the inherited value

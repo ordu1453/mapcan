@@ -45,7 +45,7 @@ def _mapping(frame: Frame, warn) -> list[tuple[int, int, int]] | None:
     mapped = sorted((s for s in frame.signals if s.index is not None), key=lambda s: s.start_bit)
     if not mapped:
         return None
-    if any(s.mux is not None or s.multiplexer for s in frame.signals):
+    if any(s.mux is not None or s.holds_selector for s in frame.signals):
         warn(_("{frame}: a multiplexed PDO is not mapped in the EDS", frame=frame.name))
         return None
     out, pos = [], 0

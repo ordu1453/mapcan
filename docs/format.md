@@ -184,7 +184,7 @@ CANopen ID computation:
 | `representation` | `number`: how the raw value is read as a number: `unsigned` (default), `twos_complement` (the usual signed integer), `ones_complement`, `sign_magnitude`, or `float` (IEEE 754, see [Floating point](#floating-point)). Generated C and Python code packs and unpacks the value in this representation; ones' complement and sign-magnitude have a symmetric range (−127…127 for 8 bits). DBC stores two's complement only, so the export warns about those two. Formerly `signed` + `signed_code` |
 | `values` | Value table: `{0: NO_DATA, 1: {name: OK, description: "normal"}}` |
 | `value_format` | `dec` \| `hex`: how values are shown in documents |
-| `flags` | Bit field flags: `{bit, bit_length: 1, name, description, values}`; `bit` is the offset from the least significant bit of the field |
+| `flags` | Bit field flags: `{bit, bit_length: 1, name, description, values, multiplexer}`; `bit` is the offset from the least significant bit of the field |
 | `factor`, `offset`, `unit`, `min`, `max` | Physical conversion and range (in physical units) |
 | `multiplexer` | `true` for the multiplexer selector signal |
 | `mux` | Selector value (or list of values) for which the signal is present |
@@ -335,6 +335,22 @@ signals:
 
 Signals with different `mux` values may occupy the same bits; this is not an overlap. A signal
 without `mux` is present for every selector value.
+
+The selector can also be a field of a bit field: `multiplexer: true` on the flag. The bit field itself
+then has no `mux`. In DBC the field is the multiplexer signal; the generated code reads it from the bit field.
+
+```yaml
+signals:
+  - name: status
+    encoding: bitfield
+    byte: 0
+    byte_length: 1
+    flags:
+      - {name: ready, bit: 0}
+      - {name: page, bit: 4, bit_length: 2, multiplexer: true, values: {0: VOLTAGES, 1: TEMPERATURES}}
+  - {name: voltage_data,     byte: 1, byte_length: 7, encoding: bytes, mux: 0}
+  - {name: temperature_data, byte: 1, byte_length: 7, encoding: bytes, mux: 1}
+```
 
 ### Protocols and CAN IDs
 
@@ -662,7 +678,7 @@ keep their order.
 | Device | `name`, `short`, `title`, `description`, `node_id`, `address`, `frames` |
 | Frame | `name`, `title`, `description`, `comment`, `canopen`, `id`, `extended`, `pgn`, `priority`, `destination`, `length`, `brs`, `direction`, `cycle_ms`, `trigger`, `inhibit_ms`, `timeout_ms`, `sender`, `receivers`, `signals`, `sdo` |
 | Signal | `name`, `title`, `description`, `comment`, `encoding`, `start_bit`, `byte`, `bit`, `bit_length`, `byte_length`, `byte_order`, `representation`, `charset`, `terminator`, `factor`, `offset`, `unit`, `min`, `max`, `values`, `value_format`, `flags`, `multiplexer`, `mux`, `initial`, `source`, `invalid_raw`, `spn`, `index`, `subindex` |
-| Flag | `name`, `bit`, `bit_length`, `description`, `values` |
+| Flag | `name`, `bit`, `bit_length`, `description`, `values`, `multiplexer` |
 | SDO exchange | `name`, `description`, `command`, `index`, `subindex`, `value` |
 
 The examples of the repository are kept in this layout.
@@ -737,6 +753,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `j1939-tp` | info | A PGN longer than 8 bytes is sent with the J1939-21 transport protocol |
 | `canopen-od` | warning | Dictionary object on a signal outside a device's PDO, or outside 0x2000..0x9FFF |
 | `od-duplicate` | warning | The same dictionary object on several signals of a device |
+| `od-subindex-zero` | error | A signal at subindex 0 of an array or a record: subindex 0 holds the number of its entries |
 
 ### Sender and receivers
 

@@ -20,6 +20,7 @@ from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, create_model, model_validator
 
+from . import bits as B
 from .i18n import N_
 
 # Version 1 is still read: the loader converts it (upgrade.upgrade_v1)
@@ -296,6 +297,10 @@ class Flag(_Base):
         description=N_("Flag width in bits, 1 by default. A width above 1 makes a multi-bit value inside the field."))
     description: Text | None = Field(None, description=DESCRIPTION)
     values: ValueTableRef | None = Field(None, description=VALUES)
+    multiplexer: bool = Field(
+        False,
+        description=N_("Multiplexer selector: the value of this field tells which signals the frame currently "
+                       "contains, as the multiplexer of a signal does. A frame can have only one selector."))
 
 
 class Signal(_Base):
@@ -408,6 +413,8 @@ class Signal(_Base):
                                  description=N_("CANopen: subindex of the dictionary object (0 by default)."))
 
     _source_value: int | None = PrivateAttr(default=None)     # the value of source, set by resolve()
+    # A selector made of a field of a bit field (Frame.selectors): the bit field and the flag
+    _selector_of: tuple | None = PrivateAttr(default=None)
 
     @property
     def terminator_byte(self) -> int | None:
@@ -529,6 +536,28 @@ class Signal(_Base):
         if self.mux is None:
             return None
         return [self.mux] if isinstance(self.mux, int) else list(self.mux)
+
+    @property
+    def holds_selector(self) -> bool:
+        """The signal is the multiplexer selector or a bit field with the selector among its fields."""
+        return self.multiplexer or any(fl.multiplexer for fl in self.flags or [])
+
+    def flag_signal(self, index: int) -> Signal | None:
+        """A field of this bit field as a signal of its own bits (an enum of its values); None if it is outside
+        the field."""
+        fl = (self.flags or [])[index]
+        occ = B.occupied_bits(self.start_bit, self.bit_length, self.byte_order == "big_endian")
+        if fl.bit + fl.bit_length > len(occ):
+            return None
+        sig = self.model_copy(update={
+            "name": fl.name, "title": None, "description": fl.description, "comment": None, "encoding": "enum",
+            "start_bit": occ[fl.bit], "bit_length": fl.bit_length, "values": fl.values, "flags": None,
+            "representation": "unsigned", "factor": 1.0, "offset": 0.0, "min": None, "max": None, "unit": None,
+            "multiplexer": fl.multiplexer, "mux": None, "initial": None, "source": None, "invalid_raw": None,
+            "spn": None, "index": None, "subindex": None})
+        sig._path = self._path + ("flags", index)
+        sig._selector_of = (self, fl)
+        return sig
 
 
 # --------------------------------------------------------------------------- #
@@ -674,6 +703,23 @@ class Frame(_Base):
     def layout(self) -> list[Signal]:
         """Signals of the layout: the explicit ones or those built from the SDO description."""
         return self.signals if self.signals or self._synthetic is None else self._synthetic
+
+    @property
+    def selectors(self) -> list[Signal]:
+        """Multiplexer selectors (one is allowed): signals, and fields of bit fields as signals of their own bits."""
+        out = []
+        for s in self.layout:
+            if s.multiplexer:
+                out.append(s)
+            for i, fl in enumerate(s.flags or []):
+                if fl.multiplexer and (sig := s.flag_signal(i)) is not None:
+                    out.append(sig)
+        return out
+
+    @property
+    def selector(self) -> Signal | None:
+        """The multiplexer selector, or None for a frame without multiplexing."""
+        return next(iter(self.selectors), None)
 
     @property
     def can_id(self) -> int | None:

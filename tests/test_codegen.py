@@ -1364,3 +1364,64 @@ def test_gen_c_target_cli(tmp_path):
     assert r.exit_code == 0, r.output
     assert sorted(p.name for p in tmp_path.iterdir()) == ["bms.c", "bms.h", "bms_zephyr.c", "bms_zephyr.h"]
     assert CliRunner().invoke(app, ["gen", "c", m, "-o", str(tmp_path), "--target", "rtos"]).exit_code != 0
+
+
+# A field of a bit field as the selector (#149): mode, bits 4..5 of the bit field status
+FLAG_MUX_MAP = """
+mapcan: 2
+document: {title: T, language: en}
+buses:
+  - name: bus
+    protocol: can
+    frames:
+      - name: f
+        id: 0x100
+        length: 2
+        signals:
+          - {name: status, encoding: bitfield, byte: 0, byte_length: 1,
+             flags: [{name: ok, bit: 0}, {name: mode, bit: 4, bit_length: 2, multiplexer: true,
+                      values: {0: IDLE, 1: RUN, 2: TEST}}]}
+          - {name: a, encoding: number, byte: 1, byte_length: 1, mux: 1, initial: 9}
+          - {name: b, encoding: number, byte: 1, byte_length: 1, mux: 2}
+"""
+
+
+def test_flag_selector_in_dbc_and_python(tmp_path):
+    from mapcan.loader import loads
+
+    cmap = loads(FLAG_MUX_MAP, "t.yaml").map
+    f = cmap.buses[0].frames[0]
+    assert f.selector.name == "mode" and f.selector.start_bit == 4 and f.selector.bit_length == 2
+    msg = bus_database(cmap, cmap.buses[0]).get_message_by_frame_id(0x100)
+    assert msg.get_signal_by_name("mode").is_multiplexer
+    assert msg.get_signal_by_name("a").multiplexer_signal == "mode"
+    mod = _import(generate_py(cmap, tmp_path)[0])
+    run_ = mod.F.unpack(bytes([0x11, 5]))          # mode = 1: a is in the frame
+    test = mod.F.unpack(bytes([0x20, 6]))          # mode = 2: b
+    assert (run_.a, run_.b, test.a, test.b) == (5, 0, 9, 6)
+    for data in (bytes([0x11, 5]), bytes([0x20, 6])):
+        assert mod.F.unpack(data).pack() == data
+    # cantools reads the DBC the same way: the selector picks a or b
+    assert {k: str(v) for k, v in msg.decode(bytes([0x11, 5])).items()} == {"ok": "1", "mode": "RUN", "a": "5"}
+    assert {k: str(v) for k, v in msg.decode(bytes([0x20, 6])).items()} == {"ok": "0", "mode": "TEST", "b": "6"}
+
+
+@pytest.mark.skipif(GCC is None, reason="нет компилятора C")
+def test_flag_selector_in_c(tmp_path):
+    from mapcan.loader import loads
+
+    sources = [p for p in generate_c(loads(FLAG_MUX_MAP, "t.yaml").map, tmp_path) if p.suffix == ".c"]
+    show = '    printf("%d %d %d %d\\n", u.status, u.a, u.b, f_a_is_active(&u));'
+    main = ["#include <stdio.h>", '#include "bus.h"', "int main(void) {", "    f_t u;",
+            "    const uint8_t run[2] = {0x11u, 5u};", "    const uint8_t test[2] = {0x20u, 6u};",
+            "    uint8_t out[2];",
+            "    f_unpack(&u, run, sizeof run);", show,
+            "    f_unpack(&u, test, sizeof test);", show,
+            "    f_pack(out, sizeof out, &u);", '    printf("%02X %02X\\n", out[0], out[1]);', "    return 0;", "}"]
+    (tmp_path / "main.c").write_text("\n".join(main), encoding="utf-8")
+    exe = tmp_path / "t.exe"
+    subprocess.run([GCC, "-std=c99", "-Wall", "-Wextra", "-Werror", "-Wconversion", "-pedantic",
+                    str(tmp_path / "main.c"), *map(str, sources), "-I", str(tmp_path), "-o", str(exe)],
+                   check=True, capture_output=True, text=True)
+    out = subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout.splitlines()
+    assert out == ["17 5 0 1", "32 9 6 0", "20 06"]

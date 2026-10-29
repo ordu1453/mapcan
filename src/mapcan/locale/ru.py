@@ -486,6 +486,12 @@ RU: dict[str, str] = {
         "{name!r}: индекс {index:#06x} вне областей производителя и профилей (0x2000..0x9FFF)",
     "{name!r}: {protocol} carries little-endian data": "{name!r}: {protocol} передаёт данные little-endian",
     "object {index:04X}:{sub:02X} is already mapped by {other}": "объект {index:04X}:{sub:02X} уже у сигнала {other}",
+    "A signal at subindex 0 of an array or a record: subindex 0 holds the number of its entries":
+        "Сигнал на субиндексе 0 массива или записи: субиндекс 0 хранит число их элементов",
+    "{name!r}: subindex 0 of object {index:04X} holds the number of its entries (an array or a record): give the "
+    "signal a subindex from 1":
+        "{name!r}: субиндекс 0 объекта {index:04X} хранит число его элементов (массив или запись): задайте сигналу "
+        "субиндекс от 1",
     "CANopen: index of the dictionary object mapped into the PDO.":
         "CANopen: индекс объекта словаря, отображённого в PDO.",
     "CANopen: subindex of the dictionary object (0 by default).":
@@ -772,6 +778,10 @@ RU: dict[str, str] = {
     "tells which signals the frame currently contains. A frame can have only one selector.":
         "Сигнал-селектор мультиплексора. Мультиплексирование позволяет передавать разные наборы сигналов в одном "
         "кадре: значение селектора показывает, какие сигналы сейчас в кадре. В кадре может быть только один селектор.",
+    "Multiplexer selector: the value of this field tells which signals the frame currently contains, as the "
+    "multiplexer of a signal does. A frame can have only one selector.":
+        "Селектор мультиплексора: значение этого поля показывает, какие сигналы сейчас в кадре, как у сигнала-"
+        "селектора. В кадре может быть только один селектор.",
     "Selector values for which this signal is in the frame, e.g. 0 or 1, 2. Leave empty if the signal is always "
     "present. Requires a selector signal in the frame.":
         "Значения селектора, при которых этот сигнал есть в кадре, напр. 0 или 1, 2. Пусто — сигнал присутствует "

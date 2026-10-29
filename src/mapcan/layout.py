@@ -24,9 +24,11 @@ def _num(x: float) -> str:
 
 def _signal_line(s: Signal) -> str:
     mux = ",".join(str(v) for v in sorted(s.mux_values or []))
+    # A field of a bit field that is the selector (#149) adds its place; other lines stay as they were
+    sel = [f"m{fl.bit}:{fl.bit_length}" for fl in s.flags or [] if fl.multiplexer]
     return " ".join([
         "s", str(s.start_bit), str(s.bit_length), s.byte_order, s.representation, s.encoding,
-        _num(s.factor), _num(s.offset), "m" if s.multiplexer else "-", mux or "-",
+        _num(s.factor), _num(s.offset), "m" if s.multiplexer else "-", mux or "-", *sel,
     ])
 
 

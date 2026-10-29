@@ -386,6 +386,12 @@
           "default": null,
           "description": "Value table (value → name) or the name of a table in value_tables.",
           "title": "Values"
+        },
+        "multiplexer": {
+          "default": false,
+          "description": "Multiplexer selector: the value of this field tells which signals the frame currently contains, as the multiplexer of a signal does. A frame can have only one selector.",
+          "title": "Multiplexer",
+          "type": "boolean"
         }
       },
       "required": [

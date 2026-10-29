@@ -5,6 +5,13 @@ Changes of the map format by mapcan version. Up to 0.23 they keep `mapcan: 1`; 0
 [Versioning and compatibility](format.md#versioning-and-compatibility). A map that uses a field
 needs at least the version of mapcan that introduced it; former names stay readable.
 
+## Unreleased
+
+- A field of a bit field can be the multiplexer selector (#149): `multiplexer: true` on a flag, as on a signal.
+  The bit field holding it has no `mux`. DBC export writes the field as the multiplexer signal; the generated
+  C and Python code read the selector from the bit field. Maps without it are unchanged, and so is their
+  `layout_crc32`.
+
 ## 0.24.3
 
 - `invalid_raw` of a signed signal accepts the bits of a value (#148): of an 8-bit `twos_complement` signal

@@ -14,7 +14,7 @@ from ..i18n import _
 from ..layout import layout_crc32
 from ..model import Bus, Frame, MapCan, enum_entries, text
 from ..units import translate_unit
-from .common import code_text, frames_with_layout, is_byte_array, num, physical, raw_limits, selector_of
+from .common import code_text, frames_with_layout, is_byte_array, num, physical, raw_limits, selector_field, selector_of
 
 RUNTIME = '''
 
@@ -246,7 +246,7 @@ class PyGen:
                 f"        if len(data) < {f.length}:",
                 f"            raise ValueError(f\"{bad_length}\")",
                 "        msg = cls()"]
-        for s in sorted(f.layout, key=lambda s: not s.multiplexer):
+        for s in sorted(f.layout, key=lambda s: not s.holds_selector):
             out += self._guard(s, sel, self._unpack_stmt(s, self._enum_cls(f, s)), "msg")
         out.append("        return msg")
 
@@ -277,7 +277,9 @@ class PyGen:
         if s.mux is None or sel is None:
             return body
         vals = ", ".join(str(v) for v in s.mux_values)
-        return [f"        if {obj}.{sel.name} in ({vals},):"] + ["    " + b for b in body]
+        field = selector_field(sel)
+        value = f"(({obj}.{field[0]} >> {field[1]}) & 0x{field[2]:X})" if field else f"{obj}.{sel.name}"
+        return [f"        if {value} in ({vals},):"] + ["    " + b for b in body]
 
     @staticmethod
     def _pack_stmt(f: Frame, s) -> list[str]:
