@@ -22,7 +22,12 @@ generated C code; without one those tests are skipped.
 uv sync                     # Python environment from uv.lock, with every extra (mapcan[all])
 uv run pre-commit install   # ruff before every commit, as in CI
 uv run mapcan --help
+npm ci                      # the web editor and the VS Code extension (npm workspaces, one lock file at the root)
 ```
+
+The npm projects (`web`, `vscode` and the shared packages in `packages/`) are
+[npm workspaces](https://docs.npmjs.com/cli/using-npm/workspaces) with one `package-lock.json` at the
+root: install and add dependencies from the root (`npm install -D vite -w web`), not inside a folder.
 
 Running the pieces:
 
@@ -30,8 +35,8 @@ Running the pieces:
 |---|---|
 | CLI | `uv run mapcan validate examples/vehicle-can.yaml` |
 | Web editor, backend | `uv run mapcan serve examples/vehicle-can.yaml --no-browser` (API on :8765) |
-| Web editor, UI with hot reload | `cd web && npm ci && npm run dev` (http://localhost:5173) |
-| VS Code extension | `cd vscode && npm ci && npm run build`, open `vscode/` in VS Code, press F5 |
+| Web editor, UI with hot reload | `cd web && npm run dev` (http://localhost:5173) |
+| VS Code extension | `cd vscode && npm run build`, open `vscode/` in VS Code, press F5 |
 
 Without uv:
 
@@ -50,8 +55,10 @@ Run the tests of what you changed; CI runs all of them on every push and pull re
 | Python: format, validation, exports, code generation, LSP, web API | `uv run pytest` |
 | Lint | `uv run ruff check src tests` |
 | Web UI: types, build, unit tests | `cd web && npm run build && npm test` |
+| Shared forms: types, unit tests | `npm run typecheck -w @mapcan/forms && npm test -w @mapcan/forms` |
 | Web UI in a browser: user flows and the accessibility check (`web/e2e`) | `cd web && npx playwright install chromium && npm run e2e` (or `PLAYWRIGHT_CHANNEL=msedge` / `chrome` with an installed browser) |
 | VS Code extension: types, integration tests in a real VS Code | `cd vscode && npm run typecheck && npm test` |
+| All npm workspaces: types, builds, unit and integration tests | `npm run typecheck`, `npm run build`, `npm test` at the root |
 
 Some outputs are compared with reference files in `tests/golden`. After an intended change,
 refresh them with `UPDATE_GOLDEN=1 uv run pytest` and check the diff before committing.
@@ -79,8 +86,9 @@ The pictures in the READMEs are taken by scripts, in the light and the dark them
 - **English** everywhere: code, comments, docstrings, docs, commit messages. Some older comments are
   still in Russian (#52); translate the ones you touch if you like.
 - **Messages for users** go through `_("…")` in Python or `t("…")` in the web UI and need a Russian
-  translation in [src/mapcan/locale/ru.py](src/mapcan/locale/ru.py) or
-  [web/src/locale/ru.json](web/src/locale/ru.json); `tests/test_i18n.py` lists what is missing.
+  translation in [src/mapcan/locale/ru.py](src/mapcan/locale/ru.py),
+  [web/src/locale/ru.json](web/src/locale/ru.json) or, for the forms,
+  [packages/forms/src/locale/ru.json](packages/forms/src/locale/ru.json); `tests/test_i18n.py` lists what is missing.
 - **Style**: ruff with a line length of 120 (configured in `pyproject.toml`). Match the code around
   you: short comments that say why, not what.
 - **Changing the format** (a new field, a new rule): follow the checklist in
@@ -165,7 +173,7 @@ src/mapcan/
   templates/                document templates (pdf/ — Typst)
   fonts/                    PT Sans, PT Serif (OFL)
 web/                        UI sources (Vue 3 + TypeScript + Vite)
-  src/form/                 node forms shared with the VS Code form: fields, conditions, help from the schema
+packages/forms/             @mapcan/forms: node forms of both editors (fields, conditions, help from the schema)
 vscode/                     VS Code extension (language server client, map tree, node form in webview/)
 packaging/                  Windows build: PyInstaller, Inno Setup installer, icon and logo
 tests/                      tests; data/ — fixtures, golden/ — reference files

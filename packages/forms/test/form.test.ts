@@ -1,12 +1,12 @@
-// Forms of the nodes (src/form): which fields apply, and that they cover the format's schema.
+// Forms of the nodes (src/): which fields apply, and that they cover the format's schema.
 
 import { describe as group, expect, it } from "vitest";
 // The format's description: the table of encodings says which value fields each one has
-import formatDoc from "../../docs/format.md?raw";
-import { describe, fieldHelp, schemaFields } from "../src/form/help";
-import { formatValue, parseInput, parseInteger, ParseError, selectValue } from "../src/form/input";
+import formatDoc from "../../../docs/format.md?raw";
+import { describe, fieldHelp, schemaFields } from "../src/help";
+import { formatValue, parseInput, parseInteger, ParseError, selectValue } from "../src/input";
 import { applies, encodingChangeOps, FORMS, formFields, isRequired, NOT_IN_FORM, optionsOf, type FormContext,
-  type FormKind } from "../src/form/spec";
+  type FormKind } from "../src/spec";
 
 const ctx = (extra: Partial<FormContext> = {}): FormContext => ({
   values: {}, protocol: "canopen", fd: false, busBrs: null, owner: "pump",

@@ -3,10 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { hex, rangeLabel } from "../bits";
 import { addBus, addDevice, addDeviceInFile, addFrame, addSdo, addSignal, canRename, duplicateNode, receiveFrame, removeNode, removeSelected,
   renameNode, stopReceiving } from "../edit";
-import { describe, fieldHelp, UI_HELP } from "../form/help";
-import { parseInteger, ParseError } from "../form/input";
-import { applies, CANOPEN_DLC, encodingChangeOps, FORMS, isRequired, optionsOf, placeholderOf, type FieldDef,
-  type FormContext, type FormKind } from "../form/spec";
+import { applies, CANOPEN_DLC, describe, encodingChangeOps, fieldHelp, FORMS, isRequired, optionsOf, parseInteger, ParseError,
+  placeholderOf, UI_HELP, type FieldDef, type FormContext, type FormKind } from "@mapcan/forms";
 import { deviceLabel, displayName, getAt, HISTORY_PATH, isCanopen, namedTable, nodeKind, OBJECTS, ownerPath, pathKey, samePath,
   startsWith, txt } from "../model";
 import { actions, askUser, includedPath, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast,
@@ -41,7 +39,7 @@ const diags = computed(() => store.state?.diagnostics ?? []);
 const canopen = computed(() => path.value[0] === "buses" && isCanopen(getAt(data.value, path.value.slice(0, 2))));
 const kindLabel = computed(() => (kind.value === "signal" && canopen.value ? N_("Object") : KIND_LABEL[kind.value]));
 
-// What the form's conditions know about the node (see FormContext in form/spec.ts)
+// What the form's conditions know about the node (see FormContext in packages/forms/src/spec.ts)
 const formCtx = computed<FormContext>(() => {
   const s = kind.value === "signal" ? rsignal.value : null;
   const bus = path.value[0] === "buses" ? getAt(data.value, path.value.slice(0, 2)) : null;

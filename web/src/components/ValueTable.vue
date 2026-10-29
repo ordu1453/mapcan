@@ -2,7 +2,7 @@
 // Table of enum values: value, name, description. Writes values[key] with set/rename_key operations.
 import { computed } from "vue";
 import { actions, toast } from "../store";
-import { parseInteger } from "../form/input";
+import { parseInteger } from "@mapcan/forms";
 import { nextFreeKey, startsWith, txt } from "../model";
 import type { Diagnostic, Op, Path } from "../types";
 import { t } from "../i18n";

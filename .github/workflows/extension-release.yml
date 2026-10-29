@@ -54,10 +54,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: vscode/package-lock.json
+      - run: npm ci     # at the root: the npm workspaces have one lock file
       - name: Typecheck
         working-directory: vscode
-        run: npm ci && npm run typecheck
+        run: npm run typecheck
       - name: Package
         working-directory: vscode
         run: npm run build && npx vsce package --no-dependencies -o "mapcan-${{ steps.v.outputs.version }}.vsix"

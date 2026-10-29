@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // One form field. The value is committed on Enter / losing focus (the change event): one edit = one undo step.
 import { computed, nextTick, ref, watch } from "vue";
-import { formatValue, parseInput, ParseError, selectValue } from "../form/input";
-import type { FieldDef, Option } from "../form/spec";
+import { formatValue, parseInput, ParseError, selectValue } from "@mapcan/forms";
+import type { FieldDef, Option } from "@mapcan/forms";
 import { samePath, startsWith } from "../model";
 import type { Diagnostic, Path } from "../types";
 import { t } from "../i18n";

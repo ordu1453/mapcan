@@ -1,0 +1,17 @@
+{
+  "name": "mapcan-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "web",
+    "vscode"
+  ],
+  "scripts": {
+    "build": "npm run build -ws --if-present",
+    "typecheck": "npm run typecheck -ws --if-present",
+    "test": "npm run test -ws --if-present"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.0"
+  }
+}

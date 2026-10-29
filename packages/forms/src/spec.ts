@@ -1,15 +1,15 @@
-// Form of every node kind, shared by the web editor (components/NodeEditor.vue) and the VS Code form
+// Form of every node kind, shared by the web editor (web/src/components/NodeEditor.vue) and the VS Code form
 // (vscode/webview/form.js): which fields a node has, in which sections, when they apply and what they offer.
 //
 // What a field means comes from the format itself: its help is the field's description in the pydantic model
 // (src/mapcan/model.py → schema/mapcan.schema.json). Labels and option texts are English and go through
-// t() when shown (N_ marks them for the Russian translation in locale/ru.json).
+// t() when shown (N_ marks them for the Russian translation in locale/ru.json of this package).
 //
 // Adding a field to the format: describe it in the model, then add it here or to NOT_IN_FORM with the
 // reason; test/form.test.ts fails until every field of the schema is in one of them.
 
-import { N_, t } from "../i18n";
-import type { Op, Path } from "../types";
+import { N_, t } from "./i18n";
+import type { Op, Path } from "./types";
 
 export type FieldType =
   | "text" | "int" | "hex" | "float" | "bool" | "select" | "date" | "intlist" | "strlist"

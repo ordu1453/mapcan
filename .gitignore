@@ -20,6 +20,9 @@ env/
 htmlcov/
 .tox/
 
+# npm workspaces (web, vscode, packages/*): dependencies installed at the root
+node_modules/
+
 # Generated output
 out/
 output/
@@ -45,3 +48,4 @@ examples_ui/
 # Browser tests of the web editor
 web/test-results/
 web/playwright-report/
+node_modules

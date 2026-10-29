@@ -2,7 +2,7 @@
 // Flags of a bit field: bit, length, name, description. Flags ticked in the first column move together by a bit (#150).
 import { computed, ref, watch } from "vue";
 import { actions, toast } from "../store";
-import { parseInteger } from "../form/input";
+import { parseInteger } from "@mapcan/forms";
 import { addFlag } from "../edit";
 import { pathKey, shiftedFlags, startsWith, txt } from "../model";
 import type { Diagnostic, Path } from "../types";

@@ -1,6 +1,6 @@
 // Text of a form field ⇄ value in the YAML. Shared by the web editor and the VS Code form.
 
-import { t } from "../i18n";
+import { t } from "./i18n";
 import type { FieldType } from "./spec";
 
 export class ParseError extends Error {}

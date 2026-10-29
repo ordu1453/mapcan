@@ -2,7 +2,7 @@
 // pydantic model (src/mapcan/model.py). Texts are English; the web editor shows them through t().
 
 import schema from "../../../schema/mapcan.schema.json";
-import { N_ } from "../i18n";
+import { N_ } from "./i18n";
 import type { FieldDef, FormKind } from "./spec";
 
 interface SchemaDef {

@@ -8,6 +8,7 @@ import re
 import shutil
 import string
 
+import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -19,6 +20,7 @@ from .conftest import REFERENCE, ROOT, one_bus, run
 
 SRC = ROOT / "src" / "mapcan"
 WEB = ROOT / "web" / "src"
+FORMS = ROOT / "packages" / "forms" / "src"
 
 
 def _fields(s: str) -> set[str]:
@@ -41,9 +43,9 @@ def _backend_keys() -> dict[str, str]:
 _T_CALL = re.compile(r"""\b(?:t|N_)\(\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')""")
 
 
-def _frontend_keys() -> dict[str, str]:
+def _frontend_keys(src=WEB) -> dict[str, str]:
     keys: dict[str, str] = {}
-    for f in list(WEB.rglob("*.ts")) + list(WEB.rglob("*.vue")):
+    for f in list(src.rglob("*.ts")) + list(src.rglob("*.vue")):
         for m in _T_CALL.finditer(f.read_text(encoding="utf-8")):
             raw = m.group(1) if m.group(1) is not None else m.group(2)
             keys.setdefault(json.loads('"' + raw.replace("\\'", "'") + '"'), str(f.relative_to(ROOT)))
@@ -72,10 +74,18 @@ def test_backend_catalog_has_no_stale_entries():
     assert not stale, stale
 
 
-def test_frontend_catalog_complete():
-    ru = json.loads((WEB / "locale" / "ru.json").read_text(encoding="utf-8"))
-    keys = _frontend_keys()
-    assert len(keys) > 200
+def _catalog(src) -> dict[str, str]:
+    return json.loads((src / "locale" / "ru.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("src", [WEB, FORMS], ids=["web", "forms"])
+def test_frontend_catalog_complete(src):
+    # A string of the shared forms is translated in their package, also where the web editor uses it
+    ru = _catalog(src)
+    keys = _frontend_keys(src)
+    if src == WEB:
+        keys = {k: v for k, v in keys.items() if k not in _catalog(FORMS)}
+    assert len(keys) > 100
     cyrillic = {k: v for k, v in keys.items() if _mostly_cyrillic(k)}
     assert not cyrillic, cyrillic
     missing = {k: v for k, v in keys.items() if k not in ru}

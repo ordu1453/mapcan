@@ -163,13 +163,16 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: web/package-lock.json
+      # One lock file for the npm workspaces (web, vscode, packages/*), installed at the root
+      - run: npm ci
       - name: Typecheck and build
         working-directory: web
-        run: npm ci && npm run build
+        run: npm run build
       - name: Frontend tests
         working-directory: web
         run: npm test
+      - name: Shared forms (packages/forms) types and tests
+        run: npm run typecheck -w @mapcan/forms && npm test -w @mapcan/forms
       - name: Built bundle is committed and up to date
         run: git diff --exit-code src/mapcan/web/static
       # Browser smoke tests and the accessibility check (web/e2e) against `mapcan serve` from .venv
@@ -204,10 +207,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: vscode/package-lock.json
+      - run: npm ci
       - name: Typecheck
         working-directory: vscode
-        run: npm ci && npm run typecheck
+        run: npm run typecheck
       - name: Package
         working-directory: vscode
         run: npm run build && npm run package

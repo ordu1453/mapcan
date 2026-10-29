@@ -929,7 +929,7 @@ def test_big_endian_on_little_endian_protocols(protocol, warns):
 
 def test_encoding_fields_match_the_format_description():
     """The value fields of each encoding in docs/format.md are those the validation allows (encoding-field); the
-    forms of the editors are checked against the same table (web/test/form.test.ts)."""
+    forms of the editors are checked against the same table (packages/forms/test/form.test.ts)."""
     from mapcan.validate import ENCODING_FIELDS
 
     doc = (DATA.parent.parent / "docs" / "format.md").read_text(encoding="utf-8")

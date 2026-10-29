@@ -208,14 +208,14 @@ The sources are in [web/](../web) (Vue 3 + TypeScript + Vite). The built bundle 
 
 ```sh
 mapcan serve my-map.yaml --no-browser     # API on :8765
+npm ci                                    # at the root of the repository: all npm workspaces
 cd web
-npm ci
 npm run dev                               # http://localhost:5173 with hot reload
 npm run build                             # type check + build into src/mapcan/web/static
 ```
 
 UI strings are written in English in the source (`t("…")`, `N_("…")`) and serve as keys of the
-Russian translation in [web/src/locale/ru.json](../web/src/locale/ru.json) (backend messages:
+Russian translation in [web/src/locale/ru.json](../web/src/locale/ru.json) (the forms: [packages/forms/src/locale/ru.json](../packages/forms/src/locale/ru.json); backend messages:
 [src/mapcan/locale/ru.py](../src/mapcan/locale/ru.py)); `tests/test_i18n.py` fails if a string has
 no translation or a translation is no longer used.
 After changing `web/src`, rebuild the bundle and commit `src/mapcan/web/static`: CI checks that

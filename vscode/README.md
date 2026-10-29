@@ -144,8 +144,8 @@ the server restarts with its settings.
 ## Development
 
 ```sh
+npm ci            # at the root of the repository: the extension is an npm workspace
 cd vscode
-npm install
 npm run build
 ```
 

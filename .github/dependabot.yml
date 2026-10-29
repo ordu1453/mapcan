@@ -19,7 +19,7 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: npm
-    directories: ["/web", "/vscode"]
+    directory: /     # the npm workspaces (web, vscode, packages/*) have one lock file at the root
     schedule:
       interval: monthly
     groups:

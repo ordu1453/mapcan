@@ -1,7 +1,8 @@
 // Types of the /api/state response (see src/mapcan/web/session.py).
 
-export type PathEl = string | number;
-export type Path = PathEl[];
+import type { Path } from "@mapcan/forms";
+
+export type { Op, Path, PathEl } from "@mapcan/forms";
 
 export type Level = "error" | "warning" | "info";
 
@@ -104,14 +105,6 @@ export interface State {
   units: Array<[string, string]>;
   session_id: number;
 }
-
-export type Op =
-  | { op: "set"; path: Path; value: unknown }
-  | { op: "remove"; path: Path }
-  | { op: "insert"; path: Path; value: unknown; index?: number }
-  | { op: "move"; path: Path; to: number }
-  | { op: "rename_key"; path: Path; new_key: string | number }
-  | { op: "set_layout"; path: Path; start_bit: number; bit_length: number };
 
 export interface DiffResult {
   old_version: string;

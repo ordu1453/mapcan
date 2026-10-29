@@ -51,7 +51,7 @@ operations and the forms.
 ```text
  web editor (web/, Vue)  ──HTTP/WS──►  web/app.py + session.py ──► web/yamlops.py ─► map.yaml
  VS Code (vscode/)       ──LSP──────►  lsp/server.py + edits.py ──► web/yamlops.py ─► map.yaml
-         └─ both render the node forms from web/src/form (one description of fields and help)
+         └─ both render the node forms from packages/forms (one description of fields and help)
 ```
 
 - **[web/yamlops.py](src/mapcan/web/yamlops.py)**: operations on the YAML document (`set`,
@@ -64,8 +64,8 @@ operations and the forms.
   [VS Code extension](vscode). [analysis.py](src/mapcan/lsp/analysis.py) answers hover, completion,
   hints and definitions from the text; [edits.py](src/mapcan/lsp/edits.py) applies the same YAML
   operations as the web editor and serves the data of the node form.
-- **[web/src/form/](web/src/form)**: the forms of all node kinds, written once and used by the web
-  editor ([NodeEditor.vue](web/src/components/NodeEditor.vue)) and the VS Code form
+- **[packages/forms/](packages/forms)** (`@mapcan/forms`, an npm workspace): the forms of all node kinds,
+  written once and used by the web editor ([NodeEditor.vue](web/src/components/NodeEditor.vue)) and the VS Code form
   ([vscode/webview/form.js](vscode/webview/form.js), bundled by `vscode/esbuild.mjs`). A form lists
   fields, the conditions under which they apply and their options; the help of a field is its
   description in the model, read from the JSON Schema.
@@ -74,7 +74,8 @@ operations and the forms.
 
 The interface is English. Messages are written in English in the code: `_()` / `N_()` in Python,
 `t()` / `N_()` in the web UI. The English text is also the key of the Russian translation in
-[src/mapcan/locale/ru.py](src/mapcan/locale/ru.py) and [web/src/locale/ru.json](web/src/locale/ru.json).
+[src/mapcan/locale/ru.py](src/mapcan/locale/ru.py), [web/src/locale/ru.json](web/src/locale/ru.json) and
+[packages/forms/src/locale/ru.json](packages/forms/src/locale/ru.json) (the strings of the forms).
 The language of generated documents is a separate thing: `document.language` of the map or the
 language chosen on export.
 
@@ -90,8 +91,8 @@ Tests point at most of the steps when one is missed.
    `RULES` and a row in the rule table of [docs/format.md](docs/format.md).
 4. **Outputs** that should show or use it: documents ([docmodel.py](src/mapcan/docmodel.py)), DBC
    export and import, generated code, the changelog ([diff.py](src/mapcan/diff.py)).
-5. **Forms**: add it to a section in [web/src/form/spec.ts](web/src/form/spec.ts), or to
-   `NOT_IN_FORM` with where it is edited instead (`web/test/form.test.ts`). If its condition needs
+5. **Forms**: add it to a section in [packages/forms/src/spec.ts](packages/forms/src/spec.ts), or to
+   `NOT_IN_FORM` with where it is edited instead (`packages/forms/test/form.test.ts`). If its condition needs
    something new about the node, add it to `FormContext` and fill it in both hosts:
    [NodeEditor.vue](web/src/components/NodeEditor.vue) (from the map in the browser) and
    `node_fields` in [lsp/edits.py](src/mapcan/lsp/edits.py) (for VS Code).

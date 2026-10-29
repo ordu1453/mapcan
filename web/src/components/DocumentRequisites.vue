@@ -3,7 +3,7 @@
 // "APPROVED" / "AGREED". All of them but the organization are print details, in document.print.
 import { computed, ref } from "vue";
 import { api } from "../api";
-import type { FieldDef } from "../form/spec";
+import type { FieldDef } from "@mapcan/forms";
 import { getAt, startsWith } from "../model";
 import { actions, store, toast } from "../store";
 import type { State } from "../types";

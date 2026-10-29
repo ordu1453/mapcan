@@ -1,6 +1,6 @@
 // Bundles the extension into dist/extension.js (the vscode module is provided by the editor) and the node
 // form's webview script into dist/webview/form.js, together with the forms shared with the web editor
-// (../web/src/form).
+// (@mapcan/forms, packages/forms).
 import * as esbuild from "esbuild";
 import { cpSync, mkdirSync } from "node:fs";
 

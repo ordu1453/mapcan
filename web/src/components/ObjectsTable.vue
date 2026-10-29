@@ -4,7 +4,7 @@
 // (a click on its name goes there).
 import { computed, ref } from "vue";
 import { hex } from "../bits";
-import { parseInput, ParseError } from "../form/input";
+import { parseInput, ParseError } from "@mapcan/forms";
 import { deviceObjects, getAt, samePath, startsWith, type OdEntry, type OdObject } from "../model";
 import { actions, lang, resolvedFrames, store, toast, viewData } from "../store";
 import type { Diagnostic, Op, Path } from "../types";

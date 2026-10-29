@@ -1,20 +1,18 @@
 // Node form (see src/form.ts). Fields are written to the YAML as they are typed: after a short
 // pause, on Enter and when a field loses focus. Values from the server never overwrite the field
 // being typed in. Which fields a node has, when they apply and how their text is parsed is shared
-// with the web editor (web/src/form); esbuild.mjs bundles it into dist/webview/form.js.
+// with the web editor (packages/forms, @mapcan/forms); esbuild.mjs bundles it into dist/webview/form.js.
 // @ts-check
-import { fieldHelp } from "../../web/src/form/help";
-import { formatValue, parseInput, parseInteger, selectValue } from "../../web/src/form/input";
-import { applies, encodingChangeOps, FORMS, isRequired, optionsOf, placeholderOf, signalEncoding }
-  from "../../web/src/form/spec";
+import { applies, encodingChangeOps, fieldHelp, formatValue, FORMS, isRequired, optionsOf, parseInput, parseInteger,
+  placeholderOf, selectValue, signalEncoding } from "@mapcan/forms";
 
 (function () {
   const vscode = acquireVsCodeApi();
   const app = /** @type {HTMLElement} */ (document.getElementById("app"));
 
   /**
-   * @typedef {import("../../web/src/form/spec").FieldDef} Field
-   * @typedef {import("../../web/src/form/spec").FormContext} Ctx
+   * @typedef {import("@mapcan/forms").FieldDef} Field
+   * @typedef {import("@mapcan/forms").FormContext} Ctx
    */
 
   /** Text of a field → value for the YAML; null removes the key. Throws on invalid input. */
@@ -36,7 +34,7 @@ import { applies, encodingChangeOps, FORMS, isRequired, optionsOf, placeholderOf
   let shownKind = "";
   let shownPath = "";
 
-  /** What the form's conditions know about the node (FormContext in web/src/form/spec.ts), from the server. */
+  /** What the form's conditions know about the node (FormContext in packages/forms/src/spec.ts), from the server. */
   const ctx = () => /** @type {Ctx} */ ({
     values: node.values, protocol: node.protocol, fd: !!node.fd, busBrs: node.busBrs ?? null, owner: node.owner,
     devices: node.devices, signalEncoding: node.signalEncoding,
