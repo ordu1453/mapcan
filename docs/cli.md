@@ -18,6 +18,7 @@ mapcan gen py      FILE [-o DIR] [--bus NAME]
 mapcan build       FILE [-o DIR] [--formats xlsx,pdf,md,html,dbc,eds,c,py] [--pdf-template NAME]
 mapcan diff        OLD NEW [--format text|md|json] [--fail-on breaking|any]
 mapcan import dbc  FILE.dbc [-o FILE.yaml] [--title TEXT] [--lang en] [--force]
+mapcan import eds  FILE.eds|FILE.dcf [-o FILE.yaml] [--node-id N] [--title TEXT] [--lang en] [--force]
 mapcan migrate     FILE… [--check]      # former field names → current ones, format v1 → v2
 mapcan fmt         FILE… [--check]      # keys in one order, comments and layout kept
 mapcan schema      [-o schema.json] [--part]   # --part: schema of an included file
@@ -187,6 +188,29 @@ marked J1939 (`VFrameFormat`) becomes a `j1939` bus with PGNs and device address
 becomes a `can` bus with explicit IDs. Value names become identifiers (`Not available` →
 `NOT_AVAILABLE`, the original text goes to the description), and whatever DBC cannot express is
 reported as a warning.
+
+## Importing an EDS or DCF
+
+`mapcan import eds` describes a CANopen device from the EDS or DCF (CiA 306) its vendor ships: a
+map with one `canopen` bus and that device, named and titled after `ProductName` (the vendor goes to
+`document.organization`). It brings over:
+
+- the TPDOs and RPDOs 1–4 from their communication and mapping parameters (1800/1A00, 1400/1600):
+  the COB-ID (an `id` only when it is not the default `$NODEID+base`), the transmission type (event,
+  or on request for RTR-only), the inhibit time (`inhibit_ms`), the event timer (`cycle_ms` of a
+  TPDO, `timeout_ms` of an RPDO);
+- the mapped objects as signals in their places, with `index`/`subindex`, the data type
+  (`INTEGER*` → `twos_complement`, `REAL*` → `float`, strings → `bytes`), the object's name as
+  the title (and, in snake case, the signal's name), the limits and a non-zero default value;
+- the producer heartbeat time (1017) as a heartbeat frame.
+
+A DCF gives the configured values (`ParameterValue`), the node ID and the bit rate
+(`[DeviceComissioning]`). An EDS has no node ID: `--node-id` sets it, otherwise 1 is used with a
+warning; the bit rate is set only when the device supports one. Warnings list what the map cannot
+hold: dummy entries of a mapping (their bits stay free), PDOs beyond the fourth, synchronous
+transmission types, disabled PDOs (imported as enabled), types of the manufacturer (imported as
+unsigned numbers) and the dictionary objects that no PDO carries. `mapcan export eds` and `mapcan
+import eds` round-trip the PDOs and their objects.
 
 ## Comparing versions
 

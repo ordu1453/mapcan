@@ -1,0 +1,185 @@
+; An EDS as vendors write them, for the import (tests/test_eds_import.py): lowercase section names, $NODEID,
+; a dummy entry, a disabled and synchronous TPDO, a fifth TPDO, a type of the manufacturer, an object in no PDO.
+[FileInfo]
+FileName=vendor-io.eds
+FileVersion=1
+EDSVersion=4.0
+Description=8DI/8DO module
+
+[DeviceInfo]
+VendorName=ACME Automation
+ProductName=IO Module 8DI/8DO
+BaudRate_125=1
+BaudRate_250=1
+NrOfRXPDO=2
+NrOfTXPDO=3
+
+[1017]
+ParameterName=Producer heartbeat time
+ObjectType=0x7
+DataType=0x0006
+AccessType=rw
+DefaultValue=1000
+
+[1800]
+ParameterName=TPDO1 communication parameter
+ObjectType=0x9
+SubNumber=4
+
+[1800sub1]
+ParameterName=COB-ID
+DataType=0x0007
+DefaultValue=$NODEID+0x180
+
+[1800sub2]
+ParameterName=Transmission type
+DataType=0x0005
+DefaultValue=255
+
+[1800sub3]
+ParameterName=Inhibit time
+DataType=0x0006
+DefaultValue=100
+
+[1a00]
+ParameterName=TPDO1 mapping parameter
+ObjectType=0x9
+SubNumber=4
+
+[1a00sub0]
+DataType=0x0005
+DefaultValue=3
+
+[1a00sub1]
+DataType=0x0007
+DefaultValue=0x60000108
+
+[1a00sub2]
+DataType=0x0007
+DefaultValue=0x00050008
+
+[1a00sub3]
+DataType=0x0007
+DefaultValue=0x64010110
+
+[1801]
+ParameterName=TPDO2 communication parameter
+ObjectType=0x9
+SubNumber=3
+
+[1801sub1]
+DataType=0x0007
+DefaultValue=0x80000280+$NODEID
+
+[1801sub2]
+DataType=0x0005
+DefaultValue=1
+
+[1a01]
+ObjectType=0x9
+SubNumber=2
+
+[1a01sub0]
+DataType=0x0005
+DefaultValue=1
+
+[1a01sub1]
+DataType=0x0007
+DefaultValue=0x20000020
+
+[1804sub1]
+DataType=0x0007
+DefaultValue=0x3A0
+
+[1a04sub0]
+DataType=0x0005
+DefaultValue=1
+
+[1a04sub1]
+DataType=0x0007
+DefaultValue=0x60000108
+
+[1400sub1]
+DataType=0x0007
+DefaultValue=$NODEID+0x200
+
+[1400sub2]
+DataType=0x0005
+DefaultValue=254
+
+[1400sub5]
+DataType=0x0006
+DefaultValue=500
+
+[1600sub0]
+DataType=0x0005
+DefaultValue=1
+
+[1600sub1]
+DataType=0x0007
+DefaultValue=0x62000108
+
+[1401sub1]
+DataType=0x0007
+DefaultValue=0x321
+
+[1601sub0]
+DataType=0x0005
+DefaultValue=1
+
+[1601sub1]
+DataType=0x0007
+DefaultValue=0x22000020
+
+[2000]
+ParameterName=Counter value
+ObjectType=0x7
+DataType=0x0040
+AccessType=ro
+PDOMapping=1
+
+[2100]
+ParameterName=Filter time
+ObjectType=0x7
+DataType=0x0006
+AccessType=rw
+DefaultValue=10
+
+[2200]
+ParameterName=Setpoint
+ObjectType=0x7
+DataType=0x0008
+AccessType=rww
+LowLimit=-10.5
+HighLimit=10.5
+PDOMapping=1
+
+[6000]
+ParameterName=Read input 8-bit
+ObjectType=0x8
+SubNumber=2
+
+[6000sub0]
+ParameterName=Number of inputs
+DataType=0x0005
+DefaultValue=1
+
+[6000sub1]
+ParameterName=Digital inputs 1-8
+DataType=0x0005
+AccessType=ro
+PDOMapping=1
+
+[6200sub1]
+ParameterName=Digital outputs 1-8
+DataType=0x0005
+AccessType=rww
+PDOMapping=1
+
+[6401sub1]
+ParameterName=Analog input 1
+DataType=0x0003
+AccessType=ro
+LowLimit=-1000
+HighLimit=1000
+PDOMapping=1

@@ -419,7 +419,8 @@ record. Documents show the object (`OD 0x6041:00`), and `mapcan export eds` writ
 heartbeat time (1017, from a heartbeat frame's `cycle_ms`), the communication and mapping
 parameters of each PDO with mapped signals (1400/1600 for RPDOs, 1800/1A00 for TPDOs; COB-ID
 `$NODEID+base`, event timer from `cycle_ms`) and the objects themselves. Gaps between mapped
-signals are filled with dummy objects.
+signals are filled with dummy objects. `mapcan import eds` reads such a file, or a vendor's EDS or
+DCF, back into a map ([cli.md](cli.md#importing-an-eds-or-dcf)).
 
 ```yaml
 - name: drive_status
@@ -606,7 +607,6 @@ devices and frames in their places, marked with the file name; their forms are r
 editors change the main file only), and clicking such a node in VS Code opens it in its file.
 Included devices can be chosen as senders and receivers of the main file's frames.
 
-## Versioning and compatibility
 ## Paths of signals
 
 A frame, signal or flag is referred to from outside the map (dashboard layouts, plots, alarm
@@ -632,6 +632,7 @@ one candidate on each side counts; otherwise the change is a removal and an addi
 **Copy Path** (the tree's context menu in VS Code, the button next to the node's name in the web editor)
 copies the path of the selected node.
 
+## Versioning and compatibility
 
 `mapcan: 2` is the version of the format, not of the program. What it promises:
 
@@ -738,8 +739,8 @@ turned off with `--disable CODE` or `lint.disable`.
 | `name-collision` | error | Names collide in generated code (differ only in case, or clash with a _phys property) |
 | `name-style` | warning | Name does not match the style rule (lint) |
 | `name-inconsistent` | warning | The same value name is spelled differently |
-| `duplicate-device-name` | error | Duplicate device name on the bus |
 | `duplicate-bus-name` | error | Duplicate bus name in the map |
+| `duplicate-device-name` | error | Duplicate device name on the bus |
 | `duplicate-frame-name` | error | Duplicate frame name on the bus |
 | `duplicate-signal-name` | error | Duplicate signal/flag name in the frame |
 | `duplicate-enum-name` | warning | Same name for different enum values |

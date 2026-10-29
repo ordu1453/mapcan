@@ -164,7 +164,7 @@ src/mapcan/
   docmodel.py               shared view for documents
   export/                   xlsx, pdf (Typst), md/html (Jinja2), dbc, eds
   codegen/                  C and Python
-  importers/                DBC import
+  importers/                DBC, EDS and DCF import
   diff.py                   map version comparison, changelog
   lsp/                      language server for the editors
   launcher.py               mapcan app: window, single instance, port selection

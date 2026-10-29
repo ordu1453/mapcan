@@ -580,6 +580,48 @@ def import_dbc_cmd(
     typer.echo(_summary(report))
 
 
+@import_app.command("eds", help=_("EDS or DCF of a CANopen device → YAML map: its PDOs, the dictionary objects mapped "
+                                  "into them, the heartbeat."))
+def import_eds_cmd(
+    path: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True, help=_("EDS or DCF file.")),
+    out: Optional[Path] = typer.Option(None, "-o", "--output", help=_("YAML map file; <name>.yaml by default.")),
+    node_id: Optional[str] = typer.Option(
+        None, "--node-id",
+        help=_("Node ID of the device (1..127); a DCF gives its own, an EDS none (1 is used then).")),
+    title: Optional[str] = typer.Option(None, "--title", help=_("Document title; the product name by default.")),
+    lang: str = typer.Option("en", "--lang", help=_("Document language (ISO 639-1 code).")),
+    force: bool = typer.Option(False, "--force", help=_("Overwrite an existing file.")),
+) -> None:
+    from .i18n import normalize_language
+    from .importers.eds import import_eds
+
+    target = _default_out(path, ".yaml", out)
+    if target.exists() and not force:
+        typer.secho(_("{path} already exists; give another -o or --force", path=target),
+                    fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
+    doc_lang = normalize_language(lang)
+    if doc_lang is None:
+        raise typer.BadParameter(_("unknown language: {language}", language=lang))
+    node = None
+    if node_id is not None:
+        try:
+            node = int(node_id, 0)       # decimal or 0x…, as node_id in a map
+        except ValueError:
+            node = None
+        if node is None or not 1 <= node <= 0x7F:
+            raise typer.BadParameter(_("node ID {value} is not 1..127", value=node_id), param_hint="--node-id")
+    text, warnings = import_eds(path, node, title, doc_lang)
+    for w in warnings:
+        _warn(w)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+    _done(target)
+    _res, report = validate_file(target)
+    _print_report(report)
+    typer.echo(_summary(report))
+
+
 ALL_FORMATS = ["xlsx", "pdf", "md", "html", "dbc", "eds", "c", "py"]
 
 

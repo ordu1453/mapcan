@@ -36,7 +36,8 @@ piece lives and how data flows between them. How to build and test is in
      [export/xlsx.py](src/mapcan/export/xlsx.py) render it.
    - [export/dbc.py](src/mapcan/export/dbc.py) (through cantools) and
      [export/eds.py](src/mapcan/export/eds.py) write files for other tools;
-     [importers/dbc.py](src/mapcan/importers/dbc.py) goes the other way.
+     [importers/dbc.py](src/mapcan/importers/dbc.py) and [importers/eds.py](src/mapcan/importers/eds.py) go the
+     other way.
    - [codegen/](src/mapcan/codegen) writes C and Python. [bits.py](src/mapcan/bits.py) is the
      reference for bit positions and pack/unpack; tests compare the C code, the Python module and
      cantools byte for byte.

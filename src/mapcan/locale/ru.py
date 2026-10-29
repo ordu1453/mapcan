@@ -529,6 +529,35 @@ RU: dict[str, str] = {
     "{frame}: sender {name!r} is not a DBC node": "{frame}: отправитель {name!r} не описан как узел DBC",
     "{frame}.{signal}: nested multiplexing is imported as one level":
         "{frame}.{signal}: вложенное мультиплексирование перенесено одним уровнем",
+    "EDS or DCF of a CANopen device → YAML map: its PDOs, the dictionary objects mapped into them, the heartbeat.":
+        "EDS или DCF устройства CANopen → YAML-карта: его PDO, отображённые в них объекты словаря, heartbeat.",
+    "EDS or DCF file.": "Файл EDS или DCF.",
+    "node ID {value} is not 1..127": "node ID {value} вне 1..127",
+    "Node ID of the device (1..127); a DCF gives its own, an EDS none (1 is used then).":
+        "Node ID устройства (1..127); в DCF он свой, в EDS его нет (тогда берётся 1).",
+    "Document title; the product name by default.": "Название документа; по умолчанию название изделия.",
+    "{where}: object 0x{index:04X}:{sub:02X} is not described in the file: imported as an unsigned number":
+        "{where}: объект 0x{index:04X}:{sub:02X} не описан в файле: перенесён как беззнаковое число",
+    "{where}: UNICODE_STRING object 0x{index:04X}:{sub:02X} is imported as a byte array":
+        "{where}: объект UNICODE_STRING 0x{index:04X}:{sub:02X} перенесён как массив байтов",
+    "{where}: data type 0x{type:04X} of object 0x{index:04X}:{sub:02X} is not a standard one: imported as an "
+    "unsigned number":
+        "{where}: тип данных 0x{type:04X} объекта 0x{index:04X}:{sub:02X} не стандартный: перенесён как беззнаковое "
+        "число",
+    "{frame}: the map has the first four PDOs of each direction, this one is not imported":
+        "{frame}: в карте есть только первые четыре PDO каждого направления, этот не перенесён",
+    "{frame}: the PDO is disabled in the file (bit 31 of its COB-ID), imported as enabled":
+        "{frame}: PDO выключен в файле (бит 31 COB-ID), перенесён как включённый",
+    "{frame}: the mapped objects take {bits} bits, more than the 64 of a CAN frame":
+        "{frame}: отображённые объекты занимают {bits} бит, больше 64 бит кадра CAN",
+    "{frame}: {count} dummy entries of the mapping are left as free bits":
+        "{frame}: на месте фиктивных записей отображения ({count}) оставлены свободные биты",
+    "{frame}: synchronous transmission (type {type}) is not in the format: imported without it":
+        "{frame}: синхронной передачи (тип {type}) в формате нет: перенесено без неё",
+    "the file gives no node ID: {node_id} is used (--node-id sets another)":
+        "в файле нет node ID: взят {node_id} (другой задаёт --node-id)",
+    "{count} dictionary objects are mapped into no PDO and are not imported: {objects}":
+        "объекты словаря, не отображённые ни в один PDO, не перенесены ({count}): {objects}",
     "No value table with this name in value_tables": "Таблица значений с таким именем не описана в value_tables",
     "include: the map has no path to resolve included files from":
         "include: у карты нет пути, подключать файлы не от чего",

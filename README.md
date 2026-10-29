@@ -135,7 +135,7 @@ mapcan build my-map.yaml -o build/          # every output at once
 | ⚙️ | C: IDs, enums, structs, `pack`/`unpack`; no dynamic memory | `mapcan gen c` |
 | 🐍 | Python module for tests and test benches | `mapcan gen py` |
 | 🔀 | Comparison of two versions, changelog | `mapcan diff` |
-| 📥 | A map from an existing DBC | `mapcan import dbc` |
+| 📥 | A map from an existing DBC, or a CANopen device from its EDS or DCF | `mapcan import dbc`, `mapcan import eds` |
 
 <p align="center">
   <picture>
@@ -209,7 +209,7 @@ multiplexing) and [tractor/](examples/tractor/tractor.yaml) (a map in two files)
 ## Documentation
 
 * **[Map format](docs/format.md)**: every field, the rules, included files, versioning.
-* **[Command line](docs/cli.md)**: commands, validation, generated code, document customization, DBC import.
+* **[Command line](docs/cli.md)**: commands, validation, generated code, document customization, DBC, EDS and DCF import.
 * **[Web editor](docs/web.md)**: the app, browser mode and its security, keyboard shortcuts, HTTP API.
 * **[VS Code extension](vscode/README.md)**: features, settings, commands.
 * **[PDF templates](docs/templates.md)**: ESKD/GOST details, logos, fonts, custom templates.
