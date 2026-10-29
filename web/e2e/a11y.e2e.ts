@@ -32,7 +32,8 @@ test.describe("a map", () => {
     await openEditor(page, editor);
     await check(page, "document");
     const tree = page.locator("aside");
-    for (const label of ["PMP · Pump", "pump_state", "pressure"]) await tree.getByText(label).first().click();
+    // A click selects a frame, a second one opens it (#146)
+    for (const label of ["PMP · Pump", "pump_state", "pump_state", "pressure"]) await tree.getByText(label).first().click();
     await expect(page.getByRole("heading", { name: "Signal pressure" })).toBeVisible();
     await check(page, "signal");
     await page.getByRole("button", { name: "File ▾" }).click();
