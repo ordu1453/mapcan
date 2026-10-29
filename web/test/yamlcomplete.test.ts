@@ -131,7 +131,7 @@ describe("flow notation", () => {
 
   it("suggests keys inside {…} minus those written there", () => {
     const r = at(FLAGS + "{bit: 1, ^}", true);
-    expect(labels(r)).toEqual(["name", "bit_length", "description", "values"]);
+    expect(labels(r)).toEqual(["name", "bit_length", "description", "values", "multiplexer"]);
     // values is a table or the name of one in value_tables: written as a scalar
     expect(r?.items.find((i) => i.label === "values")?.edit.insert).toBe("values: ");
     expect(labels(at(FLAGS + "{bit: 1, na^}"))).toEqual(["name"]);

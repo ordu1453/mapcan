@@ -1,8 +1,8 @@
 // Labels of nodes in the tree: titles for people instead of identifiers, links to received frames.
 
 import { describe, expect, it } from "vitest";
-import { buildTree, deviceLabel, displayName, includedFile, isLink, localPath, mergedPath, namedTable, pathKey, viewOf,
-  type TreeNode } from "../src/model";
+import { buildTree, deviceLabel, deviceObjects, displayName, flagFits, includedFile, isLink, localPath, mergedPath,
+  namedTable, nodeKind, pathKey, shiftedFlags, viewOf, type TreeNode } from "../src/model";
 import { issueUrl, ISSUES_URL } from "../src/links";
 import type { ResolvedFrame } from "../src/types";
 
@@ -47,10 +47,12 @@ describe("labels", () => {
     const [bms, panel] = bus.children;
     expect(bms.label).toBe("BMS · Система управления батареей");
     expect(panel.label).toBe("panel");
-    expect(bms.children[0].label).toBe("Состояния");
+    // A device of a CANopen bus has its object dictionary first (#151)
+    expect(bms.children[0]).toMatchObject({ kind: "objects", path: ["buses", 0, "devices", 0, "objects"], label: "Objects" });
+    expect(bms.children[1].label).toBe("Состояния");
     expect(find(bms, "signal").map((s) => s.label)).toEqual(["Заряд", "temp"]);
     // search by identifier keeps working
-    expect(bms.children[0].search).toContain("bms_status");
+    expect(bms.children[1].search).toContain("bms_status");
   });
 
   it("a bus shows its estimated load from the server (#131)", () => {
@@ -63,12 +65,77 @@ describe("labels", () => {
   it("a received frame is a link under the receiver with the sender in its label", () => {
     const [bms, panel] = bus.children;
     expect(bms.children.filter((c) => c.from !== undefined)).toEqual([]);
-    const link = panel.children[0];
+    const link = panel.children[1];
     expect(link.label).toBe("BMS · Состояния");
     expect(link.path).toEqual(status.path);
     expect(link.receiver).toBe("panel");
     expect(link.dir).toBe("rx");
     expect(link.key).not.toBe(pathKey(status.path));
+  });
+});
+
+describe("object dictionary of a device (#151)", () => {
+  const dev = ["buses", 0, "devices", 0];
+  const device = {
+    name: "drive",
+    frames: [
+      { name: "tpdo1", canopen: "pdo_tx1", signals: [
+        { name: "status", index: 0x6041, encoding: "number", bit_length: 16 },
+        { name: "a", title: "Ток A", index: 0x2100, subindex: 1, encoding: "number", bit_length: 16 },
+        { name: "b", index: 0x2100, subindex: 2, encoding: "number", bit_length: 16 },
+        { name: "spare", encoding: "number", bit_length: 8 },
+      ] },
+      { name: "rpdo1", canopen: "pdo_rx1", signals: [
+        { name: "mode", index: 0x2200, subindex: 1, encoding: "enum", bit_length: 8 },
+        { name: "speed", index: 0x2200, subindex: 2, encoding: "number", bit_length: 32 },
+      ] },
+      { name: "sdo_rx", canopen: "sdo_rx", sdo: [{ name: "save", command: 0x23, index: 0x1010, subindex: 1 }] },
+      { name: "raw", id: 0x300, signals: [{ name: "plain", encoding: "number", bit_length: 8 }] },
+    ],
+  };
+  const tpdo = frame([...dev, "frames", 0], { name: "tpdo1", can_id: 0x181 });
+  const objects = deviceObjects(device, dev, new Map([[pathKey(tpdo.path), tpdo]]), "ru");
+
+  it("is a page of the tree under a CANopen device only", () => {
+    expect(nodeKind([...dev, "objects"])).toBe("objects");
+    const [, can] = buildTree({ buses: [{ name: "c", protocol: "can", devices: [device] }] }, new Map(), "ru");
+    expect(find(can, "objects")).toEqual([]);
+    const [, co] = buildTree({ buses: [{ name: "c", devices: [device] }] }, new Map(), "ru");
+    expect(find(co, "objects").map((n) => n.sub)).toEqual(["4"]);
+  });
+
+  it("lists objects by index: a var, an array of one type, a record of several, entries by subindex", () => {
+    expect(objects.map((o) => [o.index, o.type])).toEqual([
+      [0x1010, "array"], [0x2100, "array"], [0x2200, "record"], [0x6041, "var"], [null, null]]);
+    const [save, currents] = objects;
+    expect(save.entries[0]).toMatchObject({ via: "sdo", name: "save", subindex: 1, path: [...dev, "frames", 2, "sdo", 0] });
+    expect(currents.entries.map((e) => [e.label, e.subindex, e.canId, e.via])).toEqual([
+      ["Ток A", 1, "0x181", "pdo"], ["b", 2, "0x181", "pdo"]]);
+  });
+
+  it("offers the signals of PDOs without an index; signals of other frames only with one", () => {
+    const loose = objects.filter((o) => o.index === null).flatMap((o) => o.entries.map((e) => e.name));
+    expect(loose).toEqual(["spare"]);
+  });
+});
+
+describe("flags of a bit field (#150)", () => {
+  // An 8-bit field: a at bit 0, b at bits 2..3, c at bit 6
+  const flags = [{ bit: 0 }, { bit: 2, bit_length: 2 }, { bit: 6 }];
+
+  it("a flag fits inside the field and over no other flag", () => {
+    expect(flagFits(flags, 0, 1, 1, 8)).toBe(true);
+    expect(flagFits(flags, 0, 2, 1, 8)).toBe(false);       // over b
+    expect(flagFits(flags, 2, 7, 2, 8)).toBe(false);       // beyond the field
+    expect(flagFits(flags, 1, 3, 3, 8)).toBe(true);        // b over its own bits, up to bit 5
+  });
+
+  it("ticked flags move together, or not at all", () => {
+    expect(shiftedFlags(flags, [0, 1, 2], 1, 8)).toEqual([1, 3, 7]);
+    expect(shiftedFlags(flags, [0, 1, 2], 2, 8)).toBeNull();   // c would leave the field
+    expect(shiftedFlags(flags, [0], 1, 8)).toEqual([1]);
+    expect(shiftedFlags(flags, [0], 2, 8)).toBeNull();         // a would land on b, which stays
+    expect(shiftedFlags(flags, [1, 2], -1, 8)).toEqual([1, 5]);
   });
 });
 
@@ -87,12 +154,12 @@ describe("a frame described at its receiver", () => {
   const [bms, panel] = can1.children;
 
   it("the frame names its sender", () => {
-    expect(panel.children[0].label).toBe("BMS · Команда");
-    expect(isLink(panel.children[0])).toBe(false);
+    expect(panel.children[1].label).toBe("BMS · Команда");
+    expect(isLink(panel.children[1])).toBe(false);
   });
 
   it("the sender has a link to it, named after the device it is described at", () => {
-    const link = bms.children[0];
+    const link = bms.children[1];
     expect(isLink(link)).toBe(true);
     expect([link.label, link.dir, link.to, link.sender]).toEqual(["Панель · Команда", "tx", "Панель", "bms"]);
     expect(link.path).toEqual(cmd.path);

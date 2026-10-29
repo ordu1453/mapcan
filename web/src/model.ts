@@ -5,12 +5,16 @@ import type { Diagnostic, Included, Level, Path, ResolvedFrame, ResolvedSignal }
 import { t } from "./i18n";
 import { nodeLines } from "./yamltext";
 
-export type NodeKind = "document" | "history" | "revision" | "bus" | "device" | "frame" | "signal" | "flag" | "sdo" | "unknown";
+export type NodeKind = "document" | "history" | "revision" | "bus" | "device" | "objects" | "frame" | "signal" | "flag" | "sdo"
+  | "unknown";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type Data = any;
 
 export const pathKey = (p: Path): string => p.join("/");
+
+/** Last element of the path of a device's object dictionary: a page of the tree, not a node of the map (#151). */
+export const OBJECTS = "objects";
 
 /** Path of the Revision history node: shown in the tree even if there are no entries yet. */
 export const HISTORY_PATH: Path = ["document", "history"];
@@ -43,6 +47,7 @@ export function nodeKind(path: Path): NodeKind {
   }
   if (n === 2 && path[0] === "buses") return "bus";
   if (n === 4 && path[2] === "devices") return "device";
+  if (n === 5 && path[2] === "devices" && path[4] === OBJECTS) return "objects";
   const tail = path[n - 2];
   if (tail === "frames") return "frame";
   if (tail === "signals") return "signal";
@@ -262,6 +267,15 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
         sub: d.node_id != null ? hex(d.node_id, 2) : d.address != null ? `SA ${hex(d.address, 2)}` : "", children: [],
         search: [d.name, d.short ?? "", txt(d.title, lang)].join(" ").toLowerCase(),
       };
+      // A CANopen device has its object dictionary first, next to its frames
+      if (isCanopen(bus)) {
+        const od = deviceObjects(d, dp, frames, lang).filter((o) => o.index !== null);
+        dnode.children.push({
+          key: pathKey([...dp, OBJECTS]), path: [...dp, OBJECTS], kind: "objects", label: t("Objects"),
+          sub: od.length ? String(od.length) : "", children: [],
+          search: `${t("Objects").toLowerCase()} ${t("Object dictionary").toLowerCase()} objects`,
+        });
+      }
       list(d.frames).forEach((f: Data, fi: number) => dnode.children.push(frameNode(f, [...dp, "frames", fi])));
       // Frames of others that list the device among their receivers: links after its own frames
       for (const rf of frames.values()) {
@@ -299,6 +313,82 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
   if (included.length) markIncluded(out, included);
   return out;
 }
+
+// ------------------------------------------------------------------ object dictionary (#151)
+
+/** The bus is CANopen (the protocol by default): its frames carry dictionary objects rather than signals. */
+export const isCanopen = (bus: Data): boolean => (bus?.protocol ?? "canopen") === "canopen";
+
+/** A signal of a PDO or an SDO exchange of a device's frame: one entry of its dictionary. */
+export interface OdEntry {
+  /** The signal or the SDO exchange in the map. */
+  path: Path;
+  via: "pdo" | "sdo" | null;
+  index: number | null;
+  subindex: number | null;
+  name: string;
+  label: string;
+  framePath: Path;
+  frameLabel: string;
+  canId: string;
+  /** Data type of the value: entries of one type under an index make an array, of several types a record. */
+  dtype: string;
+}
+
+/** An object of the dictionary: one index, or an entry without an index yet (index null). */
+export interface OdObject {
+  index: number | null;
+  type: "var" | "array" | "record" | null;
+  entries: OdEntry[];
+}
+
+/**
+ * Dictionary of a device, as the EDS export sees it: signals with an index in the device's own frames, signals of
+ * its PDOs without one yet (to be given one), and its SDO exchanges. Objects by index, entries by subindex.
+ */
+export function deviceObjects(device: Data, devicePath: Path, frames: Map<string, ResolvedFrame>, lang: string): OdObject[] {
+  const entries: OdEntry[] = [];
+  list(device?.frames).forEach((f: Data, fi: number) => {
+    const fp = [...devicePath, "frames", fi];
+    const rf = frames.get(pathKey(fp));
+    const pdo = typeof f.canopen === "string" && f.canopen.startsWith("pdo_");
+    const frame = { framePath: fp, frameLabel: displayName(f, lang), canId: frameSub(rf) };
+    list(f.signals).forEach((s: Data, si: number) => {
+      if (!pdo && s.index == null) return;
+      const rs = rf?.signals.find((x) => x.index === si);
+      entries.push({
+        path: [...fp, "signals", si], via: pdo ? "pdo" : null, index: num(s.index), subindex: num(s.subindex),
+        name: nameOf(s), label: displayName(s, lang), ...frame,
+        dtype: [rs?.encoding ?? s.encoding, rs?.bit_length ?? s.bit_length, s.representation ?? ""].join(":"),
+      });
+    });
+    list(f.sdo).forEach((e: Data, ei: number) => {
+      const v = obj(e.value);
+      entries.push({
+        path: [...fp, "sdo", ei], via: "sdo", index: num(e.index), subindex: num(e.subindex),
+        name: nameOf(e), label: nameOf(e), ...frame,
+        dtype: e.value == null ? "" : [v.encoding, v.bit_length ?? 32, v.representation ?? ""].join(":"),
+      });
+    });
+  });
+  const byIndex = new Map<number, OdEntry[]>();
+  const out: OdObject[] = [];
+  for (const e of entries) {
+    if (e.index === null) out.push({ index: null, type: null, entries: [e] });
+    else byIndex.set(e.index, [...(byIndex.get(e.index) ?? []), e]);
+  }
+  const indexed = [...byIndex].sort(([a], [b]) => a - b).map(([index, es]): OdObject => {
+    es.sort((a, b) => (a.subindex ?? 0) - (b.subindex ?? 0));
+    // Subindex 0 of an array or a record is the number of entries: the type is that of the entries from 1
+    const data = es.filter((e) => e.subindex);
+    const type = es.length === 1 && !es[0].subindex ? "var"
+      : data.every((e) => e.dtype === data[0].dtype) ? "array" : "record";
+    return { index, type, entries: es };
+  });
+  return [...indexed, ...out];
+}
+
+const num = (v: unknown): number | null => (typeof v === "number" ? v : null);
 
 // ------------------------------------------------------------------ diagnostics by node
 
@@ -345,6 +435,29 @@ export function freeByte(rf: ResolvedFrame | undefined, dlc: number): number | n
 export function nextFreeKey(values: Record<string, unknown> | undefined): number {
   const keys = Object.keys(values ?? {}).map(Number).filter((x) => !Number.isNaN(x));
   return keys.length ? Math.max(...keys) + 1 : 0;
+}
+
+// ------------------------------------------------------------------ flags of a bit field (#150)
+
+/** A flag as placed in its field: first bit and length, in bits of the field. */
+export interface FlagPlace {
+  bit: number;
+  bit_length?: number | null;
+}
+
+/** The flag `index` fits at `bit` with `length`: inside the field and over no other flag. */
+export function flagFits(flags: FlagPlace[], index: number, bit: number, length: number, fieldLength: number): boolean {
+  if (bit < 0 || length < 1 || bit + length > fieldLength) return false;
+  return flags.every((f, i) => i === index || typeof f?.bit !== "number"
+    || bit + length <= f.bit || f.bit + (f.bit_length ?? 1) <= bit);
+}
+
+/** New first bits of the flags `picked` moved by `delta` bits together; null if one would leave the field or land
+ * on a flag that stays. */
+export function shiftedFlags(flags: FlagPlace[], picked: number[], delta: number, fieldLength: number): number[] | null {
+  const moved = flags.map((f, i) => (picked.includes(i) ? { ...f, bit: f.bit + delta } : f));
+  return picked.every((i) => flagFits(moved, i, moved[i].bit, moved[i].bit_length ?? 1, fieldLength))
+    ? picked.map((i) => moved[i].bit) : null;
 }
 
 // ------------------------------------------------------------------ named value tables

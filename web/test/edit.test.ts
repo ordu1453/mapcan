@@ -142,11 +142,19 @@ describe("adding nodes", () => {
   it("places a new signal in a free byte", async () => {
     resolved(FRAME, 2, [[0, 1, 2, 3, 4, 5, 6, 7]]);
     expect(await E.addSignal(FRAME)).toBe(true);
+    // A signal of a CANopen frame is a dictionary object (#151)
     expect(fake.applied[0]).toEqual([
-      { op: "insert", path: [...FRAME, "signals"], value: { name: "signal", encoding: "number" } },
+      { op: "insert", path: [...FRAME, "signals"], value: { name: "object", encoding: "number" } },
       { op: "set_layout", path: [...FRAME, "signals", 1], start_bit: 8, bit_length: 8 },
     ]);
     expect(fake.selected).toEqual([[...FRAME, "signals", 1]]);
+  });
+
+  it("names a new item of a frame outside CANopen a signal", async () => {
+    resolved(FRAME, 2, [[0, 1, 2, 3, 4, 5, 6, 7]]);
+    fake.data.buses[0].protocol = "can";
+    await E.addSignal(FRAME);
+    expect(fake.applied[0][0]).toMatchObject({ value: { name: "signal" } });
   });
 
   it("extends a full frame by a byte, or a CAN FD frame to the next length", async () => {

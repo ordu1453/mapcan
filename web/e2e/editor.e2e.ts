@@ -25,7 +25,7 @@ test.describe("a map opened by mapcan serve", () => {
   test("a field edited in the form goes to the YAML, is saved, survives a reload and is undone", async ({ page, editor }) => {
     await openEditor(page, editor);
     await select(page, "PMP · Pump", "pump_state", "pressure");
-    await expect(page.getByRole("heading", { name: "Signal pressure" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Object pressure" })).toBeVisible();
 
     const factor = field(page, "Factor (scale)");
     await expect(factor).toHaveValue("0.01");
@@ -80,7 +80,7 @@ test.describe("a map opened by mapcan serve", () => {
 
     // enum → bitfield: the flags table, and a flag added from it
     await encoding.selectOption("bitfield");
-    await page.getByRole("button", { name: "+ Flag" }).click();
+    await page.getByRole("button", { name: "+ Field" }).click();
     await page.getByRole("button", { name: "YAML", exact: true }).click();
     const yaml = page.locator(".yaml-editor textarea");
     await expect(yaml).toHaveValue(/ {16}encoding: bitfield\n {16}byte: 2\n {16}byte_length: 2\n {16}flags:\n {18}- bit: 0\n/);
@@ -110,7 +110,7 @@ test.describe("a map opened by mapcan serve", () => {
     await page.mouse.down();
     await cell(62).hover();
     await page.mouse.up();
-    await expect(page.getByRole("heading", { name: /^Signal signal/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Object object/ })).toBeVisible();
     await select(page, "pump_state");
     await cell(60).dblclick();
     await expect.poll(async () => signals(await yamlText())).toBe(before + 2);
@@ -169,6 +169,64 @@ test.describe("a map opened by mapcan serve", () => {
     const yaml = page.locator(".yaml-editor textarea");
     await expect(yaml).toHaveValue(/- name: pressure_new\b/);
     await expect(yaml).toHaveValue(/- name: temperature\b/);
+  });
+
+  test("the multiplexing of a frame is set in the frame: its selector among its signals (#149)", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await select(page, "PMP · Pump", "pump_state");
+    const selector = page.getByRole("combobox", { name: /Selector \(mux\)/ });
+    await expect(selector).toHaveValue("");
+    // Only what has a value table: the enum and the field of the bit field, not the numbers
+    await expect(selector.locator("option")).toHaveText(["off — no multiplexing", "mode", "alarms · sensor_state"]);
+    await selector.selectOption({ label: "mode" });
+    await expect(page.locator(".mux-bar")).toContainText("mode");
+    // The selector is not chosen in the signal form any more; a switched signal names its selector values there
+    await select(page, "pump_state", "pressure");
+    await expect(page.getByRole("checkbox", { name: /mux selector/ })).toHaveCount(0);
+    const mux = field(page, "mux (selector values)");
+    await mux.fill("1");
+    await mux.press("Enter");
+    await page.getByRole("button", { name: "YAML", exact: true }).click();
+    await expect(page.locator(".yaml-editor textarea")).toHaveValue(/multiplexer: true[\s\S]*mux: 1/);
+    await page.getByRole("button", { name: "Editor", exact: true }).click();
+
+    // Off: after a question, the selector values of the signals go too
+    await select(page, "pump_state");
+    await selector.selectOption("");
+    await page.getByRole("button", { name: "Turn off" }).click();
+    await page.getByRole("button", { name: "YAML", exact: true }).click();
+    await expect(page.locator(".yaml-editor textarea")).not.toHaveValue(/multiplexer|mux:/);
+  });
+
+  test("flags of a bit field move by dragging in the layout and together from the table (#150)", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await select(page, "PMP · Pump", "pump_state", "alarms");
+    const yaml = async () => {
+      await page.getByRole("button", { name: "YAML", exact: true }).click();
+      const text = await page.locator(".yaml-editor textarea").inputValue();
+      await page.getByRole("button", { name: "Editor", exact: true }).click();
+      return text;
+    };
+    // All flags one bit higher, in one step
+    await page.getByRole("checkbox", { name: "Tick all flags" }).check();
+    await page.getByRole("button", { name: "bit +1" }).click();
+    await expect.poll(yaml).toMatch(/name: overheat, bit: 1[\s\S]*name: dry_run, bit: 2[\s\S]*name: sensor_state, bit: 5/);
+
+    // In the layout (alarms is byte 1): a click selects a flag, a drag moves the selected one
+    const cell = (bit: number) => page.locator(`.bg-cell[title="bit ${bit}"]`);
+    await cell(9).click();
+    await expect(page.getByRole("heading", { name: /^Flag overheat/ })).toBeVisible();
+    await cell(9).hover();
+    await page.mouse.down();
+    await cell(12).hover();
+    await page.mouse.up();
+    await expect.poll(yaml).toMatch(/name: overheat, bit: 4/);
+    // Over another flag it does not go
+    await cell(12).hover();
+    await page.mouse.down();
+    await cell(13).hover();
+    await page.mouse.up();
+    await expect.poll(yaml).toMatch(/name: overheat, bit: 4/);
   });
 
   test("the export preview renders the map", async ({ page, editor }) => {
@@ -241,7 +299,7 @@ test.describe("the start screen", () => {
     const message = page.locator(".diag-panel li.error").filter({ hasText: "number-comma" });
     await expect(message).toBeVisible();
     await message.click();
-    await expect(page.getByRole("heading", { name: "Signal pressure" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Object pressure" })).toBeVisible();
   });
 
   test("a DBC file is imported as a map next to it (#128)", async ({ page, editor }) => {
@@ -256,5 +314,47 @@ test.describe("the start screen", () => {
     if (await warnings.isVisible()) await page.getByRole("button", { name: "Close", exact: true }).click();
     await expect(tree(page).getByText("Pump", { exact: true })).toBeVisible();
     expect(existsSync(join(editor.dir, "demo.yaml"))).toBe(true);
+  });
+});
+
+test.describe("the object dictionary of a CANopen device (#151)", () => {
+  test.use({ files: { "drive.yaml": "examples/canopen-node.yaml" }, open: "drive.yaml" });
+
+  test("lists the objects by index, gives a subindex in place and opens an object in its frame with a click on its name", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await select(page, "Traction drive", "Objects");
+    await expect(page.getByRole("heading", { name: /^Object dictionary Traction drive/ })).toBeVisible();
+    const table = page.locator(".od-table");
+    const indices = () => table.locator("tbody tr:not(.od-entry) td:nth-child(2) input").evaluateAll(
+      (els) => els.map((e) => (e as HTMLInputElement).value));
+    await expect.poll(indices).toEqual(["0x2100", "0x6040", "0x6041", "0x606C", "0x60FF"]);
+    // Temperatures of one byte and a voltage of two: a record, opened to its entries
+    const record = table.locator("tr.od-group");
+    await expect(record).toContainText("RECORD");
+    await record.locator(".od-twisty").click();
+    const voltage = table.locator("tr.od-entry").filter({ hasText: "DC link voltage" });
+    const sub = voltage.getByRole("textbox", { name: "Subindex" });
+    await expect(sub).toHaveValue("0x03");
+    await sub.fill("4");
+    await sub.press("Enter");
+    await expect(sub).toHaveValue("0x04");
+    // Subindex 0 of a record holds the number of its entries: no object takes it, nor a VAR moved into the record
+    await sub.fill("0");
+    await sub.press("Enter");
+    await expect(page.locator(".toast.error")).toContainText("Subindex 0x00 of an array or a record");
+    await expect(sub).toHaveValue("0x04");
+    const controlword = table.locator("tr").filter({ hasText: "Controlword" }).getByRole("textbox", { name: "Index", exact: true });
+    await controlword.fill("0x2100");
+    await controlword.press("Enter");
+    await expect(controlword).toHaveValue("0x6040");
+
+    // Only the name leads to the frame, and the pointer shows it
+    await voltage.locator("td").last().click();
+    await expect(page.getByRole("heading", { name: /^Object dictionary Traction drive/ })).toBeVisible();
+    const name = voltage.locator(".od-link");
+    expect(await name.evaluate((e) => getComputedStyle(e).cursor)).toBe("pointer");
+    await name.click();
+    await expect(page.getByRole("heading", { name: /^Object DC link voltage/ })).toBeVisible();
+    await expect(field(page, "Subindex")).toHaveValue("0x04");
   });
 });

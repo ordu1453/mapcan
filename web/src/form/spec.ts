@@ -79,7 +79,8 @@ export interface FieldDef {
   mono?: boolean;
   /** Edited in a multi-line box in the VS Code panel. */
   multiline?: boolean;
-  /** Shown by the web editor in its own position and transmission controls rather than as a form field. */
+  /** Shown by the web editor in its own controls rather than as a form field: the position, the transmission, the
+   * frame's multiplexing (the VS Code form shows it as a field). */
   layout?: boolean;
 }
 
@@ -349,6 +350,13 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "byte_order", label: N_("Byte order"), type: "select", when: multiByte,
         options: () => [["", N_("little-endian (Intel)")], ["big_endian", N_("big-endian (Motorola)")]] },
     ] },
+    // The CANopen object the signal is: where it is in the dictionary (all objects of a device: its Objects page)
+    { title: N_("Object dictionary"), fields: [
+      { key: "index", label: N_("Index"), type: "hex", half: true, placeholder: "0x2000",
+        when: (c) => c.protocol === "canopen" },
+      { key: "subindex", label: N_("Subindex"), type: "hex", half: true, placeholder: "0x00",
+        when: (c) => c.protocol === "canopen" },
+    ] },
     { title: N_("Value"), fields: [
       { key: "unit", label: N_("Unit"), type: "unit", half: true, when: numeric },
       { key: "representation", label: N_("Number representation"), type: "select", half: true,
@@ -370,16 +378,13 @@ export const FORMS: Record<FormKind, Section[]> = {
         when: (c) => encoding(c) === "bytes" && (value(c, "charset") != null || value(c, "terminator") != null) },
       { key: "invalid_raw", label: N_("Not available (raw)"), type: "rawlist", half: true, mono: true,
         placeholder: "0xFF, 0xFF00..0xFFFF", when: integer },
-      { key: "index", label: N_("Dictionary object: index"), type: "hex", half: true, placeholder: "0x2000",
-        when: (c) => c.protocol === "canopen" },
-      { key: "subindex", label: N_("Dictionary object: subindex"), type: "hex", half: true, placeholder: "0x00",
-        when: (c) => c.protocol === "canopen" },
       { key: "spn", label: "SPN", type: "int", half: true, when: (c) => c.protocol === "j1939" },
       { key: "value_format", label: N_("Value format in documents"), type: "select", half: true,
         options: () => [["", N_("decimal")], ["hex", "hex"]], when: encodingIn("enum") },
     ] },
     { title: N_("Multiplexing"), fields: [
-      { key: "multiplexer", label: N_("mux selector"), type: "bool",
+      // The web editor chooses the selector in the frame's form (#149)
+      { key: "multiplexer", label: N_("mux selector"), type: "bool", layout: true,
         when: (c) => selectorLike(c) && !c.hasSelector },
       { key: "mux", label: N_("mux (selector values)"), type: "intlist", mono: true, placeholder: N_("0 or 1, 2"),
         when: (c) => c.hasSelector },
@@ -391,6 +396,8 @@ export const FORMS: Record<FormKind, Section[]> = {
       NAME,
       { key: "bit", label: N_("Bit in field"), type: "int", half: true, required: true },
       { key: "bit_length", label: N_("Length, bits"), type: "int", half: true, placeholder: "1" },
+      // A field with a value table may be the selector; the web editor chooses it in the frame's form (#149)
+      { key: "multiplexer", label: N_("mux selector"), type: "bool", layout: true },
     ] },
     NOTES,
   ],

@@ -2,11 +2,13 @@
 // Interactive bit map of a frame: DLC rows × 8 bits (bit 7 on the left, as in the documents).
 //  * dragging over two or more free bits, or a double click on one: a new signal (a click alone makes none);
 //  * dragging the selected signal: moving it;
-//  * handles on the least/most significant bit (little-endian): changing the length.
+//  * handles on the least/most significant bit (little-endian): changing the length;
+//  * in the selected bit field, a flag is selected by a click, moved by dragging and resized at its edges; Alt+drag
+//    moves the whole field (#150).
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { coexist, occupiedBits, rangeLabel } from "../bits";
-import { samePath, startsWith } from "../model";
-import type { Path, ResolvedFrame, ResolvedSignal } from "../types";
+import { flagFits, samePath, startsWith } from "../model";
+import type { Path, ResolvedFlag, ResolvedFrame, ResolvedSignal } from "../types";
 import { t } from "../i18n";
 
 const props = defineProps<{
@@ -15,25 +17,40 @@ const props = defineProps<{
   palette: string[];
   readonly?: boolean;
   muxValue: number | null;
+  /** The frame is CANopen: what it carries is called objects (#151). */
+  objects?: boolean;
 }>();
 const emit = defineEmits<{
   select: [path: Path];
   layout: [path: Path, start: number, length: number];
   create: [start: number, length: number];
+  /** A flag moved or resized: its first bit and length in the field. */
+  flag: [path: Path, bit: number, length: number];
   "update:muxValue": [value: number | null];
 }>();
 
 type Drag =
   | { mode: "create"; anchor: number; cur: number }
   | { mode: "move"; sig: ResolvedSignal; grab: number; cur: number }
-  | { mode: "resize"; sig: ResolvedSignal; edge: "lo" | "hi"; cur: number };
+  | { mode: "resize"; sig: ResolvedSignal; edge: "lo" | "hi"; cur: number }
+  // A flag of the selected field: grab is the bit of the field it is taken at
+  | { mode: "flag"; sig: ResolvedSignal; flag: ResolvedFlag; index: number; grab: number; cur: number }
+  | { mode: "flagsize"; sig: ResolvedSignal; flag: ResolvedFlag; index: number; edge: "lo" | "hi"; cur: number };
 
 const drag = ref<Drag | null>(null);
 const hover = ref<number | null>(null);
 
 const nbits = computed(() => props.frame.length * 8);
 
-const selector = computed(() => props.frame.signals.find((s) => s.multiplexer) ?? null);
+// The selector is a signal or a field of a bit field (#149): its name and value table
+const selector = computed<{ name: string; values: { value: number; name: string }[] } | null>(() => {
+  for (const s of props.frame.signals) {
+    if (s.multiplexer) return s;
+    const f = s.flags.find((x) => x.multiplexer);
+    if (f) return f;
+  }
+  return null;
+});
 const muxOptions = computed(() => {
   const sel = selector.value;
   if (!sel) return [];
@@ -50,16 +67,45 @@ function visible(s: ResolvedSignal): boolean {
 const selectedSignal = computed(() =>
   props.frame.signals.find((s) => startsWith(props.selected, s.path) && !s.synthetic) ?? null,
 );
-const selectedFlag = computed(() => {
+const selectedFlagIndex = computed(() => {
   const s = selectedSignal.value;
-  if (!s || props.selected.length !== s.path.length + 2) return null;
-  return s.flags[Number(props.selected[s.path.length + 1])] ?? null;
+  return s && props.selected.length === s.path.length + 2 ? Number(props.selected[s.path.length + 1]) : null;
+});
+const selectedFlag = computed(() =>
+  (selectedFlagIndex.value === null ? null : selectedSignal.value?.flags[selectedFlagIndex.value] ?? null));
+
+/** Bit of the field (0: its LSB) at a bit of the frame; -1 outside the field. */
+const fieldBit = (s: ResolvedSignal, bit: number) => s.occupied.indexOf(bit);
+
+/** Where a flag being dragged goes, in bits of its field. */
+const flagPlace = computed<{ bit: number; length: number } | null>(() => {
+  const d = drag.value;
+  if (d?.mode === "flag") {
+    const at = fieldBit(d.sig, d.cur);
+    return at < 0 ? null : { bit: d.flag.bit + at - d.grab, length: d.flag.bit_length };
+  }
+  if (d?.mode === "flagsize") {
+    const at = fieldBit(d.sig, d.cur);
+    if (at < 0) return null;
+    const lo = d.flag.bit;
+    const hi = d.flag.bit + d.flag.bit_length - 1;
+    return d.edge === "lo" ? { bit: Math.min(at, hi), length: hi - Math.min(at, hi) + 1 }
+      : { bit: lo, length: Math.max(at, lo) - lo + 1 };
+  }
+  return null;
 });
 
 /** Bits the signal will take during the current drag. */
-const preview = computed<{ start: number; length: number; bits: Set<number> } | null>(() => {
+const preview = computed<{ start: number; length: number; bits: Set<number>; bad?: boolean } | null>(() => {
   const d = drag.value;
   if (!d) return null;
+  if (d.mode === "flag" || d.mode === "flagsize") {
+    const f = flagPlace.value;
+    if (!f) return null;
+    const bits = d.sig.occupied.slice(Math.max(f.bit, 0), f.bit + f.length);
+    return { start: f.bit, length: f.length, bits: new Set(bits),
+      bad: !flagFits(d.sig.flags, d.index, f.bit, f.length, d.sig.bit_length) };
+  }
   let start: number;
   let length: number;
   let be = false;
@@ -98,7 +144,7 @@ interface Cell {
 
 const cells = computed<Cell[]>(() => {
   const out: Cell[] = [];
-  const dragged = drag.value && drag.value.mode !== "create" ? drag.value.sig : null;
+  const dragged = drag.value && (drag.value.mode === "move" || drag.value.mode === "resize") ? drag.value.sig : null;
   for (let bit = 0; bit < nbits.value; bit++) {
     const owners = props.frame.signals.filter(
       (s) => visible(s) && s.occupied.includes(bit) && !(dragged && samePath(s.path, dragged.path)),
@@ -218,7 +264,7 @@ function cellClass(c: Cell) {
     selected: isSel,
     "flag-selected": flagSel,
     preview: !!p && p.bits.has(c.bit),
-    "preview-bad": !!p && p.bits.has(c.bit) && (c.owners.length > 0 || c.bit >= nbits.value),
+    "preview-bad": !!p && p.bits.has(c.bit) && (p.bad ?? (c.owners.length > 0 || c.bit >= nbits.value)),
     synthetic: c.owners.length > 0 && c.owners.every((s) => s.synthetic),
     ...pillEdges(c),
   };
@@ -234,7 +280,16 @@ function cellStyle(c: Cell) {
 /** Length handles in the cell; a one-bit signal has both in one cell. */
 function handles(c: Cell): Array<"lo" | "hi"> {
   const s = selectedSignal.value;
-  if (!s || props.readonly || s.byte_order === "big_endian") return [];
+  if (!s || props.readonly) return [];
+  // The selected flag is resized at its first and last bit of the field
+  const f = selectedFlag.value;
+  if (f) {
+    const out: Array<"lo" | "hi"> = [];
+    if (c.bit === f.occupied[0]) out.push("lo");
+    if (c.bit === f.occupied[f.occupied.length - 1]) out.push("hi");
+    return out;
+  }
+  if (s.byte_order === "big_endian") return [];
   const out: Array<"lo" | "hi"> = [];
   if (c.bit === s.start_bit) out.push("lo");
   if (c.bit === s.start_bit + s.bit_length - 1) out.push("hi");
@@ -253,14 +308,30 @@ function onDown(c: Cell, e: MouseEvent) {
   // The length changes at the edge of an end bit (the handle, shown by the cursor); the rest of the signal moves it
   const grip = (e.target as HTMLElement).dataset?.edge as "lo" | "hi" | undefined;
   const h = grip && hs.includes(grip) ? grip : null;
+  const flag = selectedFlag.value;
+  if (h && sel && flag) {
+    drag.value = { mode: "flagsize", sig: sel, flag, index: selectedFlagIndex.value!, edge: h, cur: c.bit };
+    return;
+  }
   if (h && sel) {
     drag.value = { mode: "resize", sig: sel, edge: h, cur: c.bit };
+    return;
+  }
+  // A flag of the selected field: the first click selects it, the selected one is moved by dragging. Alt+drag and
+  // the bits of the field outside the flags move the whole field.
+  if (sel && c.inField && samePath(c.owners[0].path, sel.path) && c.flagIndex !== null && !e.altKey) {
+    const flagPath = [...sel.path, "flags", c.flagIndex];
+    if (!samePath(props.selected, flagPath)) emit("select", flagPath);
+    else if (!props.readonly) {
+      drag.value = { mode: "flag", sig: sel, flag: sel.flags[c.flagIndex], index: c.flagIndex,
+        grab: fieldBit(sel, c.bit), cur: c.bit };
+    }
     return;
   }
   const own = c.owners.find((s) => sel && samePath(s.path, sel.path)) ?? c.owners[0];
   if (own) {
     // The first click only selects a signal; the selected one is moved by dragging (a stray click moves nothing)
-    if (!samePath(props.selected, own.path)) {
+    if (!startsWith(props.selected, own.path)) {
       emit("select", own.synthetic ? props.frame.path : own.path);
       return;
     }
@@ -280,6 +351,12 @@ function onUp() {
   const p = preview.value;
   drag.value = null;
   if (!d || !p) return;
+  if (d.mode === "flag" || d.mode === "flagsize") {
+    if (!p.bad && (p.start !== d.flag.bit || p.length !== d.flag.bit_length)) {
+      emit("flag", [...d.sig.path, "flags", d.index], p.start, p.length);
+    }
+    return;
+  }
   if (d.mode === "create") {
     // A click on a free bit makes no signal (a double click does): it only leaves the selected one
     if (p.length >= 2) emit("create", p.start, p.length);
@@ -316,7 +393,11 @@ const status = computed(() => {
   const p = preview.value;
   const d = drag.value;
   if (p && d) {
-    const verb = d.mode === "create" ? t("New signal") : d.mode === "move" ? t("Move") : t("Length");
+    if (d.mode === "flag" || d.mode === "flagsize") {
+      return t("Flag {name}: bits {bits} of the field", { name: d.flag.name, bits: rangeLabel(p.start, p.start + p.length - 1) })
+        + (p.bad ? " · " + t("does not fit: outside the field or over another flag") : "");
+    }
+    const verb = d.mode === "create" ? (props.objects ? t("New object") : t("New signal")) : d.mode === "move" ? t("Move") : t("Length");
     return t("{verb}: bits {bits} ({n} bits)", { verb, bits: rangeLabel(p.start, p.start + p.length - 1), n: p.length });
   }
   if (hover.value !== null) {
@@ -326,9 +407,14 @@ const status = computed(() => {
     return t("bit {bit} — byte {byte}, bit {inbyte}", { bit: b, byte: Math.floor(b / 8), inbyte: b % 8 })
       + (who ? " · " + who : "") + (c?.flag ? " · " + c.flag : "");
   }
+  if (!props.readonly && selectedSignal.value?.flags.length) {
+    return t("Click a flag to select it, drag the selected flag to move it, its edge to resize. Alt+drag moves the whole field.");
+  }
   return props.readonly
     ? t("View only")
-    : t("Drag across two or more free bits to add a signal (double-click: one bit). Drag a signal to move it, its edge to resize.");
+    : props.objects
+      ? t("Drag across two or more free bits to add an object (double-click: one bit). Drag an object to move it, its edge to resize.")
+      : t("Drag across two or more free bits to add a signal (double-click: one bit). Drag a signal to move it, its edge to resize.");
 });
 </script>
 

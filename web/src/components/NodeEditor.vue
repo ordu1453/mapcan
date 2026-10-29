@@ -7,11 +7,11 @@ import { describe, fieldHelp, UI_HELP } from "../form/help";
 import { parseInteger, ParseError } from "../form/input";
 import { applies, CANOPEN_DLC, encodingChangeOps, FORMS, isRequired, optionsOf, placeholderOf, type FieldDef,
   type FormContext, type FormKind } from "../form/spec";
-import { deviceLabel, displayName, getAt, HISTORY_PATH, namedTable, nodeKind, ownerPath, pathKey, samePath, startsWith, txt }
-  from "../model";
-import { actions, includedPath, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast, viewData }
-  from "../store";
-import type { Diagnostic, Path } from "../types";
+import { deviceLabel, displayName, getAt, HISTORY_PATH, isCanopen, namedTable, nodeKind, OBJECTS, ownerPath, pathKey, samePath,
+  startsWith, txt } from "../model";
+import { actions, askUser, includedPath, lang, resolvedFrames, selectedFramePath, selectedResolvedFrame, store, toast,
+  viewData } from "../store";
+import type { Diagnostic, Op, Path } from "../types";
 import BitGrid from "./BitGrid.vue";
 import DocumentRequisites from "./DocumentRequisites.vue";
 import FieldInput from "./FieldInput.vue";
@@ -19,12 +19,14 @@ import FlagsTable from "./FlagsTable.vue";
 import HelpTip from "./HelpTip.vue";
 import HistoryEditor from "./HistoryEditor.vue";
 import InlineRename from "./InlineRename.vue";
+import ObjectsTable from "./ObjectsTable.vue";
 import ValueTable from "./ValueTable.vue";
 import { N_, t } from "../i18n";
 
 const KIND_LABEL: Record<string, string> = {
   document: N_("Document"), history: "", revision: N_("History entry"), bus: N_("Bus"),
-  device: N_("Device"), frame: N_("Frame"), signal: N_("Signal"), flag: N_("Flag"), sdo: N_("SDO exchange"), unknown: "",
+  device: N_("Device"), objects: N_("Object dictionary"), frame: N_("Frame"), signal: N_("Signal"), flag: N_("Flag"),
+  sdo: N_("SDO exchange"), unknown: "",
 };
 
 const path = computed<Path>(() => store.selected);
@@ -35,6 +37,9 @@ const node = computed(() => getAt(data.value, kind.value === "document" ? ["docu
 const includedFile = computed(() => includedPath(path.value));
 const readonly = computed(() => !!store.state?.readonly);
 const diags = computed(() => store.state?.diagnostics ?? []);
+// A signal of a CANopen frame is a dictionary object (CiA 301): the editor calls it so (#151)
+const canopen = computed(() => path.value[0] === "buses" && isCanopen(getAt(data.value, path.value.slice(0, 2))));
+const kindLabel = computed(() => (kind.value === "signal" && canopen.value ? N_("Object") : KIND_LABEL[kind.value]));
 
 // What the form's conditions know about the node (see FormContext in form/spec.ts)
 const formCtx = computed<FormContext>(() => {
@@ -52,7 +57,9 @@ const formCtx = computed<FormContext>(() => {
       .map((d: any) => ({ name: d.name, label: deviceLabel(d, lang.value) })),
     signalEncoding: s?.encoding ?? null,
     bitLength: s?.bit_length ?? null,
-    hasSelector: !!s && !!rframe.value?.signals.some((x) => x.multiplexer && !samePath(x.path, s.path)),
+    // The selector may be a field of another bit field; the bit field of the selector is not switched itself
+    hasSelector: !!s && !!rframe.value?.signals.some((x) => !samePath(x.path, s.path)
+      && (x.multiplexer || x.flags.some((f) => f.multiplexer))) && !s.flags.some((f) => f.multiplexer),
     frames: kind.value === "device" ? node.value?.frames ?? [] : undefined,
     hasHistory: kind.value === "document" && (node.value?.history ?? []).length > 0,
   };
@@ -175,7 +182,7 @@ const crumbs = computed(() => {
     const k = nodeKind(sub);
     if (k === "unknown" || k === "document") continue;
     const nd = getAt(data.value, sub);
-    const label = k === "history" ? t("Revision history") : k === "revision" ? nd?.version
+    const label = k === "history" ? t("Revision history") : k === "revision" ? nd?.version : k === "objects" ? t("Objects")
       : ["bus", "device", "frame", "signal"].includes(k) ? displayName(nd, lang.value) : nd?.name;
     out.push({ label, path: sub });
   }
@@ -370,12 +377,19 @@ const childFrames = computed(() => {
   });
 });
 
+/** Dictionary object of a signal as "0x2100:01" (index and subindex); "—" without an index. */
+function odLabel(s: any): string {
+  if (typeof s?.index !== "number") return "—";
+  return `${hex(s.index, 4)}:${(s.subindex ?? 0).toString(16).toUpperCase().padStart(2, "0")}`;
+}
+
 const frameSignals = computed(() => {
   if (kind.value !== "frame" || !rframe.value) return [];
   return rframe.value.signals.map((s) => ({
     s, label: s.synthetic ? s.name : displayName(getAt(data.value, s.path), lang.value),
     desc: txt(getAt(data.value, s.path)?.description, lang.value),
     bits: rangeLabel(Math.min(...s.occupied), Math.max(...s.occupied)),
+    od: odLabel(s.synthetic ? null : getAt(data.value, s.path)),
   }));
 });
 
@@ -438,6 +452,72 @@ function onCreate(start: number, length: number) {
 function onLayout(p: Path, start: number, length: number) {
   void actions.apply([{ op: "set_layout", path: p, start_bit: start, bit_length: length }]);
 }
+/** A flag moved or resized in the bit layout; a length of 1 is not written (#150). */
+function onFlag(p: Path, bit: number, length: number) {
+  const written = getAt(data.value, [...p, "bit_length"]) != null;
+  void actions.apply([{ op: "set", path: [...p, "bit"], value: bit },
+    ...(length > 1 ? [{ op: "set" as const, path: [...p, "bit_length"], value: length }]
+      : written ? [{ op: "remove" as const, path: [...p, "bit_length"] }] : [])]);
+}
+
+// ------------------------------------------------------------------ multiplexing of the frame (#149)
+
+// The selector is a signal or a field of a bit field that has a value table, and is not switched by a selector
+// itself; the selector written in the map is offered even if it is neither
+const muxControl = computed(() => {
+  if (kind.value !== "frame" || !rframe.value) return null;
+  const signals: any[] = Array.isArray(node.value?.signals) ? node.value.signals : [];
+  const options: { key: string; label: string; path: Path }[] = [];
+  let selector = "";
+  for (const s of rframe.value.signals) {
+    if (s.synthetic) continue;
+    const label = displayName(getAt(data.value, s.path), lang.value);
+    if (s.multiplexer) selector = pathKey(s.path);
+    if (s.multiplexer || (s.mux === null && s.values.length)) options.push({ key: pathKey(s.path), label, path: s.path });
+    s.flags.forEach((f, i) => {
+      const fp = [...s.path, "flags", i];
+      if (f.multiplexer) selector = pathKey(fp);
+      if (f.multiplexer || (s.mux === null && f.values.length)) options.push({ key: pathKey(fp), label: `${label} · ${f.name}`, path: fp });
+    });
+  }
+  return { selector, options, switched: signals.filter((x) => x?.mux != null).length };
+});
+
+async function setSelector(e: Event) {
+  const el = e.target as HTMLSelectElement;
+  const key = el.value;
+  const signals: any[] = Array.isArray(node.value?.signals) ? node.value.signals : [];
+  const at = (i: number) => [...path.value, "signals", i];
+  const ops: Op[] = [];
+  // The former selector, a signal or a field, stops being one
+  signals.forEach((x, i) => {
+    if (x?.multiplexer && pathKey(at(i)) !== key) ops.push({ op: "remove", path: [...at(i), "multiplexer"] });
+    (Array.isArray(x?.flags) ? x.flags : []).forEach((f: any, j: number) => {
+      const fp = [...at(i), "flags", j];
+      if (f?.multiplexer && pathKey(fp) !== key) ops.push({ op: "remove", path: [...fp, "multiplexer"] });
+    });
+  });
+  if (key) {
+    const chosen = muxControl.value?.options.find((o) => o.key === key);
+    if (chosen) ops.push({ op: "set", path: [...chosen.path, "multiplexer"], value: true });
+  } else {
+    // Without a selector the selector values of the signals mean nothing: they go too, after a question
+    const switched = signals.map((x, i) => (x?.mux != null ? i : -1)).filter((i) => i >= 0);
+    if (switched.length) {
+      const names = switched.map((i) => signals[i].name).join(", ");
+      const answer = await askUser(t("Turn multiplexing off"),
+        t("{names}: sent at certain selector values (mux). Turning multiplexing off removes these selector values.", { names }),
+        [{ label: t("Cancel"), value: "cancel" }, { label: t("Turn off"), value: "off", kind: "danger" }]);
+      if (answer !== "off") {
+        el.value = muxControl.value?.selector ?? "";
+        return;
+      }
+      for (const i of switched) ops.push({ op: "remove", path: [...at(i), "mux"] });
+    }
+  }
+  if (framePath.value) store.muxView[pathKey(framePath.value)] = null;
+  if (ops.length) void actions.apply(ops);
+}
 </script>
 
 <template>
@@ -451,7 +531,7 @@ function onLayout(p: Path, start: number, length: number) {
           </template>
         </div>
         <h2>
-          <span v-if="KIND_LABEL[kind]" class="kind-badge">{{ t(KIND_LABEL[kind]) }}</span>
+          <span v-if="kindLabel" class="kind-badge">{{ t(kindLabel) }}</span>
           <InlineRename v-if="renaming" :path="path" :field="renaming"
                         :value="renaming === 'title' ? nodeTitle : node?.[renaming] ?? ''" @done="renaming = null" />
           <template v-else-if="canRename(path)">
@@ -466,7 +546,8 @@ function onLayout(p: Path, start: number, length: number) {
           </template>
           <template v-else>
             {{ kind === "document" ? txt(node?.title, lang) : kind === "history" ? t("Revision history")
-              : kind === "revision" ? node?.version : node?.name }}
+              : kind === "revision" ? node?.version : kind === "objects" ? displayName(getAt(data, path.slice(0, -1)), lang)
+                : node?.name }}
           </template>
           <span v-if="kind === 'frame' && rframe" class="mono id-badge">{{ hex(rframe.can_id, rframe.extended ? 8 : 3) }}</span>
         </h2>
@@ -512,12 +593,14 @@ function onLayout(p: Path, start: number, length: number) {
       <!-- The "Bits" tab at the right end of the heading, over the row of bit numbers like the tab of a folder -->
       <h3 class="layout-head">{{ t("Frame layout") }} <span class="muted">{{ frameData?.name }} · {{ t("{n} bytes", { n: rframe.length }) }}</span>
         <span class="bitgrid-tab">{{ t("Bits") }}</span></h3>
-      <BitGrid :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly"
+      <BitGrid :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly" :objects="canopen"
                v-model:mux-value="muxValue"
-               @select="actions.select" @create="onCreate" @layout="onLayout" />
+               @select="actions.select" @create="onCreate" @layout="onLayout" @flag="onFlag" />
     </section>
 
-    <section v-if="kind !== 'history'" class="card">
+    <ObjectsTable v-if="kind === 'objects'" :key="pathKey(path)" :device="path.slice(0, -1)" />
+
+    <section v-if="kind !== 'history' && kind !== 'objects'" class="card">
       <h3>{{ t("Properties") }} <span v-if="hasRequired" class="muted req-note"><span class="req">*</span> {{ t("— required field") }}</span></h3>
       <!-- One row per section: its name on the left, its fields in a grid on the right (short fields take one
            column, the others two, texts the whole row) -->
@@ -588,6 +671,24 @@ function onLayout(p: Path, start: number, length: number) {
                         @commit="(v, at) => commit(def, v, at)" />
           </div>
         </div>
+        <!-- Multiplexing of the frame: the selector among its signals (#149); each switched signal names its
+             selector values in its own form -->
+        <div v-if="muxControl" class="form-row">
+          <h4 class="form-section">{{ t("Multiplexing") }}</h4>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field-label"><HelpTip :text="UI_HELP.mux" />{{ t("Selector (mux)") }}</span>
+              <select :value="muxControl.selector" :disabled="readonly" @change="setSelector">
+                <option value="">{{ t("off — no multiplexing") }}</option>
+                <option v-for="o in muxControl.options" :key="o.key" :value="o.key">{{ o.label }}</option>
+              </select>
+              <span v-if="muxControl.selector" class="field-hint">
+                {{ t("sent at certain selector values: {n}", { n: muxControl.switched }) }}</span>
+              <span v-else-if="!muxControl.options.length" class="field-hint">
+                {{ t("the selector is a signal or a bit field's field with a value table") }}</span>
+            </label>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -605,44 +706,51 @@ function onLayout(p: Path, start: number, length: number) {
     </section>
     <ValueTable v-else-if="showValues" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
                 :readonly="readonly" :diags="diags" />
-    <FlagsTable v-if="showFlags" class="card" :path="path" :flags="node?.flags" :readonly="readonly" :diags="diags" />
+    <FlagsTable v-if="showFlags" class="card" :path="path" :flags="node?.flags" :readonly="readonly" :diags="diags"
+                :field-length="rsignal?.bit_length ?? null" />
 
     <!-- Signals of the frame -->
     <section v-if="kind === 'frame'" class="card">
       <h3>
-        {{ t("Signals") }} <span class="muted">{{ frameSignals.length }}</span>
+        {{ canopen ? t("Objects") : t("Signals") }} <span class="muted">{{ frameSignals.length }}</span>
         <span v-if="!readonly" class="card-actions">
           <button v-if="canAddSdo" class="small" @click="addSdo(path)">+ {{ t("SDO exchange") }}</button>
-          <button class="small" @click="addSignal(path)">+ {{ t("Signal") }}</button>
+          <button class="small" @click="addSignal(path)">+ {{ canopen ? t("Object") : t("Signal") }}</button>
         </span>
       </h3>
       <table v-if="frameSignals.length" class="list">
-        <thead><tr><th></th><th>{{ t("Signal") }}</th><th>{{ t("Bits") }}</th><th>{{ t("Type") }}</th><th>{{ t("Description") }}</th></tr></thead>
+        <thead><tr><th></th><th>{{ canopen ? t("Object") : t("Signal") }}</th><th v-if="canopen">{{ t("Index") }}</th>
+          <th>{{ t("Bits") }}</th><th>{{ t("Type") }}</th><th>{{ t("Description") }}</th></tr></thead>
         <tbody>
           <tr v-for="(r, i) in frameSignals" :key="r.s.name" class="clickable"
               @click="actions.select(r.s.synthetic ? path : r.s.path)">
             <td><span class="swatch" :style="{ background: store.state.palette[i % store.state.palette.length] }" /></td>
             <td>{{ r.label }}<span v-if="r.label !== r.s.name" class="ident">{{ r.s.name }}</span><span
               v-if="r.s.synthetic" class="muted"> (SDO)</span></td>
+            <td v-if="canopen" class="mono">{{ r.od }}</td>
             <td class="mono">{{ r.bits }}</td>
             <td>{{ r.s.encoding }}<span v-if="r.s.mux" class="muted"> · mux {{ r.s.mux.join(", ") }}</span></td>
             <td>{{ r.desc }}</td>
           </tr>
         </tbody>
       </table>
-      <p v-else class="muted">{{ t("No signals yet. Drag across the bits in the layout above or click “+ Signal”.") }}</p>
+      <p v-else class="muted">{{ canopen ? t("No objects yet. Drag across the bits in the layout above or click “+ Object”.")
+        : t("No signals yet. Drag across the bits in the layout above or click “+ Signal”.") }}</p>
     </section>
 
     <!-- Frames of the device / bus -->
     <section v-if="kind === 'bus' || kind === 'device'" class="card">
       <h3>
         {{ t("Frames") }} <span class="muted">{{ childFrames.length }}</span>
-        <span v-if="!readonly" class="card-actions">
-          <button class="small" @click="addFrame(path)">+ {{ t("Frame") }}</button>
+        <span class="card-actions">
+          <button v-if="kind === 'device' && canopen" class="small"
+                  @click="actions.select([...path, OBJECTS])">{{ t("Object dictionary") }}</button>
+          <button v-if="!readonly" class="small" @click="addFrame(path)">+ {{ t("Frame") }}</button>
         </span>
       </h3>
       <table v-if="childFrames.length" class="list">
-        <thead><tr><th>ID</th><th>{{ t("Frame") }}</th><th>{{ t("Type") }}</th><th>{{ t("Signals") }}</th><th>{{ t("Description") }}</th><th v-if="!readonly"></th></tr></thead>
+        <thead><tr><th>ID</th><th>{{ t("Frame") }}</th><th>{{ t("Type") }}</th><th>{{ canopen ? t("Objects") : t("Signals") }}</th>
+          <th>{{ t("Description") }}</th><th v-if="!readonly"></th></tr></thead>
         <tbody>
           <tr v-for="f in childFrames" :key="f.name" class="clickable" @click="actions.select(f.path)">
             <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td><td>{{ f.type }}</td>

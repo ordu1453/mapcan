@@ -1,7 +1,7 @@
 // Structural edits: add / delete / duplicate a node.
 
 import { actions, askText, includedPath, lang, resolvedFrames, store, toast, viewData } from "./store";
-import { allFrameNames, freeByte, getAt, HISTORY_PATH, nodeKind, pathKey, txt, uniqueName, type Data, type NodeKind } from "./model";
+import { allFrameNames, freeByte, getAt, HISTORY_PATH, isCanopen, nodeKind, pathKey, txt, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
 import { t } from "./i18n";
 
@@ -158,7 +158,8 @@ export const addSignal = exclusive(function addSignal(framePath: Path, layout?: 
     names.add(s.name);
     for (const f of s.flags ?? []) names.add(f.name);
   }
-  const value = { name: uniqueName(name || "signal", names), encoding: "number" };
+  // A signal of a CANopen frame is a dictionary object (#151)
+  const value = { name: uniqueName(name || (isCanopen(busOf(framePath)) ? "object" : "signal"), names), encoding: "number" };
   const extra: Op[] = [];
   let pos = layout;
   if (!pos) {

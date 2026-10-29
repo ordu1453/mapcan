@@ -3,8 +3,8 @@
 import { computed, reactive } from "vue";
 import { api, ApiError, connectEvents } from "./api";
 import { t } from "./i18n";
-import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, includedFile, localPath, nodeKind, ownerPath, pathKey,
-  samePath, viewOf } from "./model";
+import { buildTree, diagIndex, framePathOf, getAt, HISTORY_PATH, includedFile, isCanopen, localPath, nodeKind, ownerPath,
+  pathKey, samePath, viewOf } from "./model";
 import type { Diagnostic, Meta, Op, Path, GitStatus, PdfTemplate, ResolvedFrame, SessionResult, State, UpdateInfo } from "./types";
 
 interface Toast {
@@ -145,7 +145,10 @@ function accept(s: State): void {
   if (s.data) {
     let p = store.selected;
     const view = viewOf(s);   // the selected node may also be a node of an included file
-    const exists = (x: Path) => getAt(view, x) !== undefined || (samePath(x, HISTORY_PATH) && !!s.data.document);
+    // The object dictionary of a device is a page of the tree, there while its device is (on a CANopen bus)
+    const exists = (x: Path) => (nodeKind(x) === "objects"
+      ? isCanopen(getAt(view, x.slice(0, 2))) && getAt(view, x.slice(0, -1)) !== undefined
+      : getAt(view, x) !== undefined || (samePath(x, HISTORY_PATH) && !!s.data.document));
     while (p.length > 1 && !exists(p)) p = p.slice(0, -1);
     if (p.length === 1 && p[0] !== "document" && getAt(view, p) === undefined) p = ["document"];
     // A path like […, "signals"] is a list, not a tree node: select its owner (a frame etc.)

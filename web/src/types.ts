@@ -22,7 +22,10 @@ export interface ResolvedFlag {
   name: string;
   bit: number;
   bit_length: number;
+  /** The field is the frame's multiplexer selector (#149). */
+  multiplexer: boolean;
   occupied: number[];
+  values: ResolvedValue[];
 }
 
 export interface ResolvedValue {

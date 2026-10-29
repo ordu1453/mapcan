@@ -29,6 +29,10 @@ defineProps<{ kind: string; dir?: string | null; hint?: string }>();
       <rect x="4" y="4" width="8" height="8" rx="1" /><rect x="6.3" y="6.3" width="3.4" height="3.4" rx=".4" />
       <path d="M6 1.8V4M10 1.8V4M6 12v2.2M10 12v2.2M1.8 6H4M1.8 10H4M12 6h2.2M12 10h2.2" />
     </template>
+    <!-- object dictionary of a device: a table of index rows -->
+    <template v-else-if="kind === 'objects'">
+      <rect x="2" y="2.5" width="12" height="11" rx="1" /><path d="M2 6h12M2 9.5h12M6 2.5v11" />
+    </template>
     <!-- frame: a packet + the direction -->
     <template v-else-if="kind === 'frame'">
       <rect x="1.5" y="4.5" width="9" height="7" rx="1" /><path d="M3.5 7h2M3.5 9h4" />

@@ -258,6 +258,20 @@ td { padding: 3px 6px; border-bottom: 1px solid var(--line); vertical-align: top
 table.list tr.clickable { cursor: pointer; }
 table.list tr.clickable:hover { background: var(--hover); }
 table.list .act { width: 1%; text-align: right; white-space: nowrap; }
+/* Object dictionary of a device: an index and a subindex edited in place, entries of an array or a record indented */
+.od-note { margin: 0 0 8px; }
+.od-table td { vertical-align: middle; }
+.od-table input { width: 8ch; padding: 2px 4px; }
+.od-table tr.error input { border-color: var(--error); background: var(--error-soft); }
+.od-table tr.warning input { border-color: var(--warning); background: var(--warning-soft); }
+.od-table .od-twisty { width: 1%; cursor: pointer; color: var(--muted); user-select: none; }
+.od-table tr.od-group td { font-weight: 600; }
+.od-table tr.od-group td.muted { font-weight: normal; cursor: pointer; }
+.od-table tr.od-entry td:nth-child(2) { padding-left: 18px; }
+.od-table tr.selected { background: var(--accent-soft); }
+/* Only the name of an object leads to its frame (a click), and the pointer says so */
+.od-table .od-link { cursor: pointer; }
+.od-table tr.od-sep td { font-weight: 600; font-size: 11px; color: var(--muted); padding-top: 10px; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line-strong); }
 
 .subtable header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
@@ -266,6 +280,9 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .subtable td input:focus { background: var(--panel); }
 .subtable .num { width: 90px; }
 .subtable .act { width: 64px; text-align: right; white-space: nowrap; }
+.subtable .pick { width: 1%; }
+.subtable .pick input, .subtable td.pick input { width: auto; }
+.subtable .flag-shift { margin-left: auto; margin-right: 8px; display: flex; gap: 6px; align-items: center; font-size: 12px; }
 .subtable tr.error td:first-child { box-shadow: inset 3px 0 var(--error); }
 .subtable tr.warning td:first-child { box-shadow: inset 3px 0 var(--warning); }
 
@@ -337,6 +354,8 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .bg-field-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bg-label.on-pill { padding-top: 11px; padding-bottom: 3px; border-top: 0; }
 /* Length handles: the edge of the end bit, without a visible bar; the cursor shows them */
+/* The selected flag of a bit field is moved by dragging (#150) */
+.bg-cell.flag-selected { cursor: grab; }
 .grip { position: absolute; top: 0; bottom: 0; width: 8px; background: transparent; cursor: ew-resize; z-index: 3; }
 .grip.lo { right: 0; }
 .grip.hi { left: 0; }
