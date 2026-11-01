@@ -25,7 +25,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Site
         run: |
           mkdir -p _site/schema
@@ -46,7 +46,7 @@ jobs:
           <a href="schema/v2.json">a map</a>, <a href="schema/part-v2.json">a file included by a map</a>
           (format version 1: <a href="schema/v1.json">a map</a>, <a href="schema/part-v1.json">an included file</a>).</p>
           EOF
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
 
   deploy:
     needs: build
@@ -59,4 +59,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
