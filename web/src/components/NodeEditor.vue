@@ -11,6 +11,7 @@ import { actions, askUser, includedPath, lang, resolvedFrames, selectedFramePath
   viewData } from "../store";
 import type { Diagnostic, Op, Path } from "../types";
 import BitGrid from "./BitGrid.vue";
+import SdoFrame from "./SdoFrame.vue";
 import DocumentRequisites from "./DocumentRequisites.vue";
 import FieldInput from "./FieldInput.vue";
 import FlagsTable from "./FlagsTable.vue";
@@ -18,13 +19,14 @@ import HelpTip from "./HelpTip.vue";
 import HistoryEditor from "./HistoryEditor.vue";
 import InlineRename from "./InlineRename.vue";
 import ObjectsTable from "./ObjectsTable.vue";
+import { dictionary, kindOf, objectTypeOps, objectValue, withSdo } from "../od";
 import ValueTable from "./ValueTable.vue";
 import { N_, t } from "../i18n";
 
 const KIND_LABEL: Record<string, string> = {
   document: N_("Document"), history: "", revision: N_("History entry"), bus: N_("Bus"),
   device: N_("Device"), objects: N_("Object dictionary"), frame: N_("Frame"), signal: N_("Signal"), flag: N_("Flag"),
-  sdo: N_("SDO exchange"), unknown: "",
+  sdo: N_("SDO exchange"), object: N_("Object"), od_entry: N_("Entry"), unknown: "",
 };
 
 const path = computed<Path>(() => store.selected);
@@ -85,10 +87,12 @@ const sections = computed(() => (FORMS[kind.value as FormKind] ?? [])
     title: sec.title,
     custom: customOf(sec.title),
     fields: sec.fields
+      .filter((f) => !(kind.value === "object" && kindOf(node.value) !== "var"
+        && ["data_type", "default", "source", "unit"].includes(f.key)))
       .filter((f) => !f.layout && (applies(f, formCtx.value) || fieldValue(f) != null
         || fieldDiags(f).some((d) => d.level !== "info")))
       .map((f) => ({ ...f, help: fieldHelp(kind.value as FormKind, f), isRequired: isRequired(f, formCtx.value),
-        shownOptions: optionsOf(f, formCtx.value) })),
+        shownOptions: optionsOf(f, formCtx.value).filter(([v]) => f.key !== "data_type" || !["array", "record"].includes(String(v))) })),
   }))
   .filter((sec) => sec.fields.length || (sec.custom === "position" ? !!rsignal.value : !!sec.custom)));
 const fields = computed(() => sections.value.flatMap((sec) => sec.fields));
@@ -98,6 +102,8 @@ const viaLabel = computed(() =>
 const hasRequired = computed(() => fields.value.some((f) => f.isRequired));
 
 function fieldValue(def: FieldDef) {
+  // An array or a record shows its kind as the data type of the object
+  if (kind.value === "object" && def.key === "data_type" && kindOf(node.value) !== "var") return kindOf(node.value);
   return getAt(node.value, def.key.split("."));
 }
 
@@ -135,6 +141,14 @@ function commit(def: FieldDef, value: unknown, at?: Path) {
     void renameNode(path.value, String(value ?? "")).then((err) => { if (err) toast(err); });
     return;
   }
+  // A dictionary object becomes a variable or an object of entries; its value is a number unless it is a string
+  // An edit of the dictionary carries over to the object of the SDO frames of the devices
+  const dict = (ops: Op[]) => (kind.value === "object" || kind.value === "od_entry" ? withSdo(data.value, path.value.slice(0, 2), ops) : ops);
+  if (kind.value === "object" && def.key === "data_type") {
+    void actions.apply(dict(objectTypeOps(path.value, node.value ?? {}, String(value ?? ""))));
+    return;
+  }
+  if ((kind.value === "object" || kind.value === "od_entry") && def.key === "default") value = objectValue(value, node.value?.data_type);
   // Changing the CANopen type: a written length not allowed for the new type is removed, the type's length applies
   const allowed = kind.value === "frame" && def.key === "canopen" ? CANOPEN_DLC[String(value ?? "")] : undefined;
   const length = node.value?.length;
@@ -154,10 +168,10 @@ function commit(def: FieldDef, value: unknown, at?: Path) {
   const rec = node.value?.receivers;
   const leaves = kind.value === "frame" && def.key === "sender" && Array.isArray(rec) && rec.includes(value);
   const rest = leaves ? rec.filter((r: unknown) => r !== value) : [];
-  void actions.apply([{ op: "set", path: [...path.value, ...def.key.split(".")], value },
+  void actions.apply(dict([{ op: "set", path: [...path.value, ...def.key.split(".")], value },
     ...(allowed && length != null && !allowed.includes(length) ? [{ op: "remove" as const, path: [...path.value, "length"] }] : []),
     ...(leaves ? [rest.length ? { op: "set" as const, path: [...path.value, "receivers"], value: rest }
-      : { op: "remove" as const, path: [...path.value, "receivers"] }] : [])]);
+      : { op: "remove" as const, path: [...path.value, "receivers"] }] : [])]));
 }
 
 // The heading has the title for people (with the abbreviation for a device) and the identifier; each part is edited with a double click
@@ -203,6 +217,32 @@ const crumbs = computed(() => {
 const rframe = computed(() => selectedResolvedFrame.value);
 const framePath = computed(() => selectedFramePath.value);
 const frameData = computed(() => (framePath.value ? getAt(data.value, framePath.value) : null));
+const isSdoFrame = computed(() => canopen.value && ["sdo_rx", "sdo_tx"].includes(frameData.value?.canopen));
+
+// A signal of an SDO frame that mapcan lays out itself, selected in the layout or the list: shown, not edited. The
+// values of the object (bytes 1..3) are the objects of the device's dictionary, each a link to its object.
+const synthName = ref<string | null>(null);
+watch(() => pathKey(path.value), () => { synthName.value = null; });
+const synthSignal = computed(() =>
+  (kind.value === "frame" && synthName.value ? rframe.value?.signals.find((s) => s.synthetic && s.name === synthName.value) ?? null : null));
+const synthDict = computed(() => {
+  const fp = framePath.value;
+  if (!fp) return [];
+  return dictionary(data.value, fp.slice(0, 2), fp[2] === "devices" ? fp.slice(0, 4) : null);
+});
+const synthValues = computed(() => {
+  const s = synthSignal.value;
+  if (!s) return [];
+  return s.values.map((v) => {
+    if (s.name !== "sdo_object") return { ...v, raw: hex(v.value, 2), od: "", target: null as Path | null };
+    const index = v.value & 0xffff;
+    const sub = v.value >> 16;
+    const row = synthDict.value.find((r) => r.index === index);
+    const ei = row && Array.isArray(row.obj?.entries) ? row.obj.entries.findIndex((e: any) => e?.subindex === sub) : -1;
+    return { ...v, raw: hex(v.value, 6), od: `${hex(index, 4)}:${hex(sub, 2).slice(2)}`,
+      target: row ? (ei >= 0 ? [...row.path, "entries", ei] : row.path) : null };
+  });
+});
 
 const muxValue = computed({
   get: () => (framePath.value ? store.muxView[pathKey(framePath.value)] ?? null : null),
@@ -296,17 +336,19 @@ function setSource(e: Event) {
 
 // ------------------------------------------------------------------ Esc: up to the node above
 
-// Esc in a signal, a flag or an SDO exchange goes back to its frame (a flag to its signal), as a breadcrumb does.
+// Esc in a signal, a flag or an SDO exchange goes back to its frame (a flag to its signal), in a dictionary object to
+// its dictionary (an entry to its object), as a breadcrumb does.
 // A field being typed in is written first (it loses focus); Esc handled by a dialog, the help, a list of units or
 // a drag of the bit layout does not leave the node.
 const root = ref<HTMLElement | null>(null);
 function onEscape(e: KeyboardEvent) {
-  if (e.key !== "Escape" || e.defaultPrevented || !["signal", "flag", "sdo"].includes(kind.value)) return;
+  if (e.key !== "Escape" || e.defaultPrevented || !["signal", "flag", "sdo", "object", "od_entry"].includes(kind.value)) return;
   if (document.querySelector(".modal-backdrop") || !root.value?.offsetParent) return;
   const target = e.target as HTMLElement | null;
   if (target?.closest(".yaml-editor")) return;
   if (target?.matches("input, textarea, select")) target.blur();
-  void actions.select(path.value.slice(0, -2));
+  // A dictionary object goes back to its dictionary
+  void actions.select(path.value.slice(0, kind.value === "object" ? -1 : -2));
 }
 onMounted(() => window.addEventListener("keydown", onEscape));
 onBeforeUnmount(() => window.removeEventListener("keydown", onEscape));
@@ -604,14 +646,36 @@ async function setSelector(e: Event) {
       <!-- The "Bits" tab at the right end of the heading, over the row of bit numbers like the tab of a folder -->
       <h3 class="layout-head">{{ t("Frame layout") }} <span class="muted">{{ frameData?.name }} · {{ t("{n} bytes", { n: rframe.length }) }}</span>
         <span class="bitgrid-tab">{{ t("Bits") }}</span></h3>
-      <BitGrid :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly" :objects="canopen"
-               v-model:mux-value="muxValue"
+      <SdoFrame v-if="isSdoFrame" :direction="frameData.canopen" :frame="rframe" :palette="store.state.palette" />
+      <BitGrid v-else :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly" :objects="canopen"
+               v-model:mux-value="muxValue" :synthetic="synthName" @synthetic="synthName = $event"
                @select="actions.select" @create="onCreate" @layout="onLayout" @flag="onFlag" />
     </section>
 
-    <ObjectsTable v-if="kind === 'objects'" :key="pathKey(path)" :device="path.slice(0, -1)" />
+    <!-- A signal of an SDO frame laid out by mapcan: its place and its values, which come from the dictionary -->
+    <section v-if="synthSignal && !isSdoFrame" class="card">
+      <h3>{{ synthSignal.name }} <span class="muted">{{ t("bits {range}", { range: rangeLabel(Math.min(...synthSignal.occupied), Math.max(...synthSignal.occupied)) }) }}
+        · {{ synthSignal.encoding }}</span></h3>
+      <p class="muted">
+        {{ synthSignal.name === "sdo_object"
+          ? t("The index (bytes 1–2) and the subindex (byte 3) of the object. Its values are the objects of the dictionary and those the SDO exchanges address: they are written in the map as the objects of the bus and of the device, not here.")
+          : t("mapcan lays this out from the SDO exchanges of the frame.") }}
+      </p>
+      <table v-if="synthValues.length" class="list">
+        <thead><tr><th>{{ t("Value") }}</th><th v-if="synthSignal.name === 'sdo_object'">{{ t("Object") }}</th><th>{{ t("Name") }}</th></tr></thead>
+        <tbody>
+          <tr v-for="v in synthValues" :key="v.value" :class="{ clickable: !!v.target }" @click="v.target && actions.select(v.target)">
+            <td class="mono">{{ v.raw }}</td>
+            <td v-if="synthSignal.name === 'sdo_object'" class="mono">{{ v.od }}</td>
+            <td class="mono">{{ v.name }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
-    <section v-if="kind !== 'history' && kind !== 'objects'" class="card">
+    <ObjectsTable v-if="kind === 'objects'" :key="pathKey(path)" :owner="path.slice(0, -1)" />
+
+    <section v-if="kind !== 'history' && kind !== 'objects' && !isSdoFrame" class="card">
       <h3>{{ t("Properties") }} <span v-if="hasRequired" class="muted req-note"><span class="req">*</span> {{ t("— required field") }}</span></h3>
       <!-- One row per section: its name on the left, its fields in a grid on the right (short fields take one
            column, the others two, texts the whole row) -->
@@ -721,7 +785,7 @@ async function setSelector(e: Event) {
                 :field-length="rsignal?.bit_length ?? null" />
 
     <!-- Signals of the frame -->
-    <section v-if="kind === 'frame'" class="card">
+    <section v-if="kind === 'frame' && !isSdoFrame" class="card">
       <h3>
         {{ canopen ? t("Objects") : t("Signals") }} <span class="muted">{{ frameSignals.length }}</span>
         <span v-if="!readonly" class="card-actions">
@@ -734,7 +798,7 @@ async function setSelector(e: Event) {
           <th>{{ t("Bits") }}</th><th>{{ t("Type") }}</th><th>{{ t("Description") }}</th></tr></thead>
         <tbody>
           <tr v-for="(r, i) in frameSignals" :key="r.s.name" class="clickable"
-              @click="actions.select(r.s.synthetic ? path : r.s.path)">
+              @click="r.s.synthetic ? (synthName = r.s.name) : actions.select(r.s.path)">
             <td><span class="swatch" :style="{ background: store.state.palette[i % store.state.palette.length] }" /></td>
             <td>{{ r.label }}<span v-if="r.label !== r.s.name" class="ident">{{ r.s.name }}</span><span
               v-if="r.s.synthetic" class="muted"> (SDO)</span></td>
@@ -754,7 +818,7 @@ async function setSelector(e: Event) {
       <h3>
         {{ t("Frames") }} <span class="muted">{{ childFrames.length }}</span>
         <span class="card-actions">
-          <button v-if="kind === 'device' && canopen" class="small"
+          <button v-if="canopen" class="small"
                   @click="actions.select([...path, OBJECTS])">{{ t("Object dictionary") }}</button>
           <button v-if="!readonly" class="small" @click="addFrame(path)">+ {{ t("Frame") }}</button>
         </span>

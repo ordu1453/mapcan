@@ -7,7 +7,7 @@
 // is closed from here once it is there.
 import { downloadAndUnzipVSCode } from "@vscode/test-electron";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +20,10 @@ const server =
   (process.platform === "win32" ? join(venv, "Scripts", "mapcan.exe") : join(venv, "bin", "mapcan"));
 const workspace = mkdtempSync(join(tmpdir(), "mapcan-ext-"));
 const resultFile = join(workspace, ".result.json");
+// Keep the developer's profile (including their GitHub name) out of history assertions.
+const config = join(workspace, ".config");
+mkdirSync(config);
+writeFileSync(join(config, "config.json"), JSON.stringify({ user: { name: "Test", github: null }, recent: [] }));
 
 const executable = process.env.VSCODE_PATH || (await downloadAndUnzipVSCode());
 const args = [
@@ -41,7 +45,8 @@ const args = [
   `--extensionDevelopmentPath=${root}`,
 ];
 const code = spawn(executable, args, {
-  env: { ...process.env, MAPCAN_SERVER: server, MAPCAN_TEST_WORKSPACE: workspace },
+  env: { ...process.env, ELECTRON_RUN_AS_NODE: undefined, MAPCAN_CONFIG_DIR: config,
+    MAPCAN_SERVER: server, MAPCAN_TEST_WORKSPACE: workspace },
 });
 code.stdout.on("data", (d) => process.stdout.write(d));
 code.stderr.on("data", (d) => process.stderr.write(d));

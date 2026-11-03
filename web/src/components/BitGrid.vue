@@ -16,9 +16,12 @@ const props = defineProps<{
   selected: Path;
   palette: string[];
   readonly?: boolean;
+  locked?: boolean;
   muxValue: number | null;
   /** The frame is CANopen: what it carries is called objects (#151). */
   objects?: boolean;
+  /** Name of the signal mapcan lays out itself (of an SDO frame) that is selected: it is shown, not edited. */
+  synthetic?: string | null;
 }>();
 const emit = defineEmits<{
   select: [path: Path];
@@ -27,6 +30,8 @@ const emit = defineEmits<{
   /** A flag moved or resized: its first bit and length in the field. */
   flag: [path: Path, bit: number, length: number];
   "update:muxValue": [value: number | null];
+  /** A signal mapcan lays out itself is selected (null: none). */
+  synthetic: [name: string | null];
 }>();
 
 type Drag =
@@ -65,7 +70,7 @@ function visible(s: ResolvedSignal): boolean {
 }
 
 const selectedSignal = computed(() =>
-  props.frame.signals.find((s) => startsWith(props.selected, s.path) && !s.synthetic) ?? null,
+  props.frame.signals.find((s) => (s.synthetic ? s.name === props.synthetic : startsWith(props.selected, s.path))) ?? null,
 );
 const selectedFlagIndex = computed(() => {
   const s = selectedSignal.value;
@@ -181,6 +186,7 @@ interface Segment {
   selected: boolean;
   /** Label of a flag on the bit field's bar (moved down below the field's name). */
   onPill: boolean;
+  locked: boolean;
 }
 
 /** Labels: consecutive bits of a row with the same owner are merged. */
@@ -208,6 +214,7 @@ const segments = computed<Segment[]>(() => {
           conflict: c.conflict,
           selected: !!sel && c.owners.some((s) => samePath(s.path, sel.path)),
           onPill: c.inField,
+          locked: !!props.locked && row === Math.floor(Math.min(...c.owners[0].occupied) / 8),
         });
       }
       col += span;
@@ -309,11 +316,11 @@ function onDown(c: Cell, e: MouseEvent) {
   const grip = (e.target as HTMLElement).dataset?.edge as "lo" | "hi" | undefined;
   const h = grip && hs.includes(grip) ? grip : null;
   const flag = selectedFlag.value;
-  if (h && sel && flag) {
+  if (h && sel && flag && !sel.synthetic) {
     drag.value = { mode: "flagsize", sig: sel, flag, index: selectedFlagIndex.value!, edge: h, cur: c.bit };
     return;
   }
-  if (h && sel) {
+  if (h && sel && !sel.synthetic) {
     drag.value = { mode: "resize", sig: sel, edge: h, cur: c.bit };
     return;
   }
@@ -329,6 +336,13 @@ function onDown(c: Cell, e: MouseEvent) {
     return;
   }
   const own = c.owners.find((s) => sel && samePath(s.path, sel.path)) ?? c.owners[0];
+  // A signal mapcan lays out itself is selected to be shown; it does not move
+  if (own?.synthetic) {
+    emit("synthetic", own.name);
+    if (!samePath(props.selected, props.frame.path)) emit("select", props.frame.path);
+    return;
+  }
+  if (props.synthetic) emit("synthetic", null);
   if (own) {
     // The first click only selects a signal; the selected one is moved by dragging (a stray click moves nothing)
     if (!startsWith(props.selected, own.path)) {
@@ -444,6 +458,10 @@ const status = computed(() => {
            :class="{ conflict: s.conflict, selected: s.selected && !s.onPill, mine: s.selected, 'on-pill': s.onPill }"
            :title="s.title" :style="{ gridRow: s.row + 2, gridColumn: `${s.col + 2} / span ${s.span}` }">
         <span>{{ s.label }}</span>
+        <svg v-if="s.locked" class="bg-lock" viewBox="0 0 16 16" role="img" :aria-label="t('Standard format: cannot be changed')">
+          <title>{{ t("Standard format: cannot be changed") }}</title>
+          <rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5 7V5a3 3 0 0 1 6 0v2" />
+        </svg>
       </div>
     </div>
     <div class="bitgrid-status muted">{{ status }}</div>

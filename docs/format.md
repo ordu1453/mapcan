@@ -115,6 +115,7 @@ lint:
 | `data_sample_point` | CAN FD: sample point of the data phase, percent (`75`) |
 | `brs` | CAN FD: bit rate switch (BRS) of the frames by default, `true` if omitted. Set `false` when the nodes or the wiring cannot handle the data phase bit rate |
 | `frames` | Frames whose sender is outside the map, with the receiving devices in `receivers`; also the CANopen broadcast frames (`nmt`, `sync`, `time`) |
+| `objects` | CANopen: dictionary objects every device of the bus has (see [Object dictionary](#object-dictionary)) |
 | `devices` | Devices |
 
 ### Device (`devices[]`)
@@ -127,6 +128,7 @@ lint:
 | `node_id` | CANopen node address (1..127) |
 | `address` | J1939 source address (0..253) |
 | `description` | What the device is |
+| `objects` | CANopen: the device's own dictionary objects, in the manufacturer area (see [Object dictionary](#object-dictionary)) |
 | `frames` | The device's frames: those it transmits, plus the CANopen RX frames whose ID depends on its address (see [Sender and receivers](#sender-and-receivers)) |
 
 ### Frame (`frames[]`)
@@ -191,7 +193,7 @@ CANopen ID computation:
 | `initial` | Default value in physical units (`…_INITIAL_RAW` in C, `GenSigStartValue` in DBC) |
 | `source` | An integer `number`: the signal always carries a value from the map: `map_version.major`, `map_version.minor`, `map_version.patch` or `layout_crc32` (see [Map version in a frame](#map-version-in-a-frame)). Replaces `initial` |
 | `invalid_raw` | An integer `number`: raw values that carry no value (see [Values without a value](#values-without-a-value)): `0xFF`, a list, ranges `0xFF00..0xFFFF`, or `{not_available: …, error: …}`. Formerly `invalid` |
-| `index`, `subindex` | CANopen dictionary object mapped into the PDO (see [Object dictionary and EDS](#object-dictionary-and-eds)) |
+| `index`, `subindex` | CANopen dictionary object mapped into the PDO (see [EDS](#eds)) |
 | `spn` | J1939 suspect parameter number (SAE J1939-71), 0..524287. Shown in documents, written to DBC as the `SPN` signal attribute and to code as `<FRAME>_<SIGNAL>_SPN` |
 | `comment` | A note or caveat (see [Text fields](#text-fields)) |
 
@@ -410,7 +412,68 @@ and unpacks the whole payload; splitting it into packets is the job of the J1939
 A signal longer than 64 bits can only be bytes (`encoding: bytes`, a byte array or text,
 little-endian, starting at a byte boundary).
 
-### Object dictionary and EDS
+### Object dictionary
+
+The dictionary of a CANopen device (CiA 301) is written in `objects`: of the bus, the objects every
+device of the bus has (the identity 0x1018, the software version 0x100A, a version of the map at
+one index for all), of any area; and of the device, its own, in the manufacturer area
+(0x2000..0x5FFF) only. A device's object with the index of one of the bus takes its place for that
+device. A master reads and writes the objects by SDO; an SDO exchange
+(`sdo[]`) and a PDO signal (`index`, `subindex`) address an object of the dictionary but do not
+make one.
+
+| Field | Description |
+|---|---|
+| `index` | Required. 0x1000..0x1FFF communication profile, 0x2000..0x5FFF manufacturer area, 0x6000..0x9FFF standardized device profiles, 0xA000..0xBFFF standardized interface profiles. The data type area (0x0000..0x0FFF) and the reserved one (0xC000..0xFFFF) hold no objects of a device |
+| `name` | Required. Identifier (`software_version`) |
+| `title`, `description` | Name and description for people |
+| `data_type` | A variable (VAR): its CiA 301 type, `unsigned8`..`unsigned64`, `integer8`..`integer64`, `real32`, `real64`, `boolean`, `visible_string`, `octet_string`, `unicode_string`, `time_of_day`, `time_difference`, `domain` |
+| `access` | `ro` (the default), `wo`, `rw`, `const` |
+| `default` | Value after power-up: a number, text for a string |
+| `source` | The value is taken from the map, as a signal's [`source`](#map-version-in-a-frame): `map_version.major`, `.minor`, `.patch` or `layout_crc32`. An unsigned type of at least 8 bits (32 for the CRC) |
+| `unit` | Unit of the value |
+| `entries` | Instead of `data_type`: the entries of a RECORD by `subindex` from 0x01, each with `subindex`, `name`, `title`, `description`, `data_type`, `access`, `default`, `source`, `unit`. Subindex 0x00 holds the number of entries and is not written |
+| `array` | `true`: the entries make an ARRAY, all of one data type |
+
+```yaml
+buses:
+  - name: drive_bus
+    protocol: canopen
+    objects:                          # every device of the bus has them
+      - index: 0x100A
+        name: software_version
+        title: Manufacturer software version
+        data_type: visible_string
+        access: const
+      - index: 0x2000
+        name: map_version
+        title: Map version
+        entries:
+          - {subindex: 1, name: major, data_type: unsigned8, source: map_version.major}
+          - {subindex: 2, name: minor, data_type: unsigned8, source: map_version.minor}
+          - {subindex: 3, name: patch, data_type: unsigned8, source: map_version.patch}
+          - {subindex: 4, name: layout_crc32, data_type: unsigned32, source: layout_crc32}
+    devices:
+      - name: drive
+        node_id: 0x05
+        frames:
+          - name: drive_sdo_rx
+            canopen: sdo_rx
+            sdo:
+              - {name: read_sw, command: 0x40, index: 0x100A}
+              - {name: read_map_crc, command: 0x40, index: 0x2000, subindex: 4}
+```
+
+The web editor has a page **Objects** for the bus and for each device: the objects by index under
+a heading per index area (the device's page has the manufacturer area; on the bus's page it is the
+overall manufacturer area, common to all devices), a + on the right of each heading for a new
+object, and on the bus's page the standard objects of CiA 301 listed with a tick that puts them into
+the map. On a device's page the bus's objects are locked: they are changed on the bus's page. A click
+on an identifier opens the object's form (data type, access, value), a double click renames it. Once a device has a dictionary (its own or
+the bus's), an SDO exchange or a PDO signal that addresses an object not in it is noted
+(`od-unknown`). See [tests/data/canopen-od.yaml](../tests/data/canopen-od.yaml).
+
+### EDS
 
 A signal of a device's PDO can name the dictionary object it carries: `index` and, for an entry of
 a record, `subindex` (0 by default). Signals sharing an `index` with different subindices form a
@@ -420,7 +483,9 @@ heartbeat time (1017, from a heartbeat frame's `cycle_ms`), the communication an
 parameters of each PDO with mapped signals (1400/1600 for RPDOs, 1800/1A00 for TPDOs; COB-ID
 `$NODEID+base`, event timer from `cycle_ms`) and the objects themselves. Gaps between mapped
 signals are filled with dummy objects. `mapcan import eds` reads such a file, or a vendor's EDS or
-DCF, back into a map ([cli.md](cli.md#importing-an-eds-or-dcf)).
+DCF, back into a map ([cli.md](cli.md#importing-an-eds-or-dcf)). Objects of the device's
+[dictionary](#object-dictionary) are written as described there, with their data type, access and
+value, in place of those the file would have otherwise; an object a PDO maps is marked mappable.
 
 ```yaml
 - name: drive_status
@@ -454,9 +519,14 @@ For `sdo_rx`/`sdo_tx` frames you can describe expedited SDO exchanges instead of
 
 The value's `encoding` (`number` or `enum`) and `bit_length` (8, 16, 24 or 32) are required.
 
-mapcan builds the frame layout itself: byte 0 is the command, bytes 1–2 the index
-(little-endian), byte 3 the subindex (the multiplexer selector when all exchanges share one
-index), and bytes 4–7 the value.
+mapcan builds the frame layout itself: byte 0 is the command, bytes 1–3 the object
+(`sdo_object`: the index little-endian in bytes 1–2, the subindex in byte 3, so the raw value is
+`index | subindex << 16`), and bytes 4–7 the value, selected by the object (the multiplexer). The
+object is an enum of the objects of the device's [dictionary](#object-dictionary) — the bus's and
+the device's own, a variable by its name, an entry of an array or a record as `OBJECT_ENTRY` — and
+of the objects the exchanges address; an object added to a dictionary appears in the SDO frames of
+every device that has it. An `sdo_rx`/`sdo_tx` frame without exchanges and signals is laid out the
+same way.
 
 ## Sender and receivers
 
@@ -700,8 +770,10 @@ keep their order.
 |---|---|
 | Map | `mapcan`, `part_of`, `document`, `include`, `lint`, `value_tables`, `buses` |
 | `document` | `title`, `subtitle`, `version`, `date`, `author`, `organization`, `language`, `bit_numbering`, `print`, `history` |
-| Bus | `name`, `title`, `description`, `protocol`, `connector`, `bitrate`, `sample_point`, `fd`, `data_bitrate`, `data_sample_point`, `brs`, `frames`, `devices` |
-| Device | `name`, `short`, `title`, `description`, `node_id`, `address`, `frames` |
+| Bus | `name`, `title`, `description`, `protocol`, `connector`, `bitrate`, `sample_point`, `fd`, `data_bitrate`, `data_sample_point`, `brs`, `frames`, `objects`, `devices` |
+| Device | `name`, `short`, `title`, `description`, `node_id`, `address`, `objects`, `frames` |
+| Dictionary object | `index`, `name`, `title`, `description`, `data_type`, `access`, `default`, `source`, `unit`, `array`, `entries` |
+| Entry of an object | `subindex`, `name`, `title`, `description`, `data_type`, `access`, `default`, `source`, `unit` |
 | Frame | `name`, `title`, `description`, `comment`, `canopen`, `id`, `extended`, `pgn`, `priority`, `destination`, `length`, `brs`, `direction`, `cycle_ms`, `trigger`, `inhibit_ms`, `timeout_ms`, `sender`, `receivers`, `signals`, `sdo` |
 | Signal | `name`, `title`, `description`, `comment`, `encoding`, `start_bit`, `byte`, `bit`, `bit_length`, `byte_length`, `byte_order`, `representation`, `charset`, `terminator`, `factor`, `offset`, `unit`, `min`, `max`, `values`, `value_format`, `flags`, `multiplexer`, `mux`, `initial`, `source`, `invalid_raw`, `spn`, `index`, `subindex` |
 | Flag | `name`, `bit`, `bit_length`, `description`, `values`, `multiplexer` |
@@ -778,9 +850,15 @@ turned off with `--disable CODE` or `lint.disable`.
 | `j1939-field-protocol` | warning | pgn/priority/destination/address/spn on a non-J1939 bus |
 | `j1939-spn-duplicate` | warning | The same SPN on several signals of the bus |
 | `j1939-tp` | info | A PGN longer than 8 bytes is sent with the J1939-21 transport protocol |
-| `canopen-od` | warning | Dictionary object on a signal outside a device's PDO, or outside 0x2000..0x9FFF |
+| `canopen-od` | warning | Dictionary object on a signal outside a device's PDO, or outside 0x2000..0xBFFF |
 | `od-duplicate` | warning | The same dictionary object on several signals of a device |
 | `od-subindex-zero` | error | A signal at subindex 0 of an array or a record: subindex 0 holds the number of its entries |
+| `od-protocol` | warning | `objects` on a bus that is not CANopen |
+| `od-object-area` | error | A dictionary object in the data type area (0x0000..0x0FFF) or the reserved one (0xC000..0xFFFF), or an object of a device outside the manufacturer area (0x2000..0x5FFF) |
+| `od-object-duplicate` | error | The same index or name twice in a dictionary, or the same subindex or name twice in an object |
+| `od-object-shape` | error | An object with both `data_type` and `entries` or with neither, `default`/`source`/`unit` of an array or a record on the object instead of its entries, an array of several data types |
+| `od-default` | error | `default` that does not fit the data type, `default` with `source`, `source` of a type too short for it |
+| `od-unknown` | info | An SDO exchange or a PDO signal addresses an object that is not in the device's dictionary |
 
 ### Sender and receivers
 

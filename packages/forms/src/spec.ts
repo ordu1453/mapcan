@@ -89,7 +89,8 @@ export interface Section {
   fields: FieldDef[];
 }
 
-export type FormKind = "document" | "revision" | "bus" | "device" | "frame" | "signal" | "flag" | "sdo";
+export type FormKind = "document" | "revision" | "bus" | "device" | "frame" | "signal" | "flag" | "sdo" | "object"
+  | "od_entry";
 
 // ------------------------------------------------------------------------------------------------ helpers
 
@@ -206,6 +207,29 @@ const subByte = (c: FormContext) => (bitLength(c) ?? 8) < 8;
 const hasValue = (c: FormContext) => value(c, "value.name") != null;
 
 const NAME: FieldDef = { key: "name", label: N_("Identifier"), type: "text", required: true, mono: true };
+
+// Dictionary objects (CiA 301): a variable has a data type and a value, an array or a record entries instead
+const OD_DATA_TYPES = ["boolean", "integer8", "integer16", "integer24", "integer32", "integer40", "integer48", "integer56",
+  "integer64", "unsigned8", "unsigned16", "unsigned24", "unsigned32", "unsigned40", "unsigned48", "unsigned56",
+  "unsigned64", "real32", "real64", "visible_string", "octet_string", "unicode_string", "time_of_day",
+  "time_difference", "domain"];
+const OD_ACCESS: Option[] = [["", N_("ro — read only")], ["wo", N_("wo — write only")], ["rw", N_("rw — read and write")],
+  ["const", N_("const — constant")]];
+const OD_SOURCES: Option[] = [["", N_("none — its own value")], ["map_version.major", "map_version.major"],
+  ["map_version.minor", "map_version.minor"], ["map_version.patch", "map_version.patch"], ["layout_crc32", "layout_crc32"]];
+/** A variable: the object has a data type, not entries (as the hosts show it: "record" or "array"). */
+const odVariable = (c: FormContext) => !["record", "array"].includes(String(value(c, "data_type")));
+/** The data type and the value of a variable or an entry (its own unless taken from the map). An object may also be
+ * an array or a record (the hosts show and set "record"/"array" in data_type: entries in the YAML). */
+const odValueFields = (when: (c: FormContext) => boolean, structured: boolean): FieldDef[] => [
+  { key: "data_type", label: N_("Data type"), type: "select", half: true, mono: true, required: true,
+    options: (c) => [...notSet(c, "data_type"), ...OD_DATA_TYPES.map((d): Option => [d, d]),
+      ...(structured ? [["record", "RECORD"], ["array", "ARRAY"]] as Option[] : [])] },
+  { key: "access", label: N_("Access"), type: "select", half: true, when, options: () => OD_ACCESS },
+  { key: "default", label: N_("Value"), type: "text", half: true, mono: true, when: (c) => when(c) && value(c, "source") == null },
+  { key: "source", label: N_("Value from the map"), type: "select", half: true, when, options: () => OD_SOURCES },
+  { key: "unit", label: N_("Unit"), type: "unit", half: true, when },
+];
 const DESCRIPTION: FieldDef = { key: "description", label: N_("Description"), type: "loc", wide: true, multiline: true };
 const NOTES: Section = { title: N_("Notes"), fields: [DESCRIPTION] };
 /** Frames and signals also have a note (a remark under the description in documents). */
@@ -421,6 +445,24 @@ export const FORMS: Record<FormKind, Section[]> = {
     ] },
     NOTES,
   ],
+  object: [
+    { fields: [
+      { key: "index", label: N_("Index"), type: "hex", half: true, required: true, placeholder: "0x2000" },
+      NAME,
+      { key: "title", label: N_("Title"), type: "loc", placeholder: N_("same as the identifier") },
+      ...odValueFields(odVariable, true),
+    ] },
+    NOTES,
+  ],
+  od_entry: [
+    { fields: [
+      { key: "subindex", label: N_("Subindex"), type: "hex", half: true, required: true, placeholder: "0x01" },
+      NAME,
+      { key: "title", label: N_("Title"), type: "loc", placeholder: N_("same as the identifier") },
+      ...odValueFields(() => true, false),
+    ] },
+    NOTES,
+  ],
 };
 
 /** Fields of the format that the forms do not show, with where they are edited instead. */
@@ -430,8 +472,8 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
       .map((k) => [k, "document requisites (web: DocumentRequisites.vue)"])
       .concat([["history", "revision history nodes of the tree"]])),
   revision: { changes: "list of changes (web: HistoryEditor.vue)" },
-  bus: { frames: "child nodes of the tree", devices: "child nodes of the tree" },
-  device: { frames: "child nodes of the tree" },
+  bus: { frames: "child nodes of the tree", devices: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
+  device: { frames: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
   frame: {
     signals: "child nodes and the bit layout", sdo: "child nodes of the tree",
     direction: "deprecated: it follows from the CANopen function and the sender",
@@ -442,6 +484,8 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
     "value.description": "YAML", "value.representation": "YAML", "value.min": "YAML", "value.max": "YAML",
     "value.values": "value table",
   },
+  object: { entries: "Objects page (web: ObjectsTable.vue)", array: "data_type ARRAY (web: NodeEditor.vue)" },
+  od_entry: {},
 };
 
 /** Fields of a form, in order. */

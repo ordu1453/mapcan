@@ -1,182 +1,282 @@
 <script setup lang="ts">
-// Object dictionary of a CANopen device (#151): the objects of its PDOs and SDO exchanges by index, an array or a
-// record opened to its subindices. Here indices and subindices are given; the object itself is edited in its frame
-// (a click on its name goes there).
-import { computed, ref } from "vue";
+// Object dictionary of a CANopen bus or device (#151): the objects written in the map (`objects`), read and written
+// by SDO, listed by index under a heading per index area of CiA 301 (each folds; its + adds an object). The bus has
+// the objects every device has, of all areas, the standard ones of CiA 301 listed with a tick that puts them into the
+// map; a device has its own in the manufacturer area only, the bus's ones shown there too (inherited). A click on an
+// identifier opens the object's form (data type, access, value), a double click renames it in place. The bus's objects
+// on a device's page are locked: they are changed on the bus's page.
+import { computed, nextTick, ref } from "vue";
 import { hex } from "../bits";
-import { parseInput, ParseError } from "@mapcan/forms";
-import { deviceObjects, getAt, samePath, startsWith, type OdEntry, type OdObject } from "../model";
-import { actions, lang, resolvedFrames, store, toast, viewData } from "../store";
+import { getAt, isCanopen, pathKey, startsWith, uniqueName } from "../model";
+import { AREAS, DATA_TYPES, DEVICE_AREA, dictionary, freeIndex, kindOf, objectTypeOps, STANDARD, withSdo, type Area, type DictRow,
+  type Standard } from "../od";
+import { actions, lang, store, toast, viewData } from "../store";
 import type { Diagnostic, Op, Path } from "../types";
 import { N_, t } from "../i18n";
 
-const props = defineProps<{ device: Path }>();
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const props = defineProps<{ owner: Path }>();
 
-const TYPE_LABEL: Record<string, string> = { var: "VAR", array: "ARRAY", record: "RECORD" };
-const VIA_LABEL: Record<string, string> = { pdo: "PDO", sdo: "SDO" };
-const VIA_HELP: Record<string, string> = {
-  pdo: N_("mapped into a PDO"), sdo: N_("read or written by an SDO exchange"),
-};
+const COLUMNS = 2;
 
 const readonly = computed(() => !!store.state?.readonly);
-const objects = computed<OdObject[]>(() =>
-  deviceObjects(getAt(viewData.value, props.device), props.device, resolvedFrames.value, lang.value));
-const indexed = computed(() => objects.value.filter((o) => o.index !== null));
-const unassigned = computed(() => objects.value.filter((o) => o.index === null));
+const busPath = computed(() => props.owner.slice(0, 2));
+const isDevice = computed(() => props.owner.length === 4);
+const owner = computed(() => getAt(viewData.value, props.owner));
+const rows = computed<DictRow[]>(() =>
+  (isCanopen(getAt(viewData.value, busPath.value))
+    ? dictionary(viewData.value, busPath.value, isDevice.value ? props.owner : null) : []));
 
-const grouped = (o: OdObject) => o.type === "array" || o.type === "record";
-const open = ref(new Set<number>());
-function toggle(index: number) {
+const areas = computed<Area[]>(() => (isDevice.value ? [DEVICE_AREA] : AREAS));
+/** On the bus's page the manufacturer area holds what the manufacturer areas of all devices have. */
+const areaTitle = (a: Area) => (!isDevice.value && a.first === DEVICE_AREA.first ? N_("Overall manufacturer area") : a.title);
+
+/** A line of an area: an object of the dictionary, or a standard object not in the map (on the bus's page). */
+interface Line { index: number; row?: DictRow; standard?: Standard }
+function lines(a: Area): Line[] {
+  const inside = (i: unknown) => typeof i === "number" && i >= a.first && i <= a.last;
+  const out: Line[] = rows.value.filter((r) => inside(r.index)).map((r) => ({ index: r.index, row: r }));
+  if (!isDevice.value) {
+    const taken = new Set(out.map((l) => l.index));
+    out.push(...STANDARD.filter((s) => inside(s.index) && !taken.has(s.index)).map((s) => ({ index: s.index, standard: s })));
+  }
+  out.sort((x, y) => x.index - y.index);
+  // Objects without a numeric index (being written in the YAML) come last in the manufacturer area
+  if (a.first === DEVICE_AREA.first) out.push(...rows.value.filter((r) => typeof r.index !== "number").map((r) => ({ index: NaN, row: r })));
+  return out;
+}
+const standardAt = (index: unknown) => STANDARD.find((s) => s.index === index);
+
+// Folded areas and opened arrays and records; the data types are folded at first
+const folded = ref(new Set<number>([0]));
+function fold(a: Area) {
+  const s = new Set(folded.value);
+  if (s.has(a.first)) s.delete(a.first);
+  else s.add(a.first);
+  folded.value = s;
+}
+const open = ref(new Set<string>());
+function toggle(r: DictRow) {
   const s = new Set(open.value);
-  if (s.has(index)) s.delete(index);
-  else s.add(index);
+  const k = pathKey(r.path);
+  if (s.has(k)) s.delete(k);
+  else s.add(k);
   open.value = s;
 }
+const isOpen = (r: DictRow) => open.value.has(pathKey(r.path));
 
-const unique = (xs: string[]) => [...new Set(xs.filter(Boolean))];
-const frames = (o: OdObject) => unique(o.entries.map((e) => `${e.canId} ${e.frameLabel}`.trim()));
-const vias = (o: OdObject) => unique(o.entries.map((e) => (e.via ? VIA_LABEL[e.via] : "")));
-
-// Validation messages about the index or subindex of an entry (a duplicate object, an index outside the areas)
-function entryDiags(e: OdEntry): Diagnostic[] {
-  return (store.state?.diagnostics ?? []).filter((d) => d.level !== "info"
-    && (startsWith(d.node, [...e.path, "index"]) || startsWith(d.node, [...e.path, "subindex"])));
-}
-function level(ds: Diagnostic[]): string {
-  return ds.some((d) => d.level === "error") ? "error" : ds.some((d) => d.level === "warning") ? "warning" : "";
-}
-const objectDiags = (o: OdObject) => o.entries.flatMap(entryDiags);
-
-/** The number typed in a cell, in [0, max]; undefined (and the cell back as it was) when it is not one. */
-function read(e: Event, max: number, old: number | null): number | null | undefined {
-  const el = e.target as HTMLInputElement;
-  try {
-    const v = parseInput("hex", el.value) as number | null;
-    if (v === null || (v >= 0 && v <= max)) return v;
-    toast(t("“{raw}” must be between {min} and {max}", { raw: el.value.trim(), min: 0, max: hex(max, 2) }));
-  } catch (err) {
-    toast(err instanceof ParseError ? err.message : String(err));
+// Objects of the bus and its devices of each data type
+const typesUsed = computed(() => {
+  const bus = getAt(viewData.value, busPath.value);
+  const owners = [bus, ...(Array.isArray(bus?.devices) ? bus.devices : [])];
+  const n = new Map<string, number>();
+  for (const o of owners.flatMap((x) => (Array.isArray(x?.objects) ? x.objects : []))) {
+    for (const dt of [o?.data_type, ...(Array.isArray(o?.entries) ? o.entries.map((e: any) => e?.data_type) : [])]) {
+      if (typeof dt === "string") n.set(dt, (n.get(dt) ?? 0) + 1);
+    }
   }
-  el.value = cell(old, max > 0xff ? 4 : 2);
-  return undefined;
+  return n;
+});
+
+function diagsAt(p: Path): Diagnostic[] {
+  return (store.state?.diagnostics ?? []).filter((d) => startsWith(d.node, p));
+}
+/** Messages of the object itself, not of its entries. */
+const ownDiags = (p: Path) => diagsAt(p).filter((d) => d.node[p.length] !== "entries");
+const level = (ds: Diagnostic[]) =>
+  (ds.some((d) => d.level === "error") ? "error" : ds.some((d) => d.level === "warning") ? "warning" : "");
+const messages = (ds: Diagnostic[]) => ds.map((d) => d.message).join("\n") || undefined;
+
+// ------------------------------------------------------------------ open and rename
+
+// A click opens the object (an entry) in its form; a double click renames it in place. The click waits for a second
+// one, so a double click does not leave the page.
+const renaming = ref<string | null>(null);
+let clickTimer: ReturnType<typeof setTimeout> | null = null;
+function onNameClick(p: Path) {
+  if (clickTimer) clearTimeout(clickTimer);
+  clickTimer = setTimeout(() => {
+    clickTimer = null;
+    void actions.select(p);
+  }, 250);
+}
+async function onNameDblClick(p: Path, inherited: boolean) {
+  if (clickTimer) clearTimeout(clickTimer);
+  clickTimer = null;
+  if (readonly.value || inherited) return;
+  renaming.value = pathKey(p);
+  await nextTick();
+  const el = document.querySelector<HTMLInputElement>(".od-table input.od-rename");
+  el?.focus();
+  el?.select();
+}
+function rename(p: Path, e: Event) {
+  if (renaming.value !== pathKey(p)) return;
+  renaming.value = null;
+  const v = (e.target as HTMLInputElement).value.trim();
+  if (v && v !== getAt(viewData.value, [...p, "name"])) void edit([{ op: "set", path: [...p, "name"], value: v }]);
 }
 
-const cell = (v: number | null, width: number) => (v === null ? "" : hex(v, width));
+// ------------------------------------------------------------------ adding and removing
 
-// Subindex 0 of an array or a record holds the number of its entries (CiA 301): a signal does not take it, an SDO
-// exchange may read it (the rule od-subindex-zero)
-const ZERO_TAKEN = N_("Subindex 0x00 of an array or a record holds the number of its entries: give the object a subindex from 0x01");
+/** An edit of the dictionary, with the object of the SDO frames of the devices brought in line. */
+const edit = (ops: Op[]) => actions.apply(withSdo(viewData.value, busPath.value, ops));
 
-/** The entry would be a signal at subindex 0 of `index` while that index has entries from subindex 1 (the entries
- * `moving` go along and do not count as already there). */
-function takesZero(entry: OdEntry, index: number, subindex: number | null, moving: OdEntry[]): boolean {
-  if (entry.via === "sdo" || subindex) return false;
-  const others = objects.value.flatMap((o) => o.entries).filter((x) => x.index === index && !moving.includes(x));
-  return others.some((x) => !!x.subindex) || moving.some((x) => x !== entry && !!x.subindex);
+function setObjectType(r: DictRow, event: Event) {
+  if (readonly.value || r.inherited) return;
+  const kind = (event.target as HTMLSelectElement).value;
+  if (kind === kindOf(r.obj)) return;
+  void edit(objectTypeOps(r.path, r.obj, kind === "var" ? "" : kind));
+  if (kind !== "var") open.value = new Set([...open.value, pathKey(r.path)]);
 }
 
-/** A new index of the entries (all entries of an array or a record move together); none takes a signal out of the
- * dictionary, its subindex too. An SDO exchange always has an index. */
-function setIndex(entries: OdEntry[], e: Event) {
-  const old = entries[0].index;
-  const v = read(e, 0xffff, old);
-  if (v === undefined || v === old) return;
-  if (v === null && entries.some((x) => x.via === "sdo")) {
-    toast(t("An SDO exchange always has an index"));
-    (e.target as HTMLInputElement).value = cell(old, 4);
+const ownObjects = () => (Array.isArray(owner.value?.objects) ? owner.value.objects : []);
+
+/** A new object of the area at its first free index, with a name to give it in place. */
+function addObject(a: Area) {
+  const index = freeIndex(a, new Set(rows.value.filter((r) => !r.inherited).map((r) => r.index)));
+  if (index === null) {
+    toast(t("No free index in the area"));
     return;
   }
-  if (v !== null && entries.some((x) => takesZero(x, v, x.subindex, entries))) {
-    toast(t(ZERO_TAKEN));
-    (e.target as HTMLInputElement).value = cell(old, 4);
-    return;
-  }
-  const ops: Op[] = entries.flatMap((x): Op[] => (v === null
-    ? [{ op: "remove", path: [...x.path, "index"] },
-      ...(x.subindex !== null ? [{ op: "remove" as const, path: [...x.path, "subindex"] }] : [])]
-    : [{ op: "set", path: [...x.path, "index"], value: v }]));
-  void actions.apply(ops);
+  if (folded.value.has(a.first)) fold(a);
+  const name = uniqueName("object", ownObjects().map((o: any) => o?.name));
+  void edit([{ op: "insert", path: [...props.owner, "objects"], value: { index, name, data_type: "unsigned8" } }]);
 }
 
-function setSubindex(entry: OdEntry, e: Event) {
-  const v = read(e, 0xff, entry.subindex);
-  if (v === undefined || v === entry.subindex) return;
-  if (entry.index !== null && takesZero(entry, entry.index, v, [entry])) {
-    toast(t(ZERO_TAKEN));
-    (e.target as HTMLInputElement).value = cell(entry.subindex, 2);
-    return;
-  }
-  void actions.apply([v === null ? { op: "remove", path: [...entry.path, "subindex"] }
-    : { op: "set", path: [...entry.path, "subindex"], value: v }]);
+/** A new entry of an array or a record at the next subindex. */
+function addEntry(r: DictRow) {
+  const entries: any[] = Array.isArray(r.obj?.entries) ? r.obj.entries : [];
+  const sub = Math.max(0, ...entries.map((x) => (typeof x?.subindex === "number" ? x.subindex : 0))) + 1;
+  if (sub > 0xfe) return;
+  open.value = new Set([...open.value, pathKey(r.path)]);
+  void edit([{ op: "insert", path: [...r.path, "entries"], value: {
+    subindex: sub, name: uniqueName("entry", entries.map((x) => x?.name)),
+    data_type: (r.obj?.array && entries[0]?.data_type) || "unsigned8" } }]);
 }
 
-const selected = (e: OdEntry) => samePath(store.selected, e.path);
+function removeEntry(r: DictRow, ei: number) {
+  const entries: any[] = r.obj.entries;
+  // Without its last entry the object is a variable of that entry's type
+  void edit(entries.length > 1 ? [{ op: "remove", path: [...r.path, "entries", ei] }]
+    : [{ op: "set", path: [...r.path, "data_type"], value: entries[0]?.data_type ?? "unsigned8" },
+      { op: "set", path: [...r.path, "entries"], value: null }, { op: "set", path: [...r.path, "array"], value: null }]);
+}
+
+/** The tick of a standard object: in the map or not. */
+function include(s: Standard, on: boolean, r?: DictRow) {
+  if (on) void edit([{ op: "insert", path: [...props.owner, "objects"], value: s.make(lang.value) }]);
+  else if (r) void edit([{ op: "remove", path: r.path }]);
+}
+
+const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
 </script>
 
 <template>
   <section class="card">
-    <h3>{{ t("Object dictionary") }} <span class="muted">{{ indexed.length }}</span></h3>
+    <h3>{{ t("Object dictionary") }}</h3>
     <p class="muted od-note">
-      {{ t("Indices and subindices of the device's objects. Click the name of an object to open it in its frame.") }}
+      {{ isDevice
+        ? t("Objects of the device in the manufacturer area, read and written by SDO, with those of the bus there. The other areas are the bus's.")
+        : t("Objects every device of the bus has. A device's own object with the same index takes their place.") }}
+      {{ t("A click on an identifier opens the object, a double click renames it.") }}
     </p>
-    <table v-if="objects.length" class="list od-table">
-      <thead>
-        <tr>
-          <th class="od-twisty"></th><th>{{ t("Index") }}</th><th>{{ t("Subindex") }}</th><th>{{ t("Object") }}</th>
-          <th>{{ t("Type") }}</th><th>{{ t("Frame") }}</th><th>PDO / SDO</th>
-        </tr>
-      </thead>
-      <tbody>
-        <template v-for="o in indexed" :key="o.index!">
-          <!-- An array or a record: its index for all entries, the entries under it -->
-          <tr v-if="grouped(o)" class="od-group" :class="level(objectDiags(o))">
-            <td class="od-twisty" @click="toggle(o.index!)">{{ open.has(o.index!) ? "▾" : "▸" }}</td>
-            <td><input class="mono" :value="cell(o.index, 4)" :readonly="readonly" :aria-label="t('Index')"
-                       :title="objectDiags(o).map((d) => d.message).join('\n')" @change="setIndex(o.entries, $event)" /></td>
-            <td class="muted">{{ t("{n} entries", { n: o.entries.length }) }}</td>
-            <td class="muted" @click="toggle(o.index!)">{{ o.entries.map((e) => e.label).join(", ") }}</td>
-            <td class="mono">{{ TYPE_LABEL[o.type!] }}</td>
-            <td>{{ frames(o).join(", ") }}</td>
-            <td>{{ vias(o).join(", ") }}</td>
+    <div class="od-scroll">
+      <table class="list od-table">
+        <colgroup><col class="od-c-twisty" /><col class="od-c-index" /><col /><col class="od-c-act" /></colgroup>
+        <tbody v-for="a in areas" :key="a.first">
+          <!-- The heading of an area, as a section heading in code: it folds the area, its + adds an object -->
+          <tr class="od-area" :aria-expanded="!folded.has(a.first)" @click="fold(a)">
+            <td class="od-twisty">{{ folded.has(a.first) ? "▸" : "▾" }}</td>
+            <td :colspan="COLUMNS">
+              <span class="mono">{{ hex(a.first, 4) }}–{{ hex(a.last, 4) }}</span> {{ t(areaTitle(a)) }}
+            </td>
+            <td class="act">
+              <button v-if="!readonly && a.first !== 0" class="od-icon" :title="t('New object')" :aria-label="t('New object')"
+                      @click.stop="addObject(a)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg></button>
+            </td>
           </tr>
-          <template v-if="!grouped(o) || open.has(o.index!)">
-            <tr v-for="e in o.entries" :key="e.path.join('/')" :class="[level(entryDiags(e)), { 'od-entry': grouped(o), selected: selected(e) }]">
-              <td class="od-twisty"></td>
-              <td>
-                <span v-if="grouped(o)" class="mono muted">{{ cell(e.index, 4) }}</span>
-                <input v-else class="mono" :value="cell(e.index, 4)" :readonly="readonly" :aria-label="t('Index')"
-                       :title="entryDiags(e).map((d) => d.message).join('\n')" @change="setIndex([e], $event)" />
-              </td>
-              <td><input class="mono" :value="cell(e.subindex, 2)" placeholder="0x00" :readonly="readonly"
-                         :aria-label="t('Subindex')" :title="entryDiags(e).map((d) => d.message).join('\n')"
-                         @change="setSubindex(e, $event)" /></td>
-              <td><span class="od-link" :title="t('Open the object in its frame')"
-                        @click="actions.select(e.path)">{{ e.label }}</span><span v-if="e.label !== e.name"
-                                                                                       class="ident">{{ e.name }}</span></td>
-              <td class="mono">{{ grouped(o) ? "" : TYPE_LABEL[o.type!] }}</td>
-              <td><a @click="actions.select(e.framePath)"><span class="mono">{{ e.canId }}</span> {{ e.frameLabel }}</a></td>
-              <td :title="e.via ? t(VIA_HELP[e.via]) : undefined">{{ e.via ? VIA_LABEL[e.via] : "—" }}</td>
-            </tr>
+          <template v-if="!folded.has(a.first)">
+            <!-- The data types of CiA 301 with the number of objects of each -->
+            <template v-if="a.first === 0">
+              <tr v-for="d in DATA_TYPES" :key="d[1]" :class="{ 'od-unused': !typesUsed.get(d[0]) }">
+                <td class="od-twisty"></td><td class="mono">{{ hex(d[1], 4) }}</td>
+                <td><span class="mono">{{ d[0].toUpperCase() }}</span>
+                  <span v-if="d[2]" class="muted od-badge">{{ t("{n} bits", { n: d[2] }) }}</span></td><td></td>
+              </tr>
+            </template>
+            <template v-else>
+              <template v-for="l in lines(a)" :key="l.row ? pathKey(l.row.path) : `std:${l.index}`">
+                <!-- A standard object not in the map: its tick puts it there -->
+                <tr v-if="l.standard" class="od-standard">
+                  <td class="od-twisty"></td><td class="mono">{{ hex(l.index, 4) }}<span v-if="kindOf(l.standard.make(lang)) === 'var'">:00</span></td>
+                  <td>{{ l.standard.make(lang).name }}</td>
+                  <td class="act"><input class="od-icon" type="checkbox" :checked="false" :disabled="readonly"
+                                         :aria-label="t('Include {name} in the map', { name: l.standard.make(lang).name })"
+                                         :title="t('Include in the map')" @change="include(l.standard, true)" /></td>
+                </tr>
+                <template v-else-if="l.row">
+                  <tr :class="['od-obj', level(ownDiags(l.row.path)), { 'od-inherited': l.row.inherited, 'od-group': kindOf(l.row.obj) !== 'var' }]"
+                      :title="messages(ownDiags(l.row.path))">
+                    <td class="od-twisty" @click="toggle(l.row)">{{ kindOf(l.row.obj) === "var" ? "" : isOpen(l.row) ? "▾" : "▸" }}</td>
+                    <td class="mono">{{ indexText(l.row.index) }}<span v-if="kindOf(l.row.obj) === 'var'">:00</span></td>
+                    <td>
+                      <input v-if="renaming === pathKey(l.row.path)" class="mono od-rename" :value="l.row.obj?.name"
+                             :aria-label="t('Identifier')" @change="rename(l.row.path, $event)" @blur="rename(l.row.path, $event)"
+                             @keydown.esc.stop="renaming = null" />
+                      <span v-else class="mono od-name" :title="t('A click opens the object, a double click renames it')"
+                            @click="onNameClick(l.row.path)" @dblclick="onNameDblClick(l.row.path, l.row.inherited)">{{ l.row.obj?.name }}</span>
+                      <select class="od-kind mono" :value="kindOf(l.row.obj)" :disabled="readonly || l.row.inherited"
+                              :aria-label="t('Object type')" @change="setObjectType(l.row, $event)">
+                        <option value="var">var</option><option value="array">array</option><option value="record">record</option>
+                      </select>
+                      <span v-if="l.row.overrides" class="muted od-badge"
+                            :title="t('Takes the place of the bus\'s object with this index')">{{ t("instead of the bus's") }}</span>
+                    </td>
+                    <td class="act">
+                      <button v-if="!readonly && !l.row.inherited && kindOf(l.row.obj) !== 'var'" class="od-icon"
+                              :title="t('New entry')" :aria-label="t('New entry')" @click="addEntry(l.row)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg></button>
+                      <span v-if="l.row.inherited" class="od-icon od-lock" :title="t('An object of the bus: it is changed on the bus\'s page')"
+                            :aria-label="t('An object of the bus: it is changed on the bus\'s page')">
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><rect class="od-fill" x="2.5" y="7" width="11" height="7.5" rx="1.5" /><path d="M5 7V5a3 3 0 0 1 6 0v2" /></svg>
+                      </span>
+                      <input v-else-if="!isDevice && standardAt(l.row.index)" class="od-icon" type="checkbox" checked :disabled="readonly"
+                             :aria-label="t('Include {name} in the map', { name: l.row.obj?.name })" :title="t('Include in the map')"
+                             @change="include(standardAt(l.row.index)!, false, l.row)" />
+                      <button v-else-if="!readonly" class="od-icon" :title="t('Delete')" :aria-label="t('Delete')"
+                              @click="edit([{ op: 'remove', path: l.row.path }])"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" /></svg></button>
+                    </td>
+                  </tr>
+                  <!-- Entries of an array or a record by subindex -->
+                  <template v-if="kindOf(l.row.obj) !== 'var' && isOpen(l.row)">
+                    <tr v-for="(e, ei) in l.row.obj.entries" :key="ei" class="od-entry"
+                        :class="[level(diagsAt([...l.row.path, 'entries', ei])), { 'od-inherited': l.row.inherited }]"
+                        :title="messages(diagsAt([...l.row.path, 'entries', ei]))">
+                      <td class="od-twisty"></td>
+                      <td class="mono"><span class="muted">{{ indexText(l.row.index) }}</span>:{{ typeof e?.subindex === "number" ? hex(e.subindex, 2).slice(2) : "—" }}</td>
+                      <td>
+                        <input v-if="renaming === pathKey([...l.row.path, 'entries', ei])" class="mono od-rename" :value="e?.name"
+                               :aria-label="t('Identifier')" @change="rename([...l.row.path, 'entries', ei], $event)"
+                               @blur="rename([...l.row.path, 'entries', ei], $event)" @keydown.esc.stop="renaming = null" />
+                        <span v-else class="mono od-name" :title="t('A click opens the entry, a double click renames it')"
+                              @click="onNameClick([...l.row.path, 'entries', ei])"
+                              @dblclick="onNameDblClick([...l.row.path, 'entries', ei], l.row.inherited)">{{ e?.name }}</span>
+                      </td>
+                      <td class="act">
+                        <span v-if="l.row.inherited" class="od-icon od-lock" :title="t('An object of the bus: it is changed on the bus\'s page')"
+                              :aria-label="t('An object of the bus: it is changed on the bus\'s page')"><svg viewBox="0 0 16 16" aria-hidden="true"><rect class="od-fill" x="2.5" y="7" width="11" height="7.5" rx="1.5" /><path d="M5 7V5a3 3 0 0 1 6 0v2" /></svg></span>
+                        <button v-else-if="!readonly" class="od-icon" :title="t('Delete')" :aria-label="t('Delete')"
+                                @click="removeEntry(l.row, Number(ei))"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" /></svg></button>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+              </template>
+              <tr v-if="!lines(a).length"><td></td><td :colspan="COLUMNS + 1" class="muted">{{ t("No objects in this area.") }}</td></tr>
+            </template>
           </template>
-        </template>
-        <tr v-if="unassigned.length" class="od-sep"><td colspan="7">{{ t("Without an index") }}
-          <span class="muted">{{ unassigned.length }}</span></td></tr>
-        <tr v-for="o in unassigned" :key="o.entries[0].path.join('/')" :class="{ selected: selected(o.entries[0]) }">
-          <td class="od-twisty"></td>
-          <td><input class="mono" value="" placeholder="0x2000" :readonly="readonly" :aria-label="t('Index')"
-                     @change="setIndex(o.entries, $event)" /></td>
-          <td><input class="mono" :value="cell(o.entries[0].subindex, 2)" placeholder="0x00" :readonly="readonly"
-                     :aria-label="t('Subindex')" @change="setSubindex(o.entries[0], $event)" /></td>
-          <td><span class="od-link" :title="t('Open the object in its frame')"
-                    @click="actions.select(o.entries[0].path)">{{ o.entries[0].label }}</span><span
-            v-if="o.entries[0].label !== o.entries[0].name" class="ident">{{ o.entries[0].name }}</span></td>
-          <td class="muted">—</td>
-          <td><a @click="actions.select(o.entries[0].framePath)"><span class="mono">{{ o.entries[0].canId }}</span>
-            {{ o.entries[0].frameLabel }}</a></td>
-          <td>{{ o.entries[0].via ? VIA_LABEL[o.entries[0].via] : "—" }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else class="muted">{{ t("The device has no PDO objects or SDO exchanges yet.") }}</p>
+        </tbody>
+      </table>
+    </div>
   </section>
 </template>

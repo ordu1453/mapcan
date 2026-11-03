@@ -317,44 +317,78 @@ test.describe("the start screen", () => {
   });
 });
 
-test.describe("the object dictionary of a CANopen device (#151)", () => {
-  test.use({ files: { "drive.yaml": "examples/canopen-node.yaml" }, open: "drive.yaml" });
+test.describe("the object dictionary of a CANopen bus and its devices (#151)", () => {
+  test.use({ files: { "od.yaml": "tests/data/canopen-od.yaml" }, open: "od.yaml" });
 
-  test("lists the objects by index, gives a subindex in place and opens an object in its frame with a click on its name", async ({ page, editor }) => {
+  const indices = async (page: Page) => (await page.locator(".od-table tr.od-obj td:nth-child(2)").allTextContents()).map((s) => s.split(":")[0]);
+
+  test("SDO uses the shared bit grid and offers descriptions without editable properties", async ({ page, editor }) => {
     await openEditor(page, editor);
-    await select(page, "Traction drive", "Objects");
-    await expect(page.getByRole("heading", { name: /^Object dictionary Traction drive/ })).toBeVisible();
-    const table = page.locator(".od-table");
-    const indices = () => table.locator("tbody tr:not(.od-entry) td:nth-child(2) input").evaluateAll(
-      (els) => els.map((e) => (e as HTMLInputElement).value));
-    await expect.poll(indices).toEqual(["0x2100", "0x6040", "0x6041", "0x606C", "0x60FF"]);
-    // Temperatures of one byte and a voltage of two: a record, opened to its entries
-    const record = table.locator("tr.od-group");
-    await expect(record).toContainText("RECORD");
-    await record.locator(".od-twisty").click();
-    const voltage = table.locator("tr.od-entry").filter({ hasText: "DC link voltage" });
-    const sub = voltage.getByRole("textbox", { name: "Subindex" });
-    await expect(sub).toHaveValue("0x03");
-    await sub.fill("4");
-    await sub.press("Enter");
-    await expect(sub).toHaveValue("0x04");
-    // Subindex 0 of a record holds the number of its entries: no object takes it, nor a VAR moved into the record
-    await sub.fill("0");
-    await sub.press("Enter");
-    await expect(page.locator(".toast.error")).toContainText("Subindex 0x00 of an array or a record");
-    await expect(sub).toHaveValue("0x04");
-    const controlword = table.locator("tr").filter({ hasText: "Controlword" }).getByRole("textbox", { name: "Index", exact: true });
-    await controlword.fill("0x2100");
-    await controlword.press("Enter");
-    await expect(controlword).toHaveValue("0x6040");
+    await select(page, "Drive", "drive_sdo_rx");
+    await expect(page.locator(".sdo-structure .bitgrid")).toBeVisible();
+    await expect(page.locator(".sdo-structure .bg-lock")).toHaveCount(4);
+    await expect(page.locator(".node-editor .form-rows")).toHaveCount(0);
+    await expect(page.locator(".sdo-structure")).toContainText("SDO transfers the objects described");
+    await page.locator(".sdo-structure .bg-cell").first().click();
+    await expect(page.locator(".sdo-details")).toContainText("WRITE_4_BYTES");
+    await page.locator(".sdo-structure .bg-cell").nth(8).click();
+    await expect(page.locator(".sdo-details")).toContainText("16-bit index");
+    await expect(page.locator(".sdo-details input, .sdo-details select")).toHaveCount(0);
+  });
 
-    // Only the name leads to the frame, and the pointer shows it
-    await voltage.locator("td").last().click();
-    await expect(page.getByRole("heading", { name: /^Object dictionary Traction drive/ })).toBeVisible();
-    const name = voltage.locator(".od-link");
-    expect(await name.evaluate((e) => getComputedStyle(e).cursor)).toBe("pointer");
-    await name.click();
-    await expect(page.getByRole("heading", { name: /^Object DC link voltage/ })).toBeVisible();
-    await expect(field(page, "Subindex")).toHaveValue("0x04");
+  test("object kind is changed in the dictionary independently of data type", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await select(page, "Drive");
+    await page.getByRole("button", { name: "Object dictionary" }).click();
+    const row = page.locator("tr.od-obj").filter({ has: page.locator(".od-name", { hasText: /^map_version$/ }) });
+    await expect(row.locator("td").nth(1)).toHaveText("0x2000:00");
+    await row.getByRole("combobox", { name: "Object type" }).selectOption("record");
+    await expect(row.getByRole("combobox", { name: "Object type" })).toHaveValue("record");
+    await expect(page.locator("tr.od-entry").first().locator("td").nth(1)).toHaveText("0x2000:01");
+    await row.getByRole("combobox", { name: "Object type" }).selectOption("var");
+    await row.locator(".od-name").click();
+    const type = page.getByRole("combobox", { name: /Data type/ });
+    await expect(type).toHaveValue("unsigned8");
+    await expect(type.locator('option[value="array"], option[value="record"]')).toHaveCount(0);
+  });
+  const area = (page: Page, title: string) => page.locator("tbody").filter({ has: page.locator("tr.od-area", { hasText: title }) });
+
+  test("the bus lists its objects under the headings of the index areas, the standard ones with a tick", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await select(page, "Bus");
+    await page.getByRole("button", { name: "Object dictionary" }).click();
+    await expect(page.getByRole("heading", { name: /^Object dictionary Bus/ })).toBeVisible();
+    await expect.poll(() => indices(page)).toEqual(["0x100A", "0x1018", "0x2000"]);
+    await expect(page.locator("tr.od-area").filter({ hasText: "Overall manufacturer area" })).toBeVisible();
+    // A standard object not in the map: its tick puts it there
+    await page.getByRole("checkbox", { name: "Include device_type in the map" }).check();
+    await expect.poll(() => indices(page)).toEqual(["0x1000", "0x100A", "0x1018", "0x2000"]);
+    // An area folds under its heading
+    await page.locator("tr.od-area").filter({ hasText: "Communication profile" }).click();
+    await expect.poll(() => indices(page)).toEqual(["0x2000"]);
+    // The + of an area adds an object at its first free index; a click on it opens its form
+    await area(page, "Standardized device profiles").getByRole("button", { name: "New object" }).click();
+    await expect.poll(() => indices(page)).toEqual(["0x2000", "0x6000"]);
+    await page.locator(".od-table .od-name", { hasText: /^object$/ }).click();
+    await expect(page.getByRole("heading", { name: /^Object object/ })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: /Data type/ })).toHaveValue("unsigned8");
+  });
+
+  test("a device has its manufacturer area with the bus's objects there, locked", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await select(page, "Drive");
+    await page.getByRole("button", { name: "Object dictionary" }).click();
+    await expect(page.getByRole("heading", { name: /^Object dictionary Drive/ })).toBeVisible();
+    await expect(page.locator("tr.od-area")).toHaveCount(1);
+    await expect.poll(() => indices(page)).toEqual(["0x2000", "0x2100"]);
+    const own = page.locator("tr.od-obj").filter({ hasText: "instead of the bus's" });
+    await expect(own).toContainText("map_version");
+    // An array opened to its entries; a double click renames an entry in place
+    await page.locator("tr.od-group .od-twisty").click();
+    await page.locator("tr.od-entry .od-name", { hasText: "max_speed" }).dblclick();
+    const rename = page.locator("tr.od-entry").getByRole("textbox", { name: "Identifier" });
+    await rename.fill("speed_limit");
+    await rename.press("Enter");
+    await expect(page.locator("tr.od-entry .od-name", { hasText: "speed_limit" })).toBeVisible();
   });
 });

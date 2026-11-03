@@ -258,20 +258,47 @@ td { padding: 3px 6px; border-bottom: 1px solid var(--line); vertical-align: top
 table.list tr.clickable { cursor: pointer; }
 table.list tr.clickable:hover { background: var(--hover); }
 table.list .act { width: 1%; text-align: right; white-space: nowrap; }
-/* Object dictionary of a device: an index and a subindex edited in place, entries of an array or a record indented */
+/* Object dictionary of a bus or a device: a heading per index area (it folds, its + adds an object), objects as plain
+   text (a click on an identifier opens the object, a double click renames it), entries of an array or a record
+   indented; objects of the bus on a device's page and standard objects not in the map are muted. Fixed columns keep
+   the areas aligned; the +, the ticks, the crosses and the locks on the right are of one size, without frames. */
 .od-note { margin: 0 0 8px; }
-.od-table td { vertical-align: middle; }
-.od-table input { width: 8ch; padding: 2px 4px; }
-.od-table tr.error input { border-color: var(--error); background: var(--error-soft); }
-.od-table tr.warning input { border-color: var(--warning); background: var(--warning-soft); }
-.od-table .od-twisty { width: 1%; cursor: pointer; color: var(--muted); user-select: none; }
+.od-scroll { overflow-x: auto; }
+.od-table { table-layout: fixed; min-width: 420px; }
+.od-table .od-c-twisty { width: 22px; }
+.od-table .od-c-index { width: 110px; }
+.od-table .od-c-act { width: 52px; }
+.od-table td { vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.od-table .od-twisty { cursor: pointer; color: var(--muted); user-select: none; padding: 3px 0; text-align: center;
+  text-overflow: clip; }
+.od-table tr.od-area td { cursor: pointer; user-select: none; font-weight: 600; color: var(--muted); padding-top: 12px;
+  border-bottom: 1px solid var(--line-strong); }
+.od-table tr.od-area td .mono { color: var(--accent); margin-right: 4px; }
+.od-table tr.od-area:hover td { background: var(--hover); }
 .od-table tr.od-group td { font-weight: 600; }
-.od-table tr.od-group td.muted { font-weight: normal; cursor: pointer; }
-.od-table tr.od-entry td:nth-child(2) { padding-left: 18px; }
-.od-table tr.selected { background: var(--accent-soft); }
-/* Only the name of an object leads to its frame (a click), and the pointer says so */
-.od-table .od-link { cursor: pointer; }
-.od-table tr.od-sep td { font-weight: 600; font-size: 11px; color: var(--muted); padding-top: 10px; }
+.od-table tr.od-entry td:nth-child(4) { padding-left: 22px; }
+.od-table .od-name { cursor: pointer; }
+.od-table .od-name:hover { color: var(--accent); text-decoration: underline; }
+.od-table input.od-rename { width: 100%; padding: 0 4px; border: none; outline: none; background: var(--hover); }
+.od-table tr.error .od-name { color: var(--error); }
+.od-table tr.warning .od-name { color: var(--warning); }
+.od-table tr.od-inherited td, .od-table tr.od-standard td, .od-table tr.od-unused td { color: var(--muted); }
+.od-table .od-badge { font-size: 11px; margin-left: 6px; }
+.od-table .act { text-align: right; }
+.od-table .od-icon + .od-icon { margin-left: 8px; }
+/* One box of 16 px for every icon: the +, the cross and the lock are drawn alike, the tick is a square of the same size */
+.od-table .od-icon { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  box-sizing: border-box; width: 16px; height: 16px; min-width: 0; margin: 0; padding: 0; border: none; border-radius: 0;
+  background: none; color: var(--muted); cursor: pointer; }
+.od-table .od-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.od-table .od-icon svg .od-fill { fill: currentColor; stroke: none; }
+.od-table button.od-icon:hover:not(:disabled) { background: none; color: var(--accent); }
+.od-table input.od-icon { appearance: none; -webkit-appearance: none; border: 1.8px solid currentColor; border-radius: 3px; }
+.od-table input.od-icon:hover:not(:disabled) { color: var(--accent); }
+.od-table input.od-icon:checked { border-color: var(--accent); background: var(--accent) no-repeat center / 12px 12px
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3.2 3.2L13 4.8' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+.od-table input.od-icon:focus-visible, .od-table button.od-icon:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.od-table .od-lock { cursor: default; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line-strong); }
 
 .subtable header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
@@ -365,6 +392,8 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 }
 .bg-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bg-label.selected { font-weight: 700; }
+.bg-lock { position: absolute; top: 3px; right: 5px; width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; opacity: .7; }
+.od-kind { float: right; width: auto; margin-left: 12px; padding: 2px 6px; font-size: 11px; }
 .bg-label.conflict { color: #b71c1c; font-weight: 700; outline: 2px solid var(--error); outline-offset: -2px; }
 .bitgrid-status { font-size: 12px; min-height: 18px; }
 

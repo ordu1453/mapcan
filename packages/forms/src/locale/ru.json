@@ -107,5 +107,12 @@
   "the device itself": "само устройство",
   "no — byte array": "нет — массив байт",
   "Object dictionary": "Словарь объектов",
-  "A multiplexed frame carries different signals depending on the value of its selector. Choose the selector here; each switched signal names the selector values it is sent at.": "Мультиплексированный кадр несёт разные сигналы в зависимости от значения селектора. Здесь выбирается селектор; каждый переключаемый сигнал указывает значения селектора, при которых он передаётся."
+  "A multiplexed frame carries different signals depending on the value of its selector. Choose the selector here; each switched signal names the selector values it is sent at.": "Мультиплексированный кадр несёт разные сигналы в зависимости от значения селектора. Здесь выбирается селектор; каждый переключаемый сигнал указывает значения селектора, при которых он передаётся.",
+  "ro — read only": "ro — только чтение",
+  "wo — write only": "wo — только запись",
+  "rw — read and write": "rw — чтение и запись",
+  "const — constant": "const — константа",
+  "none — its own value": "нет — своё значение",
+  "Data type": "Тип данных",
+  "Access": "Доступ"
 }

@@ -1,0 +1,51 @@
+# CANopen dictionary (objects): versions a master reads by SDO. Used by tests/test_od.py and the web e2e tests.
+mapcan: 2
+document:
+  title: Test
+  version: 1.4.2
+  language: en
+buses:
+  - name: bus
+    title: Bus
+    protocol: canopen
+    objects:
+      - index: 0x1018
+        name: identity
+        title: Identity object
+        entries:
+          - {subindex: 1, name: vendor_id, data_type: unsigned32, default: 0x12345678}
+          - {subindex: 2, name: product_code, data_type: unsigned32}
+          - {subindex: 3, name: revision_number, data_type: unsigned32}
+      - index: 0x100A
+        name: software_version
+        title: Manufacturer software version
+        data_type: visible_string
+        access: const
+      - index: 0x2000
+        name: map_version
+        title: Map version
+        data_type: unsigned32
+        source: layout_crc32
+    devices:
+      - name: drive
+        title: Drive
+        node_id: 0x05
+        objects:
+          - index: 0x2000
+            name: map_version
+            title: Map version
+            data_type: unsigned8
+            source: map_version.minor
+          - index: 0x2100
+            name: limits
+            array: true
+            entries:
+              - {subindex: 1, name: max_speed, data_type: unsigned16, access: rw, default: 3000, unit: rpm}
+              - {subindex: 2, name: max_torque, data_type: unsigned16, access: rw, default: 50}
+        frames:
+          - name: drive_sdo_rx
+            canopen: sdo_rx
+            sdo:
+              - {name: read_sw, command: 0x40, index: 0x100A}
+              - {name: read_map, command: 0x40, index: 0x2000}
+              - {name: read_revision, command: 0x40, index: 0x1018, subindex: 3}

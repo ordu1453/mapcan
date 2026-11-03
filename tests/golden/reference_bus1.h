@@ -209,12 +209,12 @@ typedef struct {
 #define BUS1_MAP_VERSION_MAJOR 1u
 #define BUS1_MAP_VERSION_MINOR 0u
 #define BUS1_MAP_VERSION_PATCH 0u
-#define BUS1_MAP_LAYOUT_CRC32 0x0B220862u
+#define BUS1_MAP_LAYOUT_CRC32 0xAD603398u
 #ifndef MAPCAN_NO_DEPRECATED
 #define MAP_VERSION_MAJOR 1u /* устарело: используйте BUS1_MAP_VERSION_MAJOR */
 #define MAP_VERSION_MINOR 0u /* устарело: используйте BUS1_MAP_VERSION_MINOR */
 #define MAP_VERSION_PATCH 0u /* устарело: используйте BUS1_MAP_VERSION_PATCH */
-#define MAP_LAYOUT_CRC32 0x0B220862u /* устарело: используйте BUS1_MAP_LAYOUT_CRC32 */
+#define MAP_LAYOUT_CRC32 0xAD603398u /* устарело: используйте BUS1_MAP_LAYOUT_CRC32 */
 #endif
 #define BUS1_BITRATE 500000u
 #define IMD_NODE_ID 0x21u
@@ -404,27 +404,21 @@ typedef enum {
     IMD_SDO_REQUEST_SDO_COMMAND_WRITE_2_BYTES = 43,
 } imd_sdo_request_sdo_command_t;
 
-/* sdo_index: Индекс объекта */
+/* sdo_object: Объект словаря: индекс (байты 1–2) и субиндекс (байт 3) */
 typedef enum {
-    IMD_SDO_REQUEST_SDO_INDEX_INDEX_4010 = 16400,
-} imd_sdo_request_sdo_index_t;
-
-/* sdo_subindex: Субиндекс объекта */
-typedef enum {
-    IMD_SDO_REQUEST_SDO_SUBINDEX_SET_ALARM_RESISTANCE = 1, /* Установка ALARM_RESISTANCE */
-    IMD_SDO_REQUEST_SDO_SUBINDEX_SET_WARNING_RESISTANCE = 2, /* Установка WARNING_RESISTANCE */
-} imd_sdo_request_sdo_subindex_t;
+    IMD_SDO_REQUEST_SDO_OBJECT_SET_ALARM_RESISTANCE = 81936, /* Установка ALARM_RESISTANCE */
+    IMD_SDO_REQUEST_SDO_OBJECT_SET_WARNING_RESISTANCE = 147472, /* Установка WARNING_RESISTANCE */
+} imd_sdo_request_sdo_object_t;
 
 typedef struct {
     uint8_t sdo_command; /* Команда SDO */
-    uint16_t sdo_index; /* Индекс объекта */
-    uint8_t sdo_subindex; /* Субиндекс объекта */
+    uint32_t sdo_object; /* Объект словаря: индекс (байты 1–2) и субиндекс (байт 3) */
     uint16_t alarm_resistance; /* Порог аварийного сопротивления изоляции [кОм] */
     uint16_t warning_resistance; /* Порог предупредительного сопротивления изоляции [кОм] */
 } imd_sdo_request_t;
 
-static inline int imd_sdo_request_alarm_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_subindex == 1u; }
-static inline int imd_sdo_request_warning_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_subindex == 2u; }
+static inline int imd_sdo_request_alarm_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_object == 81936u; }
+static inline int imd_sdo_request_warning_resistance_is_active(const imd_sdo_request_t *msg) { return msg->sdo_object == 147472u; }
 
 /* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */
 extern const imd_sdo_request_t IMD_SDO_REQUEST_INITIAL;
@@ -445,21 +439,15 @@ typedef enum {
     IMD_SDO_RESPONSE_SDO_COMMAND_WRITE_OK = 96,
 } imd_sdo_response_sdo_command_t;
 
-/* sdo_index: Индекс объекта */
+/* sdo_object: Объект словаря: индекс (байты 1–2) и субиндекс (байт 3) */
 typedef enum {
-    IMD_SDO_RESPONSE_SDO_INDEX_INDEX_4010 = 16400,
-} imd_sdo_response_sdo_index_t;
-
-/* sdo_subindex: Субиндекс объекта */
-typedef enum {
-    IMD_SDO_RESPONSE_SDO_SUBINDEX_ACK_ALARM_RESISTANCE = 1, /* Принят ALARM_RESISTANCE */
-    IMD_SDO_RESPONSE_SDO_SUBINDEX_ACK_WARNING_RESISTANCE = 2, /* Принят WARNING_RESISTANCE */
-} imd_sdo_response_sdo_subindex_t;
+    IMD_SDO_RESPONSE_SDO_OBJECT_ACK_ALARM_RESISTANCE = 81936, /* Принят ALARM_RESISTANCE */
+    IMD_SDO_RESPONSE_SDO_OBJECT_ACK_WARNING_RESISTANCE = 147472, /* Принят WARNING_RESISTANCE */
+} imd_sdo_response_sdo_object_t;
 
 typedef struct {
     uint8_t sdo_command; /* Команда SDO */
-    uint16_t sdo_index; /* Индекс объекта */
-    uint8_t sdo_subindex; /* Субиндекс объекта */
+    uint32_t sdo_object; /* Объект словаря: индекс (байты 1–2) и субиндекс (байт 3) */
 } imd_sdo_response_t;
 
 /* Начальные значения из карты (initial; без него — 0): константа и функция, заполняющая ими. */

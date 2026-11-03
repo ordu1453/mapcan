@@ -1,9 +1,10 @@
 // Labels of nodes in the tree: titles for people instead of identifiers, links to received frames.
 
 import { describe, expect, it } from "vitest";
-import { buildTree, canonicalPath, deviceLabel, deviceObjects, displayName, flagFits, includedFile, isLink, localPath, mergedPath,
+import { buildTree, canonicalPath, deviceLabel, displayName, flagFits, includedFile, isLink, localPath, mergedPath,
   namedTable, nodeKind, pathKey, shiftedFlags, viewOf, type TreeNode } from "../src/model";
 import { issueUrl, ISSUES_URL } from "../src/links";
+import { areaOf, dictionary, freeIndex, kindOf, STANDARD, useKey, uses } from "../src/od";
 import type { ResolvedFrame } from "../src/types";
 
 const data = {
@@ -42,9 +43,10 @@ describe("labels", () => {
   });
 
   it("tree: a bus shows its identifier on the right, frames and signals their title, without one their name", () => {
+    expect(bus.children[0]).toMatchObject({ kind: "objects", path: ["buses", 0, "objects"], label: "Objects" });
     expect(bus.label).toBe("Шина 1");
     expect(bus.sub).toBe("");
-    const [bms, panel] = bus.children;
+    const [, bms, panel] = bus.children;
     expect(bms.label).toBe("BMS · Система управления батареей");
     expect(panel.label).toBe("panel");
     // A device of a CANopen bus has its object dictionary first (#151)
@@ -63,7 +65,7 @@ describe("labels", () => {
   });
 
   it("a received frame is a link under the receiver with the sender in its label", () => {
-    const [bms, panel] = bus.children;
+    const [, bms, panel] = bus.children;
     expect(bms.children.filter((c) => c.from !== undefined)).toEqual([]);
     const link = panel.children[1];
     expect(link.label).toBe("BMS · Состояния");
@@ -90,48 +92,63 @@ describe("canonical path (#100)", () => {
   });
 });
 
-describe("object dictionary of a device (#151)", () => {
-  const dev = ["buses", 0, "devices", 0];
+describe("object dictionary of a bus and its devices (#151)", () => {
+  const bus = ["buses", 0];
+  const dev = [...bus, "devices", 0];
   const device = {
     name: "drive",
+    objects: [
+      { index: 0x2000, name: "map_version", data_type: "unsigned8", source: "map_version.minor" },
+      { index: 0x2100, name: "limits", array: true, entries: [
+        { subindex: 1, name: "a", data_type: "unsigned16" }, { subindex: 2, name: "b", data_type: "unsigned16" }] },
+    ],
     frames: [
       { name: "tpdo1", canopen: "pdo_tx1", signals: [
         { name: "status", index: 0x6041, encoding: "number", bit_length: 16 },
         { name: "a", title: "Ток A", index: 0x2100, subindex: 1, encoding: "number", bit_length: 16 },
-        { name: "b", index: 0x2100, subindex: 2, encoding: "number", bit_length: 16 },
-        { name: "spare", encoding: "number", bit_length: 8 },
       ] },
-      { name: "rpdo1", canopen: "pdo_rx1", signals: [
-        { name: "mode", index: 0x2200, subindex: 1, encoding: "enum", bit_length: 8 },
-        { name: "speed", index: 0x2200, subindex: 2, encoding: "number", bit_length: 32 },
-      ] },
-      { name: "sdo_rx", canopen: "sdo_rx", sdo: [{ name: "save", command: 0x23, index: 0x1010, subindex: 1 }] },
-      { name: "raw", id: 0x300, signals: [{ name: "plain", encoding: "number", bit_length: 8 }] },
+      { name: "sdo_rx", canopen: "sdo_rx", sdo: [{ name: "read_sw", command: 0x40, index: 0x100a }] },
+      { name: "raw", id: 0x300, signals: [{ name: "plain", index: 0x2100, subindex: 2, encoding: "number", bit_length: 8 }] },
     ],
   };
-  const tpdo = frame([...dev, "frames", 0], { name: "tpdo1", can_id: 0x181 });
-  const objects = deviceObjects(device, dev, new Map([[pathKey(tpdo.path), tpdo]]), "ru");
+  const map = { buses: [{ name: "c", objects: [
+    { index: 0x100a, name: "software_version", data_type: "visible_string" },
+    { index: 0x2000, name: "map_version", data_type: "unsigned32", source: "layout_crc32" },
+  ], devices: [device] }] };
 
-  it("is a page of the tree under a CANopen device only", () => {
+  it("is a page of the tree under a CANopen bus and each of its devices", () => {
     expect(nodeKind([...dev, "objects"])).toBe("objects");
-    const [, can] = buildTree({ buses: [{ name: "c", protocol: "can", devices: [device] }] }, new Map(), "ru");
+    expect(nodeKind([...bus, "objects"])).toBe("objects");
+    const [, can] = buildTree({ buses: [{ ...map.buses[0], protocol: "can" }] }, new Map(), "ru");
     expect(find(can, "objects")).toEqual([]);
-    const [, co] = buildTree({ buses: [{ name: "c", devices: [device] }] }, new Map(), "ru");
-    expect(find(co, "objects").map((n) => n.sub)).toEqual(["4"]);
+    const [, co] = buildTree(map, new Map(), "ru");
+    expect(find(co, "objects").map((n) => [n.path, n.sub])).toEqual([[[...bus, "objects"], "2"], [[...dev, "objects"], "2"]]);
   });
 
-  it("lists objects by index: a var, an array of one type, a record of several, entries by subindex", () => {
-    expect(objects.map((o) => [o.index, o.type])).toEqual([
-      [0x1010, "array"], [0x2100, "array"], [0x2200, "record"], [0x6041, "var"], [null, null]]);
-    const [save, currents] = objects;
-    expect(save.entries[0]).toMatchObject({ via: "sdo", name: "save", subindex: 1, path: [...dev, "frames", 2, "sdo", 0] });
-    expect(currents.entries.map((e) => [e.label, e.subindex, e.canId, e.via])).toEqual([
-      ["Ток A", 1, "0x181", "pdo"], ["b", 2, "0x181", "pdo"]]);
+  it("has the bus's objects in a device's, the device's own in place of those with its index", () => {
+    const rows = dictionary(map, bus, dev);
+    expect(rows.map((r) => [r.index, r.inherited, r.overrides])).toEqual([
+      [0x100a, true, false], [0x2000, false, true], [0x2100, false, false]]);
+    expect(rows[1].path).toEqual([...dev, "objects", 0]);
+    expect(dictionary(map, bus).map((r) => r.index)).toEqual([0x100a, 0x2000]);
+    expect(rows.map((r) => kindOf(r.obj))).toEqual(["var", "var", "array"]);
   });
 
-  it("offers the signals of PDOs without an index; signals of other frames only with one", () => {
-    const loose = objects.filter((o) => o.index === null).flatMap((o) => o.entries.map((e) => e.name));
-    expect(loose).toEqual(["spare"]);
+  it("knows the PDO signals and SDO exchanges that address an object, not signals of other frames", () => {
+    const u = uses(device, dev, new Map(), "ru");
+    expect(u.get(useKey(0x2100, 1))?.map((x) => [x.via, x.label])).toEqual([["pdo", "Ток A"]]);
+    expect(u.get(useKey(0x100a, 0))?.map((x) => x.via)).toEqual(["sdo"]);
+    expect(u.has(useKey(0x2100, 2))).toBe(false);
+  });
+
+  it("offers standard objects and free indices by area", () => {
+    expect(areaOf(0x1018).title).toBe("Communication profile");
+    expect(areaOf(0xb000).first).toBe(0xa000);
+    expect(freeIndex(areaOf(0x2000), new Set([0x2000, 0x2001]))).toBe(0x2002);
+    const version = STANDARD.find((x) => x.index === 0x2000)!;
+    expect(version.title("ru")).toBe("Версия карты сигналов");
+    expect(version.make("en").entries.map((e: { source: string }) => e.source)).toEqual(
+      ["map_version.major", "map_version.minor", "map_version.patch", "layout_crc32"]);
   });
 });
 
@@ -167,7 +184,7 @@ describe("a frame described at its receiver", () => {
   const cmd = frame(["buses", 0, "devices", 1, "frames", 0],
     { name: "cmd", device: "panel", sender: "bms", receivers: ["panel"], direction: "rx" });
   const [, can1] = buildTree(map, new Map([[pathKey(cmd.path), cmd]]), "ru");
-  const [bms, panel] = can1.children;
+  const [, bms, panel] = can1.children;
 
   it("the frame names its sender", () => {
     expect(panel.children[1].label).toBe("BMS · Команда");
@@ -194,7 +211,7 @@ describe("included files", () => {
 
   it("nodes of an included file are marked with the file, the root separately", () => {
     const [, bus] = buildTree(view, new Map(), "ru", included);
-    const [bms, panel] = bus.children;
+    const [, bms, panel] = bus.children;
     expect(bms.file).toBeUndefined();
     expect(panel.file).toBe("common.yaml");
     expect(panel.fileRoot).toBe(true);

@@ -5,6 +5,24 @@ Changes of the map format by mapcan version. Up to 0.23 they keep `mapcan: 1`; 0
 [Versioning and compatibility](format.md#versioning-and-compatibility). A map that uses a field
 needs at least the version of mapcan that introduced it; former names stay readable.
 
+## 0.26
+
+- The object dictionary of CANopen (#151): `objects` of a bus (objects every device of the bus has) and of a
+  device (its own, in the manufacturer area; one with an index of the bus's takes its place), read and written by SDO
+  ([Object dictionary](format.md#object-dictionary)). An object is a variable (`data_type`) or a record or an
+  array of `entries`, with `access`, `default`, `unit`, and `source` for a value from the map: a master reads the
+  map version (`map_version.*`, `layout_crc32`) a device was built from. New rules `od-protocol`,
+  `od-object-area`, `od-object-duplicate`, `od-object-shape`, `od-default` and `od-unknown`. `mapcan export eds`
+  writes the objects as described. Maps without `objects` are unchanged.
+- The layout of an SDO frame: bytes 1–3 are one field `sdo_object` (index and subindex), an enum of the
+  objects of the device's dictionary and of those the exchanges address, and the multiplexer selector of the
+  values of the exchanges, whatever their indices (was `sdo_index` and `sdo_subindex`, the selector only when
+  all exchanges had one index, otherwise one `sdo_data`). An `sdo_rx`/`sdo_tx` frame without exchanges is laid
+  out too. The generated code, DBC and documents of SDO frames change, and so does the `layout_crc32` of a map
+  with SDO frames.
+- The `index` of a PDO signal may be in the standardized interface profiles too: `canopen-od` reports one
+  outside 0x2000..0xBFFF (was 0x2000..0x9FFF).
+
 ## 0.25
 
 - A field of a bit field can be the multiplexer selector (#149): `multiplexer: true` on a flag, as on a signal.

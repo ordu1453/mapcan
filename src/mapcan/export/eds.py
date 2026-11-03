@@ -4,6 +4,8 @@ One file per device of a CANopen bus. The dictionary has the mandatory objects (
 the producer heartbeat (1017, if the device has a heartbeat frame), the communication and mapping
 parameters of each PDO that has signals with an ``index`` (1400/1600: RPDO, 1800/1A00: TPDO), and the
 signal objects themselves. Gaps between the signals of a PDO are filled with dummy objects (0x0001, 0x0005).
+Objects of the device's dictionary (``objects`` of the bus and of the device) are written as described there,
+in place of those the file would have otherwise.
 """
 
 from __future__ import annotations
@@ -12,10 +14,11 @@ import datetime as _dt
 from collections.abc import Callable
 from pathlib import Path
 
-from .. import __version__
+from .. import __version__, od
 from ..canopen import FUNCTION_CODES
 from ..i18n import _
-from ..model import Bus, Device, Frame, MapCan, Signal, text
+from ..model import Bus, Device, Frame, MapCan, OdObject, Signal, text
+from ..resolve import source_values
 
 BOOLEAN, UNSIGNED8, VISIBLE_STRING, OCTET_STRING = 0x0001, 0x0005, 0x0009, 0x000A
 UNSIGNED = {8: 0x0005, 16: 0x0006, 24: 0x0016, 32: 0x0007, 40: 0x0018, 48: 0x0019, 56: 0x001A, 64: 0x001B}
@@ -112,14 +115,22 @@ def device_eds(cmap: MapCan, bus: Bus, dev: Device, warn: Callable[[str], None] 
     w.section("DummyUsage", **{f"Dummy{i:04X}": int(i in used) for i in range(1, 8)})
     w.section("Comments", Lines=0)
 
+    # Objects of the dictionary, with the subindices PDOs map
+    values = source_values(cmap)
+    mapped = {(s.index, s.subindex or 0) for f in pdos for s in f.signals if s.index is not None}
+    described = {o.index: (lambda o=o: _described(w, o, lang, values, mapped)) for o in od.dictionary(bus, dev)}
+
+    def identity() -> None:
+        w.section("1018", ParameterName="Identity object", ObjectType="0x9", SubNumber=5)
+        w.var("1018sub0", "Highest sub-index supported", 0x0005, "ro", 4)
+        for sub, name in enumerate(("Vendor-ID", "Product code", "Revision number", "Serial number"), 1):
+            w.var(f"1018sub{sub}", name, 0x0007, "ro", "0x00000000")
+
     # Mandatory objects
     w.section("MandatoryObjects", SupportedObjects=3, **{"1": "0x1000", "2": "0x1001", "3": "0x1018"})
-    w.var("1000", "Device type", 0x0007, "ro", "0x00000000")
-    w.var("1001", "Error register", 0x0005, "ro", 0)
-    w.section("1018", ParameterName="Identity object", ObjectType="0x9", SubNumber=5)
-    w.var("1018sub0", "Highest sub-index supported", 0x0005, "ro", 4)
-    for sub, name in enumerate(("Vendor-ID", "Product code", "Revision number", "Serial number"), 1):
-        w.var(f"1018sub{sub}", name, 0x0007, "ro", "0x00000000")
+    described.pop(0x1000, lambda: w.var("1000", "Device type", 0x0007, "ro", "0x00000000"))()
+    described.pop(0x1001, lambda: w.var("1001", "Error register", 0x0005, "ro", 0))()
+    described.pop(0x1018, identity)()
 
     # PDO parameters and the dictionary: the communication area first, then the profiles, then the manufacturer
     optional, manufacturer = [], []
@@ -137,9 +148,14 @@ def device_eds(cmap: MapCan, bus: Bus, dev: Device, warn: Callable[[str], None] 
             if s.index is not None:
                 objects.setdefault(s.index, []).append((s, f))
     for index, items in sorted(objects.items()):
-        (manufacturer if index < 0x6000 else optional).append(
-            (index, lambda index=index, items=items: _object(w, index, items, lang)))
+        if index not in described:
+            (manufacturer if index < 0x6000 else optional).append(
+                (index, lambda index=index, items=items: _object(w, index, items, lang)))
+    optional = [o for o in optional if o[0] not in described]
+    for index, write in described.items():
+        (manufacturer if 0x2000 <= index < 0x6000 else optional).append((index, write))
     optional.sort(key=lambda o: o[0])
+    manufacturer.sort(key=lambda o: o[0])
 
     w.section("OptionalObjects", SupportedObjects=len(optional),
               **{str(i): f"0x{idx:04X}" for i, (idx, _w) in enumerate(optional, 1)})
@@ -198,6 +214,35 @@ def _object(w: _Writer, index: int, items: list[tuple[Signal, Frame]], lang: str
     w.var(f"{index:04X}sub0", "Highest sub-index supported", 0x0005, "ro", top)
     for s, f in subs:
         entry(f"{index:04X}sub{s.subindex or 0:X}", s, f)
+
+
+def _value(node, values: dict[str, int]):
+    """DefaultValue of a variable or an entry of the dictionary: from the map by source, the default, or 0 (empty
+    for a string)."""
+    v = values.get(node.source, 0) if node.source is not None else node.default
+    if v is None:
+        return "" if node.data_type in od.STRING_TYPES else 0
+    if isinstance(v, int) and node.data_type.startswith("unsigned") and od.DATA_TYPES[node.data_type][1] >= 32:
+        return f"0x{v:0{od.DATA_TYPES[node.data_type][1] // 4}X}"
+    return v
+
+
+def _described(w: _Writer, obj: OdObject, lang: str, values: dict[str, int], mapped: set[tuple[int, int]]) -> None:
+    """An object as the dictionary of the map describes it."""
+    def title(node) -> str:
+        return _ascii(text(node.title, lang), node.name)
+
+    if not obj.entries:
+        w.var(f"{obj.index:04X}", title(obj), od.DATA_TYPES[obj.data_type][0], obj.access, _value(obj, values),
+              mappable=(obj.index, 0) in mapped)
+        return
+    top = max(e.subindex for e in obj.entries)
+    w.section(f"{obj.index:04X}", ParameterName=title(obj), ObjectType="0x8" if obj.kind == "array" else "0x9",
+              SubNumber=len(obj.entries) + 1)
+    w.var(f"{obj.index:04X}sub0", "Highest sub-index supported", 0x0005, "ro", top)
+    for e in sorted(obj.entries, key=lambda e: e.subindex):
+        w.var(f"{obj.index:04X}sub{e.subindex:X}", title(e), od.DATA_TYPES[e.data_type][0], e.access,
+              _value(e, values), mappable=(obj.index, e.subindex) in mapped)
 
 
 def export_eds(cmap: MapCan, out: str | Path, bus_name: str | None = None,

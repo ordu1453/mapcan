@@ -150,14 +150,15 @@ def test_invalid_raw_of_signed_values_and_too_wide_ones_stays():
 def test_sdo_layout(ref_map):
     f = next(f for f in ref_map.buses[0].all_frames() if f.name == "imd_sdo_request")
     names = [s.name for s in f.layout]
-    assert names[:3] == ["sdo_command", "sdo_index", "sdo_subindex"]
-    assert f.layout[2].multiplexer
+    assert names[:2] == ["sdo_command", "sdo_object"]
+    obj = f.layout[1]
+    assert obj.multiplexer and (obj.start_bit, obj.bit_length) == (8, 24)
     alarm = next(s for s in f.layout if s.name == "alarm_resistance")
-    assert (alarm.start_bit, alarm.bit_length, alarm.mux) == (32, 16, 1)
+    assert (alarm.start_bit, alarm.bit_length, alarm.mux) == (32, 16, 0x014010)
 
 
 def test_sdo_layout_several_indices():
-    # Exchanges with several objects: the index and the data are plain numbers (the map opened with an error, #147)
+    # Exchanges with several objects: bytes 1..3 select the value of each (the map opened with an error, #147)
     res, _ = run(one_bus("""
         - name: f
           canopen: sdo_rx
@@ -167,8 +168,9 @@ def test_sdo_layout_several_indices():
             - {name: b, command: 0x2B, index: 0x4011, subindex: 1}
     """))
     layout = res.map.buses[0].devices[0].frames[0].layout
-    assert [(s.name, s.encoding) for s in layout] == [
-        ("sdo_command", "enum"), ("sdo_index", "number"), ("sdo_subindex", "enum"), ("sdo_data", "number")]
+    assert [(s.name, s.encoding, s.mux) for s in layout] == [
+        ("sdo_command", "enum", None), ("sdo_object", "enum", None), ("v", "number", 0x014010)]
+    assert {k: v.name for k, v in layout[1].values.items()} == {0x014010: "A", 0x014011: "B"}
 
 
 def test_reference_ids(ref_map):

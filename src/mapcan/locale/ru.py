@@ -478,14 +478,14 @@ RU: dict[str, str] = {
     "a translation key must be an ISO 639-1 language code (de, fr…)":
         "ключ перевода должен быть кодом языка ISO 639-1 (de, fr…)",
     "The same SPN on several signals of the bus": "Один и тот же SPN у нескольких сигналов шины",
-    "CANopen dictionary object on a non-PDO signal, outside 0x2000..0x9FFF or big-endian":
-        "Объект словаря CANopen у сигнала не PDO, вне 0x2000..0x9FFF или big-endian",
+    "CANopen dictionary object on a non-PDO signal or outside 0x2000..0xBFFF":
+        "Объект словаря CANopen у сигнала не PDO или вне 0x2000..0xBFFF",
     "The same dictionary object on several signals of a device": "Один объект словаря у нескольких сигналов устройства",
     "{name!r}: a dictionary object is set only on PDO signals of a device on a CANopen bus":
         "{name!r}: объект словаря задаётся только у сигналов PDO устройства на шине CANopen",
     "{name!r}: subindex without index": "{name!r}: subindex без index",
-    "{name!r}: index {index:#06x} is outside the manufacturer and profile areas (0x2000..0x9FFF)":
-        "{name!r}: индекс {index:#06x} вне областей производителя и профилей (0x2000..0x9FFF)",
+    "{name!r}: index {index:#06x} is outside the manufacturer and profile areas (0x2000..0xBFFF)":
+        "{name!r}: индекс {index:#06x} вне областей производителя и профилей (0x2000..0xBFFF)",
     "{name!r}: {protocol} carries little-endian data": "{name!r}: {protocol} передаёт данные little-endian",
     "object {index:04X}:{sub:02X} is already mapped by {other}": "объект {index:04X}:{sub:02X} уже у сигнала {other}",
     "A signal at subindex 0 of an array or a record: subindex 0 holds the number of its entries":
@@ -1101,4 +1101,116 @@ RU: dict[str, str] = {
     "terminator applies to text: set charset": "terminator применяется к тексту: задайте charset",
     "terminator of {name!r} must be one byte: 0x00..0xFF or one character of the charset":
         "признак конца {name!r} должен быть одним байтом: 0x00..0xFF или одним символом кодировки",
+    "CiA 301 data type: unsigned8..unsigned64, integer8..integer64, real32, real64, boolean, visible_string, "
+    "octet_string, unicode_string, time_of_day, time_difference, domain.":
+        "Тип данных CiA 301: unsigned8..unsigned64, integer8..integer64, real32, real64, boolean, visible_string, "
+        "octet_string, unicode_string, time_of_day, time_difference, domain.",
+    "Access by SDO: ro (read only, the default), wo (write only), rw (read and write), const (a constant).":
+        "Доступ по SDO: ro (только чтение, по умолчанию), wo (только запись), rw (чтение и запись), const (константа).",
+    "Value of the object after power-up: a number, or text for a string.":
+        "Значение объекта после включения: число, у строки — текст.",
+    "The object holds a value taken from the map: map_version.major, .minor or .patch (document.version) or "
+    "layout_crc32 (the fingerprint of the frame layouts), so a master can read which map a device was built from.":
+        "Объект хранит значение из карты: map_version.major, .minor или .patch (document.version) или layout_crc32 "
+        "(отпечаток раскладки кадров), чтобы ведущий узел мог прочитать, по какой карте собрано устройство.",
+    "CANopen dictionary objects every device of the bus has (e.g. 0x1018 identity, 0x100A software version). A "
+    "device's own object with the same index takes the place of the bus's one.":
+        "Объекты словаря CANopen, которые есть у каждого устройства шины (например, 0x1018 идентификация, 0x100A "
+        "версия ПО). Собственный объект устройства с тем же индексом заменяет объект шины.",
+    "CANopen dictionary objects of the device in the manufacturer area (0x2000..0x5FFF), read and written by SDO. "
+    "Objects of the bus are there too.":
+        "Объекты словаря CANopen устройства в области производителя (0x2000..0x5FFF), читаемые и записываемые по SDO. "
+        "Объекты шины в нём тоже есть.",
+    "Subindex of the entry, 0x01..0xFE: subindex 0x00 holds the number of the entries.":
+        "Субиндекс записи, 0x01..0xFE: в субиндексе 0x00 — число записей.",
+    "Entry identifier: Latin letters, digits and _. Used in generated code.":
+        "Идентификатор записи: латинские буквы, цифры и _. Используется в генерируемом коде.",
+    "Human-readable name of the entry, e.g. “Vendor-ID”.":
+        "Название записи для людей, например «Код производителя».",
+    "Index of the object: 0x1000..0x1FFF communication profile, 0x2000..0x5FFF manufacturer area, 0x6000..0x9FFF "
+    "standardized device profiles, 0xA000..0xBFFF standardized interface profiles.":
+        "Индекс объекта: 0x1000..0x1FFF коммуникационный профиль, 0x2000..0x5FFF область производителя, "
+        "0x6000..0x9FFF стандартные профили устройств, 0xA000..0xBFFF стандартные интерфейсные профили.",
+    "Object identifier: Latin letters, digits and _. Used in generated code. Required.":
+        "Идентификатор объекта: латинские буквы, цифры и _. Используется в генерируемом коде. Обязательно.",
+    "Human-readable name of the object, e.g. “Manufacturer software version”.":
+        "Название объекта для людей, например «Версия ПО».",
+    "Data type of a variable (VAR). An array or a record has entries instead.":
+        "Тип данных переменной (VAR). У массива или структуры вместо него записи (entries).",
+    "The entries make an ARRAY (all of one data type) rather than a RECORD.":
+        "Записи образуют массив ARRAY (все одного типа данных), а не структуру RECORD.",
+    "Entries of a record or an array, by subindex from 0x01. Instead of data_type.":
+        "Записи структуры или массива по субиндексам от 0x01. Вместо data_type.",
+    "Data types":
+        "Типы данных",
+    "Communication profile":
+        "Коммуникационный профиль",
+    "Manufacturer area":
+        "Область производителя",
+    "Standardized device profiles":
+        "Стандартные профили устройств",
+    "Standardized interface profiles":
+        "Стандартные интерфейсные профили",
+    "Reserved":
+        "Резерв",
+    "Dictionary objects on a bus that is not CANopen":
+        "Объекты словаря на шине не CANopen",
+    "Dictionary object in the data type area (0x0000..0x0FFF) or the reserved one (0xC000..0xFFFF), or an object of a "
+    "device outside the manufacturer area":
+        "Объект словаря в области типов данных (0x0000..0x0FFF) или в резерве (0xC000..0xFFFF), или объект устройства "
+        "вне "
+        "области производителя",
+    "object {index:04X} of a device is outside the manufacturer area (0x2000..0x5FFF): objects of the other areas are "
+    "the bus's":
+        "объект {index:04X} устройства вне области производителя (0x2000..0x5FFF): объекты других областей задаются у "
+        "шины",
+    "The same index, subindex or name twice in a dictionary":
+        "Один и тот же индекс, субиндекс или имя дважды в словаре",
+    "Dictionary object with both data_type and entries or with neither, a value of an array or a record written on "
+    "the object instead of its entries, or an array of several data types":
+        "Объект словаря с data_type и entries одновременно или без обоих, значение массива или структуры у объекта, а "
+        "не у его записей, или массив из записей разных типов",
+    "Value of a dictionary object that does not fit its data type":
+        "Значение объекта словаря не подходит к его типу данных",
+    "SDO exchange or PDO signal addresses an object that is not in the device's dictionary":
+        "Обмен SDO или сигнал PDO обращается к объекту, которого нет в словаре устройства",
+    "default and source together: the value is taken from the map":
+        "default вместе с source: значение берётся из карты",
+    "Object":
+        "Объект",
+    "Entry":
+        "Запись",
+    "object {index:04X}: data_type of a variable and entries of an array or a record; keep one":
+        "объект {index:04X}: data_type переменной и entries массива или структуры; оставьте одно",
+    "object {index:04X}: entries of an array are of one data type":
+        "объект {index:04X}: записи массива одного типа данных",
+    "object {index:04X}: array without entries":
+        "объект {index:04X}: массив без записей",
+    "source {source} needs an unsigned data type of at least {bits} bits":
+        "для source {source} нужен беззнаковый тип данных не короче {bits} бит",
+    "dictionary objects on a {protocol} bus: they are CANopen only":
+        "объекты словаря на шине {protocol}: они есть только в CANopen",
+    "object {index:04X} is already in the dictionary ({other})":
+        "объект {index:04X} уже есть в словаре ({other})",
+    "{name!r}: another object of the dictionary has this name":
+        "{name!r}: это имя уже у другого объекта словаря",
+    "object {index:04X} is in the area “{area}” ({first:04X}..{last:04X}): objects of a device are from 0x1000 to "
+    "0xBFFF":
+        "объект {index:04X} в области «{area}» ({first:04X}..{last:04X}): объекты устройства — от 0x1000 до 0xBFFF",
+    "object {index:04X}: {key} is written on an entry of an array or a record":
+        "объект {index:04X}: {key} задаётся у записи массива или структуры",
+    "object {index:04X}: subindex {sub:02X} twice":
+        "объект {index:04X}: субиндекс {sub:02X} дважды",
+    "object {index:04X}: entry name {name!r} twice":
+        "объект {index:04X}: имя записи {name!r} дважды",
+    "object {index:04X}: neither data_type (a variable) nor entries (an array or a record)":
+        "объект {index:04X}: нет ни data_type (переменная), ни entries (массив или структура)",
+    "default of a {type} object is text":
+        "default объекта {type} — текст",
+    "default of a {type} object is a number":
+        "default объекта {type} — число",
+    "{name!r}: object {index:04X}:{sub:02X} is not in the dictionary of {device}":
+        "{name!r}: объекта {index:04X}:{sub:02X} нет в словаре {device}",
+    "default {value} is not a whole number in {min}..{max} ({type})":
+        "default {value} — не целое в {min}..{max} ({type})",
 }

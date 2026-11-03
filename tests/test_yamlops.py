@@ -55,10 +55,11 @@ def test_hex_for_invalid_raw():
 
 def test_values_keys_become_ints():
     out = _edit("s:\n  name: x\n", [{"op": "set", "path": ["s", "values"], "value": {"0": "OFF", "0x1": "ON"}}])
-    assert "values:\n    0: OFF\n    1: ON\n" in out
+    assert "values:\n    0: OFF\n    0x1: ON\n" in out
+    assert make_yaml(out).load(out)["s"]["values"] == {0: "OFF", 1: "ON"}
     # A new row of a table is a numeric key too, not the string "'2'"
     out = _edit(out, [{"op": "set", "path": ["s", "values", "2"], "value": "ERR"}])
-    assert "    1: ON\n    2: ERR\n" in out
+    assert "    0x1: ON\n    2: ERR\n" in out
 
 
 @pytest.mark.parametrize("start, length, be, expected", [
@@ -169,7 +170,7 @@ def test_operations_on_lists_and_keys():
     lines = out.splitlines()
     assert lines.index("              - name: counter         # arbitrary position: bits 56..59") < \
         lines.index("              - name: mode            # enum, byte 0")
-    assert "                  3: {name: FAULT, description: fault}" in lines
+    assert "                  0x3: {name: FAULT, description: fault}" in lines
     assert out.index("name: first") < out.index("name: overheat")
     # A list that is not there yet is created; an item past the end is appended
     out = _edit(MINI, [{"op": "insert", "path": ["buses", 0, "devices", 0, "frames", 0, "receivers"],

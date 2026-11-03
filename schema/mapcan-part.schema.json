@@ -171,6 +171,22 @@
           "description": "Frames whose sender is outside the map, with the receiving devices in receivers; also CANopen broadcast frames (NMT, SYNC, TIME).",
           "title": "Frames"
         },
+        "objects": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/OdObject"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CANopen dictionary objects every device of the bus has (e.g. 0x1018 identity, 0x100A software version). A device's own object with the same index takes the place of the bus's one.",
+          "title": "Objects"
+        },
         "devices": {
           "anyOf": [
             {
@@ -275,6 +291,14 @@
           "default": null,
           "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
           "title": "Description"
+        },
+        "objects": {
+          "description": "CANopen dictionary objects of the device in the manufacturer area (0x2000..0x5FFF), read and written by SDO. Objects of the bus are there too.",
+          "items": {
+            "$ref": "#/$defs/OdObject"
+          },
+          "title": "Objects",
+          "type": "array"
         },
         "frames": {
           "items": {
@@ -798,6 +822,337 @@
         }
       },
       "title": "LocalizedText",
+      "type": "object"
+    },
+    "OdObject": {
+      "additionalProperties": false,
+      "description": "An object of the CANopen dictionary (CiA 301) by index: a variable (data_type) or an array or a record of\nentries (entries). Read and written by SDO; a PDO signal carries it by its index and subindex.",
+      "properties": {
+        "index": {
+          "description": "Index of the object: 0x1000..0x1FFF communication profile, 0x2000..0x5FFF manufacturer area, 0x6000..0x9FFF standardized device profiles, 0xA000..0xBFFF standardized interface profiles.",
+          "maximum": 65535,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Object identifier: Latin letters, digits and _. Used in generated code. Required.",
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable name of the object, e.g. “Manufacturer software version”.",
+          "title": "Title"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "data_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "boolean",
+                "integer8",
+                "integer16",
+                "integer24",
+                "integer32",
+                "integer40",
+                "integer48",
+                "integer56",
+                "integer64",
+                "unsigned8",
+                "unsigned16",
+                "unsigned24",
+                "unsigned32",
+                "unsigned40",
+                "unsigned48",
+                "unsigned56",
+                "unsigned64",
+                "real32",
+                "real64",
+                "visible_string",
+                "octet_string",
+                "unicode_string",
+                "time_of_day",
+                "time_difference",
+                "domain"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Data type of a variable (VAR). An array or a record has entries instead.",
+          "title": "Data Type"
+        },
+        "access": {
+          "default": "ro",
+          "description": "Access by SDO: ro (read only, the default), wo (write only), rw (read and write), const (a constant).",
+          "enum": [
+            "ro",
+            "wo",
+            "rw",
+            "const"
+          ],
+          "title": "Access",
+          "type": "string"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value of the object after power-up: a number, or text for a string.",
+          "title": "Default"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "enum": [
+                "map_version.major",
+                "map_version.minor",
+                "map_version.patch",
+                "layout_crc32"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The object holds a value taken from the map: map_version.major, .minor or .patch (document.version) or layout_crc32 (the fingerprint of the frame layouts), so a master can read which map a device was built from.",
+          "title": "Source"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "array": {
+          "default": false,
+          "description": "The entries make an ARRAY (all of one data type) rather than a RECORD.",
+          "title": "Array",
+          "type": "boolean"
+        },
+        "entries": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/OdSubEntry"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Entries of a record or an array, by subindex from 0x01. Instead of data_type.",
+          "title": "Entries"
+        }
+      },
+      "required": [
+        "index",
+        "name"
+      ],
+      "title": "OdObject",
+      "type": "object"
+    },
+    "OdSubEntry": {
+      "additionalProperties": false,
+      "description": "An entry of an array or a record of the dictionary: one subindex.",
+      "properties": {
+        "subindex": {
+          "description": "Subindex of the entry, 0x01..0xFE: subindex 0x00 holds the number of the entries.",
+          "maximum": 254,
+          "minimum": 1,
+          "title": "Subindex",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Entry identifier: Latin letters, digits and _. Used in generated code.",
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable name of the entry, e.g. “Vendor-ID”.",
+          "title": "Title"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it is and what for: shown in documents, comments of generated code and DBC.",
+          "title": "Description"
+        },
+        "data_type": {
+          "description": "CiA 301 data type: unsigned8..unsigned64, integer8..integer64, real32, real64, boolean, visible_string, octet_string, unicode_string, time_of_day, time_difference, domain.",
+          "enum": [
+            "boolean",
+            "integer8",
+            "integer16",
+            "integer24",
+            "integer32",
+            "integer40",
+            "integer48",
+            "integer56",
+            "integer64",
+            "unsigned8",
+            "unsigned16",
+            "unsigned24",
+            "unsigned32",
+            "unsigned40",
+            "unsigned48",
+            "unsigned56",
+            "unsigned64",
+            "real32",
+            "real64",
+            "visible_string",
+            "octet_string",
+            "unicode_string",
+            "time_of_day",
+            "time_difference",
+            "domain"
+          ],
+          "title": "Data Type",
+          "type": "string"
+        },
+        "access": {
+          "default": "ro",
+          "description": "Access by SDO: ro (read only, the default), wo (write only), rw (read and write), const (a constant).",
+          "enum": [
+            "ro",
+            "wo",
+            "rw",
+            "const"
+          ],
+          "title": "Access",
+          "type": "string"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value of the object after power-up: a number, or text for a string.",
+          "title": "Default"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "enum": [
+                "map_version.major",
+                "map_version.minor",
+                "map_version.patch",
+                "layout_crc32"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The object holds a value taken from the map: map_version.major, .minor or .patch (document.version) or layout_crc32 (the fingerprint of the frame layouts), so a master can read which map a device was built from.",
+          "title": "Source"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "subindex",
+        "name",
+        "data_type"
+      ],
+      "title": "OdSubEntry",
       "type": "object"
     },
     "SdoExchange": {

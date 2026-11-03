@@ -604,6 +604,86 @@ class SdoExchange(_Base):
 
 
 # --------------------------------------------------------------------------- #
+# Object dictionary (CANopen)
+# --------------------------------------------------------------------------- #
+
+# Basic data types of CiA 301 (their codes in mapcan.od.DATA_TYPES)
+OdDataType = Literal[
+    "boolean", "integer8", "integer16", "integer24", "integer32", "integer40", "integer48", "integer56", "integer64",
+    "unsigned8", "unsigned16", "unsigned24", "unsigned32", "unsigned40", "unsigned48", "unsigned56", "unsigned64",
+    "real32", "real64", "visible_string", "octet_string", "unicode_string", "time_of_day", "time_difference",
+    "domain",
+]
+OdAccess = Literal["ro", "wo", "rw", "const"]
+OdValue = Union[int, float, str]
+
+OD_DATA_TYPE = N_("CiA 301 data type: unsigned8..unsigned64, integer8..integer64, real32, real64, boolean, "
+                  "visible_string, octet_string, unicode_string, time_of_day, time_difference, domain.")
+OD_ACCESS = N_("Access by SDO: ro (read only, the default), wo (write only), rw (read and write), const (a constant).")
+OD_DEFAULT = N_("Value of the object after power-up: a number, or text for a string.")
+OD_SOURCE = N_("The object holds a value taken from the map: map_version.major, .minor or .patch (document.version) "
+               "or layout_crc32 (the fingerprint of the frame layouts), so a master can read which map a device "
+               "was built from.")
+
+
+class OdSubEntry(_Base):
+    """An entry of an array or a record of the dictionary: one subindex."""
+
+    subindex: int = Field(
+        ge=1, le=0xFE,
+        description=N_("Subindex of the entry, 0x01..0xFE: subindex 0x00 holds the number of the entries."))
+    name: str = Field(description=N_("Entry identifier: Latin letters, digits and _. Used in generated code."))
+    title: Text | None = Field(None, description=N_("Human-readable name of the entry, e.g. “Vendor-ID”."))
+    description: Text | None = Field(None, description=DESCRIPTION)
+    data_type: OdDataType = Field(description=OD_DATA_TYPE)
+    access: OdAccess = Field("ro", description=OD_ACCESS)
+    default: OdValue | None = Field(None, description=OD_DEFAULT)
+    source: SignalSource | None = Field(None, description=OD_SOURCE)
+    unit: str | None = None
+
+
+class OdObject(_Base):
+    """An object of the CANopen dictionary (CiA 301) by index: a variable (data_type) or an array or a record of
+    entries (entries). Read and written by SDO; a PDO signal carries it by its index and subindex."""
+
+    index: int = Field(
+        ge=0, le=0xFFFF,
+        description=N_("Index of the object: 0x1000..0x1FFF communication profile, 0x2000..0x5FFF manufacturer "
+                       "area, 0x6000..0x9FFF standardized device profiles, 0xA000..0xBFFF standardized interface "
+                       "profiles."))
+    name: str = Field(
+        description=N_("Object identifier: Latin letters, digits and _. Used in generated code. Required."))
+    title: Text | None = Field(
+        None, description=N_("Human-readable name of the object, e.g. “Manufacturer software version”."))
+    description: Text | None = Field(None, description=DESCRIPTION)
+    data_type: OdDataType | None = Field(
+        None, description=N_("Data type of a variable (VAR). An array or a record has entries instead."))
+    access: OdAccess = Field("ro", description=OD_ACCESS)
+    default: OdValue | None = Field(None, description=OD_DEFAULT)
+    source: SignalSource | None = Field(None, description=OD_SOURCE)
+    unit: str | None = None
+    array: bool = Field(
+        False,
+        description=N_("The entries make an ARRAY (all of one data type) rather than a RECORD."))
+    entries: list[OdSubEntry] | None = Field(
+        None,
+        description=N_("Entries of a record or an array, by subindex from 0x01. Instead of data_type."))
+
+    @property
+    def kind(self) -> str:
+        """var, array or record."""
+        if not self.entries:
+            return "var"
+        return "array" if self.array else "record"
+
+
+OBJECTS_BUS = N_("CANopen dictionary objects every device of the bus has (e.g. 0x1018 identity, 0x100A software "
+                 "version). A device's own object with the same index takes the place of the bus's one.")
+OBJECTS_DEVICE = N_("CANopen dictionary objects of the device in the manufacturer area (0x2000..0x5FFF), read and "
+                    "written by SDO. Objects of the bus are there too.")
+
+
+# --------------------------------------------------------------------------- #
 # Frames, devices, buses
 # --------------------------------------------------------------------------- #
 
@@ -790,6 +870,7 @@ class Device(_Base):
         description=N_("J1939 source address 0..253 (0x00..0xFD). Forms the low byte of every frame ID the device "
                        "sends; 254 and 255 are reserved."))
     description: Text | None = Field(None, description=DESCRIPTION)
+    objects: list[OdObject] = Field(default_factory=list, description=OBJECTS_DEVICE)
     frames: list[Frame] = Field(default_factory=list)
 
 
@@ -837,6 +918,7 @@ class Bus(_Base):
         description=N_("Frames whose sender is outside the map, with the receiving devices in receivers; also "
                        "CANopen broadcast frames (NMT, SYNC, TIME)."),
     )
+    objects: list[OdObject] = Field(default_factory=list, description=OBJECTS_BUS)
     devices: list[Device] = Field(default_factory=list)
 
     def all_frames(self) -> list[Frame]:

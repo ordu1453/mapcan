@@ -203,7 +203,10 @@ def _key(k: Any) -> Any:
     if isinstance(k, str):
         s = k.strip()
         try:
-            return int(s, 16) if s.lower().startswith(("0x", "-0x")) else int(s)
+            # A key written in hex stays in hex, with its digits (an SDO object 0x031018)
+            if s.lower().startswith("0x"):
+                return HexCapsInt(int(s, 16), width=len(s) - 2)
+            return int(s, 16) if s.lower().startswith("-0x") else int(s)
         except ValueError:
             return k
     return k

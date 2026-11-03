@@ -12,6 +12,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 
 from . import bits as B
+from . import od
 from .canopen import CANOPEN_DLC, FUNCTION_CODES, default_direction
 from .diagnostics import Report
 from .docmodel import fmt_num
@@ -121,10 +122,20 @@ RULES = {
     "j1939-spn-duplicate": ("warning", N_("The same SPN on several signals of the bus")),
     "j1939-tp": ("info", N_("A PGN longer than 8 bytes is sent with the J1939-21 transport protocol")),
     "canopen-od": ("warning", N_(
-        "CANopen dictionary object on a non-PDO signal, outside 0x2000..0x9FFF or big-endian")),
+        "CANopen dictionary object on a non-PDO signal or outside 0x2000..0xBFFF")),
     "od-duplicate": ("warning", N_("The same dictionary object on several signals of a device")),
     "od-subindex-zero": ("error", N_(
         "A signal at subindex 0 of an array or a record: subindex 0 holds the number of its entries")),
+    "od-protocol": ("warning", N_("Dictionary objects on a bus that is not CANopen")),
+    "od-object-area": ("error", N_("Dictionary object in the data type area (0x0000..0x0FFF) or the reserved one "
+                                   "(0xC000..0xFFFF), or an object of a device outside the manufacturer area")),
+    "od-object-duplicate": ("error", N_("The same index, subindex or name twice in a dictionary")),
+    "od-object-shape": ("error", N_("Dictionary object with both data_type and entries or with neither, a value of "
+                                    "an array or a record written on the object instead of its entries, or an array "
+                                    "of several data types")),
+    "od-default": ("error", N_("Value of a dictionary object that does not fit its data type")),
+    "od-unknown": ("info", N_("SDO exchange or PDO signal addresses an object that is not in the device's "
+                              "dictionary")),
     "unknown-receiver": ("error", N_("Frame receiver is not defined on the bus")),
     "unknown-sender": ("error", N_("Frame sender is not defined on the bus")),
     "sender-mismatch": ("warning", N_("sender conflicts with the frame direction or matches a receiver")),
@@ -365,6 +376,7 @@ def _check_bus(ctx: _Ctx, bus) -> None:
             ctx.emit("can-id-range", _("CAN ID {can_id:#x} > 0x7FF", can_id=frame.can_id), p + ("id",))
     _check_spn(ctx, bus)
     _check_od(ctx, bus)
+    _check_dictionary(ctx, bus)
     _check_byte_order(ctx, bus)
     _check_bus_load(ctx, bus)
 
@@ -382,9 +394,9 @@ def _check_od(ctx: _Ctx, bus) -> None:
                                          "CANopen bus", name=s.name), p)
             elif s.index is None:
                 ctx.emit("canopen-od", _("{name!r}: subindex without index", name=s.name), p)
-            elif not 0x2000 <= s.index <= 0x9FFF:
+            elif not 0x2000 <= s.index <= 0xBFFF:
                 ctx.emit("canopen-od", _("{name!r}: index {index:#06x} is outside the manufacturer and profile areas "
-                                         "(0x2000..0x9FFF)", name=s.name, index=s.index), p)
+                                         "(0x2000..0xBFFF)", name=s.name, index=s.index), p)
     for dev in bus.devices:
         seen: dict[tuple[int, int], str] = {}
         for frame in dev.frames:
@@ -408,6 +420,117 @@ def _check_od(ctx: _Ctx, bus) -> None:
                              _("{name!r}: subindex 0 of object {index:04X} holds the number of its entries "
                                "(an array or a record): give the signal a subindex from 1", name=s.name, index=s.index),
                              s._path + ("subindex",))
+
+
+def _check_dictionary(ctx: _Ctx, bus) -> None:
+    """Objects of the dictionaries of the bus and its devices, and the objects SDO exchanges and PDO signals
+    address."""
+    owners = [bus, *bus.devices]
+    if bus.protocol != "canopen":
+        for owner in owners:
+            if owner.objects:
+                ctx.emit("od-protocol", _("dictionary objects on a {protocol} bus: they are CANopen only",
+                                          protocol=bus.protocol), owner._path + ("objects",))
+        return
+    for owner in owners:
+        indices: dict[int, str] = {}
+        names: set[str] = set()
+        for obj in owner.objects:
+            p = obj._path
+            if obj.index in indices:
+                ctx.emit("od-object-duplicate", _("object {index:04X} is already in the dictionary ({other})",
+                                                  index=obj.index, other=indices[obj.index]), p + ("index",))
+            indices.setdefault(obj.index, obj.name)
+            if obj.name in names:
+                ctx.emit("od-object-duplicate", _("{name!r}: another object of the dictionary has this name",
+                                                  name=obj.name), p + ("name",))
+            names.add(obj.name)
+            _ident(ctx, obj.name, _("Object"), p + ("name",), None)
+            area = od.area_of(obj.index)
+            if area.first in (0x0000, 0xC000):
+                ctx.emit("od-object-area", _("object {index:04X} is in the area “{area}” "
+                                             "({first:04X}..{last:04X}): objects of a device are from 0x1000 to "
+                                             "0xBFFF", index=obj.index, area=_(area.title), first=area.first,
+                                             last=area.last), p + ("index",))
+            elif owner is not bus and area.first != 0x2000:
+                ctx.emit("od-object-area", _("object {index:04X} of a device is outside the manufacturer area "
+                                             "(0x2000..0x5FFF): objects of the other areas are the bus's",
+                                             index=obj.index), p + ("index",))
+            _check_od_object(ctx, obj)
+    for dev in bus.devices:
+        objects = {o.index: o for o in od.dictionary(bus, dev)}
+        if not objects:
+            continue
+        for frame in dev.frames:
+            pdo = frame.type.startswith("pdo_")
+            addressed = [(s.index, s.subindex or 0, s._path, s.name) for s in frame.signals
+                         if pdo and s.index is not None]
+            addressed += [(ex.index, ex.subindex, ex._path, ex.name) for ex in frame.sdo or []]
+            for index, sub, p, name in addressed:
+                obj = objects.get(index)
+                if obj is None or sub not in od.subindices(obj):
+                    ctx.emit("od-unknown", _("{name!r}: object {index:04X}:{sub:02X} is not in the dictionary of "
+                                             "{device}", name=name, index=index, sub=sub, device=dev.name),
+                             p + ("index",))
+
+
+def _check_od_object(ctx: _Ctx, obj) -> None:
+    p = obj._path
+    if obj.entries:
+        if obj.data_type is not None:
+            ctx.emit("od-object-shape", _("object {index:04X}: data_type of a variable and entries of an array or a "
+                                          "record; keep one", index=obj.index), p + ("data_type",))
+        if obj.array and len({e.data_type for e in obj.entries}) > 1:
+            ctx.emit("od-object-shape", _("object {index:04X}: entries of an array are of one data type",
+                                          index=obj.index), p + ("array",))
+        for key in ("default", "source", "unit"):
+            if getattr(obj, key) is not None:
+                ctx.emit("od-object-shape", _("object {index:04X}: {key} is written on an entry of an array or a "
+                                              "record", index=obj.index, key=key), p + (key,))
+        subs: set[int] = set()
+        names: set[str] = set()
+        for e in obj.entries:
+            if e.subindex in subs:
+                ctx.emit("od-object-duplicate", _("object {index:04X}: subindex {sub:02X} twice", index=obj.index,
+                                                  sub=e.subindex), e._path + ("subindex",))
+            if e.name in names:
+                ctx.emit("od-object-duplicate", _("object {index:04X}: entry name {name!r} twice", index=obj.index,
+                                                  name=e.name), e._path + ("name",))
+            subs.add(e.subindex)
+            names.add(e.name)
+            _ident(ctx, e.name, _("Entry"), e._path + ("name",), None)
+            _check_od_value(ctx, e)
+    elif obj.array:
+        ctx.emit("od-object-shape", _("object {index:04X}: array without entries", index=obj.index), p + ("array",))
+    elif obj.data_type is None:
+        ctx.emit("od-object-shape", _("object {index:04X}: neither data_type (a variable) nor entries (an array or "
+                                      "a record)", index=obj.index), p)
+    else:
+        _check_od_value(ctx, obj)
+
+
+def _check_od_value(ctx: _Ctx, node) -> None:
+    """default and source of a variable or an entry: of its data type."""
+    p, dtype = node._path, node.data_type
+    if node.default is not None and node.source is not None:
+        ctx.emit("od-default", _("default and source together: the value is taken from the map"), p + ("default",))
+    if node.default is not None:
+        v = node.default
+        rng = od.integer_range(dtype)
+        if dtype in od.STRING_TYPES:
+            if not isinstance(v, str):
+                ctx.emit("od-default", _("default of a {type} object is text", type=dtype), p + ("default",))
+        elif isinstance(v, (str, bool)):
+            ctx.emit("od-default", _("default of a {type} object is a number", type=dtype), p + ("default",))
+        elif rng is not None and (v != int(v) or not rng[0] <= v <= rng[1]):
+            ctx.emit("od-default", _("default {value} is not a whole number in {min}..{max} ({type})", value=v,
+                                     min=rng[0], max=rng[1], type=dtype), p + ("default",))
+    if node.source is not None:
+        rng = od.integer_range(dtype)
+        bits = 32 if node.source == "layout_crc32" else 8
+        if rng is None or dtype == "boolean" or rng[1] < (1 << bits) - 1:
+            ctx.emit("od-default", _("source {source} needs an unsigned data type of at least {bits} bits",
+                                     source=node.source, bits=bits), p + ("source",))
 
 
 def _check_byte_order(ctx: _Ctx, bus) -> None:

@@ -183,9 +183,9 @@ _Сигналы не описаны._
 <table>
 <tr><th>Байт</th><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th></tr>
 <tr><th>0</th><td colspan="8" align="center">sdo_command</td></tr>
-<tr><th>1</th><td colspan="8" align="center">sdo_index</td></tr>
-<tr><th>2</th><td colspan="8" align="center">sdo_index</td></tr>
-<tr><th>3</th><td colspan="8" align="center">sdo_subindex</td></tr>
+<tr><th>1</th><td colspan="8" align="center">sdo_object</td></tr>
+<tr><th>2</th><td colspan="8" align="center">sdo_object</td></tr>
+<tr><th>3</th><td colspan="8" align="center">sdo_object</td></tr>
 <tr><th>4</th><td colspan="8" align="center">alarm_resistance | warning_resistance</td></tr>
 <tr><th>5</th><td colspan="8" align="center">alarm_resistance | warning_resistance</td></tr>
 <tr><th>6</th><td colspan="8" align="center">·</td></tr>
@@ -195,10 +195,9 @@ _Сигналы не описаны._
 | Байт | Биты | Сигнал | Описание | Кодирование | Значения |
 |---|---|---|---|---|---|
 | 0 | 0–7 | `sdo_command` | Команда SDO | uint8 | 0x2B – WRITE_2_BYTES |
-| 1–2 | 8–23 | `sdo_index` | Индекс объекта | uint16<br>little-endian | 0x4010 – INDEX_4010 |
-| 3 | 24–31 | `sdo_subindex` | Субиндекс объекта | uint8<br>селектор mux | 0x01 – SET_ALARM_RESISTANCE (Установка ALARM_RESISTANCE)<br>0x02 – SET_WARNING_RESISTANCE (Установка WARNING_RESISTANCE) |
-| 4–5 | 32–47 | `alarm_resistance` | Порог аварийного сопротивления изоляции<br>_при sdo_subindex = 0x01 (SET_ALARM_RESISTANCE)_ | uint16<br>кОм<br>little-endian |  |
-| 4–5 | 32–47 | `warning_resistance` | Порог предупредительного сопротивления изоляции<br>_при sdo_subindex = 0x02 (SET_WARNING_RESISTANCE)_ | uint16<br>кОм<br>little-endian |  |
+| 1–3 | 8–31 | `sdo_object` | Объект словаря: индекс (байты 1–2) и субиндекс (байт 3) | 24 бит<br>little-endian<br>селектор mux | 0x014010 – SET_ALARM_RESISTANCE (Установка ALARM_RESISTANCE)<br>0x024010 – SET_WARNING_RESISTANCE (Установка WARNING_RESISTANCE) |
+| 4–5 | 32–47 | `alarm_resistance` | Порог аварийного сопротивления изоляции<br>_при sdo_object = 0x014010 (SET_ALARM_RESISTANCE)_ | uint16<br>кОм<br>little-endian |  |
+| 4–5 | 32–47 | `warning_resistance` | Порог предупредительного сопротивления изоляции<br>_при sdo_object = 0x024010 (SET_WARNING_RESISTANCE)_ | uint16<br>кОм<br>little-endian |  |
 
 **SDO-обмены**
 
@@ -218,9 +217,9 @@ _Сигналы не описаны._
 <table>
 <tr><th>Байт</th><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th></tr>
 <tr><th>0</th><td colspan="8" align="center">sdo_command</td></tr>
-<tr><th>1</th><td colspan="8" align="center">sdo_index</td></tr>
-<tr><th>2</th><td colspan="8" align="center">sdo_index</td></tr>
-<tr><th>3</th><td colspan="8" align="center">sdo_subindex</td></tr>
+<tr><th>1</th><td colspan="8" align="center">sdo_object</td></tr>
+<tr><th>2</th><td colspan="8" align="center">sdo_object</td></tr>
+<tr><th>3</th><td colspan="8" align="center">sdo_object</td></tr>
 <tr><th>4</th><td colspan="8" align="center">·</td></tr>
 <tr><th>5</th><td colspan="8" align="center">·</td></tr>
 <tr><th>6</th><td colspan="8" align="center">·</td></tr>
@@ -230,8 +229,7 @@ _Сигналы не описаны._
 | Байт | Биты | Сигнал | Описание | Кодирование | Значения |
 |---|---|---|---|---|---|
 | 0 | 0–7 | `sdo_command` | Команда SDO | uint8 | 0x60 – WRITE_OK |
-| 1–2 | 8–23 | `sdo_index` | Индекс объекта | uint16<br>little-endian | 0x4010 – INDEX_4010 |
-| 3 | 24–31 | `sdo_subindex` | Субиндекс объекта | uint8 | 0x01 – ACK_ALARM_RESISTANCE (Принят ALARM_RESISTANCE)<br>0x02 – ACK_WARNING_RESISTANCE (Принят WARNING_RESISTANCE) |
+| 1–3 | 8–31 | `sdo_object` | Объект словаря: индекс (байты 1–2) и субиндекс (байт 3) | 24 бит<br>little-endian | 0x014010 – ACK_ALARM_RESISTANCE (Принят ALARM_RESISTANCE)<br>0x024010 – ACK_WARNING_RESISTANCE (Принят WARNING_RESISTANCE) |
 
 **SDO-обмены**
 

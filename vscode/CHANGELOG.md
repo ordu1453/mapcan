@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1
+
+* Support the CANopen object dictionary fields in the shared forms: object data types, access,
+  values and sources, with Russian translations and field help.
+* Require mapcan 0.25.1 or newer for the object dictionary model and validation.
+
 ## 0.8.0
 
 * **Copy Path** in the context menu of a frame, signal or flag of the Map view copies its canonical path,

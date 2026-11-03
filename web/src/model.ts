@@ -4,16 +4,18 @@ import { hex, rangeLabel } from "./bits";
 import type { Diagnostic, Included, Level, Path, ResolvedFrame, ResolvedSignal } from "./types";
 import { t } from "./i18n";
 import { nodeLines } from "./yamltext";
+import { DEVICE_AREA, dictionary } from "./od";
 
-export type NodeKind = "document" | "history" | "revision" | "bus" | "device" | "objects" | "frame" | "signal" | "flag" | "sdo"
-  | "unknown";
+export type NodeKind = "document" | "history" | "revision" | "bus" | "device" | "objects" | "object" | "od_entry" | "frame"
+  | "signal" | "flag" | "sdo" | "unknown";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type Data = any;
 
 export const pathKey = (p: Path): string => p.join("/");
 
-/** Last element of the path of a device's object dictionary: a page of the tree, not a node of the map (#151). */
+/** Last element of the path of the object dictionary of a CANopen bus or device: its list `objects` in the map,
+ * a page of the tree (#151). */
 export const OBJECTS = "objects";
 
 /** Path of the Revision history node: shown in the tree even if there are no entries yet. */
@@ -46,8 +48,13 @@ export function nodeKind(path: Path): NodeKind {
     return "unknown";
   }
   if (n === 2 && path[0] === "buses") return "bus";
+  if (n === 3 && path[0] === "buses" && path[2] === OBJECTS) return "objects";
   if (n === 4 && path[2] === "devices") return "device";
   if (n === 5 && path[2] === "devices" && path[4] === OBJECTS) return "objects";
+  // An object of the dictionary of a bus or a device, an entry of an object
+  const od = path[2] === OBJECTS ? 2 : path[2] === "devices" && path[4] === OBJECTS ? 4 : -1;
+  if (od > 0 && n === od + 2 && typeof path[od + 1] === "number") return "object";
+  if (od > 0 && n === od + 4 && path[od + 2] === "entries" && typeof path[od + 3] === "number") return "od_entry";
   const tail = path[n - 2];
   if (tail === "frames") return "frame";
   if (tail === "signals") return "signal";
@@ -177,7 +184,7 @@ function markIncluded(nodes: TreeNode[], included: Included[]): void {
   }
 }
 
-function frameSub(rf: ResolvedFrame | undefined): string {
+export function frameSub(rf: ResolvedFrame | undefined): string {
   return rf ? hex(rf.can_id, rf.extended ? 8 : 3) : "";
 }
 
@@ -233,6 +240,8 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
       subHint: busLoads.get(pathKey(bp))?.note || undefined,
       children: [], search: `${bus.name} ${txt(bus.title, lang)}`.toLowerCase(),
     };
+    // A CANopen bus has the objects every device has first, before its frames
+    if (isCanopen(bus)) bnode.children.push(objectsNode(bp, list(bus.objects).length));
     const labelOf = (name: string | null | undefined) => {
       const d = list(bus.devices).find((x: Data) => x?.name === name);
       return d ? deviceLabel(d, lang) : name ?? "";
@@ -283,14 +292,11 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
         sub: d.node_id != null ? hex(d.node_id, 2) : d.address != null ? `SA ${hex(d.address, 2)}` : "", children: [],
         search: [d.name, d.short ?? "", txt(d.title, lang)].join(" ").toLowerCase(),
       };
-      // A CANopen device has its object dictionary first, next to its frames
+      // A CANopen device has its object dictionary first, next to its frames: its manufacturer area, the bus's
+      // objects there too
       if (isCanopen(bus)) {
-        const od = deviceObjects(d, dp, frames, lang).filter((o) => o.index !== null);
-        dnode.children.push({
-          key: pathKey([...dp, OBJECTS]), path: [...dp, OBJECTS], kind: "objects", label: t("Objects"),
-          sub: od.length ? String(od.length) : "", children: [],
-          search: `${t("Objects").toLowerCase()} ${t("Object dictionary").toLowerCase()} objects`,
-        });
+        const own = dictionary(data, bp, dp).filter((r) => !(r.index < DEVICE_AREA.first || r.index > DEVICE_AREA.last));
+        dnode.children.push(objectsNode(dp, own.length));
       }
       list(d.frames).forEach((f: Data, fi: number) => dnode.children.push(frameNode(f, [...dp, "frames", fi])));
       // Frames of others that list the device among their receivers: links after its own frames
@@ -335,76 +341,14 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
 /** The bus is CANopen (the protocol by default): its frames carry dictionary objects rather than signals. */
 export const isCanopen = (bus: Data): boolean => (bus?.protocol ?? "canopen") === "canopen";
 
-/** A signal of a PDO or an SDO exchange of a device's frame: one entry of its dictionary. */
-export interface OdEntry {
-  /** The signal or the SDO exchange in the map. */
-  path: Path;
-  via: "pdo" | "sdo" | null;
-  index: number | null;
-  subindex: number | null;
-  name: string;
-  label: string;
-  framePath: Path;
-  frameLabel: string;
-  canId: string;
-  /** Data type of the value: entries of one type under an index make an array, of several types a record. */
-  dtype: string;
+/** The page of the object dictionary of a bus or a device in the tree. */
+function objectsNode(owner: Path, count: number): TreeNode {
+  return {
+    key: pathKey([...owner, OBJECTS]), path: [...owner, OBJECTS], kind: "objects", label: t("Objects"),
+    sub: count ? String(count) : "", children: [],
+    search: `${t("Objects").toLowerCase()} ${t("Object dictionary").toLowerCase()} objects`,
+  };
 }
-
-/** An object of the dictionary: one index, or an entry without an index yet (index null). */
-export interface OdObject {
-  index: number | null;
-  type: "var" | "array" | "record" | null;
-  entries: OdEntry[];
-}
-
-/**
- * Dictionary of a device, as the EDS export sees it: signals with an index in the device's own frames, signals of
- * its PDOs without one yet (to be given one), and its SDO exchanges. Objects by index, entries by subindex.
- */
-export function deviceObjects(device: Data, devicePath: Path, frames: Map<string, ResolvedFrame>, lang: string): OdObject[] {
-  const entries: OdEntry[] = [];
-  list(device?.frames).forEach((f: Data, fi: number) => {
-    const fp = [...devicePath, "frames", fi];
-    const rf = frames.get(pathKey(fp));
-    const pdo = typeof f.canopen === "string" && f.canopen.startsWith("pdo_");
-    const frame = { framePath: fp, frameLabel: displayName(f, lang), canId: frameSub(rf) };
-    list(f.signals).forEach((s: Data, si: number) => {
-      if (!pdo && s.index == null) return;
-      const rs = rf?.signals.find((x) => x.index === si);
-      entries.push({
-        path: [...fp, "signals", si], via: pdo ? "pdo" : null, index: num(s.index), subindex: num(s.subindex),
-        name: nameOf(s), label: displayName(s, lang), ...frame,
-        dtype: [rs?.encoding ?? s.encoding, rs?.bit_length ?? s.bit_length, s.representation ?? ""].join(":"),
-      });
-    });
-    list(f.sdo).forEach((e: Data, ei: number) => {
-      const v = obj(e.value);
-      entries.push({
-        path: [...fp, "sdo", ei], via: "sdo", index: num(e.index), subindex: num(e.subindex),
-        name: nameOf(e), label: nameOf(e), ...frame,
-        dtype: e.value == null ? "" : [v.encoding, v.bit_length ?? 32, v.representation ?? ""].join(":"),
-      });
-    });
-  });
-  const byIndex = new Map<number, OdEntry[]>();
-  const out: OdObject[] = [];
-  for (const e of entries) {
-    if (e.index === null) out.push({ index: null, type: null, entries: [e] });
-    else byIndex.set(e.index, [...(byIndex.get(e.index) ?? []), e]);
-  }
-  const indexed = [...byIndex].sort(([a], [b]) => a - b).map(([index, es]): OdObject => {
-    es.sort((a, b) => (a.subindex ?? 0) - (b.subindex ?? 0));
-    // Subindex 0 of an array or a record is the number of entries: the type is that of the entries from 1
-    const data = es.filter((e) => e.subindex);
-    const type = es.length === 1 && !es[0].subindex ? "var"
-      : data.every((e) => e.dtype === data[0].dtype) ? "array" : "record";
-    return { index, type, entries: es };
-  });
-  return [...indexed, ...out];
-}
-
-const num = (v: unknown): number | null => (typeof v === "number" ? v : null);
 
 // ------------------------------------------------------------------ diagnostics by node
 

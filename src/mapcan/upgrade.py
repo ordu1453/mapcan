@@ -81,7 +81,8 @@ def renamed_along(path: Path_) -> list[int]:
 
 
 def node_kind(path: Path_) -> str | None:
-    """Kind of the mapping at ``path`` of a map: document, bus, device, frame, signal, flag, sdo, sdo_value."""
+    """Kind of the mapping at ``path`` of a map: document, bus, device, frame, signal, flag, sdo, sdo_value, object
+    (of a dictionary), od_entry (of an object)."""
     p = tuple(path)
     if p == ("document",):
         return "document"
@@ -94,6 +95,10 @@ def node_kind(path: Path_) -> str | None:
         if len(rest) == 2:
             return "device"
         rest = rest[2:]
+    if len(rest) >= 2 and rest[0] == "objects" and isinstance(rest[1], int):
+        if len(rest) == 2:
+            return "object"
+        return "od_entry" if len(rest) == 4 and rest[2] == "entries" and isinstance(rest[3], int) else None
     if len(rest) < 2 or rest[0] != "frames" or not isinstance(rest[1], int):
         return None
     rest = rest[2:]
