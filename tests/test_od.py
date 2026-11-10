@@ -70,7 +70,7 @@ def test_rules():
 
     assert bad("index: 0x100A", "index: 0x0100") == {"od-object-area", "od-unknown"}
     assert bad("index: 0x100A", "index: 0xC000") == {"od-object-area", "od-unknown"}
-    assert bad("index: 0x2100", "index: 0x6100") == {"od-object-area"}      # a device's object: manufacturer area
+    assert bad("index: 0x2100", "index: 0x6100") == set()  # device objects can use profile areas
     assert bad("index: 0x100A", "index: 0x1018") == {"od-object-duplicate", "od-unknown"}
     assert bad("name: software_version", "name: identity") == {"od-object-duplicate"}
     assert bad("        data_type: visible_string\n", "") == {"od-object-shape"}

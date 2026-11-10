@@ -1,0 +1,65 @@
+# Reusable CANopen structures, with inherited values, exclusions and mandatory entries.
+mapcan: 2
+document:
+  title: CANopen structures
+  version: 1.0.0
+  language: en
+buses:
+  - name: machine
+    title: Machine
+    protocol: canopen
+    bitrate: 500000
+    objects:
+      - {index: 0x1000, name: device_type, locked: true, data_type: unsigned32}
+      - {index: 0x2000, name: application_state, data_type: unsigned8}
+    structures:
+      states:
+        title: States
+        kind: enum
+        values: {0: BOOT_UP, 4: STOPPED, 5: OPERATIONAL, 127: PRE_OPERATIONAL}
+        locked: [5]
+      warnings:
+        title: Warnings
+        kind: bitmask
+        values: {0x01: HIGH_TEMPERATURE, 0x02: LOW_SUPPLY}
+        locked: [0x02]
+      eec:
+        title: EEC
+        kind: enum
+        values: {0x0000: ERROR_RESET, 0x1000: GENERIC_ERROR, 0x4000: TEMPERATURE}
+        locked: [0x0000]
+    devices:
+      - name: drive
+        title: Drive
+        node_id: 5
+        structures:
+          states: {excluded: [4]}
+          warnings:
+            kind: bitmask
+            values: {0x04: SERVICE_REQUIRED}
+        frames:
+          - name: drive_status
+            canopen: pdo_tx1
+            length: 2
+            signals:
+              - {name: state, encoding: enum, byte: 0, bit_length: 8, values: 'structure:states', index: 0x2000}
+              - {name: warnings, encoding: bitfield, byte: 1, bit_length: 8, values: 'structure:warnings'}
+          - name: drive_emergency
+            canopen: emcy
+            length: 8
+            signals:
+              - {name: error_code, encoding: enum, byte: 0, bit_length: 16, values: 'structure:eec'}
+              - {name: error_register, encoding: number, byte: 2, bit_length: 8}
+      - name: controller
+        title: Controller
+        node_id: 1
+        excluded_objects: [0x2000]
+        structures:
+          warnings: {excluded: [0x01]}
+        frames:
+          - name: controller_status
+            canopen: pdo_tx1
+            length: 2
+            signals:
+              - {name: state, encoding: enum, byte: 0, bit_length: 8, values: 'structure:states'}
+              - {name: warnings, encoding: bitfield, byte: 1, bit_length: 8, values: 'structure:warnings'}

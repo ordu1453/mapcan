@@ -78,22 +78,29 @@ export interface DictRow {
   inherited: boolean;
   /** The device's own object takes the place of the bus's one with this index. */
   overrides: boolean;
+  excluded?: boolean;
 }
 
 const objects = (owner: Data): Data[] => (Array.isArray(owner?.objects) ? owner.objects : []);
 
 /** Dictionary of the bus at `busPath`, or of its device at `devicePath`: by index, the device's own in place of the
  * bus's. Objects without a numeric index come last. */
-export function dictionary(data: Data, busPath: Path, devicePath: Path | null = null): DictRow[] {
+export function dictionary(data: Data, busPath: Path, devicePath: Path | null = null, includeExcluded = false): DictRow[] {
   const rows = new Map<number, DictRow>();
   const loose: DictRow[] = [];
+  const bus = getAt(data, busPath);
+  const device = devicePath ? getAt(data, devicePath) : null;
   const add = (owner: Path, inherited: boolean) => objects(getAt(data, owner)).forEach((o, i) => {
-    const row: DictRow = { index: o?.index, obj: o, path: [...owner, "objects", i], inherited, overrides: false };
+    if (!inherited && rows.get(o?.index)?.obj?.locked) return;
+    const excluded = !!device && !(inherited && o?.locked)
+      && (device?.objects_enabled === false || device?.excluded_objects?.includes(o?.index));
+    if (excluded && !includeExcluded) return;
+    const row: DictRow = { index: o?.index, obj: o, path: [...owner, "objects", i], inherited, overrides: false, excluded };
     if (typeof o?.index !== "number") loose.push(row);
     else rows.set(o.index, { ...row, overrides: !inherited && rows.has(o.index) });
   });
-  add(busPath, devicePath !== null);
-  if (devicePath) add(devicePath, false);
+  if (bus?.objects_enabled !== false) add(busPath, devicePath !== null);
+  if (devicePath && device?.objects_enabled !== false) add(devicePath, false);
   return [...[...rows.values()].sort((a, b) => a.index - b.index), ...loose];
 }
 
@@ -172,13 +179,17 @@ export const STANDARD: Standard[] = [
     ["revision_number", ["Revision number", "Номер ревизии"], "unsigned32"],
     ["serial_number", ["Serial number", "Серийный номер"], "unsigned32"],
   ]),
-  record(0x2000, "map_version", ["Map version", "Версия карты сигналов"], [
-    ["major", ["Major version", "Старшая версия"], "unsigned8", { source: "map_version.major" }],
-    ["minor", ["Minor version", "Младшая версия"], "unsigned8", { source: "map_version.minor" }],
-    ["patch", ["Patch version", "Номер исправления"], "unsigned8", { source: "map_version.patch" }],
-    ["layout_crc32", ["Frame layout CRC", "CRC раскладки кадров"], "unsigned32", { source: "layout_crc32" }],
-  ]),
+
 ];
+
+/** Indices unavailable to a new object: standard entries and every dictionary it can overlap. */
+export function occupiedIndices(data: Data, ownerPath: Path): Set<number> {
+  const bus = getAt(data, ownerPath.slice(0, 2));
+  const owners = ownerPath.length === 4 ? [bus, getAt(data, ownerPath)]
+    : [bus, ...(Array.isArray(bus?.devices) ? bus.devices : [])];
+  return new Set([...STANDARD.map((s) => s.index),
+    ...owners.flatMap(objects).map((o) => o?.index).filter((i) => typeof i === "number")]);
+}
 
 /** The first index of the area not taken in `taken`. */
 export function freeIndex(area: Area, taken: Set<number>): number | null {

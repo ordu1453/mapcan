@@ -1,6 +1,9 @@
 """Russian translations of the interface messages (key: the English text in the code, see :mod:`mapcan.i18n`)."""
 
 RU: dict[str, str] = {
+    "Devices cannot exclude or override this bus object.": "Устройства не могут исключить или переопределить этот объект шины.",
+    "bitmask values must be positive powers of two": "значения битовой маски должны быть положительными степенями двойки",
+    "Structure {name!r} is not available for this device.": "Структура {name!r} недоступна этому устройству.",
     # ------------------------------------------------------------------ CLI
     "errors: {errors}, warnings: {warnings}, notes: {infos}":
         "ошибок: {errors}, предупреждений: {warnings}, замечаний: {infos}",
@@ -574,8 +577,8 @@ RU: dict[str, str] = {
     "bus {name!r} is already defined: an included file can only add devices and frames to it, not {key!r}":
         "шина {name!r} уже описана: подключаемый файл может только добавить ей devices и frames, а не {key!r}",
     "value table {name!r} is not defined in value_tables": "таблица значений {name!r} не описана в value_tables",
-    "Value table (value → name) or the name of a table in value_tables.":
-        "Таблица значений (значение → имя) или имя таблицы из value_tables.",
+    "Value table (value → name), a table name in value_tables, or structure:<name> for a bus/device structure.":
+        "Таблица значений (значение → имя), имя таблицы из value_tables или structure:<имя> для структуры шины/устройства.",
     "Included files (paths relative to the map file): their buses, devices, frames and value_tables are added to the "
     "map.":
         "Подключаемые файлы (пути от файла карты): их шины, устройства, кадры и value_tables добавляются к карте.",
@@ -1117,9 +1120,9 @@ RU: dict[str, str] = {
     "device's own object with the same index takes the place of the bus's one.":
         "Объекты словаря CANopen, которые есть у каждого устройства шины (например, 0x1018 идентификация, 0x100A "
         "версия ПО). Собственный объект устройства с тем же индексом заменяет объект шины.",
-    "CANopen dictionary objects of the device in the manufacturer area (0x2000..0x5FFF), read and written by SDO. "
+    "CANopen dictionary objects of the device in any object area (0x1000..0xBFFF), read and written by SDO. "
     "Objects of the bus are there too.":
-        "Объекты словаря CANopen устройства в области производителя (0x2000..0x5FFF), читаемые и записываемые по SDO. "
+        "Объекты словаря CANopen устройства в любой области объектов (0x1000..0xBFFF), читаемые и записываемые по SDO. "
         "Объекты шины в нём тоже есть.",
     "Subindex of the entry, 0x01..0xFE: subindex 0x00 holds the number of the entries.":
         "Субиндекс записи, 0x01..0xFE: в субиндексе 0x00 — число записей.",
@@ -1155,15 +1158,8 @@ RU: dict[str, str] = {
         "Резерв",
     "Dictionary objects on a bus that is not CANopen":
         "Объекты словаря на шине не CANopen",
-    "Dictionary object in the data type area (0x0000..0x0FFF) or the reserved one (0xC000..0xFFFF), or an object of a "
-    "device outside the manufacturer area":
-        "Объект словаря в области типов данных (0x0000..0x0FFF) или в резерве (0xC000..0xFFFF), или объект устройства "
-        "вне "
-        "области производителя",
-    "object {index:04X} of a device is outside the manufacturer area (0x2000..0x5FFF): objects of the other areas are "
-    "the bus's":
-        "объект {index:04X} устройства вне области производителя (0x2000..0x5FFF): объекты других областей задаются у "
-        "шины",
+    "Dictionary object in the data type area (0x0000..0x0FFF) or the reserved one (0xC000..0xFFFF)":
+        "Объект словаря в области типов данных (0x0000..0x0FFF) или в резерве (0xC000..0xFFFF)",
     "The same index, subindex or name twice in a dictionary":
         "Один и тот же индекс, субиндекс или имя дважды в словаре",
     "Dictionary object with both data_type and entries or with neither, a value of an array or a record written on "

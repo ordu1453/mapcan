@@ -472,8 +472,8 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
       .map((k) => [k, "document requisites (web: DocumentRequisites.vue)"])
       .concat([["history", "revision history nodes of the tree"]])),
   revision: { changes: "list of changes (web: HistoryEditor.vue)" },
-  bus: { frames: "child nodes of the tree", devices: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
-  device: { frames: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
+  bus: { structures: "Structures tabs", objects_enabled: "Structures tabs", frames: "child nodes of the tree", devices: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
+  device: { structures: "Structures tabs", objects_enabled: "Structures tabs", excluded_objects: "Objects tab", frames: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
   frame: {
     signals: "child nodes and the bit layout", sdo: "child nodes of the tree",
     direction: "deprecated: it follows from the CANopen function and the sender",
@@ -484,7 +484,7 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
     "value.description": "YAML", "value.representation": "YAML", "value.min": "YAML", "value.max": "YAML",
     "value.values": "value table",
   },
-  object: { entries: "Objects page (web: ObjectsTable.vue)", array: "data_type ARRAY (web: NodeEditor.vue)" },
+  object: { locked: "Objects tab", entries: "Objects page (web: ObjectsTable.vue)", array: "data_type ARRAY (web: NodeEditor.vue)" },
   od_entry: {},
 };
 

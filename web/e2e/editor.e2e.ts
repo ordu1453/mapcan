@@ -11,6 +11,11 @@ const tree = (page: Page) => page.locator("aside");
 async function select(page: Page, ...labels: string[]): Promise<void> {
   for (const [i, label] of labels.entries()) {
     const row = tree(page).locator(".tree-row").filter({ has: page.getByText(label, { exact: false }) }).first();
+    if (!(await row.count())) {
+      if (!(await page.locator(".node-editor tr.clickable").filter({ hasText: label }).count())) await page.keyboard.press("Escape");
+      await page.locator(".node-editor tr.clickable").filter({ hasText: label }).first().click();
+      continue;
+    }
     await row.click();
     const twisty = row.locator(".twisty");
     if (i < labels.length - 1 && (await twisty.textContent())?.includes("▸")) await twisty.click();
@@ -50,20 +55,12 @@ test.describe("a map opened by mapcan serve", () => {
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
   });
 
-  test("a click selects a frame without opening it, a click on the selected frame or its twisty does", async ({ page, editor }) => {
+  test("the tree contains traffic and the frame table opens its objects", async ({ page, editor }) => {
     await openEditor(page, editor);
-    await tree(page).getByText("PMP · Pump").click();
-    const frame = tree(page).locator(".tree-row").filter({ hasText: "pump_state" });
-    const pressure = tree(page).getByText("pressure", { exact: true });
-    await frame.click();
-    await expect(page.getByRole("heading", { name: /^Frame pump_state/ })).toBeVisible();
-    await expect(pressure).toHaveCount(0);
-    await frame.click();
-    await expect(pressure).toBeVisible();
-    await frame.locator(".twisty").click();
-    await expect(pressure).toHaveCount(0);
-    await frame.locator(".twisty").click();
-    await expect(pressure).toBeVisible();
+    await select(page, "PMP \u00b7 Pump", "pump_state");
+    await expect(tree(page).getByText("pressure", { exact: true })).toHaveCount(0);
+    await page.locator(".node-editor tr.clickable").filter({ hasText: "pressure" }).click();
+    await expect(page.getByRole("heading", { name: "Object pressure" })).toBeVisible();
   });
 
   test("a new encoding starts with its own fields, and a bit field gets flags", async ({ page, editor }) => {
@@ -327,7 +324,7 @@ test.describe("the object dictionary of a CANopen bus and its devices (#151)", (
     await select(page, "Drive", "drive_sdo_rx");
     await expect(page.locator(".sdo-structure .bitgrid")).toBeVisible();
     await expect(page.locator(".sdo-structure .bg-lock")).toHaveCount(4);
-    await expect(page.locator(".node-editor .form-rows")).toHaveCount(0);
+    await expect(page.locator(".node-editor .form-rows")).toHaveCount(1);
     await expect(page.locator(".sdo-structure")).toContainText("SDO transfers the objects described");
     await page.locator(".sdo-structure .bg-cell").first().click();
     await expect(page.locator(".sdo-details")).toContainText("WRITE_4_BYTES");
@@ -336,10 +333,35 @@ test.describe("the object dictionary of a CANopen bus and its devices (#151)", (
     await expect(page.locator(".sdo-details input, .sdo-details select")).toHaveCount(0);
   });
 
+  test("SDO routing shows the same CAN ID at both peers (#159)", async ({ page, editor }) => {
+    const file = join(editor.dir, "od.yaml");
+    writeFileSync(file, readFileSync(file, "utf8") + `
+          - name: drive_sdo_tx
+            canopen: sdo_tx
+      - name: master
+        title: Master
+        node_id: 1
+`);
+    await openEditor(page, editor);
+    await page.getByRole("button", { name: "Reload from disk", exact: true }).click();
+    await select(page, "Drive", "drive_sdo_rx");
+    await page.getByRole("combobox", { name: /Sender/ }).selectOption("master");
+    await select(page, "Master");
+    const tx = page.locator("section.card").filter({ has: page.getByRole("heading", { name: /^Transmits/ }) });
+    await expect(tx).toContainText("drive_sdo_rx");
+    await expect(tx).toContainText("0x605");
+    await select(page, "Drive", "drive_sdo_tx");
+    await page.getByRole("button", { name: "Master", exact: true }).click();
+    await select(page, "Master");
+    const rx = page.locator("section.card").filter({ has: page.getByRole("heading", { name: /^Receives/ }) });
+    await expect(rx).toContainText("drive_sdo_tx");
+    await expect(rx).toContainText("0x585");
+  });
+
   test("object kind is changed in the dictionary independently of data type", async ({ page, editor }) => {
     await openEditor(page, editor);
     await select(page, "Drive");
-    await page.getByRole("button", { name: "Object dictionary" }).click();
+    await page.locator(".structure-tabs").first().getByRole("button", { name: "Objects", exact: true }).click();
     const row = page.locator("tr.od-obj").filter({ has: page.locator(".od-name", { hasText: /^map_version$/ }) });
     await expect(row.locator("td").nth(1)).toHaveText("0x2000:00");
     await row.getByRole("combobox", { name: "Object type" }).selectOption("record");
@@ -356,10 +378,10 @@ test.describe("the object dictionary of a CANopen bus and its devices (#151)", (
   test("the bus lists its objects under the headings of the index areas, the standard ones with a tick", async ({ page, editor }) => {
     await openEditor(page, editor);
     await select(page, "Bus");
-    await page.getByRole("button", { name: "Object dictionary" }).click();
+    await page.locator(".structure-tabs").first().getByRole("button", { name: "Objects", exact: true }).click();
     await expect(page.getByRole("heading", { name: /^Object dictionary Bus/ })).toBeVisible();
     await expect.poll(() => indices(page)).toEqual(["0x100A", "0x1018", "0x2000"]);
-    await expect(page.locator("tr.od-area").filter({ hasText: "Overall manufacturer area" })).toBeVisible();
+    await expect(page.locator("tr.od-area").filter({ hasText: "Manufacturer area" })).toBeVisible();
     // A standard object not in the map: its tick puts it there
     await page.getByRole("checkbox", { name: "Include device_type in the map" }).check();
     await expect.poll(() => indices(page)).toEqual(["0x1000", "0x100A", "0x1018", "0x2000"]);
@@ -374,13 +396,29 @@ test.describe("the object dictionary of a CANopen bus and its devices (#151)", (
     await expect(page.getByRole("combobox", { name: /Data type/ })).toHaveValue("unsigned8");
   });
 
+  test("new indices avoid inherited and device objects in either order (#155)", async ({ page, editor }) => {
+    await openEditor(page, editor);
+    await select(page, "Drive");
+    await page.locator(".structure-tabs").first().getByRole("button", { name: "Objects", exact: true }).click();
+    await area(page, "Manufacturer area").getByRole("button", { name: "New object" }).click();
+    await expect.poll(() => indices(page)).toEqual(["0x100A", "0x1018", "0x2000", "0x2001", "0x2100"]);
+    await select(page, "Bus");
+    await page.locator(".structure-tabs").first().getByRole("button", { name: "Objects", exact: true }).click();
+    await area(page, "Manufacturer area").getByRole("button", { name: "New object" }).click();
+    await expect.poll(() => indices(page)).toEqual(["0x100A", "0x1018", "0x2000", "0x2002"]);
+    await select(page, "Drive");
+    await page.locator(".structure-tabs").first().getByRole("button", { name: "Objects", exact: true }).click();
+    await area(page, "Manufacturer area").getByRole("button", { name: "New object" }).click();
+    await expect.poll(() => indices(page)).toEqual(["0x100A", "0x1018", "0x2000", "0x2001", "0x2002", "0x2003", "0x2100"]);
+  });
+
   test("a device has its manufacturer area with the bus's objects there, locked", async ({ page, editor }) => {
     await openEditor(page, editor);
     await select(page, "Drive");
-    await page.getByRole("button", { name: "Object dictionary" }).click();
+    await page.locator(".structure-tabs").first().getByRole("button", { name: "Objects", exact: true }).click();
     await expect(page.getByRole("heading", { name: /^Object dictionary Drive/ })).toBeVisible();
-    await expect(page.locator("tr.od-area")).toHaveCount(1);
-    await expect.poll(() => indices(page)).toEqual(["0x2000", "0x2100"]);
+    await expect(page.locator("tr.od-area")).toHaveCount(5);
+    await expect.poll(() => indices(page)).toEqual(["0x100A", "0x1018", "0x2000", "0x2100"]);
     const own = page.locator("tr.od-obj").filter({ hasText: "instead of the bus's" });
     await expect(own).toContainText("map_version");
     // An array opened to its entries; a double click renames an entry in place

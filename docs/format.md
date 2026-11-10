@@ -128,7 +128,7 @@ lint:
 | `node_id` | CANopen node address (1..127) |
 | `address` | J1939 source address (0..253) |
 | `description` | What the device is |
-| `objects` | CANopen: the device's own dictionary objects, in the manufacturer area (see [Object dictionary](#object-dictionary)) |
+| `objects` | CANopen: the device's own dictionary objects, in any object area (see [Object dictionary](#object-dictionary)) |
 | `frames` | The device's frames: those it transmits, plus the CANopen RX frames whose ID depends on its address (see [Sender and receivers](#sender-and-receivers)) |
 
 ### Frame (`frames[]`)
@@ -416,8 +416,8 @@ little-endian, starting at a byte boundary).
 
 The dictionary of a CANopen device (CiA 301) is written in `objects`: of the bus, the objects every
 device of the bus has (the identity 0x1018, the software version 0x100A, a version of the map at
-one index for all), of any area; and of the device, its own, in the manufacturer area
-(0x2000..0x5FFF) only. A device's object with the index of one of the bus takes its place for that
+one index for all), of any area; and of the device, its own, in any object area
+(0x1000..0xBFFF). A device's object with the index of one of the bus takes its place for that
 device. A master reads and writes the objects by SDO; an SDO exchange
 (`sdo[]`) and a PDO signal (`index`, `subindex`) address an object of the dictionary but do not
 make one.
@@ -464,14 +464,62 @@ buses:
               - {name: read_map_crc, command: 0x40, index: 0x2000, subindex: 4}
 ```
 
-The web editor has a page **Objects** for the bus and for each device: the objects by index under
-a heading per index area (the device's page has the manufacturer area; on the bus's page it is the
-overall manufacturer area, common to all devices), a + on the right of each heading for a new
-object, and on the bus's page the standard objects of CiA 301 listed with a tick that puts them into
-the map. On a device's page the bus's objects are locked: they are changed on the bus's page. A click
+The web editor has an **Objects** tab in the bus and device settings, next to **Properties**.
+Objects are listed by index under a heading per index area. A + on the right of each heading adds
+an object; the standard objects of CiA 301 have a checkbox for including them in the dictionary.
+On a device's page the bus's objects are locked: they are changed on the bus's page. A click
 on an identifier opens the object's form (data type, access, value), a double click renames it. Once a device has a dictionary (its own or
 the bus's), an SDO exchange or a PDO signal that addresses an object not in it is noted
 (`od-unknown`). See [tests/data/canopen-od.yaml](../tests/data/canopen-od.yaml).
+
+### Reusable structures
+
+Bus and device settings have **Properties** and **Structures** tabs. The left tree lists buses,
+devices and frames; signals and flags are opened from the frame layout or its object list.
+Use **+** beside Structures (also available in Properties) to add a named enumeration or bit mask.
+Use **×** to disable a structure without losing its definitions; adding the same identifier restores it.
+Remove all bus locks before disabling a structure containing mandatory entries.
+
+CANopen offers **Objects**, **States** (NMT heartbeat states: boot-up 0, stopped 4, operational 5,
+pre-operational 127), and **EEC** (16-bit EMCY emergency error codes). These are selectable templates,
+not automatically selected values. User structures such as `warnings`, `fault` and `mode` start empty.
+Other bus protocols support user-defined structures without the CANopen templates.
+The state and emergency templates follow [CiA error control](https://www.can-cia.org/can-knowledge/error-control-protocols)
+and [EMCY](https://www.can-cia.org/can-knowledge/special-function-protocols); generic emergency codes
+are also listed in [CANopenNode](https://canopennode.github.io/CANopenNode/group__CO__EM__errorCode__t.html).
+
+Each bus/device has `structures: {name: definition}`. A definition contains:
+
+| Field | Meaning |
+|---|---|
+| `title` | Optional display title |
+| `kind` | `enum` (default) or `bitmask`; mask keys are positive powers of two |
+| `enabled` | Defaults to true; false disables the structure locally |
+| `values` | Numeric keys mapped to names or `{name, description}`, like `value_tables` |
+| `locked` | Bus value keys that devices cannot exclude or override |
+| `excluded` | Device exclusions from the bus values; bus locks take precedence |
+
+Bus values are inherited. Devices can add values, override unlocked values, or exclude them.
+The bus tab displays a device column for each device and includes device-specific values,
+so the same screen shows which device uses each value. Excluded values can be selected again.
+Disabling a device structure retains any locked bus values.
+
+Select **Values from structure** in a frame signal/object or flag, or write
+`values: 'structure:states'`. Resolution uses the structure of the device that owns the frame,
+or the bus for a bus frame. Enumerations become the resolved value table; bit masks become
+single-bit flags of the signal, with positions given by the mask keys. The reference remains in
+the YAML, so later structure edits propagate to the frame, exports and generated code. A disabled
+or missing structure reports an error. Ordinary `values: table_name` references still address
+the global `value_tables` dictionary.
+
+Object dictionaries follow the same inclusion policy: a bus object with `locked: true` cannot be
+excluded or overridden by a device. A device's `excluded_objects: [0x2000, ...]` removes unlocked
+indices. `objects_enabled: false` disables a bus/device dictionary; at the device level locked bus
+objects remain. Both bus and device Objects tabs offer every legal object area, not just the
+manufacturer area. The bus tab controls locks; device tabs show selection checkboxes and locks.
+
+See [examples/structures.yaml](../examples/structures.yaml) for two devices using common states,
+warnings and emergency codes with different selections.
 
 ### EDS
 
@@ -770,8 +818,8 @@ keep their order.
 |---|---|
 | Map | `mapcan`, `part_of`, `document`, `include`, `lint`, `value_tables`, `buses` |
 | `document` | `title`, `subtitle`, `version`, `date`, `author`, `organization`, `language`, `bit_numbering`, `print`, `history` |
-| Bus | `name`, `title`, `description`, `protocol`, `connector`, `bitrate`, `sample_point`, `fd`, `data_bitrate`, `data_sample_point`, `brs`, `frames`, `objects`, `devices` |
-| Device | `name`, `short`, `title`, `description`, `node_id`, `address`, `objects`, `frames` |
+| Bus | `name`, `title`, `description`, `protocol`, `connector`, `bitrate`, `sample_point`, `fd`, `data_bitrate`, `data_sample_point`, `brs`, `frames`, `objects_enabled`, `objects`, `structures`, `devices` |
+| Device | `name`, `short`, `title`, `description`, `node_id`, `address`, `objects_enabled`, `objects`, `excluded_objects`, `structures`, `frames` |
 | Dictionary object | `index`, `name`, `title`, `description`, `data_type`, `access`, `default`, `source`, `unit`, `array`, `entries` |
 | Entry of an object | `subindex`, `name`, `title`, `description`, `data_type`, `access`, `default`, `source`, `unit` |
 | Frame | `name`, `title`, `description`, `comment`, `canopen`, `id`, `extended`, `pgn`, `priority`, `destination`, `length`, `brs`, `direction`, `cycle_ms`, `trigger`, `inhibit_ms`, `timeout_ms`, `sender`, `receivers`, `signals`, `sdo` |
@@ -854,7 +902,7 @@ turned off with `--disable CODE` or `lint.disable`.
 | `od-duplicate` | warning | The same dictionary object on several signals of a device |
 | `od-subindex-zero` | error | A signal at subindex 0 of an array or a record: subindex 0 holds the number of its entries |
 | `od-protocol` | warning | `objects` on a bus that is not CANopen |
-| `od-object-area` | error | A dictionary object in the data type area (0x0000..0x0FFF) or the reserved one (0xC000..0xFFFF), or an object of a device outside the manufacturer area (0x2000..0x5FFF) |
+| `od-object-area` | error | A dictionary object in the data type area (0x0000..0x0FFF) or the reserved one (0xC000..0xFFFF) |
 | `od-object-duplicate` | error | The same index or name twice in a dictionary, or the same subindex or name twice in an object |
 | `od-object-shape` | error | An object with both `data_type` and `entries` or with neither, `default`/`source`/`unit` of an array or a record on the object instead of its entries, an array of several data types |
 | `od-default` | error | `default` that does not fit the data type, `default` with `source`, `source` of a type too short for it |

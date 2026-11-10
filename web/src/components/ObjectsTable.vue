@@ -1,18 +1,14 @@
 <script setup lang="ts">
-// Object dictionary of a CANopen bus or device (#151): the objects written in the map (`objects`), read and written
-// by SDO, listed by index under a heading per index area of CiA 301 (each folds; its + adds an object). The bus has
-// the objects every device has, of all areas, the standard ones of CiA 301 listed with a tick that puts them into the
-// map; a device has its own in the manufacturer area only, the bus's ones shown there too (inherited). A click on an
-// identifier opens the object's form (data type, access, value), a double click renames it in place. The bus's objects
-// on a device's page are locked: they are changed on the bus's page.
+// Object dictionary tabs (#158): all CiA 301 areas, optional inherited entries and mandatory bus locks.
+// Bus rows also show which devices include the object. Definitions inherited from the bus are edited on the bus.
 import { computed, nextTick, ref } from "vue";
 import { hex } from "../bits";
-import { getAt, isCanopen, pathKey, startsWith, uniqueName } from "../model";
-import { AREAS, DATA_TYPES, DEVICE_AREA, dictionary, freeIndex, kindOf, objectTypeOps, STANDARD, withSdo, type Area, type DictRow,
+import { deviceLabel, getAt, isCanopen, pathKey, startsWith, uniqueName } from "../model";
+import { AREAS, DATA_TYPES, DEVICE_AREA, dictionary, freeIndex, occupiedIndices, kindOf, objectTypeOps, STANDARD, withSdo, type Area, type DictRow,
   type Standard } from "../od";
 import { actions, lang, store, toast, viewData } from "../store";
 import type { Diagnostic, Op, Path } from "../types";
-import { N_, t } from "../i18n";
+import { t } from "../i18n";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const props = defineProps<{ owner: Path }>();
@@ -25,20 +21,37 @@ const isDevice = computed(() => props.owner.length === 4);
 const owner = computed(() => getAt(viewData.value, props.owner));
 const rows = computed<DictRow[]>(() =>
   (isCanopen(getAt(viewData.value, busPath.value))
-    ? dictionary(viewData.value, busPath.value, isDevice.value ? props.owner : null) : []));
+    ? dictionary(viewData.value, busPath.value, isDevice.value ? props.owner : null, true) : []));
+const devices = computed(() => getAt(viewData.value, busPath.value)?.devices ?? []);
 
-const areas = computed<Area[]>(() => (isDevice.value ? [DEVICE_AREA] : AREAS));
-/** On the bus's page the manufacturer area holds what the manufacturer areas of all devices have. */
-const areaTitle = (a: Area) => (!isDevice.value && a.first === DEVICE_AREA.first ? N_("Overall manufacturer area") : a.title);
+function excludedAt(owner: Path, index: number): boolean {
+  return !dictionary(viewData.value, busPath.value, owner).some((r) => r.index === index);
+}
+function includeInherited(owner: Path, index: number, on: boolean) {
+  const excluded = new Set<number>(getAt(viewData.value, owner)?.excluded_objects ?? []);
+  if (on) excluded.delete(index); else excluded.add(index);
+  void edit([{ op: "set", path: [...owner, "excluded_objects"], value: [...excluded] },
+    ...(on ? [{ op: "set" as const, path: [...owner, "objects_enabled"], value: true }] : [])]);
+}
 
+const areas = computed<Area[]>(() => AREAS);
 /** A line of an area: an object of the dictionary, or a standard object not in the map (on the bus's page). */
 interface Line { index: number; row?: DictRow; standard?: Standard }
 function lines(a: Area): Line[] {
   const inside = (i: unknown) => typeof i === "number" && i >= a.first && i <= a.last;
   const out: Line[] = rows.value.filter((r) => inside(r.index)).map((r) => ({ index: r.index, row: r }));
-  if (!isDevice.value) {
+  {
     const taken = new Set(out.map((l) => l.index));
     out.push(...STANDARD.filter((s) => inside(s.index) && !taken.has(s.index)).map((s) => ({ index: s.index, standard: s })));
+    if (!isDevice.value) {
+      const listed = new Set(out.map((line) => line.index));
+      for (const device of devices.value) for (const object of device?.objects ?? []) {
+        if (!inside(object?.index) || listed.has(object.index)) continue;
+        listed.add(object.index);
+        out.push({ index: object.index, standard: { index: object.index, title: () => object.name,
+          make: () => ({ ...object, locked: false }) } });
+      }
+    }
   }
   out.sort((x, y) => x.index - y.index);
   // Objects without a numeric index (being written in the YAML) come last in the manufacturer area
@@ -134,14 +147,15 @@ const ownObjects = () => (Array.isArray(owner.value?.objects) ? owner.value.obje
 
 /** A new object of the area at its first free index, with a name to give it in place. */
 function addObject(a: Area) {
-  const index = freeIndex(a, new Set(rows.value.filter((r) => !r.inherited).map((r) => r.index)));
+  const index = freeIndex(a, occupiedIndices(viewData.value, props.owner));
   if (index === null) {
     toast(t("No free index in the area"));
     return;
   }
   if (folded.value.has(a.first)) fold(a);
   const name = uniqueName("object", ownObjects().map((o: any) => o?.name));
-  void edit([{ op: "insert", path: [...props.owner, "objects"], value: { index, name, data_type: "unsigned8" } }]);
+  void edit([{ op: "insert", path: [...props.owner, "objects"], value: { index, name, data_type: "unsigned8" } },
+    { op: "set", path: [...props.owner, "objects_enabled"], value: true }]);
 }
 
 /** A new entry of an array or a record at the next subindex. */
@@ -169,6 +183,16 @@ function include(s: Standard, on: boolean, r?: DictRow) {
   else if (r) void edit([{ op: "remove", path: r.path }]);
 }
 
+function includeDeviceStandard(di: number, s: Standard, on: boolean) {
+  const dp = [...busPath.value, "devices", di];
+  const objects = devices.value[di]?.objects ?? [];
+  const index = objects.findIndex((o: any) => o?.index === s.index);
+  if (on && index < 0) void edit([{ op: "insert", path: [...dp, "objects"], value: s.make(lang.value) },
+    { op: "set", path: [...dp, "objects_enabled"], value: true },
+    { op: "set", path: [...dp, "excluded_objects"], value: (devices.value[di]?.excluded_objects ?? []).filter((i: number) => i !== s.index) }]);
+  else if (!on && index >= 0) void edit([{ op: "remove", path: [...dp, "objects", index] }]);
+}
+
 const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
 </script>
 
@@ -177,8 +201,8 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
     <h3>{{ t("Object dictionary") }}</h3>
     <p class="muted od-note">
       {{ isDevice
-        ? t("Objects of the device in the manufacturer area, read and written by SDO, with those of the bus there. The other areas are the bus's.")
-        : t("Objects every device of the bus has. A device's own object with the same index takes their place.") }}
+        ? t("Select the objects this device needs in any protocol area. Unlocked bus objects can be excluded.")
+        : t("Bus objects are inherited by devices. Lock an object to make it mandatory for every device.") }}
       {{ t("A click on an identifier opens the object, a double click renames it.") }}
     </p>
     <div class="od-scroll">
@@ -189,7 +213,7 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
           <tr class="od-area" :aria-expanded="!folded.has(a.first)" @click="fold(a)">
             <td class="od-twisty">{{ folded.has(a.first) ? "▸" : "▾" }}</td>
             <td :colspan="COLUMNS">
-              <span class="mono">{{ hex(a.first, 4) }}–{{ hex(a.last, 4) }}</span> {{ t(areaTitle(a)) }}
+              <span class="mono">{{ hex(a.first, 4) }}–{{ hex(a.last, 4) }}</span> {{ t(a.title) }}
             </td>
             <td class="act">
               <button v-if="!readonly && a.first !== 0" class="od-icon" :title="t('New object')" :aria-label="t('New object')"
@@ -210,7 +234,15 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
                 <!-- A standard object not in the map: its tick puts it there -->
                 <tr v-if="l.standard" class="od-standard">
                   <td class="od-twisty"></td><td class="mono">{{ hex(l.index, 4) }}<span v-if="kindOf(l.standard.make(lang)) === 'var'">:00</span></td>
-                  <td>{{ l.standard.make(lang).name }}</td>
+                  <td>{{ l.standard.make(lang).name }}
+                    <span v-if="!isDevice" class="object-devices">
+                      <label v-for="(d, di) in devices" :key="di">
+                        <input type="checkbox" :checked="!excludedAt([...busPath, 'devices', Number(di)], l.index)" :disabled="readonly"
+                               @change="includeDeviceStandard(Number(di), l.standard, ($event.target as HTMLInputElement).checked)" />
+                        {{ deviceLabel(d, lang) }}
+                      </label>
+                    </span>
+                  </td>
                   <td class="act"><input class="od-icon" type="checkbox" :checked="false" :disabled="readonly"
                                          :aria-label="t('Include {name} in the map', { name: l.standard.make(lang).name })"
                                          :title="t('Include in the map')" @change="include(l.standard, true)" /></td>
@@ -225,25 +257,39 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
                              :aria-label="t('Identifier')" @change="rename(l.row.path, $event)" @blur="rename(l.row.path, $event)"
                              @keydown.esc.stop="renaming = null" />
                       <span v-else class="mono od-name" :title="t('A click opens the object, a double click renames it')"
-                            @click="onNameClick(l.row.path)" @dblclick="onNameDblClick(l.row.path, l.row.inherited)">{{ l.row.obj?.name }}</span>
+                            @click="!l.row.inherited && onNameClick(l.row.path)" @dblclick="onNameDblClick(l.row.path, l.row.inherited)">{{ l.row.obj?.name }}</span>
                       <select class="od-kind mono" :value="kindOf(l.row.obj)" :disabled="readonly || l.row.inherited"
                               :aria-label="t('Object type')" @change="setObjectType(l.row, $event)">
                         <option value="var">var</option><option value="array">array</option><option value="record">record</option>
                       </select>
                       <span v-if="l.row.overrides" class="muted od-badge"
                             :title="t('Takes the place of the bus\'s object with this index')">{{ t("instead of the bus's") }}</span>
+                      <span v-if="!isDevice" class="object-devices">
+                        <label v-for="(d, di) in devices" :key="di">
+                          <input type="checkbox" :checked="!excludedAt([...busPath, 'devices', Number(di)], l.row.index)"
+                                 :disabled="readonly || l.row.obj.locked" @change="includeInherited([...busPath, 'devices', Number(di)], l.row.index, ($event.target as HTMLInputElement).checked)" />
+                          {{ deviceLabel(d, lang) }}
+                        </label>
+                      </span>
                     </td>
                     <td class="act">
+                      <label v-if="!isDevice" :title="t('Locked')">
+                        <input type="checkbox" :checked="!!l.row.obj.locked" :disabled="readonly" :aria-label="t('Locked')"
+                               @change="edit([{ op: 'set', path: [...l.row.path, 'locked'], value: ($event.target as HTMLInputElement).checked }])" />🔒
+                      </label>
+                      <input v-if="l.row.inherited" type="checkbox" :checked="!l.row.excluded" :disabled="readonly || l.row.obj.locked"
+                             :aria-label="t('Include {name} in the map', { name: l.row.obj.name })"
+                             @change="includeInherited(props.owner, l.row.index, ($event.target as HTMLInputElement).checked)" />
                       <button v-if="!readonly && !l.row.inherited && kindOf(l.row.obj) !== 'var'" class="od-icon"
                               :title="t('New entry')" :aria-label="t('New entry')" @click="addEntry(l.row)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg></button>
-                      <span v-if="l.row.inherited" class="od-icon od-lock" :title="t('An object of the bus: it is changed on the bus\'s page')"
+                      <span v-if="l.row.inherited && l.row.obj.locked" class="od-icon od-lock" :title="t('An object of the bus: it is changed on the bus\'s page')"
                             :aria-label="t('An object of the bus: it is changed on the bus\'s page')">
                         <svg viewBox="0 0 16 16" aria-hidden="true"><rect class="od-fill" x="2.5" y="7" width="11" height="7.5" rx="1.5" /><path d="M5 7V5a3 3 0 0 1 6 0v2" /></svg>
                       </span>
-                      <input v-else-if="!isDevice && standardAt(l.row.index)" class="od-icon" type="checkbox" checked :disabled="readonly"
+                      <input v-else-if="!l.row.inherited && standardAt(l.row.index)" class="od-icon" type="checkbox" checked :disabled="readonly"
                              :aria-label="t('Include {name} in the map', { name: l.row.obj?.name })" :title="t('Include in the map')"
                              @change="include(standardAt(l.row.index)!, false, l.row)" />
-                      <button v-else-if="!readonly" class="od-icon" :title="t('Delete')" :aria-label="t('Delete')"
+                      <button v-else-if="!readonly && !l.row.inherited" class="od-icon" :title="t('Delete')" :aria-label="t('Delete')"
                               @click="edit([{ op: 'remove', path: l.row.path }])"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" /></svg></button>
                     </td>
                   </tr>
@@ -259,7 +305,7 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
                                :aria-label="t('Identifier')" @change="rename([...l.row.path, 'entries', ei], $event)"
                                @blur="rename([...l.row.path, 'entries', ei], $event)" @keydown.esc.stop="renaming = null" />
                         <span v-else class="mono od-name" :title="t('A click opens the entry, a double click renames it')"
-                              @click="onNameClick([...l.row.path, 'entries', ei])"
+                              @click="!l.row.inherited && onNameClick([...l.row.path, 'entries', ei])"
                               @dblclick="onNameDblClick([...l.row.path, 'entries', ei], l.row.inherited)">{{ e?.name }}</span>
                       </td>
                       <td class="act">

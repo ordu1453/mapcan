@@ -187,6 +187,36 @@
           "description": "CANopen dictionary objects every device of the bus has (e.g. 0x1018 identity, 0x100A software version). A device's own object with the same index takes the place of the bus's one.",
           "title": "Objects"
         },
+        "objects_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Objects Enabled"
+        },
+        "structures": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/Structure"
+              },
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Structures"
+        },
         "devices": {
           "anyOf": [
             {
@@ -293,12 +323,34 @@
           "title": "Description"
         },
         "objects": {
-          "description": "CANopen dictionary objects of the device in the manufacturer area (0x2000..0x5FFF), read and written by SDO. Objects of the bus are there too.",
+          "description": "CANopen dictionary objects of the device in any object area (0x1000..0xBFFF), read and written by SDO. Objects of the bus are there too.",
           "items": {
             "$ref": "#/$defs/OdObject"
           },
           "title": "Objects",
           "type": "array"
+        },
+        "objects_enabled": {
+          "default": true,
+          "title": "Objects Enabled",
+          "type": "boolean"
+        },
+        "excluded_objects": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Excluded Objects",
+          "type": "array"
+        },
+        "structures": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Structure"
+          },
+          "title": "Structures",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+          }
         },
         "frames": {
           "items": {
@@ -408,7 +460,7 @@
             }
           ],
           "default": null,
-          "description": "Value table (value → name) or the name of a table in value_tables.",
+          "description": "Value table (value → name), a table name in value_tables, or structure:<name> for a bus/device structure.",
           "title": "Values"
         },
         "multiplexer": {
@@ -839,6 +891,12 @@
           "description": "Object identifier: Latin letters, digits and _. Used in generated code. Required.",
           "title": "Name",
           "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "description": "Devices cannot exclude or override this bus object.",
+          "title": "Locked",
+          "type": "boolean"
         },
         "title": {
           "anyOf": [
@@ -1346,7 +1404,7 @@
             }
           ],
           "default": null,
-          "description": "Value table (value → name) or the name of a table in value_tables.",
+          "description": "Value table (value → name), a table name in value_tables, or structure:<name> for a bus/device structure.",
           "title": "Values"
         }
       },
@@ -1565,7 +1623,7 @@
             }
           ],
           "default": null,
-          "description": "Value table (value → name) or the name of a table in value_tables.",
+          "description": "Value table (value → name), a table name in value_tables, or structure:<name> for a bus/device structure.",
           "title": "Values"
         },
         "flags": {
@@ -1797,6 +1855,75 @@
         "encoding"
       ],
       "title": "Signal",
+      "type": "object"
+    },
+    "Structure": {
+      "additionalProperties": false,
+      "description": "A reusable value table, inherited from the bus with optional device exclusions.",
+      "properties": {
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name for people, e.g. \"States\": the label in the map tree and the heading in documents.",
+          "title": "Title"
+        },
+        "kind": {
+          "default": "enum",
+          "enum": [
+            "enum",
+            "bitmask"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/EnumValue"
+              }
+            ]
+          },
+          "title": "Values",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^(-?\\d+|0[xX][0-9a-fA-F]+)$"
+          }
+        },
+        "locked": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Locked",
+          "type": "array"
+        },
+        "excluded": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Excluded",
+          "type": "array"
+        }
+      },
+      "title": "Structure",
       "type": "object"
     }
   },

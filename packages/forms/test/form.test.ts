@@ -66,6 +66,15 @@ group("frame", () => {
     expect(visible("frame", c)).not.toContain("receivers");
   });
 
+  it("SDO routing offers the peer device for either direction", () => {
+    const tx = ctx({ values: { canopen: "sdo_tx" }, devices: devices("pump", "master") });
+    const rx = ctx({ values: { canopen: "sdo_rx" }, devices: devices("pump", "master") });
+    expect(visible("frame", tx)).toContain("receivers");
+    expect(optionsOf(field("frame", "receivers"), tx)).toEqual([["master", "master", undefined]]);
+    expect(visible("frame", rx)).toContain("sender");
+    expect(optionsOf(field("frame", "sender"), rx)).toContainEqual(["master", "master", undefined]);
+  });
+
   it("TX frame: receivers", () => {
     const keys = visible("frame", ctx({ values: { canopen: "pdo_tx1" }, devices: devices("pump", "master") }));
     expect(keys).toContain("receivers");

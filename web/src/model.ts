@@ -1,10 +1,9 @@
 // Navigation in the plain tree of the map, the tree for the side bar, templates of new nodes.
 
-import { hex, rangeLabel } from "./bits";
-import type { Diagnostic, Included, Level, Path, ResolvedFrame, ResolvedSignal } from "./types";
+import { hex } from "./bits";
+import type { Diagnostic, Included, Level, Path, ResolvedFrame } from "./types";
 import { t } from "./i18n";
 import { nodeLines } from "./yamltext";
-import { DEVICE_AREA, dictionary } from "./od";
 
 export type NodeKind = "document" | "history" | "revision" | "bus" | "device" | "objects" | "object" | "od_entry" | "frame"
   | "signal" | "flag" | "sdo" | "unknown";
@@ -111,6 +110,7 @@ export function txt(v: unknown, lang = "ru"): string {
 // ------------------------------------------------------------------ tree
 
 export interface TreeNode {
+  frameGroup?: "tx" | "rx";
   key: string;
   path: Path;
   kind: NodeKind;
@@ -188,13 +188,6 @@ export function frameSub(rf: ResolvedFrame | undefined): string {
   return rf ? hex(rf.can_id, rf.extended ? 8 : 3) : "";
 }
 
-function signalSub(rs: ResolvedSignal | undefined): string {
-  if (!rs) return "";
-  const lo = Math.min(...rs.occupied);
-  const hi = Math.max(...rs.occupied);
-  return rangeLabel(lo, hi);
-}
-
 // The data may not pass the schema (the YAML draft is applied while typing): an empty item "- " is null,
 // a number instead of a list. The tree is built from what there is; an item without a name shows as "—".
 const list = (v: unknown): Data[] => (Array.isArray(v) ? v.map(obj) : []);
@@ -240,8 +233,6 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
       subHint: busLoads.get(pathKey(bp))?.note || undefined,
       children: [], search: `${bus.name} ${txt(bus.title, lang)}`.toLowerCase(),
     };
-    // A CANopen bus has the objects every device has first, before its frames
-    if (isCanopen(bus)) bnode.children.push(objectsNode(bp, list(bus.objects).length));
     const labelOf = (name: string | null | undefined) => {
       const d = list(bus.devices).find((x: Data) => x?.name === name);
       return d ? deviceLabel(d, lang) : name ?? "";
@@ -258,30 +249,8 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
         search: [f.name, txt(f.title, lang), txt(f.description, lang), rf?.can_id != null ? hex(rf.can_id) : "",
           rf?.can_id != null ? String(rf.can_id) : "", f.pgn != null ? hex(f.pgn, 4) : ""].join(" ").toLowerCase(),
       };
-      list(f.signals).forEach((s: Data, si: number) => {
-        const sp = [...fp, "signals", si];
-        const rs = rf?.signals.find((x) => x.index === si);
-        const snode: TreeNode = {
-          key: pathKey(sp), path: sp, kind: "signal", label: displayName(s, lang), sub: signalSub(rs), children: [],
-          search: [s.name, txt(s.title, lang), txt(s.description, lang)].join(" ").toLowerCase(),
-        };
-        list(s.flags).forEach((fl: Data, fi: number) => {
-          const flp = [...sp, "flags", fi];
-          snode.children.push({
-            key: pathKey(flp), path: flp, kind: "flag", label: nameOf(fl),
-            sub: t("bit {bit}", { bit: fl.bit }), children: [], search: [fl.name, txt(fl.description, lang)].join(" ").toLowerCase(),
-          });
-        });
-        fnode.children.push(snode);
-      });
-      list(f.sdo).forEach((e: Data, ei: number) => {
-        const ep = [...fp, "sdo", ei];
-        fnode.children.push({
-          key: pathKey(ep), path: ep, kind: "sdo", label: nameOf(e),
-          sub: `${hex(e.index, 4)}:${e.subindex ?? 0}`, children: [],
-          search: [e.name, txt(e.description, lang)].join(" ").toLowerCase(),
-        });
-      });
+      // Signal and flag editors are reached from the frame layout, not from the traffic tree.
+      fnode.search += " " + list(f.signals).map((signal: Data) => [signal.name, txt(signal.title, lang), txt(signal.description, lang)].join(" ")).join(" ").toLowerCase();
       return fnode;
     };
     list(bus.frames).forEach((f: Data, fi: number) => bnode.children.push(frameNode(f, [...bp, "frames", fi])));
@@ -292,12 +261,6 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
         sub: d.node_id != null ? hex(d.node_id, 2) : d.address != null ? `SA ${hex(d.address, 2)}` : "", children: [],
         search: [d.name, d.short ?? "", txt(d.title, lang)].join(" ").toLowerCase(),
       };
-      // A CANopen device has its object dictionary first, next to its frames: its manufacturer area, the bus's
-      // objects there too
-      if (isCanopen(bus)) {
-        const own = dictionary(data, bp, dp).filter((r) => !(r.index < DEVICE_AREA.first || r.index > DEVICE_AREA.last));
-        dnode.children.push(objectsNode(dp, own.length));
-      }
       list(d.frames).forEach((f: Data, fi: number) => dnode.children.push(frameNode(f, [...dp, "frames", fi])));
       // Frames of others that list the device among their receivers: links after its own frames
       for (const rf of frames.values()) {
@@ -328,6 +291,18 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
             .join(" ").toLowerCase(),
         });
       }
+      // Keep the object dictionary first; group frame links and definitions by direction, then numeric CAN ID.
+      dnode.children.sort((a, b) => {
+        if (a.kind !== "frame" || b.kind !== "frame") return a.kind === "frame" ? 1 : b.kind === "frame" ? -1 : 0;
+        return Number(a.dir === "rx") - Number(b.dir === "rx")
+          || (frames.get(pathKey(a.path))?.can_id ?? Infinity) - (frames.get(pathKey(b.path))?.can_id ?? Infinity);
+      });
+      let previous: string | undefined;
+      for (const child of dnode.children.filter((c) => c.kind === "frame")) {
+        const direction = child.dir === "rx" ? "rx" : "tx";
+        if (direction !== previous) child.frameGroup = direction;
+        previous = direction;
+      }
       bnode.children.push(dnode);
     });
     out.push(bnode);
@@ -340,15 +315,6 @@ export function buildTree(data: Data, frames: Map<string, ResolvedFrame>, lang: 
 
 /** The bus is CANopen (the protocol by default): its frames carry dictionary objects rather than signals. */
 export const isCanopen = (bus: Data): boolean => (bus?.protocol ?? "canopen") === "canopen";
-
-/** The page of the object dictionary of a bus or a device in the tree. */
-function objectsNode(owner: Path, count: number): TreeNode {
-  return {
-    key: pathKey([...owner, OBJECTS]), path: [...owner, OBJECTS], kind: "objects", label: t("Objects"),
-    sub: count ? String(count) : "", children: [],
-    search: `${t("Objects").toLowerCase()} ${t("Object dictionary").toLowerCase()} objects`,
-  };
-}
 
 // ------------------------------------------------------------------ diagnostics by node
 

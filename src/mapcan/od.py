@@ -1,8 +1,7 @@
-"""CANopen object dictionary (CiA 301): data types, index areas, standard objects, the dictionary of a device.
+"""CANopen object dictionaries: bus inheritance, device exclusions, locks and index areas.
 
-The dictionary is written in the map (``objects`` of a bus and of a device) and read and written by SDO. Objects of
-the bus are in the dictionary of each of its devices; a device's own objects are in the manufacturer area, and one with
-an index of the bus's takes its place. PDO signals carry objects by their ``index``/``subindex`` but do not make them.
+Devices may override or exclude unlocked bus objects. Locked bus objects take precedence.
+PDO signals address objects by index/subindex but do not create dictionary entries.
 """
 
 from __future__ import annotations
@@ -63,9 +62,14 @@ def integer_range(data_type: str) -> tuple[int, int] | None:
 def dictionary(bus: Bus, dev: Device | None) -> list[OdObject]:
     """Objects of the dictionary of a device by index (of the bus, if ``dev`` is None): the bus's, with the device's
     own in place of those with the same index."""
-    objects = {o.index: o for o in bus.objects}
+    objects = {o.index: o for o in bus.objects} if bus.objects_enabled else {}
     if dev is not None:
-        objects.update({o.index: o for o in dev.objects})
+        objects = {i: o for i, o in objects.items()
+                   if o.locked or (dev.objects_enabled and i not in dev.excluded_objects)}
+        if dev.objects_enabled:
+            objects.update({o.index: o for o in dev.objects
+                            if o.index not in dev.excluded_objects
+                            and (o.index not in objects or not objects[o.index].locked)})
     return [objects[i] for i in sorted(objects)]
 
 

@@ -84,6 +84,9 @@ function click(e: MouseEvent) {
 
 <template>
   <li>
+    <div v-if="node.frameGroup" class="muted tree-frame-group" :style="{ paddingLeft: depth * 14 + 6 + 'px' }">
+      {{ node.frameGroup === "rx" ? t("Receives") : t("Transmits") }}
+    </div>
     <!-- A link to another device's frame has its own data-key: scrolling to the selected frame goes to the original -->
     <div class="tree-row" :class="{ selected, 'on-path': onPath, match, link, included: !!node.file }"
          :style="{ paddingLeft: depth * 14 + 6 + 'px' }"

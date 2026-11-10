@@ -18,6 +18,9 @@ import FlagsTable from "./FlagsTable.vue";
 import HelpTip from "./HelpTip.vue";
 import HistoryEditor from "./HistoryEditor.vue";
 import InlineRename from "./InlineRename.vue";
+import StructureNavigation from "./StructureNavigation.vue";
+import StructuresPanel from "./StructuresPanel.vue";
+import { effectiveStructure, structureNames, structureOwner as valueOwner } from "../structures";
 import ObjectsTable from "./ObjectsTable.vue";
 import { dictionary, kindOf, objectTypeOps, objectValue, withSdo } from "../od";
 import ValueTable from "./ValueTable.vue";
@@ -34,6 +37,48 @@ const kind = computed(() => nodeKind(path.value));
 // Together with the included files (include): their nodes are edited here, the edits go to their own file
 const data = computed(() => viewData.value);
 const node = computed(() => getAt(data.value, kind.value === "document" ? ["document"] : path.value));
+const structureOwner = computed<Path | null>(() => {
+  if (kind.value === "bus" || kind.value === "device") return path.value;
+  if (["objects", "object", "od_entry"].includes(kind.value)) return path.value.slice(0, path.value.indexOf("objects"));
+  return null;
+});
+const activeStructure = ref("");
+watch(() => pathKey(path.value), () => { activeStructure.value = ""; });
+async function selectStructure(name: string) {
+  const owner = structureOwner.value;
+  if (!owner) return;
+  if (name === "objects") { activeStructure.value = ""; await actions.select([...owner, OBJECTS]); }
+  else { await actions.select(owner); activeStructure.value = name; }
+}
+const boundStructure = computed(() => typeof node.value?.values === "string" && node.value.values.startsWith("structure:")
+  ? node.value.values.slice(10) : "");
+const valueStructures = computed(() => ["signal", "flag"].includes(kind.value)
+  ? structureNames(data.value, valueOwner(path.value)).filter((name) => kind.value !== "flag"
+    || effectiveStructure(data.value, valueOwner(path.value), name)?.kind !== "bitmask") : []);
+const structureValues = computed(() => boundStructure.value
+  ? effectiveStructure(data.value, valueOwner(path.value), boundStructure.value)?.values ?? {} : {});
+async function bindStructure(event: Event) {
+  const name = (event.target as HTMLSelectElement).value;
+  const ops: Op[] = [{ op: "set", path: [...path.value, "values"], value: name ? `structure:${name}` : null }];
+  if (name) {
+    const owner = valueOwner(path.value);
+    const structure = effectiveStructure(data.value, owner, name);
+    const ownStructure = getAt(data.value, [...owner, "structures", name]);
+    const busStructure = getAt(data.value, [...owner.slice(0, 2), "structures", name]);
+    if (!ownStructure && (!busStructure || busStructure.enabled === false)) {
+      ops.unshift({ op: "set", path: [...owner, "structures", name], value: { kind: structure?.kind ?? "enum", values: {} } });
+    }
+    if (kind.value === "signal") {
+      const encoding = structure?.kind === "bitmask" ? "bitfield" : "enum";
+      ops.push(...encodingChangeOps(path.value, node.value, encoding));
+      ops.push({ op: "set", path: [...path.value, "encoding"], value: encoding });
+      if (node.value?.flags) ops.push({ op: "set", path: [...path.value, "flags"], value: null });
+      // Encoding defaults may clear values; keep the selected reference last.
+      ops.push({ op: "set", path: [...path.value, "values"], value: `structure:${name}` });
+    }
+  }
+  await actions.apply(ops);
+}
 const includedFile = computed(() => includedPath(path.value));
 // bus.frame.signal.flag: how dashboards, plots and logs refer to the node (docs/format.md)
 const refPath = computed(() => canonicalPath(data.value, path.value));
@@ -63,7 +108,8 @@ const formCtx = computed<FormContext>(() => {
     protocol: bus ? bus.protocol ?? "canopen" : "",
     fd: !!bus?.fd,
     busBrs: typeof bus?.brs === "boolean" ? bus.brs : null,
-    owner: frame?.device ?? null,
+    owner: kind.value === "frame" && path.value[2] === "devices"
+      ? getAt(data.value, path.value.slice(0, 4))?.name ?? frame?.device ?? null : null,
     devices: (bus?.devices ?? []).filter((d: any) => d?.name)
       .map((d: any) => ({ name: d.name, label: deviceLabel(d, lang.value) })),
     signalEncoding: s?.encoding ?? null,
@@ -83,6 +129,7 @@ const customOf = (title: string | undefined) =>
   kind.value === "signal" && title === "Position" ? "position" as const
     : kind.value === "frame" && title === "Timing" ? "transmission" as const : null;
 const sections = computed(() => (FORMS[kind.value as FormKind] ?? [])
+  .filter((sec) => !isSdoFrame.value || sec.title === "Routing")
   .map((sec) => ({
     title: sec.title,
     custom: customOf(sec.title),
@@ -401,7 +448,7 @@ const showValues = computed(() => {
 });
 // Values from a named table of value_tables (#143): shown read-only, the table is edited in the YAML tab. A table
 // of an included file is not in the map's data: its values come from the resolved signal then (without descriptions).
-const namedValues = computed(() => (typeof node.value?.values === "string" && store.state
+const namedValues = computed(() => (typeof node.value?.values === "string" && !boundStructure.value && store.state
   ? namedTable(store.state, data.value, node.value.values) : null));
 const namedRows = computed(() => namedValues.value?.values
   ?? (kind.value === "signal" && rsignal.value
@@ -420,12 +467,18 @@ const showFlags = computed(() => kind.value === "signal"
 
 const childFrames = computed(() => {
   if (kind.value !== "device" && kind.value !== "bus") return [];
-  return (node.value?.frames ?? []).map((f: any, i: number) => {
+  const own = (node.value?.frames ?? []).map((f: any, i: number) => {
     const p = [...path.value, "frames", i];
-    const rf = resolvedFrames.value.get(pathKey(p));
-    return { path: p, name: f?.name ?? "—", label: displayName(f, lang.value), id: rf ? hex(rf.can_id) : "—", type: f?.canopen ?? "raw",
-      desc: txt(f?.description, lang.value), n: rf?.signals.length ?? 0 };
+    return { f, p, rf: resolvedFrames.value.get(pathKey(p)), foreign: false };
   });
+  const sent = kind.value === "device" ? [...resolvedFrames.value.values()]
+    .filter((f) => f.path[1] === path.value[1] && f.sender === node.value?.name && f.device !== node.value?.name)
+    .map((rf) => ({ f: getAt(data.value, rf.path), p: rf.path, rf, foreign: true })) : [];
+  return [...own, ...sent]
+    .filter(({ rf }) => kind.value !== "device" || rf?.direction !== "rx" || rf?.sender === node.value?.name)
+    .sort((a, b) => (a.rf?.can_id ?? Infinity) - (b.rf?.can_id ?? Infinity))
+    .map(({ f, p, rf, foreign }) => ({ path: p, foreign, name: f?.name ?? "—", label: displayName(f, lang.value),
+      id: rf ? hex(rf.can_id) : "—", type: f?.canopen ?? "raw", desc: txt(f?.description, lang.value), n: rf?.signals.length ?? 0 }));
 });
 
 /** Dictionary object of a signal as "0x2100:01" (index and subindex); "—" without an index. */
@@ -469,7 +522,8 @@ const exchange = computed(() => {
     const d = n ? (bus?.devices ?? []).find((x: any) => x?.name === n) : null;
     return !n ? "—" : d ? deviceLabel(d, lang.value) : n;
   };
-  const onBus = (store.state?.resolved?.frames ?? []).filter((f) => f.path[1] === path.value[1]);
+  const onBus = (store.state?.resolved?.frames ?? []).filter((f) => f.path[1] === path.value[1])
+    .sort((a, b) => (a.can_id ?? Infinity) - (b.can_id ?? Infinity));
   const row = (f: (typeof onBus)[number], peer: string) => ({
     path: f.path, name: f.name, label: displayName(getAt(data.value, f.path), lang.value), peer,
     id: hex(f.can_id, f.extended ? 8 : 3),
@@ -479,8 +533,6 @@ const exchange = computed(() => {
     // The own device can be removed from the receivers of another's frame; an own RX frame can only be deleted
     receives: onBus.filter((f) => f.receivers.includes(name))
       .map((f) => ({ ...row(f, label(f.sender)), foreign: f.device !== name })),
-    sends: onBus.filter((f) => f.sender === name && f.device !== name)
-      .map((f) => row(f, f.device ? label(f.device) : t("bus frame"))),
   };
 });
 
@@ -505,10 +557,17 @@ function onLayout(p: Path, start: number, length: number) {
 }
 /** A flag moved or resized in the bit layout; a length of 1 is not written (#150). */
 function onFlag(p: Path, bit: number, length: number) {
+  if (String(getAt(data.value, [...p.slice(0, -2), "values"]) ?? "").startsWith("structure:")) return;
   const written = getAt(data.value, [...p, "bit_length"]) != null;
   void actions.apply([{ op: "set", path: [...p, "bit"], value: bit },
     ...(length > 1 ? [{ op: "set" as const, path: [...p, "bit_length"], value: length }]
       : written ? [{ op: "remove" as const, path: [...p, "bit_length"] }] : [])]);
+}
+function selectLayoutNode(p: Path) {
+  const parent = p.slice(0, -2);
+  if (p[p.length - 2] === "flags" && String(getAt(data.value, [...parent, "values"]) ?? "").startsWith("structure:")) {
+    actions.select(parent);
+  } else actions.select(p);
 }
 
 // ------------------------------------------------------------------ multiplexing of the frame (#149)
@@ -614,6 +673,16 @@ async function setSelector(e: Event) {
       </div>
     </header>
 
+    <StructureNavigation v-if="structureOwner" :owner="structureOwner"
+                         :active="activeStructure || (['objects', 'object', 'od_entry'].includes(kind) ? 'objects' : '')"
+                         @select="selectStructure" />
+    <StructuresPanel v-if="activeStructure && structureOwner" :key="pathKey(structureOwner) + activeStructure"
+                     :owner="structureOwner" :name="activeStructure" />
+    <template v-if="!activeStructure">
+    <section v-if="kind === 'bus' || kind === 'device'" class="card">
+      <StructureNavigation :owner="path" active="" management @select="selectStructure" />
+    </section>
+
     <div v-if="includedFile" class="banner info">
       🔗 {{ t("The node is described in the included file {file}: edits go to that file, and Save writes it too.",
               { file: includedFile }) }}
@@ -649,7 +718,7 @@ async function setSelector(e: Event) {
       <SdoFrame v-if="isSdoFrame" :direction="frameData.canopen" :frame="rframe" :palette="store.state.palette" />
       <BitGrid v-else :frame="rframe" :selected="path" :palette="store.state.palette" :readonly="readonly" :objects="canopen"
                v-model:mux-value="muxValue" :synthetic="synthName" @synthetic="synthName = $event"
-               @select="actions.select" @create="onCreate" @layout="onLayout" @flag="onFlag" />
+               @select="selectLayoutNode" @create="onCreate" @layout="onLayout" @flag="onFlag" />
     </section>
 
     <!-- A signal of an SDO frame laid out by mapcan: its place and its values, which come from the dictionary -->
@@ -675,7 +744,7 @@ async function setSelector(e: Event) {
 
     <ObjectsTable v-if="kind === 'objects'" :key="pathKey(path)" :owner="path.slice(0, -1)" />
 
-    <section v-if="kind !== 'history' && kind !== 'objects' && !isSdoFrame" class="card">
+    <section v-if="kind !== 'history' && kind !== 'objects' && (!isSdoFrame || kind === 'frame')" class="card">
       <h3>{{ t("Properties") }} <span v-if="hasRequired" class="muted req-note"><span class="req">*</span> {{ t("— required field") }}</span></h3>
       <!-- One row per section: its name on the left, its fields in a grid on the right (short fields take one
            column, the others two, texts the whole row) -->
@@ -770,6 +839,16 @@ async function setSelector(e: Event) {
     <DocumentRequisites v-if="kind === 'document'" />
     <HistoryEditor v-if="kind === 'history' || kind === 'revision'" :path="path" />
 
+    <section v-if="['signal', 'flag'].includes(kind)" class="card">
+      <label class="field"><span class="field-label">{{ t("Values from structure") }}</span>
+        <select :value="boundStructure" :disabled="readonly" @change="bindStructure">
+          <option value="">{{ t("Local values") }}</option>
+          <option v-for="name in valueStructures" :key="name" :value="name">{{ effectiveStructure(data, valueOwner(path), name)?.title || name }}</option>
+          <option v-if="boundStructure && !valueStructures.includes(boundStructure)" :value="boundStructure">{{ boundStructure }}</option>
+        </select>
+      </label>
+    </section>
+    <ValueTable v-if="boundStructure" class="card" :path="path" :values="structureValues" readonly :diags="[]" />
     <section v-if="namedValues" class="card">
       <ValueTable :path="path" :values="namedRows" :hex="node?.value_format === 'hex'" readonly :diags="[]"
                   :title="t('Values from table “{name}”', { name: node.values })" />
@@ -779,9 +858,9 @@ async function setSelector(e: Event) {
         <button v-if="namedValues.line !== null" class="small" @click="openNamedTable">{{ t("Open in YAML") }}</button>
       </p>
     </section>
-    <ValueTable v-else-if="showValues" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
+    <ValueTable v-else-if="showValues && !boundStructure" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
                 :readonly="readonly" :diags="diags" />
-    <FlagsTable v-if="showFlags" class="card" :path="path" :flags="node?.flags" :readonly="readonly" :diags="diags"
+    <FlagsTable v-if="showFlags && !boundStructure" class="card" :path="path" :flags="node?.flags" :readonly="readonly" :diags="diags"
                 :field-length="rsignal?.bit_length ?? null" />
 
     <!-- Signals of the frame -->
@@ -816,10 +895,8 @@ async function setSelector(e: Event) {
     <!-- Frames of the device / bus -->
     <section v-if="kind === 'bus' || kind === 'device'" class="card">
       <h3>
-        {{ t("Frames") }} <span class="muted">{{ childFrames.length }}</span>
+        {{ kind === "device" ? t("Transmits") : t("Frames") }} <span class="muted">{{ childFrames.length }}</span>
         <span class="card-actions">
-          <button v-if="canopen" class="small"
-                  @click="actions.select([...path, OBJECTS])">{{ t("Object dictionary") }}</button>
           <button v-if="!readonly" class="small" @click="addFrame(path)">+ {{ t("Frame") }}</button>
         </span>
       </h3>
@@ -830,7 +907,7 @@ async function setSelector(e: Event) {
           <tr v-for="f in childFrames" :key="f.name" class="clickable" @click="actions.select(f.path)">
             <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td><td>{{ f.type }}</td>
             <td>{{ f.n }}</td><td>{{ f.desc }}</td>
-            <td v-if="!readonly" class="act"><button class="icon danger" :title="t('Delete')" @click.stop="removeNode(f.path)">✕</button></td>
+            <td v-if="!readonly" class="act"><button v-if="!f.foreign" class="icon danger" :title="t('Delete')" @click.stop="removeNode(f.path)">✕</button></td>
           </tr>
         </tbody>
       </table>
@@ -849,23 +926,13 @@ async function setSelector(e: Event) {
             <td v-if="!readonly" class="act">
               <button v-if="f.foreign" class="icon danger" :title="t('Stop receiving (remove from receivers)')"
                       @click.stop="stopReceiving(f.path, node.name)">✕</button>
+              <button v-else class="icon danger" :title="t('Delete')" @click.stop="removeNode(f.path)">✕</button>
             </td>
           </tr>
         </tbody>
       </table>
       <p v-else class="muted">{{ t("The device is not a receiver of any frame.") }}</p>
-      <template v-if="exchange.sends.length">
-        <h3 class="sub">{{ t("Transmits frames of other devices") }} <span class="muted">{{ exchange.sends.length }}</span></h3>
-        <table class="list">
-          <thead><tr><th>ID</th><th>{{ t("Frame") }}</th><th>{{ t("Device") }}</th><th>{{ t("Description") }}</th></tr></thead>
-          <tbody>
-            <tr v-for="f in exchange.sends" :key="f.name" class="clickable" @click="actions.select(f.path)">
-              <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td>
-              <td>{{ f.peer }}</td><td>{{ f.desc }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </template>
+
     </section>
 
     <section v-if="kind === 'bus'" class="card">
@@ -918,5 +985,6 @@ async function setSelector(e: Event) {
       </p>
       <button class="small" @click="actions.select(HISTORY_PATH)">{{ t("Open history") }}</button>
     </section>
+    </template>
   </div>
 </template>

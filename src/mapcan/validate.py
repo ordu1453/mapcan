@@ -128,7 +128,7 @@ RULES = {
         "A signal at subindex 0 of an array or a record: subindex 0 holds the number of its entries")),
     "od-protocol": ("warning", N_("Dictionary objects on a bus that is not CANopen")),
     "od-object-area": ("error", N_("Dictionary object in the data type area (0x0000..0x0FFF) or the reserved one "
-                                   "(0xC000..0xFFFF), or an object of a device outside the manufacturer area")),
+                                   "(0xC000..0xFFFF)")),
     "od-object-duplicate": ("error", N_("The same index, subindex or name twice in a dictionary")),
     "od-object-shape": ("error", N_("Dictionary object with both data_type and entries or with neither, a value of "
                                     "an array or a record written on the object instead of its entries, or an array "
@@ -452,10 +452,6 @@ def _check_dictionary(ctx: _Ctx, bus) -> None:
                                              "({first:04X}..{last:04X}): objects of a device are from 0x1000 to "
                                              "0xBFFF", index=obj.index, area=_(area.title), first=area.first,
                                              last=area.last), p + ("index",))
-            elif owner is not bus and area.first != 0x2000:
-                ctx.emit("od-object-area", _("object {index:04X} of a device is outside the manufacturer area "
-                                             "(0x2000..0x5FFF): objects of the other areas are the bus's",
-                                             index=obj.index), p + ("index",))
             _check_od_object(ctx, obj)
     for dev in bus.devices:
         objects = {o.index: o for o in od.dictionary(bus, dev)}

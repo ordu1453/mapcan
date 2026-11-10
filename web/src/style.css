@@ -617,3 +617,15 @@ h2 .renamable.secondary { color: var(--muted); }
 }
 .suggest-list button:hover { background: var(--hover); }
 .suggest-list button.current { background: var(--accent-soft); font-weight: 600; }
+
+/* Structures belong to a bus or device; the tree remains focused on traffic. */
+.structure-tabs { display: flex; align-items: center; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
+.structure-tabs .spacer { flex: 1; }
+.structure-tabs button.active { font-weight: 700; border-bottom: 3px solid var(--accent); }
+
+.structure-tab { display: inline-flex; align-items: center; gap: 2px; }
+.structure-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.structure-add input { flex: 1; min-width: 110px; }
+.structure-values input:not([type="checkbox"]) { width: 100%; min-width: 140px; }
+.object-devices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.object-devices label { display: inline-flex; align-items: center; gap: 3px; }

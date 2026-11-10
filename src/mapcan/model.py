@@ -136,7 +136,7 @@ TITLE = N_("Name for people, e.g. \"States\": the label in the map tree and the 
 DESCRIPTION = N_("What it is and what for: shown in documents, comments of generated code and DBC.")
 COMMENT = N_("A note or caveat: \"Note:\" in documents, after the description in DBC.")
 SHORT = N_("Device abbreviation, e.g. \"BMS\": in document tables and before the name in the tree.")
-VALUES = N_("Value table (value → name) or the name of a table in value_tables.")
+VALUES = N_("Value table (value → name), a table name in value_tables, or structure:<name> for a bus/device structure.")
 
 
 class Print(_Base):
@@ -226,6 +226,23 @@ class EnumValue(_Base):
 ValueTable = dict[int, Union[str, EnumValue]]
 # Instead of a table the map can name a table of value_tables: the loader substitutes it
 ValueTableRef = Union[ValueTable, str]
+
+
+class Structure(_Base):
+    """A reusable value table, inherited from the bus with optional device exclusions."""
+
+    title: Text | None = Field(None, description=TITLE)
+    kind: Literal["enum", "bitmask"] = "enum"
+    enabled: bool = True
+    values: ValueTable = Field(default_factory=dict)
+    locked: list[int] = Field(default_factory=list)
+    excluded: list[int] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _mask_values(self) -> Structure:
+        if self.kind == "bitmask" and any(k <= 0 or k & (k - 1) for k in self.values):
+            raise ValueError(N_("bitmask values must be positive powers of two"))
+        return self
 
 
 def enum_entries(values: ValueTable | None) -> list[tuple[int, EnumValue]]:
@@ -653,6 +670,7 @@ class OdObject(_Base):
                        "profiles."))
     name: str = Field(
         description=N_("Object identifier: Latin letters, digits and _. Used in generated code. Required."))
+    locked: bool = Field(False, description=N_("Devices cannot exclude or override this bus object."))
     title: Text | None = Field(
         None, description=N_("Human-readable name of the object, e.g. “Manufacturer software version”."))
     description: Text | None = Field(None, description=DESCRIPTION)
@@ -679,7 +697,7 @@ class OdObject(_Base):
 
 OBJECTS_BUS = N_("CANopen dictionary objects every device of the bus has (e.g. 0x1018 identity, 0x100A software "
                  "version). A device's own object with the same index takes the place of the bus's one.")
-OBJECTS_DEVICE = N_("CANopen dictionary objects of the device in the manufacturer area (0x2000..0x5FFF), read and "
+OBJECTS_DEVICE = N_("CANopen dictionary objects of the device in any object area (0x1000..0xBFFF), read and "
                     "written by SDO. Objects of the bus are there too.")
 
 
@@ -871,6 +889,9 @@ class Device(_Base):
                        "sends; 254 and 255 are reserved."))
     description: Text | None = Field(None, description=DESCRIPTION)
     objects: list[OdObject] = Field(default_factory=list, description=OBJECTS_DEVICE)
+    objects_enabled: bool = True
+    excluded_objects: list[int] = Field(default_factory=list)
+    structures: dict[str, Structure] = Field(default_factory=dict)
     frames: list[Frame] = Field(default_factory=list)
 
 
@@ -919,6 +940,8 @@ class Bus(_Base):
                        "CANopen broadcast frames (NMT, SYNC, TIME)."),
     )
     objects: list[OdObject] = Field(default_factory=list, description=OBJECTS_BUS)
+    objects_enabled: bool = True
+    structures: dict[str, Structure] = Field(default_factory=dict)
     devices: list[Device] = Field(default_factory=list)
 
     def all_frames(self) -> list[Frame]:

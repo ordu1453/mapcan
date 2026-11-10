@@ -33,6 +33,7 @@ from .diagnostics import Diagnostic, Report
 from .i18n import _
 from .model import FORMAT_VERSION, MapCan
 from .resolve import resolve
+from .structures import resolve_structures
 from .upgrade import Upgraded, upgrade_tree, upgrade_v1
 
 # Keys whose values must be numbers.
@@ -523,6 +524,7 @@ def _loads(text: str, filename: str | None, base_dir: str | Path | None,
         _pydantic_messages(err, src, report)
         return LoadResult(None, report, src, raw, merged)
     cmap._source = filename
+    resolve_structures(cmap, src, report)
     if base_dir is not None:
         cmap._base_dir = Path(base_dir)
     elif filename:
@@ -740,6 +742,8 @@ def _value_tables(data: dict, src: SourceMap, report: Report) -> None:
         if isinstance(node, dict):
             for k, v in node.items():
                 if k == "values" and isinstance(v, str):
+                    if v.startswith("structure:"):
+                        continue
                     if v in tables:
                         node[k] = tables[v]
                     else:
