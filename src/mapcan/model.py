@@ -891,6 +891,7 @@ class Device(_Base):
     objects: list[OdObject] = Field(default_factory=list, description=OBJECTS_DEVICE)
     objects_enabled: bool = True
     excluded_objects: list[int] = Field(default_factory=list)
+    sdo_enabled: bool = True
     structures: dict[str, Structure] = Field(default_factory=dict)
     frames: list[Frame] = Field(default_factory=list)
 

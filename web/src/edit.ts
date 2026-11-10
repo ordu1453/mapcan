@@ -4,6 +4,7 @@ import { actions, askText, includedPath, lang, resolvedFrames, store, toast, vie
 import { allFrameNames, freeByte, getAt, HISTORY_PATH, isCanopen, nodeKind, pathKey, txt, uniqueName, type Data, type NodeKind } from "./model";
 import type { Op, Path } from "./types";
 import { t } from "./i18n";
+import { dictionary, newSdoFrames } from "./od";
 
 // The map together with its included files: their nodes are edited here too, and the server writes each edit
 // to the file the node is described in (the paths are the map's)
@@ -87,7 +88,9 @@ function newDevice(busPath: Path): Record<string, unknown> {
     while (used.has(id)) id++;
     value.node_id = id;
   }
-  value.frames = [];
+  // A device of a CANopen bus with objects has them in its dictionary: its SDO frames come with it
+  value.frames = isCanopen(bus) && dictionary(data(), busPath).length > 0
+    ? newSdoFrames(String(value.name), allFrameNames(bus)) : [];
   return value;
 }
 

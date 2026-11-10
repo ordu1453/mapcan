@@ -1,4 +1,12 @@
 {
+  "Import from structure": "Импорт из структуры",
+  "No structures: add one on the bus or the device": "Нет структур: добавьте структуру на шине или устройстве",
+  "Values from structure “{name}”": "Значения из структуры «{name}»",
+  "Detach": "Отвязать",
+  "Give the node its own values instead of the structure": "Задать собственные значения вместо структуры",
+  "Disable SDO": "Отключить SDO",
+  "Enable SDO": "Включить SDO",
+  "SDO frames of the device are added automatically while its dictionary has objects": "SDO-кадры устройства добавляются автоматически, пока в его словаре есть объекты",
   "States": "Состояния",
   "Add structure": "Добавить структуру",
   "Remove structure": "Убрать структуру",

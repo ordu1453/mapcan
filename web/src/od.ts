@@ -5,7 +5,7 @@
 
 import { hex } from "./bits";
 import { N_ } from "./i18n";
-import { displayName, frameSub, getAt, pathKey, type Data } from "./model";
+import { allFrameNames, displayName, frameSub, getAt, isCanopen, pathKey, uniqueName, type Data } from "./model";
 import { parseInteger } from "@mapcan/forms";
 import type { Op, Path, ResolvedFrame } from "./types";
 
@@ -203,7 +203,7 @@ export const indexLabel = (index: number): string => hex(index, 4);
 
 /** The signal of an SDO frame in bytes 1..3: the object (index and subindex), an enum of the dictionary's objects. */
 export const SDO_OBJECT = "sdo_object";
-const SDO_FUNCTIONS = ["sdo_rx", "sdo_tx"];
+export const SDO_FUNCTIONS = ["sdo_rx", "sdo_tx"];
 
 /** Raw value of bytes 1..3 of an SDO frame: the index (little-endian) and the subindex. */
 export const sdoObjectKey = (index: number, subindex: number) => index | (subindex << 16);
@@ -310,5 +310,50 @@ export function sdoSyncOps(data: Data, busPath: Path, ops: Op[]): Op[] {
   return out;
 }
 
+/** SDO of a device is on unless it is turned off in the device window (`sdo_enabled: false`). */
+export const sdoEnabled = (device: Data): boolean => device?.sdo_enabled !== false;
+
+/** A device has SDO frames when SDO is on and its dictionary has objects. */
+export const wantsSdo = (data: Data, busPath: Path, devicePath: Path): boolean =>
+  isCanopen(getAt(data, busPath)) && sdoEnabled(getAt(data, devicePath)) && dictionary(data, busPath, devicePath).length > 0;
+
+/** New SDO frames (RX and TX) of a device: mapcan lays them out from the dictionary of the device. */
+export function newSdoFrames(deviceName: string, taken: Iterable<string>, functions = SDO_FUNCTIONS): Data[] {
+  const names = new Set(taken);
+  return functions.map((fn) => {
+    const name = uniqueName(`${deviceName}_${fn}`, names);
+    names.add(name);
+    return { name, canopen: fn };
+  });
+}
+
+/** Edits that add the SDO frames of the bus's devices that have objects in the dictionary after `ops` and remove those
+ * of the devices without objects or with SDO turned off. */
+export function sdoFrameOps(data: Data, busPath: Path, ops: Op[]): Op[] {
+  const after = applied(data, ops);
+  const bus = getAt(after, busPath);
+  if (!isCanopen(bus)) return [];
+  const out: Op[] = [];
+  const taken = allFrameNames(bus);
+  (Array.isArray(bus?.devices) ? bus.devices : []).forEach((d: Data, di: number) => {
+    const dp = [...busPath, "devices", di];
+    const frames: Data[] = Array.isArray(d?.frames) ? d.frames : [];
+    const present = frames.map((f, fi) => [f?.canopen, fi] as const).filter(([fn]) => SDO_FUNCTIONS.includes(fn));
+    if (wantsSdo(after, busPath, dp)) {
+      const missing = SDO_FUNCTIONS.filter((fn) => !present.some(([p]) => p === fn));
+      for (const f of newSdoFrames(String(d?.name ?? "device"), taken, missing)) {
+        taken.push(f.name);
+        out.push({ op: "insert", path: [...dp, "frames"], value: f });
+      }
+    } else {
+      for (const [, fi] of [...present].reverse()) out.push({ op: "remove", path: [...dp, "frames", fi] });
+    }
+  });
+  return out;
+}
+
 /** The operations on a dictionary with the edits of the SDO frames they call for. */
-export const withSdo = (data: Data, busPath: Path, ops: Op[]): Op[] => [...ops, ...sdoSyncOps(data, busPath, ops)];
+export const withSdo = (data: Data, busPath: Path, ops: Op[]): Op[] => {
+  const synced = [...ops, ...sdoSyncOps(data, busPath, ops)];
+  return [...synced, ...sdoFrameOps(data, busPath, synced)];
+};

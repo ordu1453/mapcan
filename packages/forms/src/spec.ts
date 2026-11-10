@@ -309,7 +309,9 @@ export const FORMS: Record<FormKind, Section[]> = {
       { key: "canopen", label: N_("CANopen function"), type: "select", when: (c) => c.protocol === "canopen",
         options: (c) => (c.frameTypes
           ? c.frameTypes.map(({ type, label, taken }): Option => [type, taken ? `${label} — ${taken}` : label, !!taken])
-          : c.protocol === "canopen" ? FRAME_TYPES : FRAME_TYPES.slice(0, 1)) },
+          // SDO frames of a device come with its dictionary: no type to choose, but one written in the YAML is shown
+          : c.protocol === "canopen" ? FRAME_TYPES.filter(([v]) => !v.startsWith("sdo_") || v === value(c, "canopen"))
+            : FRAME_TYPES.slice(0, 1)) },
       { key: "id", label: "CAN ID", type: "hex", half: true,
         placeholder: (c) => (c.protocol === "can" ? "0x123" : t(N_("computed"))),
         when: (c) => c.protocol !== "canopen" || frameType(c) === "raw" || value(c, "id") != null,

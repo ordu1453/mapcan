@@ -18,11 +18,12 @@ import FlagsTable from "./FlagsTable.vue";
 import HelpTip from "./HelpTip.vue";
 import HistoryEditor from "./HistoryEditor.vue";
 import InlineRename from "./InlineRename.vue";
+import StructureImport from "./StructureImport.vue";
 import StructureNavigation from "./StructureNavigation.vue";
 import StructuresPanel from "./StructuresPanel.vue";
 import { effectiveStructure, structureNames, structureOwner as valueOwner } from "../structures";
 import ObjectsTable from "./ObjectsTable.vue";
-import { dictionary, kindOf, objectTypeOps, objectValue, withSdo } from "../od";
+import { dictionary, kindOf, objectTypeOps, objectValue, SDO_FUNCTIONS, sdoEnabled, withSdo } from "../od";
 import ValueTable from "./ValueTable.vue";
 import { N_, t } from "../i18n";
 
@@ -57,8 +58,11 @@ const valueStructures = computed(() => ["signal", "flag"].includes(kind.value)
     || effectiveStructure(data.value, valueOwner(path.value), name)?.kind !== "bitmask") : []);
 const structureValues = computed(() => boundStructure.value
   ? effectiveStructure(data.value, valueOwner(path.value), boundStructure.value)?.values ?? {} : {});
-async function bindStructure(event: Event) {
-  const name = (event.target as HTMLSelectElement).value;
+/** Structures a signal or a flag can take its values from, for the "Import from structure" button. */
+const structureOptions = computed(() => valueStructures.value.map((name) => ({ name,
+  title: effectiveStructure(data.value, valueOwner(path.value), name)?.title || name })));
+/** Bind the signal or flag to a structure (its values come from there); "" gives it its own values again. */
+async function bindStructure(name: string) {
   const ops: Op[] = [{ op: "set", path: [...path.value, "values"], value: name ? `structure:${name}` : null }];
   if (name) {
     const owner = valueOwner(path.value);
@@ -481,6 +485,14 @@ const childFrames = computed(() => {
       id: rf ? hex(rf.can_id) : "—", type: f?.canopen ?? "raw", desc: txt(f?.description, lang.value), n: rf?.signals.length ?? 0 }));
 });
 
+// SDO frames of a device are added and removed with the objects of its dictionary; the device can turn SDO off
+const sdoOn = computed(() => kind.value === "device" && sdoEnabled(node.value));
+const isSdo = (type: unknown) => kind.value === "device" && SDO_FUNCTIONS.includes(type as string);
+function toggleSdo() {
+  void actions.apply(withSdo(data.value, path.value.slice(0, 2),
+    [{ op: "set", path: [...path.value, "sdo_enabled"], value: sdoOn.value ? false : null }]));
+}
+
 /** Dictionary object of a signal as "0x2100:01" (index and subindex); "—" without an index. */
 function odLabel(s: any): string {
   if (typeof s?.index !== "number") return "—";
@@ -527,7 +539,7 @@ const exchange = computed(() => {
   const row = (f: (typeof onBus)[number], peer: string) => ({
     path: f.path, name: f.name, label: displayName(getAt(data.value, f.path), lang.value), peer,
     id: hex(f.can_id, f.extended ? 8 : 3),
-    desc: txt(getAt(data.value, f.path)?.description, lang.value),
+    desc: txt(getAt(data.value, f.path)?.description, lang.value), type: getAt(data.value, f.path)?.canopen,
   });
   return {
     // The own device can be removed from the receivers of another's frame; an own RX frame can only be deleted
@@ -679,9 +691,6 @@ async function setSelector(e: Event) {
     <StructuresPanel v-if="activeStructure && structureOwner" :key="pathKey(structureOwner) + activeStructure"
                      :owner="structureOwner" :name="activeStructure" />
     <template v-if="!activeStructure">
-    <section v-if="kind === 'bus' || kind === 'device'" class="card">
-      <StructureNavigation :owner="path" active="" management @select="selectStructure" />
-    </section>
 
     <div v-if="includedFile" class="banner info">
       🔗 {{ t("The node is described in the included file {file}: edits go to that file, and Save writes it too.",
@@ -744,7 +753,8 @@ async function setSelector(e: Event) {
 
     <ObjectsTable v-if="kind === 'objects'" :key="pathKey(path)" :owner="path.slice(0, -1)" />
 
-    <section v-if="kind !== 'history' && kind !== 'objects' && (!isSdoFrame || kind === 'frame')" class="card">
+    <!-- An SDO frame has no properties: anyone may send requests, its layout is the standard one -->
+    <section v-if="kind !== 'history' && kind !== 'objects' && !isSdoFrame" class="card">
       <h3>{{ t("Properties") }} <span v-if="hasRequired" class="muted req-note"><span class="req">*</span> {{ t("— required field") }}</span></h3>
       <!-- One row per section: its name on the left, its fields in a grid on the right (short fields take one
            column, the others two, texts the whole row) -->
@@ -839,16 +849,14 @@ async function setSelector(e: Event) {
     <DocumentRequisites v-if="kind === 'document'" />
     <HistoryEditor v-if="kind === 'history' || kind === 'revision'" :path="path" />
 
-    <section v-if="['signal', 'flag'].includes(kind)" class="card">
-      <label class="field"><span class="field-label">{{ t("Values from structure") }}</span>
-        <select :value="boundStructure" :disabled="readonly" @change="bindStructure">
-          <option value="">{{ t("Local values") }}</option>
-          <option v-for="name in valueStructures" :key="name" :value="name">{{ effectiveStructure(data, valueOwner(path), name)?.title || name }}</option>
-          <option v-if="boundStructure && !valueStructures.includes(boundStructure)" :value="boundStructure">{{ boundStructure }}</option>
-        </select>
-      </label>
-    </section>
-    <ValueTable v-if="boundStructure" class="card" :path="path" :values="structureValues" readonly :diags="[]" />
+    <!-- Values taken from a structure: shown, edited in the structure; "Detach" gives the node its own values -->
+    <ValueTable v-if="boundStructure" class="card" :path="path" :values="structureValues" readonly :diags="[]"
+                :title="t('Values from structure “{name}”', { name: effectiveStructure(data, valueOwner(path), boundStructure)?.title || boundStructure })">
+      <template #actions>
+        <button v-if="!readonly" class="small" :title="t('Give the node its own values instead of the structure')"
+                @click="bindStructure('')">{{ t("Detach") }}</button>
+      </template>
+    </ValueTable>
     <section v-if="namedValues" class="card">
       <ValueTable :path="path" :values="namedRows" :hex="node?.value_format === 'hex'" readonly :diags="[]"
                   :title="t('Values from table “{name}”', { name: node.values })" />
@@ -859,9 +867,17 @@ async function setSelector(e: Event) {
       </p>
     </section>
     <ValueTable v-else-if="showValues && !boundStructure" class="card" :path="path" :values="node?.values" :hex="node?.value_format === 'hex'"
-                :readonly="readonly" :diags="diags" />
+                :readonly="readonly" :diags="diags">
+      <template #actions>
+        <StructureImport v-if="!readonly" :options="structureOptions" @pick="bindStructure" />
+      </template>
+    </ValueTable>
     <FlagsTable v-if="showFlags && !boundStructure" class="card" :path="path" :flags="node?.flags" :readonly="readonly" :diags="diags"
-                :field-length="rsignal?.bit_length ?? null" />
+                :field-length="rsignal?.bit_length ?? null">
+      <template #actions>
+        <StructureImport v-if="!readonly" :options="structureOptions" @pick="bindStructure" />
+      </template>
+    </FlagsTable>
 
     <!-- Signals of the frame -->
     <section v-if="kind === 'frame' && !isSdoFrame" class="card">
@@ -897,6 +913,9 @@ async function setSelector(e: Event) {
       <h3>
         {{ kind === "device" ? t("Transmits") : t("Frames") }} <span class="muted">{{ childFrames.length }}</span>
         <span class="card-actions">
+          <button v-if="!readonly && kind === 'device' && canopen" class="small"
+                  :title="sdoOn ? t('SDO frames of the device are added automatically while its dictionary has objects') : ''"
+                  @click="toggleSdo">{{ sdoOn ? t("Disable SDO") : t("Enable SDO") }}</button>
           <button v-if="!readonly" class="small" @click="addFrame(path)">+ {{ t("Frame") }}</button>
         </span>
       </h3>
@@ -907,7 +926,7 @@ async function setSelector(e: Event) {
           <tr v-for="f in childFrames" :key="f.name" class="clickable" @click="actions.select(f.path)">
             <td class="mono">{{ f.id }}</td><td>{{ f.label }}<span v-if="f.label !== f.name" class="ident">{{ f.name }}</span></td><td>{{ f.type }}</td>
             <td>{{ f.n }}</td><td>{{ f.desc }}</td>
-            <td v-if="!readonly" class="act"><button v-if="!f.foreign" class="icon danger" :title="t('Delete')" @click.stop="removeNode(f.path)">✕</button></td>
+            <td v-if="!readonly" class="act"><button v-if="!f.foreign && !isSdo(f.type)" class="icon danger" :title="t('Delete')" @click.stop="removeNode(f.path)">✕</button></td>
           </tr>
         </tbody>
       </table>
@@ -926,7 +945,7 @@ async function setSelector(e: Event) {
             <td v-if="!readonly" class="act">
               <button v-if="f.foreign" class="icon danger" :title="t('Stop receiving (remove from receivers)')"
                       @click.stop="stopReceiving(f.path, node.name)">✕</button>
-              <button v-else class="icon danger" :title="t('Delete')" @click.stop="removeNode(f.path)">✕</button>
+              <button v-else-if="!isSdo(f.type)" class="icon danger" :title="t('Delete')" @click.stop="removeNode(f.path)">✕</button>
             </td>
           </tr>
         </tbody>

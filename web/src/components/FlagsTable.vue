@@ -93,7 +93,10 @@ function remove(i: number) {
         <button class="small" :disabled="!picked.size" :title="t('One bit lower')" @click="shift(-1)">{{ t("bit −1") }}</button>
         <button class="small" :disabled="!picked.size" :title="t('One bit higher')" @click="shift(1)">{{ t("bit +1") }}</button>
       </span>
-      <button v-if="!readonly" class="small" @click="addFlag(path)">{{ t("+ Field") }}</button>
+      <span class="header-actions">
+        <slot name="actions" />
+        <button v-if="!readonly" class="small" @click="addFlag(path)">{{ t("+ Field") }}</button>
+      </span>
     </header>
     <table v-if="flags?.length">
       <thead><tr><th v-if="!readonly" class="pick"><input type="checkbox" :checked="allPicked" :aria-label="t('Tick all flags')"

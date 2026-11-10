@@ -302,6 +302,13 @@ table.list .act { width: 1%; text-align: right; white-space: nowrap; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line-strong); }
 
 .subtable header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.subtable .header-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.structure-import { position: relative; display: inline-flex; }
+.structure-import-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 180px; display: flex;
+  flex-direction: column; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: var(--shadow); }
+.structure-import-menu button { border: none; background: none; text-align: left; padding: 5px 10px; border-radius: 6px;
+  white-space: nowrap; }
 .subtable td input { width: 100%; border-color: transparent; background: transparent; }
 .subtable td input:hover { border-color: var(--line); }
 .subtable td input:focus { background: var(--panel); }
@@ -619,11 +626,25 @@ h2 .renamable.secondary { color: var(--muted); }
 .suggest-list button.current { background: var(--accent-soft); font-weight: 600; }
 
 /* Structures belong to a bus or device; the tree remains focused on traffic. */
-.structure-tabs { display: flex; align-items: center; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
-.structure-tabs .spacer { flex: 1; }
-.structure-tabs button.active { font-weight: 700; border-bottom: 3px solid var(--accent); }
-
-.structure-tab { display: inline-flex; align-items: center; gap: 2px; }
+/* Structure tabs of a bus or a device, drawn as Windows tabs: no outlines, the active tab is of the panel's color and
+   joins the card below it (the editor's gap is taken back, the tab covers the card's top border) */
+.structure-nav { position: relative; z-index: 1; margin-bottom: -12px; }
+.structure-tabs { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 2px; padding: 0 8px; }
+.structure-tabs .spacer { flex: 1; min-width: 12px; }
+.structure-tabs .tab { display: inline-flex; align-items: center; flex: none; border: 1px solid transparent; border-bottom: none;
+  border-radius: 8px 8px 0 0; margin-bottom: -1px; }
+.structure-tabs .tab:hover:not(.active) { background: var(--hover); }
+.structure-tabs .tab.active { background: var(--panel); border-color: var(--line); }
+.structure-tabs .tab button { border: none; background: none; border-radius: 6px; }
+.structure-tabs .tab-label { padding: 7px 14px; white-space: nowrap; }
+.structure-tabs .tab.active .tab-label { font-weight: 600; }
+.structure-tabs .tab-label:hover { background: none !important; }
+.structure-tabs .tab-close { padding: 0 6px; margin-right: 6px; line-height: 20px; color: var(--muted); }
+.structure-tabs .tab-close:hover:not(:disabled) { background: var(--line) !important; color: var(--fg); }
+.structure-tabs .tab-add { flex: none; align-self: center; border: none; background: none; border-radius: 6px;
+  padding: 2px 10px; margin-right: 4px; font-size: 16px; line-height: 22px; }
+.structure-tabs .tab-add.active { background: var(--hover); }
+.structure-nav .structure-add { margin: 10px 0 14px; }
 .structure-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .structure-add input { flex: 1; min-width: 110px; }
 .structure-values input:not([type="checkbox"]) { width: 100%; min-width: 140px; }

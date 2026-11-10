@@ -10,10 +10,13 @@ export interface ValueStructure {
   excluded?: number[];
 }
 
-// CiA 301 NMT error control states and generic EMCY classes/codes. Profile-specific codes are user additions.
-// Sources: can-cia.org/can-knowledge/error-control-protocols; can-cia.org/can-knowledge/special-function-protocols.
+// States of the device (device_state of its status byte, not the NMT states) and generic EMCY classes/codes of
+// CiA 301. Profile-specific codes are user additions.
+// Source of the codes: can-cia.org/can-knowledge/special-function-protocols.
 export const TEMPLATES: Record<string, ValueStructure> = {
-  states: { title: "States", kind: "enum", values: { 0: "BOOT_UP", 4: "STOPPED", 5: "OPERATIONAL", 127: "PRE_OPERATIONAL" } },
+  states: { title: "States", kind: "enum", values: {
+    0: "INIT", 1: "DISABLED", 2: "READY", 3: "STARTING", 4: "STANDBY", 5: "RUN", 6: "STOPPING", 7: "FAULT",
+  } },
   eec: { title: "EEC", kind: "enum", values: {
     0x0000: "ERROR_RESET", 0x1000: "GENERIC_ERROR", 0x2000: "CURRENT", 0x2100: "CURRENT_INPUT",
     0x2200: "CURRENT_INTERNAL", 0x2300: "CURRENT_OUTPUT", 0x3000: "VOLTAGE", 0x3100: "VOLTAGE_MAINS",

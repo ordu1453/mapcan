@@ -98,7 +98,10 @@ function remove(r: Row) {
   <section class="subtable">
     <header>
       <h4>{{ title ?? t("Values") }}</h4>
-      <button v-if="!readonly" class="small" @click="add">{{ t("+ Value") }}</button>
+      <span class="header-actions">
+        <slot name="actions" />
+        <button v-if="!readonly" class="small" @click="add">{{ t("+ Value") }}</button>
+      </span>
     </header>
     <table v-if="rows.length">
       <thead><tr><th class="num">{{ t("Value") }}</th><th>{{ t("Name") }}</th><th>{{ t("Description") }}</th><th v-if="!readonly"></th></tr></thead>

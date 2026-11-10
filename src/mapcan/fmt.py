@@ -31,7 +31,7 @@ ORDER: dict[str, tuple[str, ...]] = {
             "data_bitrate", "data_sample_point", "brs", "frames", "objects_enabled", "objects", "structures",
             "devices"),
     "device": ("name", "short", "title", "description", "node_id", "address", "objects_enabled", "objects",
-               "excluded_objects", "structures", "frames"),
+               "excluded_objects", "sdo_enabled", "structures", "frames"),
     "structure": ("title", "kind", "enabled", "values", "locked", "excluded"),
     "frame": ("name", "title", "description", "comment", "canopen", "id", "extended", "pgn", "priority",
               "destination", "length", "brs", "direction", "cycle_ms", "trigger", "inhibit_ms",

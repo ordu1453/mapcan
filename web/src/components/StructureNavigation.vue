@@ -3,10 +3,11 @@ import { computed, ref } from "vue";
 import { actions, store, viewData, toast } from "../store";
 import { getAt, isCanopen } from "../model";
 import { effectiveStructure, structureNames, TEMPLATES } from "../structures";
-import type { Path } from "../types";
+import { withSdo } from "../od";
+import type { Op, Path } from "../types";
 import { t } from "../i18n";
 
-const props = defineProps<{ owner: Path; active: string; management?: boolean }>();
+const props = defineProps<{ owner: Path; active: string }>();
 const emit = defineEmits<{ select: [name: string] }>();
 const adding = ref(false);
 const name = ref("");
@@ -29,7 +30,8 @@ function locked(n: string) {
 async function remove(n: string) {
   if (readonly.value || locked(n)) return;
   const path = n === "objects" ? [...props.owner, "objects_enabled"] : [...props.owner, "structures", n, "enabled"];
-  if (await actions.apply([{ op: "set", path, value: false }]) && props.active === n) emit("select", "");
+  const ops: Op[] = [{ op: "set", path, value: false }];
+  if (await actions.apply(n === "objects" ? withSdo(viewData.value, props.owner.slice(0, 2), ops) : ops) && props.active === n) emit("select", "");
 }
 async function add() {
   const n = name.value.trim();
@@ -40,28 +42,32 @@ async function add() {
   const value = { kind: TEMPLATES[n]?.kind ?? kind.value, values: {}, ...existing, enabled: true };
   const op = n === "objects" ? { op: "set" as const, path: [...props.owner, "objects_enabled"], value: true }
     : { op: "set" as const, path: [...props.owner, "structures", n], value };
-  if (await actions.apply([op])) { adding.value = false; name.value = ""; emit("select", n); }
+  if (await actions.apply(n === "objects" ? withSdo(viewData.value, props.owner.slice(0, 2), [op]) : [op])) { adding.value = false; name.value = ""; emit("select", n); }
 }
 </script>
 
 <template>
-  <nav class="structure-tabs" :aria-label="t('Structures')">
-    <template v-if="!management">
-      <button :class="{ active: !active }" @click="emit('select', '')">{{ t("Properties") }}</button>
+  <!-- Tabs as in Windows: Properties on the left, then "+" and the structures on the right; the active tab joins the card below -->
+  <div class="structure-nav">
+    <nav class="structure-tabs" role="tablist" :aria-label="t('Structures')">
+      <span class="tab" :class="{ active: !active }">
+        <button class="tab-label" role="tab" :aria-selected="!active" @click="emit('select', '')">{{ t("Properties") }}</button>
+      </span>
       <span class="spacer" />
-    </template>
-    <span class="muted">{{ t("Structures") }}</span>
-    <button v-if="!readonly" :aria-label="t('Add structure')" :title="t('Add structure')" @click="adding = !adding">+</button>
-    <span v-for="n in names" :key="n" class="structure-tab">
-      <button :class="{ active: active === n }" @click="emit('select', n)">{{ title(n) }}</button>
-      <button v-if="!readonly" class="icon" :disabled="locked(n)" :title="locked(n) ? t('Unlock the bus entries before removing this structure.') : t('Remove structure')"
-              :aria-label="t('Remove structure')" @click="remove(n)">×</button>
-    </span>
+      <button v-if="!readonly" class="tab-add" :class="{ active: adding }" :aria-label="t('Add structure')"
+              :title="t('Add structure')" @click="adding = !adding">+</button>
+      <span v-for="n in names" :key="n" class="tab" :class="{ active: active === n }">
+        <button class="tab-label" role="tab" :aria-selected="active === n" @click="emit('select', n)">{{ title(n) }}</button>
+        <button v-if="!readonly" class="tab-close" :disabled="locked(n)"
+                :title="locked(n) ? t('Unlock the bus entries before removing this structure.') : t('Remove structure')"
+                :aria-label="t('Remove structure')" @click.stop="remove(n)">×</button>
+      </span>
+    </nav>
     <form v-if="adding" class="structure-add" @submit.prevent="add">
       <input v-model="name" :aria-label="t('Identifier')" :placeholder="t('Identifier')" list="structure-presets" />
       <datalist id="structure-presets"><option v-for="n in (isCanopen(bus) ? ['states', 'eec', 'objects', 'warnings', 'fault', 'mode'] : [])" :key="n" :value="n" /></datalist>
       <select v-model="kind" :aria-label="t('Structure type')"><option value="enum">{{ t("Enumeration") }}</option><option value="bitmask">{{ t("Bit mask") }}</option></select>
       <button type="submit">{{ t("Add") }}</button>
     </form>
-  </nav>
+  </div>
 </template>
