@@ -860,10 +860,12 @@ def _check_signals(ctx: _Ctx, frame: Frame) -> None:
             ctx.emit("name-collision", _("signal {name!r} clashes with the physical value property of signal {other!r} "
                                          "in the Python module", name=s.name, other=phys[s.name]),
                      s._path + ("name",))
-        entries = [(s.name, s._path + ("name",), False)]
-        entries += [(f.name, f._path + ("name",), True) for f in s.flags or []]
-        for name, path, is_flag in entries:
-            _ident(ctx, name, _("flag name") if is_flag else _("signal name"), path, lint.signal_name)
+        entries = [(s.name, s._path + ("name",), False, lint.signal_name)]
+        # A flag of a bit mask structure is named as a value of the structure
+        entries += [(f.name, f._path + ("name",), True, lint.value_name if f._from_structure else lint.signal_name)
+                    for f in s.flags or []]
+        for name, path, is_flag, style in entries:
+            _ident(ctx, name, _("flag name") if is_flag else _("signal name"), path, style)
             if name in names:
                 other = _("flag") if names[name][1] else _("signal")
                 msg = (_("flag {name!r} already exists in frame {frame!r} ({other})") if is_flag

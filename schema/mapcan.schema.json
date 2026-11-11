@@ -289,6 +289,11 @@
           "title": "Excluded Objects",
           "type": "array"
         },
+        "sdo_enabled": {
+          "default": true,
+          "title": "Sdo Enabled",
+          "type": "boolean"
+        },
         "structures": {
           "additionalProperties": {
             "$ref": "#/$defs/Structure"

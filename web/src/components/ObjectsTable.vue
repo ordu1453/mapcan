@@ -23,6 +23,11 @@ const rows = computed<DictRow[]>(() =>
   (isCanopen(getAt(viewData.value, busPath.value))
     ? dictionary(viewData.value, busPath.value, isDevice.value ? props.owner : null, true) : []));
 const devices = computed(() => getAt(viewData.value, busPath.value)?.devices ?? []);
+/** On the bus's page each device has a column, as in the other structures: does it have the object. */
+const deviceColumns = computed<any[]>(() => (isDevice.value ? [] : devices.value));
+const DEVICE_COL_PX = 72;
+/** Columns after the object's name on the bus's page: Locked and one per device. */
+const extraColumns = computed(() => (isDevice.value ? 0 : 1 + deviceColumns.value.length));
 
 function excludedAt(owner: Path, index: number): boolean {
   return !dictionary(viewData.value, busPath.value, owner).some((r) => r.index === index);
@@ -206,13 +211,18 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
       {{ t("A click on an identifier opens the object, a double click renames it.") }}
     </p>
     <div class="od-scroll">
-      <table class="list od-table">
-        <colgroup><col class="od-c-twisty" /><col class="od-c-index" /><col /><col class="od-c-act" /></colgroup>
+      <table class="list od-table" :style="{ minWidth: `${420 + DEVICE_COL_PX * extraColumns}px` }">
+        <colgroup><col class="od-c-twisty" /><col class="od-c-index" /><col />
+          <col v-for="di in extraColumns" :key="di" :style="{ width: `${DEVICE_COL_PX}px` }" /><col class="od-c-act" /></colgroup>
+        <thead v-if="!isDevice"><tr>
+          <th></th><th>{{ t("Index") }}</th><th>{{ t("Object") }}</th><th class="od-dev">{{ t("Locked") }}</th>
+          <th v-for="(d, di) in deviceColumns" :key="di" class="od-dev" :title="deviceLabel(d, lang)">{{ deviceLabel(d, lang) }}</th><th></th>
+        </tr></thead>
         <tbody v-for="a in areas" :key="a.first">
           <!-- The heading of an area, as a section heading in code: it folds the area, its + adds an object -->
           <tr class="od-area" :aria-expanded="!folded.has(a.first)" @click="fold(a)">
             <td class="od-twisty">{{ folded.has(a.first) ? "▸" : "▾" }}</td>
-            <td :colspan="COLUMNS">
+            <td :colspan="COLUMNS + extraColumns">
               <span class="mono">{{ hex(a.first, 4) }}–{{ hex(a.last, 4) }}</span> {{ t(a.title) }}
             </td>
             <td class="act">
@@ -225,7 +235,7 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
             <template v-if="a.first === 0">
               <tr v-for="d in DATA_TYPES" :key="d[1]" :class="{ 'od-unused': !typesUsed.get(d[0]) }">
                 <td class="od-twisty"></td><td class="mono">{{ hex(d[1], 4) }}</td>
-                <td><span class="mono">{{ d[0].toUpperCase() }}</span>
+                <td :colspan="1 + extraColumns"><span class="mono">{{ d[0].toUpperCase() }}</span>
                   <span v-if="d[2]" class="muted od-badge">{{ t("{n} bits", { n: d[2] }) }}</span></td><td></td>
               </tr>
             </template>
@@ -234,14 +244,12 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
                 <!-- A standard object not in the map: its tick puts it there -->
                 <tr v-if="l.standard" class="od-standard">
                   <td class="od-twisty"></td><td class="mono">{{ hex(l.index, 4) }}<span v-if="kindOf(l.standard.make(lang)) === 'var'">:00</span></td>
-                  <td>{{ l.standard.make(lang).name }}
-                    <span v-if="!isDevice" class="object-devices">
-                      <label v-for="(d, di) in devices" :key="di">
-                        <input type="checkbox" :checked="!excludedAt([...busPath, 'devices', Number(di)], l.index)" :disabled="readonly"
-                               @change="includeDeviceStandard(Number(di), l.standard, ($event.target as HTMLInputElement).checked)" />
-                        {{ deviceLabel(d, lang) }}
-                      </label>
-                    </span>
+                  <td>{{ l.standard.make(lang).name }}</td>
+                  <td v-if="!isDevice"></td>
+                  <td v-for="(d, di) in deviceColumns" :key="di" class="od-dev">
+                    <input type="checkbox" :checked="!excludedAt([...busPath, 'devices', Number(di)], l.index)" :disabled="readonly"
+                           :aria-label="deviceLabel(d, lang)"
+                           @change="includeDeviceStandard(Number(di), l.standard!, ($event.target as HTMLInputElement).checked)" />
                   </td>
                   <td class="act"><input class="od-icon" type="checkbox" :checked="false" :disabled="readonly"
                                          :aria-label="t('Include {name} in the map', { name: l.standard.make(lang).name })"
@@ -264,19 +272,17 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
                       </select>
                       <span v-if="l.row.overrides" class="muted od-badge"
                             :title="t('Takes the place of the bus\'s object with this index')">{{ t("instead of the bus's") }}</span>
-                      <span v-if="!isDevice" class="object-devices">
-                        <label v-for="(d, di) in devices" :key="di">
-                          <input type="checkbox" :checked="!excludedAt([...busPath, 'devices', Number(di)], l.row.index)"
-                                 :disabled="readonly || l.row.obj.locked" @change="includeInherited([...busPath, 'devices', Number(di)], l.row.index, ($event.target as HTMLInputElement).checked)" />
-                          {{ deviceLabel(d, lang) }}
-                        </label>
-                      </span>
+                    </td>
+                    <td v-if="!isDevice" class="od-dev">
+                      <input type="checkbox" :checked="!!l.row.obj.locked" :disabled="readonly" :aria-label="t('Locked')"
+                             @change="edit([{ op: 'set', path: [...l.row!.path, 'locked'], value: ($event.target as HTMLInputElement).checked }])" />
+                    </td>
+                    <td v-for="(d, di) in deviceColumns" :key="di" class="od-dev">
+                      <input type="checkbox" :checked="!excludedAt([...busPath, 'devices', Number(di)], l.row.index)"
+                             :disabled="readonly || l.row.obj.locked" :aria-label="deviceLabel(d, lang)"
+                             @change="includeInherited([...busPath, 'devices', Number(di)], l.row!.index, ($event.target as HTMLInputElement).checked)" />
                     </td>
                     <td class="act">
-                      <label v-if="!isDevice" :title="t('Locked')">
-                        <input type="checkbox" :checked="!!l.row.obj.locked" :disabled="readonly" :aria-label="t('Locked')"
-                               @change="edit([{ op: 'set', path: [...l.row.path, 'locked'], value: ($event.target as HTMLInputElement).checked }])" />🔒
-                      </label>
                       <input v-if="l.row.inherited" type="checkbox" :checked="!l.row.excluded" :disabled="readonly || l.row.obj.locked"
                              :aria-label="t('Include {name} in the map', { name: l.row.obj.name })"
                              @change="includeInherited(props.owner, l.row.index, ($event.target as HTMLInputElement).checked)" />
@@ -300,7 +306,7 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
                         :title="messages(diagsAt([...l.row.path, 'entries', ei]))">
                       <td class="od-twisty"></td>
                       <td class="mono"><span class="muted">{{ indexText(l.row.index) }}</span>:{{ typeof e?.subindex === "number" ? hex(e.subindex, 2).slice(2) : "—" }}</td>
-                      <td>
+                      <td :colspan="1 + extraColumns">
                         <input v-if="renaming === pathKey([...l.row.path, 'entries', ei])" class="mono od-rename" :value="e?.name"
                                :aria-label="t('Identifier')" @change="rename([...l.row.path, 'entries', ei], $event)"
                                @blur="rename([...l.row.path, 'entries', ei], $event)" @keydown.esc.stop="renaming = null" />
@@ -318,7 +324,7 @@ const indexText = (i: unknown) => (typeof i === "number" ? hex(i, 4) : "—");
                   </template>
                 </template>
               </template>
-              <tr v-if="!lines(a).length"><td></td><td :colspan="COLUMNS + 1" class="muted">{{ t("No objects in this area.") }}</td></tr>
+              <tr v-if="!lines(a).length"><td></td><td :colspan="COLUMNS + 1 + extraColumns" class="muted">{{ t("No objects in this area.") }}</td></tr>
             </template>
           </template>
         </tbody>

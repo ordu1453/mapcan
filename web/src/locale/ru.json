@@ -1,4 +1,5 @@
 {
+  "Index": "Индекс",
   "Import from structure": "Импорт из структуры",
   "No structures: add one on the bus or the device": "Нет структур: добавьте структуру на шине или устройстве",
   "Values from structure “{name}”": "Значения из структуры «{name}»",
@@ -15,8 +16,6 @@
   "Enumeration": "Перечисление",
   "Bit mask": "Битовая маска",
   "Locked": "Заблокировано",
-  "Values from structure": "Значения из структуры",
-  "Local values": "Собственные значения",
   "Use an identifier: letters, digits and underscore.": "Используйте идентификатор: латинские буквы, цифры и подчёркивание.",
   "This structure already exists.": "Такая структура уже существует.",
   "Objects are available on CANopen buses.": "Словари объектов доступны на шинах CANopen.",

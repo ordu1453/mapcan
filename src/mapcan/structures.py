@@ -50,6 +50,8 @@ def resolve_structures(cmap: MapCan, src, report) -> None:
                     node.flags = [Flag(name=v if isinstance(v, str) else v.name, bit=k.bit_length() - 1,
                                        description=None if isinstance(v, str) else v.description)
                                   for k, v in sorted(values.items())]
+                    for flag in node.flags:
+                        flag._from_structure = True
                 else:
                     node.values = values
                     if hasattr(node, "encoding"):

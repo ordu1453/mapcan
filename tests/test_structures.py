@@ -4,7 +4,7 @@ from mapcan.loader import loads
 from mapcan.od import dictionary
 
 MAP = """mapcan: 2
-document: {title: Structures, version: 1.0.0}
+document: {title: Structures, version: 1.0.0, language: en}
 buses:
   - name: bus
     protocol: canopen

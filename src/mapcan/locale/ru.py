@@ -1,8 +1,10 @@
 """Russian translations of the interface messages (key: the English text in the code, see :mod:`mapcan.i18n`)."""
 
 RU: dict[str, str] = {
-    "Devices cannot exclude or override this bus object.": "Устройства не могут исключить или переопределить этот объект шины.",
-    "bitmask values must be positive powers of two": "значения битовой маски должны быть положительными степенями двойки",
+    "Devices cannot exclude or override this bus object.":
+        "Устройства не могут исключить или переопределить этот объект шины.",
+    "bitmask values must be positive powers of two":
+        "значения битовой маски должны быть положительными степенями двойки",
     "Structure {name!r} is not available for this device.": "Структура {name!r} недоступна этому устройству.",
     # ------------------------------------------------------------------ CLI
     "errors: {errors}, warnings: {warnings}, notes: {infos}":
@@ -578,7 +580,8 @@ RU: dict[str, str] = {
         "шина {name!r} уже описана: подключаемый файл может только добавить ей devices и frames, а не {key!r}",
     "value table {name!r} is not defined in value_tables": "таблица значений {name!r} не описана в value_tables",
     "Value table (value → name), a table name in value_tables, or structure:<name> for a bus/device structure.":
-        "Таблица значений (значение → имя), имя таблицы из value_tables или structure:<имя> для структуры шины/устройства.",
+        "Таблица значений (значение → имя), имя таблицы из value_tables или structure:<имя> "
+        "для структуры шины/устройства.",
     "Included files (paths relative to the map file): their buses, devices, frames and value_tables are added to the "
     "map.":
         "Подключаемые файлы (пути от файла карты): их шины, устройства, кадры и value_tables добавляются к карте.",

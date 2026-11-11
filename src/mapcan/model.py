@@ -306,6 +306,9 @@ class InvalidRaw(_Base):
 class Flag(_Base):
     """A flag inside a bit field. ``bit`` is the offset from the field's least significant bit."""
 
+    # Made from a bit mask structure: named as a value of the structure (UPPER_SNAKE), not as a signal
+    _from_structure: bool = PrivateAttr(default=False)
+
     name: str = Field(
         description=N_("Flag identifier: Latin letters, digits and _. Used in generated code and DBC. Required, "
                        "unique within the frame."))

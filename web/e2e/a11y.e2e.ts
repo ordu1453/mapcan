@@ -32,8 +32,9 @@ test.describe("a map", () => {
     await openEditor(page, editor);
     await check(page, "document");
     const tree = page.locator("aside");
-    // A click selects a frame, a second one opens it (#146)
-    for (const label of ["PMP · Pump", "pump_state", "pump_state", "pressure"]) await tree.getByText(label).first().click();
+    // A click selects a frame (#146); its objects are in the frame's table, not in the tree
+    for (const label of ["PMP · Pump", "pump_state"]) await tree.getByText(label).first().click();
+    await page.locator(".node-editor tr.clickable").filter({ hasText: "pressure" }).first().click();
     await expect(page.getByRole("heading", { name: "Object pressure" })).toBeVisible();
     await check(page, "signal");
     await page.getByRole("button", { name: "File ▾" }).click();
