@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.2
+## 0.9.0
 
 * Needs mapcan 0.26.0 or newer, which the extension offers to install or update: it knows the structures of a
   bus and a device (enumerations and bit masks with inheritance, exclusions and locks, `values: structure:<name>`)
