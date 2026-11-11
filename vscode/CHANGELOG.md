@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.2
+
+* Needs mapcan 0.26.0 or newer, which the extension offers to install or update: it knows the structures of a
+  bus and a device (enumerations and bit masks with inheritance, exclusions and locks, `values: structure:<name>`)
+  and `sdo_enabled` of a device.
+* The forms leave the new fields of structures, of the object dictionary (`objects_enabled`, `excluded_objects`,
+  `locked`) and `sdo_enabled` to the YAML.
+
 ## 0.8.1
 
 * Support the CANopen object dictionary fields in the shared forms: object data types, access,
