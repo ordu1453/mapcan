@@ -475,7 +475,7 @@ export const NOT_IN_FORM: Record<FormKind, Record<string, string>> = {
       .concat([["history", "revision history nodes of the tree"]])),
   revision: { changes: "list of changes (web: HistoryEditor.vue)" },
   bus: { structures: "Structures tabs", objects_enabled: "Structures tabs", frames: "child nodes of the tree", devices: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
-  device: { structures: "Structures tabs", objects_enabled: "Structures tabs", excluded_objects: "Objects tab", frames: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
+  device: { structures: "Structures tabs", objects_enabled: "Structures tabs", excluded_objects: "Objects tab", sdo_enabled: "Disable/Enable SDO button of the device (web: NodeEditor.vue)", frames: "child nodes of the tree", objects: "Objects page (web: ObjectsTable.vue)" },
   frame: {
     signals: "child nodes and the bit layout", sdo: "child nodes of the tree",
     direction: "deprecated: it follows from the CANopen function and the sender",
