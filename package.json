@@ -12,6 +12,6 @@
     "test": "npm run test -ws --if-present"
   },
   "devDependencies": {
-    "typescript": "~5.9.0"
+    "typescript": "~7.0.2"
   }
 }
