@@ -151,26 +151,69 @@ function variable(index: number, name: string, title: Titles, data_type: string,
   return { index, title: (lang) => pick(lang, title),
     make: (lang) => ({ index, name, title: pick(lang, title), data_type, access, ...extra }) };
 }
-function record(index: number, name: string, title: Titles, entries: [string, Titles, string, Data?][], extra: Data = {}): Standard {
+/** An entry of a record: identifier, titles, data type and other fields (access, unit, default; `subindex` in place of
+ * the next one). */
+type Entry = [name: string, title: Titles, data_type: string, more?: Data];
+const entriesOf = (lang: string, entries: Entry[]) =>
+  entries.map(([n, tt, dt, more], i) => ({ subindex: i + 1, name: n, title: pick(lang, tt), data_type: dt, ...more }));
+function record(index: number, name: string, title: Titles, entries: Entry[], extra: Data = {}): Standard {
   return {
     index, title: (lang) => pick(lang, title), make: (lang) => ({
-      index, name, title: pick(lang, title), ...extra,
-      entries: entries.map(([n, tt, dt, more], i) => ({ subindex: i + 1, name: n, title: pick(lang, tt), data_type: dt, ...more })),
+      index, name, title: pick(lang, title), ...extra, entries: entriesOf(lang, entries),
     }),
   };
 }
+/** An ARRAY of `count` entries of one data type: `item` names the entry `n` (from 1). */
+function array(index: number, name: string, title: Titles, data_type: string, access: string, count: number,
+  item: (n: number) => [string, Titles], extra: Data = {}): Standard {
+  const entries = Array.from({ length: count }, (_, i): Entry => [...item(i + 1), data_type, { access, ...extra }]);
+  return {
+    index, title: (lang) => pick(lang, title),
+    make: (lang) => ({ index, name, title: pick(lang, title), array: true, entries: entriesOf(lang, entries) }),
+  };
+}
 
-/** Objects of CiA 301 a master usually reads by SDO, and the version of the map a device was built from (an object of
- * the manufacturer area: its values come from the map). */
+/** Objects of CiA 301 (the communication profile, one index each) and the version of the map a device was built from
+ * (an object of the manufacturer area: its values come from the map). Objects of the ranges are in STANDARD_RANGES. */
 export const STANDARD: Standard[] = [
   variable(0x1000, "device_type", ["Device type", "Тип устройства"], "unsigned32", "ro"),
   variable(0x1001, "error_register", ["Error register", "Регистр ошибок"], "unsigned8", "ro"),
+  variable(0x1002, "manufacturer_status_register", ["Manufacturer status register", "Регистр состояния производителя"],
+    "unsigned32", "ro"),
+  array(0x1003, "pre_defined_error_field", ["Pre-defined error field", "Поле предопределённых ошибок"], "unsigned32",
+    "ro", 8, (n) => [`standard_error_${n}`, [`Standard error field ${n}`, `Ошибка ${n}`]]),
   variable(0x1005, "cob_id_sync", ["COB-ID SYNC", "COB-ID SYNC"], "unsigned32", "rw", { default: 0x80 }),
   variable(0x1006, "communication_cycle_period", ["Communication cycle period", "Период цикла связи"], "unsigned32",
+    "rw", { unit: "µs" }),
+  variable(0x1007, "synchronous_window_length", ["Synchronous window length", "Длина синхронного окна"], "unsigned32",
     "rw", { unit: "µs" }),
   variable(0x1008, "device_name", ["Manufacturer device name", "Название устройства"], "visible_string", "const"),
   variable(0x1009, "hardware_version", ["Manufacturer hardware version", "Версия аппаратуры"], "visible_string", "const"),
   variable(0x100a, "software_version", ["Manufacturer software version", "Версия ПО"], "visible_string", "const"),
+  variable(0x100c, "guard_time", ["Guard time", "Время охраны узла"], "unsigned16", "rw", { unit: "ms" }),
+  variable(0x100d, "life_time_factor", ["Life time factor", "Коэффициент времени жизни"], "unsigned8", "rw"),
+  record(0x1010, "store_parameters", ["Store parameters", "Сохранение параметров"], [
+    ["save_all", ["Save all parameters", "Сохранить все параметры"], "unsigned32", { access: "rw" }],
+    ["save_communication", ["Save communication parameters", "Сохранить параметры связи"], "unsigned32", { access: "rw" }],
+    ["save_application", ["Save application parameters", "Сохранить параметры приложения"], "unsigned32", { access: "rw" }],
+  ]),
+  record(0x1011, "restore_default_parameters", ["Restore default parameters", "Восстановление параметров по умолчанию"], [
+    ["restore_all", ["Restore all default parameters", "Восстановить все параметры"], "unsigned32", { access: "rw" }],
+    ["restore_communication", ["Restore communication default parameters", "Восстановить параметры связи"],
+      "unsigned32", { access: "rw" }],
+    ["restore_application", ["Restore application default parameters", "Восстановить параметры приложения"],
+      "unsigned32", { access: "rw" }],
+  ]),
+  variable(0x1012, "cob_id_time", ["COB-ID time stamp", "COB-ID метки времени"], "unsigned32", "rw", { default: 0x100 }),
+  variable(0x1013, "high_resolution_time_stamp", ["High resolution time stamp", "Метка времени высокого разрешения"],
+    "unsigned32", "rw", { unit: "µs" }),
+  variable(0x1014, "cob_id_emcy", ["COB-ID EMCY", "COB-ID EMCY"], "unsigned32", "rw",
+    { description: { en: "0x80 + node-ID by default", ru: "По умолчанию 0x80 + node-ID" } }),
+  variable(0x1015, "inhibit_time_emcy", ["Inhibit time EMCY", "Время запрета EMCY"], "unsigned16", "rw",
+    { unit: "100 µs" }),
+  array(0x1016, "consumer_heartbeat_time", ["Consumer heartbeat time", "Время контроля heartbeat"], "unsigned32", "rw",
+    4, (n) => [`consumer_heartbeat_time_${n}`, [`Consumer heartbeat time ${n}`, `Контроль heartbeat ${n}`]],
+    { description: { en: "Bits 16..23: node-ID, bits 0..15: time in ms", ru: "Биты 16..23: node-ID, биты 0..15: время в мс" } }),
   variable(0x1017, "producer_heartbeat_time", ["Producer heartbeat time", "Период heartbeat"], "unsigned16", "rw",
     { unit: "ms" }),
   record(0x1018, "identity", ["Identity object", "Идентификация"], [
@@ -179,15 +222,116 @@ export const STANDARD: Standard[] = [
     ["revision_number", ["Revision number", "Номер ревизии"], "unsigned32"],
     ["serial_number", ["Serial number", "Серийный номер"], "unsigned32"],
   ]),
-
+  variable(0x1019, "synchronous_counter_overflow_value", ["Synchronous counter overflow value",
+    "Значение переполнения счётчика SYNC"], "unsigned8", "rw"),
+  record(0x1020, "verify_configuration", ["Verify configuration", "Проверка конфигурации"], [
+    ["configuration_date", ["Configuration date", "Дата конфигурации"], "unsigned32", { access: "rw" }],
+    ["configuration_time", ["Configuration time", "Время конфигурации"], "unsigned32", { access: "rw" }],
+  ]),
+  variable(0x1021, "store_eds", ["Store EDS", "Хранимый EDS"], "domain", "ro"),
+  variable(0x1022, "store_format", ["Store format", "Формат хранения"], "unsigned8", "ro"),
+  record(0x1023, "os_command", ["OS command", "Команда ОС"], [
+    ["command", ["Command", "Команда"], "octet_string", { access: "rw" }],
+    ["status", ["Status", "Состояние"], "unsigned8"],
+    ["reply", ["Reply", "Ответ"], "octet_string"],
+  ]),
+  variable(0x1024, "os_command_mode", ["OS command mode", "Режим команд ОС"], "unsigned8", "wo"),
+  record(0x1025, "os_debugger_interface", ["OS debugger interface", "Интерфейс отладчика ОС"], [
+    ["command", ["Command", "Команда"], "octet_string", { access: "rw" }],
+    ["status", ["Status", "Состояние"], "unsigned8"],
+    ["reply", ["Reply", "Ответ"], "octet_string"],
+  ]),
+  record(0x1026, "os_prompt", ["OS prompt", "Консоль ОС"], [
+    ["stdin", ["StdIn", "Стандартный ввод"], "unsigned8", { access: "wo" }],
+    ["stdout", ["StdOut", "Стандартный вывод"], "unsigned8"],
+    ["stderr", ["StdErr", "Вывод ошибок"], "unsigned8"],
+  ]),
+  array(0x1027, "module_list", ["Module list", "Список модулей"], "unsigned16", "ro", 4,
+    (n) => [`module_${n}`, [`Module ${n}`, `Модуль ${n}`]]),
+  array(0x1028, "emergency_consumer", ["Emergency consumer object", "Получатель EMCY"], "unsigned32", "rw", 4,
+    (n) => [`emcy_consumer_${n}`, [`Emergency consumer ${n}`, `Получатель EMCY ${n}`]]),
+  record(0x1029, "error_behavior", ["Error behavior", "Реакция на ошибки"], [
+    ["communication_error", ["Communication error", "Ошибка связи"], "unsigned8", { access: "rw" }],
+  ]),
 ];
+
+/** A range of objects of one kind (the SDO and PDO parameters, CiA 301 7.5.2): the object at `index` is the
+ * (index − first + 1)-th. */
+export interface StandardRange {
+  first: number;
+  last: number;
+  make: (index: number) => Standard;
+}
+
+function range(first: number, last: number, name: string, title: Titles, entries: (n: number) => Entry[]): StandardRange {
+  return {
+    first, last, make: (index) => {
+      const n = index - first + 1;
+      const tt: Titles = [`${title[0]} ${n}`, `${title[1]} ${n}`];
+      return record(index, `${name}_${n}`, tt, entries(n));
+    },
+  };
+}
+
+const sdoParameter = (other: Titles): Entry[] => [
+  ["cob_id_client_to_server", ["COB-ID client → server", "COB-ID клиент → сервер"], "unsigned32", { access: "rw" }],
+  ["cob_id_server_to_client", ["COB-ID server → client", "COB-ID сервер → клиент"], "unsigned32", { access: "rw" }],
+  ["node_id", other, "unsigned8", { access: "rw" }],
+];
+const pdoCommunication = (tx: boolean): Entry[] => [
+  ["cob_id", ["COB-ID", "COB-ID"], "unsigned32", { access: "rw" }],
+  ["transmission_type", ["Transmission type", "Тип передачи"], "unsigned8", { access: "rw" }],
+  ["inhibit_time", ["Inhibit time", "Время запрета"], "unsigned16", { access: "rw", unit: "100 µs" }],
+  ["event_timer", tx ? ["Event timer", "Таймер события"] : ["Event timer (deadline)", "Таймер события (контроль)"],
+    "unsigned16", { access: "rw", unit: "ms", subindex: 5 }],
+  ...(tx ? [["sync_start_value", ["SYNC start value", "Начальное значение SYNC"], "unsigned8",
+    { access: "rw", subindex: 6 }] as Entry] : []),
+];
+const pdoMapping = (): Entry[] => Array.from({ length: 8 }, (_, i): Entry =>
+  [`mapped_object_${i + 1}`, [`Mapped object ${i + 1}`, `Отображаемый объект ${i + 1}`], "unsigned32", { access: "rw" }]);
+
+export const STANDARD_RANGES: StandardRange[] = [
+  range(0x1200, 0x127f, "sdo_server", ["SDO server parameter", "Параметры сервера SDO"],
+    () => sdoParameter(["Node-ID of the SDO client", "Node-ID клиента SDO"])),
+  range(0x1280, 0x12ff, "sdo_client", ["SDO client parameter", "Параметры клиента SDO"],
+    () => sdoParameter(["Node-ID of the SDO server", "Node-ID сервера SDO"])),
+  range(0x1400, 0x15ff, "rpdo_communication", ["RPDO communication parameter", "Параметры связи RPDO"],
+    () => pdoCommunication(false)),
+  range(0x1600, 0x17ff, "rpdo_mapping", ["RPDO mapping parameter", "Отображение RPDO"], pdoMapping),
+  range(0x1800, 0x19ff, "tpdo_communication", ["TPDO communication parameter", "Параметры связи TPDO"],
+    () => pdoCommunication(true)),
+  range(0x1a00, 0x1bff, "tpdo_mapping", ["TPDO mapping parameter", "Отображение TPDO"], pdoMapping),
+];
+
+/** The standard object at `index`: one of STANDARD or of a range. */
+export function standardAt(index: unknown): Standard | undefined {
+  if (typeof index !== "number") return undefined;
+  const r = STANDARD_RANGES.find((x) => index >= x.first && index <= x.last);
+  return r ? r.make(index) : STANDARD.find((s) => s.index === index);
+}
+
+/** Standard objects to offer next to those of `taken`: the objects of STANDARD not taken, and of each range the
+ * first index not taken. */
+export function standardOffers(taken: Set<number>): Standard[] {
+  const out = STANDARD.filter((s) => !taken.has(s.index));
+  for (const r of STANDARD_RANGES) {
+    for (let i = r.first; i <= r.last; i++) {
+      if (!taken.has(i)) {
+        out.push(r.make(i));
+        break;
+      }
+    }
+  }
+  return out;
+}
 
 /** Indices unavailable to a new object: standard entries and every dictionary it can overlap. */
 export function occupiedIndices(data: Data, ownerPath: Path): Set<number> {
   const bus = getAt(data, ownerPath.slice(0, 2));
   const owners = ownerPath.length === 4 ? [bus, getAt(data, ownerPath)]
     : [bus, ...(Array.isArray(bus?.devices) ? bus.devices : [])];
-  return new Set([...STANDARD.map((s) => s.index),
+  const ranges = STANDARD_RANGES.flatMap((r) => Array.from({ length: r.last - r.first + 1 }, (_, i) => r.first + i));
+  return new Set([...STANDARD.map((s) => s.index), ...ranges,
     ...owners.flatMap(objects).map((o) => o?.index).filter((i) => typeof i === "number")]);
 }
 

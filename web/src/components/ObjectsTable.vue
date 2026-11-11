@@ -4,7 +4,7 @@
 import { computed, nextTick, ref } from "vue";
 import { hex } from "../bits";
 import { deviceLabel, getAt, isCanopen, pathKey, startsWith, uniqueName } from "../model";
-import { AREAS, DATA_TYPES, DEVICE_AREA, dictionary, freeIndex, occupiedIndices, kindOf, objectTypeOps, STANDARD, withSdo, type Area, type DictRow,
+import { AREAS, DATA_TYPES, DEVICE_AREA, dictionary, freeIndex, occupiedIndices, kindOf, objectTypeOps, standardAt, standardOffers, withSdo, type Area, type DictRow,
   type Standard } from "../od";
 import { actions, lang, store, toast, viewData } from "../store";
 import type { Diagnostic, Op, Path } from "../types";
@@ -47,7 +47,7 @@ function lines(a: Area): Line[] {
   const out: Line[] = rows.value.filter((r) => inside(r.index)).map((r) => ({ index: r.index, row: r }));
   {
     const taken = new Set(out.map((l) => l.index));
-    out.push(...STANDARD.filter((s) => inside(s.index) && !taken.has(s.index)).map((s) => ({ index: s.index, standard: s })));
+    out.push(...standardOffers(taken).filter((s) => inside(s.index)).map((s) => ({ index: s.index, standard: s })));
     if (!isDevice.value) {
       const listed = new Set(out.map((line) => line.index));
       for (const device of devices.value) for (const object of device?.objects ?? []) {
@@ -63,7 +63,6 @@ function lines(a: Area): Line[] {
   if (a.first === DEVICE_AREA.first) out.push(...rows.value.filter((r) => typeof r.index !== "number").map((r) => ({ index: NaN, row: r })));
   return out;
 }
-const standardAt = (index: unknown) => STANDARD.find((s) => s.index === index);
 
 // Folded areas and opened arrays and records; the data types are folded at first
 const folded = ref(new Set<number>([0]));
